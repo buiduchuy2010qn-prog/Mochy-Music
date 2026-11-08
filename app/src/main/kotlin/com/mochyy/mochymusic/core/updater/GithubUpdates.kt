@@ -12,7 +12,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
-const val GithubOwner = "realidkroo"
+const val GithubOwner = "buiduchuy2010qn-prog"
 const val GithubRepo = "Mochy-Music"
 
 const val GithubProfileUrl = "https://github.com/$GithubOwner"
@@ -21,7 +21,7 @@ const val InstagramUrl = "https://www.instagram.com/furfurrfoxx/"
 // Threads names follow the Instagram one
 const val ThreadsUrl = "https://www.threads.net/@furfurrfoxx"
 // dev spaces hides the discord row while this is blank
-const val DiscordUrl = "https://discord.gg/NTmqVphbRY"
+const val DiscordUrl = ""
 
 const val OtaGithubOwner = "buiduchuy2010qn-prog"
 const val OtaGithubRepo = "Mochy-Music"
@@ -240,7 +240,7 @@ suspend fun downloadApk(
     onProgress: (Float) -> Unit,
 ): Result<File> = withContext(Dispatchers.IO) {
     runCatching {
-        val url = release.apkUrl ?: error("This release has no APK attached")
+        val url = release.apkUrl ?: error("Bản phát hành này chưa có tệp APK")
         val target = apkFileFor(context, release)
 
         if (isDownloaded(context, release)) {

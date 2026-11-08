@@ -42,18 +42,18 @@ fun DevPlaygroundScreen(navController: NavController) {
                 title = "Từ bản dựng này",
                 subtitle = "Từ khi bản dựng này được tạo cho đến hôm nay",
                 figures = listOf(
-                    stats?.newIssues to "new reported issues",
-                    stats?.newResolved to "new resolved issue",
-                    stats?.commits to "commits",
-                    stats?.releases to "releases",
+                    stats?.newIssues to "vấn đề mới báo cáo",
+                    stats?.newResolved to "đã giải quyết mới",
+                    stats?.commits to "lần cập nhật (commits)",
+                    stats?.releases to "bản phát hành",
                 ),
                 settled = settled,
             )
             RepoFiguresCard(
                 title = "Tổng cộng",
                 figures = listOf(
-                    stats?.reportedTotal to "reported issues",
-                    stats?.closedTotal to "resolved issue",
+                    stats?.reportedTotal to "vấn đề đã báo cáo",
+                    stats?.closedTotal to "đã giải quyết",
                 ),
                 settled = settled,
             )

@@ -148,7 +148,7 @@ private fun SelectTitle(count: Int, modifier: Modifier = Modifier) {
         modifier = modifier,
     ) { shown ->
         Text(
-            text = if (shown == 0) "Select" else "$shown selected",
+            text = if (shown == 0) "Chọn" else "Đã chọn $shown",
             style = PlaylistTitleStyle,
             color = Color.White,
             maxLines = 1,
@@ -179,7 +179,7 @@ private fun SelectAllPill(allSelected: Boolean, onClick: () -> Unit) {
             label = "selectAllLabel",
         ) { all ->
             Text(
-                text = if (all) "Deselect all" else "Select all",
+                text = if (all) "Bỏ chọn tất cả" else "Chọn tất cả",
                 style = PillLabelStyle.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
                 color = Color.White,
                 maxLines = 1,
@@ -273,7 +273,7 @@ private fun EditOrderPill(
                 )
             }
             Text(
-                text = "Edit order",
+                text = "Sửa thứ tự",
                 style = PillLabelStyle,
                 color = Color.White,
                 maxLines = 1,

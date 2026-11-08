@@ -93,14 +93,14 @@ fun PopupSheetState.showAddLocalMusicSheet(viewModel: LibraryImportViewModel, on
             val scan by viewModel.scan.collectAsState()
             val count = selection.keys.size
             SheetPillButton(
-                text = if (count == 0) "Done" else "Add ${songCount(count)}",
+                text = if (count == 0) "Xong" else "Thêm ${songCount(count)}",
                 onClick = {
                     val found = (scan as? DeviceScan.Found)?.songs.orEmpty()
                     val picked = found.filter { it.uri.toString() in selection.keys }
                     sheet?.dismiss()
                     if (picked.isEmpty()) return@SheetPillButton
                     if (!viewModel.importDeviceSongs(picked)) {
-                        TopToaster.show("An import is still running. Try again once it's done.", iconRes = R.drawable.library_music)
+                        TopToaster.show("Đang có tiến trình nhập nhạc chạy. Vui lòng thử lại khi hoàn tất.", iconRes = R.drawable.library_music)
                     }
                     onStarted()
                 },
@@ -121,7 +121,7 @@ fun PopupSheetState.showAddLocalMusicSheet(viewModel: LibraryImportViewModel, on
             title = "Thêm nhạc",
             songs = songs,
             selection = selection,
-            loadingText = "Looking for music on your phone…",
+            loadingText = "Đang quét nhạc trên điện thoại của bạn…",
             emptyText = "Mọi bài hát trên điện thoại đều đã có trong thư viện của bạn.",
         )
     }
@@ -161,7 +161,7 @@ private fun PopupSheetState.showRemoveSongsSheet(
         buttonBar = {
             val count = selection.keys.size
             SheetPillButton(
-                text = if (count == 0) "Pick songs to remove" else "Remove ${songCount(count)}",
+                text = if (count == 0) "Chọn bài hát để xóa" else "Xóa ${songCount(count)}",
                 enabled = count > 0,
                 onClick = {
                     onRemove(selection.keys)
@@ -213,7 +213,7 @@ private fun ColumnScope.SongPickerContent(
         if (!songs.isNullOrEmpty()) {
             val allTicked = selection.keys.size == songs.size
             Text(
-                text = if (allTicked) "Select none" else "Select all",
+                text = if (allTicked) "Bỏ chọn tất cả" else "Chọn tất cả",
                 color = SearchColors.Secondary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,

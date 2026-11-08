@@ -127,7 +127,7 @@ fun PopupSheetState.showManageDownloadsSheet(viewModel: StorageViewModel) {
                         }
                         val ids = chosen.map { it.song.id }
                         popup.showConfirm(
-                            title = if (ids.size == 1) "Remove this download?" else "Remove ${ids.size} downloads?",
+                            title = if (ids.size == 1) "Xóa bài hát đã tải này?" else "Xóa ${ids.size} bài hát đã tải?",
                             message = "They're deleted from this phone but stay in your library, and stream again " +
                                 "when you play them.",
                             action = "Remove",

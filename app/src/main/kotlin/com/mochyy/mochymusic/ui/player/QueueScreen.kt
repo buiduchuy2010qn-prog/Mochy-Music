@@ -379,7 +379,7 @@ fun QueueScreen(
                     )
 
                     QueueRow.Empty -> Text(
-                        text = "Nothing else queued",
+                        text = "Chưa có bài hát nào khác trong hàng chờ",
                         fontSize = 14.sp,
                         color = Color.White.copy(alpha = 0.45f),
                         modifier = Modifier
@@ -590,7 +590,7 @@ private fun QueueSectionHeader(
         }
         if (section == QueueSection.HISTORY) {
             Text(
-                text = "Clear",
+                text = "Xóa",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White.copy(alpha = 0.85f),

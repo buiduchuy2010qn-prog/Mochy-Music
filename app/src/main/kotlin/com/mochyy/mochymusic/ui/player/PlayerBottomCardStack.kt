@@ -574,7 +574,7 @@ private fun NextSongRow(
         Column(modifier = Modifier.weight(1f).fadingRightEdge()) {
 
             Text(
-                text = "Next Song",
+                text = "Bài tiếp theo",
                 style = MaterialTheme.typography.labelSmall.copy(lineHeight = 11.sp),
                 color = Color.White.copy(alpha = 0.5f),
             )

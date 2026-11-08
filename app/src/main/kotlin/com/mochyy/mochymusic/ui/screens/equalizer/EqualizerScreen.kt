@@ -146,7 +146,7 @@ fun EqualizerScreen(
     }
     deleting?.let { preset ->
         ActionPromptDialog(
-            title = "Delete “${preset.name}”?",
+            title = "Xóa cấu hình “${preset.name}”?",
             onDismiss = { deleting = null },
             onCancel = { deleting = null },
             onConfirm = {

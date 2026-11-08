@@ -103,7 +103,7 @@ private fun ColumnScope.TransferSheetContent(kind: TransferKind, batch: Transfer
     Spacer(Modifier.height(8.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = if (batch.isEmpty) "0" else "${batch.doneCount} of ${batch.items.size}",
+            text = if (batch.isEmpty) "0" else "${batch.doneCount} / ${batch.items.size}",
             color = SearchColors.Primary,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
@@ -150,7 +150,7 @@ private fun TransferRow(item: TransferItem) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            val subtitle = if (item.state == TransferState.Failed) "Couldn't add this one" else item.subtitle
+            val subtitle = if (item.state == TransferState.Failed) "Không thể thêm bài này" else item.subtitle
             if (subtitle != null) {
                 Text(
                     text = subtitle,
@@ -171,7 +171,7 @@ private fun TransferRow(item: TransferItem) {
 private fun CancelDownloadsButton(batchFlow: StateFlow<TransferBatch>, onCancel: () -> Unit) {
     val batch by batchFlow.collectAsState()
     SheetPillButton(
-        text = "Cancel all downloads",
+        text = "Hủy tất cả lượt tải",
         enabled = batch.isRunning,
         onClick = onCancel,
     )
@@ -191,7 +191,7 @@ private fun CreatePlaylistButton(
     val songIds = batch.finishedSongIds
 
     SheetPillButton(
-        text = "Create playlist",
+        text = "Tạo danh sách phát",
         enabled = !batch.isRunning && songIds.isNotEmpty(),
         onClick = { creating = true },
     )

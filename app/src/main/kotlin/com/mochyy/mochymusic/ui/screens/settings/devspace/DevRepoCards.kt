@@ -59,7 +59,7 @@ private val BugFill = Color(0xFF4A2424)
 private const val IssueRowsShown = 6
 
 private enum class IssueFilter(val label: String) {
-    All("All"), Bug("Bug"), Feature("Feature"), Other("Other");
+    All("Tất cả"), Bug("Lỗi"), Feature("Tính năng"), Other("Khác");
 
     fun matches(issue: DevIssue) = when (this) {
         All -> true
@@ -89,10 +89,10 @@ internal fun PlaygroundCard(stats: DevSpaceStats?, settled: Boolean, onClick: ()
     RepoFiguresCard(
         title = "Khu vực nhà phát triển",
         figures = listOf(
-            stats?.newIssues to "new reported issues",
-            stats?.newResolved to "new resolved issue",
-            stats?.commits to "commits",
-            stats?.releases to "releases",
+            stats?.newIssues to "vấn đề mới báo cáo",
+            stats?.newResolved to "đã giải quyết mới",
+            stats?.commits to "lần cập nhật",
+            stats?.releases to "bản phát hành",
         ),
         settled = settled,
         showChevron = true,
@@ -187,13 +187,13 @@ internal fun RepoIssuesSection(
             val shown = open.filter { filter.matches(it) }
             when {
                 stats == null && loading -> repeat(3) { SkeletonRow() }
-                stats == null -> RetryNote(error ?: "Couldn't reach GitHub", onRetry)
-                shown.isEmpty() -> Note(if (open.isEmpty()) "No open issues. Nice." else "No ${filter.label.lowercase()} issues open.")
+                stats == null -> RetryNote(error ?: "Không thể kết nối GitHub", onRetry)
+                shown.isEmpty() -> Note(if (open.isEmpty()) "Không có vấn đề nào đang mở." else "Không có mục ${filter.label.lowercase()} nào đang mở.")
                 else -> IssueList(shown, showAllOpen, context) { showAllOpen = true }
             }
             if (stats != null && error != null) {
                 Spacer(Modifier.height(10.dp))
-                RetryNote("$error. Showing the last numbers.", onRetry)
+                RetryNote("$error. Đang hiển thị số liệu gần nhất.", onRetry)
             }
         }
 
@@ -241,7 +241,7 @@ private fun IssueList(issues: List<DevIssue>, showAll: Boolean, context: Context
         visible.forEach { IssueRow(it) { context.openDevUrl(it.url) } }
         if (!showAll && issues.size > IssueRowsShown) {
             Text(
-                "Show all ${issues.size}",
+                "Xem tất cả ${issues.size}",
                 style = devText(13f, FontWeight.SemiBold, Color.White, -0.2f),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
@@ -317,7 +317,7 @@ private fun RetryNote(text: String, onRetry: () -> Unit) {
         Text(text, style = devText(13f, FontWeight.Medium, DevMuted, -0.2f), modifier = Modifier.weight(1f))
         Spacer(Modifier.width(10.dp))
         Text(
-            "Try again",
+            "Thử lại",
             style = devText(13f, FontWeight.SemiBold, Color.Black, -0.2f),
             modifier = Modifier
                 .clip(CircleShape)
@@ -331,10 +331,10 @@ private fun RetryNote(text: String, onRetry: () -> Unit) {
 private fun ago(at: Instant): String {
     val days = ChronoUnit.DAYS.between(at, Instant.now())
     return when {
-        days <= 0L -> "today"
-        days == 1L -> "yesterday"
-        days < 30L -> "${days}d ago"
-        days < 365L -> "${days / 30}mo ago"
-        else -> "${days / 365}y ago"
+        days <= 0L -> "hôm nay"
+        days == 1L -> "hôm qua"
+        days < 30L -> "${days} ngày trước"
+        days < 365L -> "${days / 30} tháng trước"
+        else -> "${days / 365} năm trước"
     }
 }

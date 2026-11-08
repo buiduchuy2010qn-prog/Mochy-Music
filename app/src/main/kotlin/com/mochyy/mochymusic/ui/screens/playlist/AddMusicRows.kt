@@ -106,7 +106,7 @@ internal fun PickRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = if (inPlaylist) "In this playlist · $artists" else artists,
+                text = if (inPlaylist) "Đã có trong danh sách · $artists" else artists,
                 color = Color.White.copy(alpha = 0.55f),
                 fontSize = 12.5.sp,
                 maxLines = 1,

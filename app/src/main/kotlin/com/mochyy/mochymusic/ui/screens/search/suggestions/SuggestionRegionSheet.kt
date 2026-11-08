@@ -52,7 +52,7 @@ fun SuggestionRegionSheet(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Choose Suggestions Region",
+                text = "Chọn khu vực gợi ý nhạc",
                 style = MaterialTheme.typography.labelLarge
             )
 
@@ -90,7 +90,7 @@ fun SuggestionRegionSheet(
 
                 item {
                     Text(
-                        text = "System",
+                        text = "Hệ thống",
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                     )
@@ -119,7 +119,7 @@ fun SuggestionRegionSheet(
 
                 item {
                     Text(
-                        text = "Countries & Regions",
+                        text = "Quốc gia & Khu vực",
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(
                             top = 14.dp,

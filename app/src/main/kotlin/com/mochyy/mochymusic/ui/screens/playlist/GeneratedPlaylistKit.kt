@@ -211,7 +211,7 @@ fun GeneratedGroupHeader(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun GeneratedNoResults(query: String, modifier: Modifier = Modifier) {
     Text(
-        text = "Nothing here matches \"$query\"",
+        text = "Không có kết quả nào khớp với \"$query\"",
         style = PlaylistStatsStyle.copy(fontSize = 13.sp),
         color = Color.White.copy(alpha = 0.6f),
         modifier = modifier.padding(horizontal = PlaylistInset, vertical = 24.dp),

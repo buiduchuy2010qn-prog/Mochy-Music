@@ -540,7 +540,7 @@ fun ProfileScreen(navController: NavController) {
                     ) {
                         // greeting (in the header; its scrolled-away twin lives in the top bar)
                         Text(
-                            text = "${MochyGreeting.current}, ${accountName.ifBlank { "there" }}!",
+                            text = "${MochyGreeting.current}, ${accountName.ifBlank { "bạn" }}!",
                             style = PageTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -731,9 +731,11 @@ fun ProfileScreen(navController: NavController) {
                             },
                         )
                         Spacer(Modifier.height(16.dp))
-                        DeveloperCard(onClick = { navController.navigate("developer_space") })
+                        ModderCard(
+                            onClick = { navController.navigate("developer_space?person=0") },
+                        )
                         Spacer(Modifier.height(16.dp))
-                        DiscordCard(onClick = { context.openDevUrl(DiscordUrl) })
+                        DeveloperCard(onClick = { navController.navigate("developer_space") })
                         Spacer(Modifier.height(28.dp))
                         Text("Cài đặt", style = PageTitle.copy(fontSize = 15.sp), modifier = Modifier.padding(start = 2.dp, bottom = 10.dp))
                         OpenSettingsRow(onClick = { navController.navigate("mochy_settings") })
@@ -794,7 +796,7 @@ fun ProfileScreen(navController: NavController) {
             )
             if (collapseProgress > 0.01f) {
                 Text(
-                    text = "${MochyGreeting.current}, ${accountName.ifBlank { "there" }}!",
+                    text = "${MochyGreeting.current}, ${accountName.ifBlank { "bạn" }}!",
                     style = PageTitle.copy(fontSize = 18.sp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1112,34 +1114,50 @@ private fun DeveloperCard(onClick: () -> Unit) {
 }
 
 @Composable
-private fun DiscordCard(onClick: () -> Unit) {
-    val face = 30.dp
+private fun ModderCard(onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(PageCard)
+            .background(Color(0xFF101915))
+            .border(1.2.dp, Color(0xFF2EE59D).copy(alpha = 0.45f), RoundedCornerShape(22.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
-        Image(
-            painter = painterResource(R.drawable.mochy_discord),
-            contentDescription = "Discord",
+        coil3.compose.AsyncImage(
+            model = "https://github.com/buiduchuy2010qn-prog.png?size=160",
+            contentDescription = "Đức Huy",
+            placeholder = painterResource(R.drawable.ic_mochy_mark),
+            error = painterResource(R.drawable.ic_mochy_mark),
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(face)
+                .size(42.dp)
                 .clip(CircleShape)
-                .background(Color.White),
+                .background(Color(0xFF1E2D24))
+                .border(1.5.dp, Color(0xFF2EE59D), CircleShape),
         )
-        Spacer(Modifier.width(12.dp))
-        Text(
-            "Tham gia máy chủ Discord của Mochy!",
-            style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = (-0.6).sp, color = Color.White),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "NGƯỜI CHỈNH SỬA & VIỆT HÓA",
+                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 10.5.sp, letterSpacing = 0.4.sp, color = Color(0xFF2EE59D)),
+                maxLines = 1,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "Đức Huy (@buiduchuy2010qn-prog)",
+                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.5.sp, letterSpacing = (-0.4).sp, color = Color.White),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "Bản Việt hóa 100% • Android, Windows, Linux (OTA)",
+                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Medium, fontSize = 12.sp, color = Color(0xFFB5C4BC)),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

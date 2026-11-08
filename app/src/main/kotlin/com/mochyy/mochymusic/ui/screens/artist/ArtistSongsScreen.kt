@@ -75,7 +75,7 @@ fun ArtistSongsScreen(
     val artistId = artist?.artist?.id
     val (cachedName, bannerUrl) = rememberArtistBanner(artistId)
     val name = artist?.artist?.name ?: cachedName.orEmpty()
-    val title = if (name.isNotBlank()) "$name in your library" else stringResource(R.string.songs)
+    val title = if (name.isNotBlank()) "$name trong thư viện của bạn" else stringResource(R.string.songs)
     val totalSeconds = remember(songs) { songs.sumOf { it.song.duration } }
     val isThisQueue = queueTitle == title
 

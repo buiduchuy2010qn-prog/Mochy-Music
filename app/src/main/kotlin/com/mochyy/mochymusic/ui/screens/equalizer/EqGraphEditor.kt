@@ -470,7 +470,7 @@ private fun NodeDetail(
         }
         Spacer(Modifier.height(18.dp))
         LabSlider(
-            label = "GAIN",
+            label = "ĐỘ KHUẾCH ĐẠI",
             valueText = gainLabel(node.gain),
             value = node.gain.toFloat(),
             onValueChange = { v -> onUpdate { it.copy(gain = snap(v.toDouble())) } },
@@ -478,7 +478,7 @@ private fun NodeDetail(
         )
         Spacer(Modifier.height(10.dp))
         LabSlider(
-            label = "FREQUENCY",
+            label = "TẦN SỐ",
             valueText = if (node.frequency >= 1000) String.format("%.2f kHz", node.frequency / 1000) else "${node.frequency.roundToInt()} Hz",
             value = log10(node.frequency).toFloat(),
             onValueChange = { v -> onUpdate { it.copy(frequency = 10.0.pow(v.toDouble()).roundToInt().toDouble()) } },
@@ -503,7 +503,7 @@ private fun NodeDetail(
                     .clickable(onClick = onRemove),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Remove node", fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                Text("Xóa điểm tần số", fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                     color = Color(0xFFFF8A80))
             }
         }

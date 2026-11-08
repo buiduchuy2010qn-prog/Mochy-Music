@@ -81,7 +81,7 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(22.dp))
             Text(
-                text = "Playback speed and tempo",
+                text = "Tốc độ phát & cao độ",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -120,7 +120,7 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
                     .padding(vertical = 14.dp)
             ) {
                 Text(
-                    text = "RESET TO NORMAL",
+                    text = "ĐẶT LẠI MẶC ĐỊNH",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,

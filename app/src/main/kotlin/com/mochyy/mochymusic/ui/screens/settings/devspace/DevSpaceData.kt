@@ -77,10 +77,10 @@ object DevSpaceRepository {
             fun <T> guarded(block: () -> T): T? = try {
                 block()
             } catch (e: RateLimited) {
-                failure = "GitHub's rate limit is reached, try again in a few minutes"
+                failure = "Đã chạm giới hạn truy cập GitHub, vui lòng thử lại sau ít phút"
                 null
             } catch (e: Exception) {
-                failure = failure ?: "Couldn't reach GitHub"
+                failure = failure ?: "Không thể kết nối GitHub"
                 null
             }
 

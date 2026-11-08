@@ -235,7 +235,7 @@ fun PlaylistMenu(
     SheetHeader(
         thumbnailUrl = playlist.thumbnails.firstOrNull(),
         title = playlist.playlist.name,
-        subtitle = if (playlist.songCount == 1) "1 song" else "${playlist.songCount} songs",
+        subtitle = "${playlist.songCount} bài hát",
         trailing = if (playlist.playlist.isEditable != true) {
             {
                 SheetHeaderButton(
@@ -423,7 +423,7 @@ fun PlaylistMenu(
                         Material3MenuItemData(
                             title = {
                                 Text(
-                                    text = if (isPinned) "Unpin from library" else "Pin to library"
+                                    text = if (isPinned) "Bỏ ghim khỏi thư viện" else "Ghim vào thư viện"
                                 )
                             },
                             icon = {

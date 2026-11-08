@@ -93,7 +93,7 @@ fun ForceProviderSheet(currentProviderId: String?, onDismiss: () -> Unit) {
                 InfoSheetTitle("Play from")
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "The song stops while it's fetched from the one you pick.",
+                    text = "Bài hát sẽ tạm dừng trong lúc tải lại từ nguồn bạn chọn.",
                     color = InfoMuted,
                     fontSize = 13.sp,
                 )
@@ -199,7 +199,7 @@ private fun ProviderChoiceRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = name, color = Color.White, fontSize = 15.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    text = if (isCurrent) "Playing from here now" else "Tap to play from here",
+                    text = if (isCurrent) "Đang phát từ nguồn này" else "Chạm để phát từ nguồn này",
                     color = InfoMuted,
                     fontSize = 12.sp,
                 )

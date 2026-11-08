@@ -165,7 +165,7 @@ fun LocalPlaylistMenu(
                 ),
                 if (playlist.playlist.isEditable) {
                     Material3MenuItemData(
-                        title = { Text(if (locked) "Edit order" else "Lock order") },
+                        title = { Text(if (locked) "Sửa thứ tự" else "Khóa thứ tự") },
                         icon = {
                             Icon(
                                 painter = painterResource(if (locked) R.drawable.lock_open else R.drawable.lock),

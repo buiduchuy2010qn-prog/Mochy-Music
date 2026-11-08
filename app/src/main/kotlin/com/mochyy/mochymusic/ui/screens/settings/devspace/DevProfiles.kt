@@ -63,6 +63,7 @@ internal data class DevPerson(
     val name: String,
     val bio: String,
     @DrawableRes val avatar: Int,
+    val avatarUrl: String? = null,
     /** the main dev takes donations, the donate section only shows for them */
     val takesDonations: Boolean = false,
     val socials: List<DevSocial> = emptyList(),
@@ -70,19 +71,29 @@ internal data class DevPerson(
 
 internal val DevPeople = listOf(
     DevPerson(
-        name = "idkroo",
-        bio = "ui ux guy here uhh idk what to write here, pls star the repo",
+        name = "Đức Huy",
+        bio = "Người chỉnh sửa, Việt hóa toàn diện 100% & phát triển bản đa nền tảng (Android, Windows, Linux) có hỗ trợ cập nhật tự động OTA.",
+        avatar = R.drawable.ic_mochy_mark,
+        avatarUrl = "https://github.com/buiduchuy2010qn-prog.png?size=240",
+        socials = listOf(
+            DevSocial("Kho mã nguồn chính thức (GitHub)", "https://github.com/buiduchuy2010qn-prog/Mochy-Music"),
+            DevSocial("Tải bản phát hành mới nhất (Releases)", "https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases"),
+            DevSocial("Trang cá nhân GitHub (@buiduchuy2010qn-prog)", "https://github.com/buiduchuy2010qn-prog"),
+        ),
+    ),
+    DevPerson(
+        name = "idkroo (Tác giả gốc)",
+        bio = "Nhà phát triển chính của dự án Mochy Music gốc — Thiết kế giao diện UI/UX & kiến trúc hệ thống.",
         avatar = R.drawable.frame_51_3,
         takesDonations = true,
         socials = listOf(
             DevSocial("Instagram", InstagramUrl),
-            DevSocial("Discord", DiscordUrl),
             DevSocial("Threads", ThreadsUrl),
         ).filter { it.url.isNotBlank() },
     ),
     DevPerson(
-        name = "Keycii",
-        bio = "Hi hello hi",
+        name = "Keycii (Đồng tác giả)",
+        bio = "Đồng phát triển giao diện & tính năng gốc của Mochy Music.",
         avatar = R.drawable.dev_keycii,
     ),
 )
@@ -90,12 +101,23 @@ internal val DevPeople = listOf(
 /** someone's picture, round, on the mock's light grey */
 @Composable
 internal fun DevAvatar(person: DevPerson, modifier: Modifier = Modifier) {
-    Image(
-        painter = painterResource(person.avatar),
-        contentDescription = person.name,
-        contentScale = ContentScale.Crop,
-        modifier = modifier.clip(CircleShape).background(Color(0xFFD9D9D9)),
-    )
+    if (person.avatarUrl != null) {
+        AsyncImage(
+            model = person.avatarUrl,
+            contentDescription = person.name,
+            placeholder = painterResource(person.avatar),
+            error = painterResource(person.avatar),
+            contentScale = ContentScale.Crop,
+            modifier = modifier.clip(CircleShape).background(Color(0xFFD9D9D9)),
+        )
+    } else {
+        Image(
+            painter = painterResource(person.avatar),
+            contentDescription = person.name,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.clip(CircleShape).background(Color(0xFFD9D9D9)),
+        )
+    }
 }
 
 private val AvatarSize = 84.dp
@@ -144,13 +166,13 @@ internal fun DevProfilePage(
                 Column(Modifier.rise(2).padding(top = 22.dp)) {
                     if (person.takesDonations) {
                         val popup = LocalZoomOutOverlayState.current
-                        SectionTitle("Donate")
-                        DevLinkRow("Donate me!") { popup.showDonateSheet() }
+                        SectionTitle("Ủng hộ tác giả gốc")
+                        DevLinkRow("Ủng hộ tác giả gốc (@realidkroo)!") { popup.showDonateSheet() }
                         Spacer(Modifier.height(14.dp))
                     }
                     if (person.socials.isNotEmpty()) {
                         val context = LocalContext.current
-                        SectionTitle("Socials")
+                        SectionTitle("Liên kết & Kho mã nguồn")
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             person.socials.forEach { social ->
                                 DevLinkRow(social.label) { context.openDevUrl(social.url) }
@@ -175,9 +197,9 @@ internal fun DevProfilePage(
 private fun ProfileHeader(person: DevPerson, scrollState: ScrollState, bannerHeight: Dp) {
     val context = LocalContext.current
     // blurred once, small and off the main thread, so it costs the same on every phone
-    val banner = remember(person.avatar) {
+    val banner = remember(person.avatarUrl, person.avatar) {
         ImageRequest.Builder(context)
-            .data(person.avatar)
+            .data(person.avatarUrl ?: person.avatar)
             .size(192)
             .transformations(SoftBlurTransformation())
             .build()

@@ -86,7 +86,7 @@ fun SleepTimerSheet(onDismiss: () -> Unit) {
                 .animateContentSize(animationSpec = tween(420, easing = SheetEasing))
         ) {
             Text(
-                text = "Sleep timer",
+                text = "Hẹn giờ tắt nhạc",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -168,7 +168,7 @@ fun SleepTimerSheet(onDismiss: () -> Unit) {
                 SheetIcon(R.drawable.music_note)
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "end after this music ends",
+                    text = "tắt sau khi hết bài hát đang phát",
                     color = Color.White,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,

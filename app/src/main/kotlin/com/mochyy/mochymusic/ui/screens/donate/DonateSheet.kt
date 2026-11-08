@@ -58,7 +58,7 @@ fun PopupSheetState.showDonateSheet() {
     val popup = this
     show(
         fullBleed = true,
-        buttonBar = { DonatePillButton(text = "what no i dont want to", onClick = popup::dismiss, quiet = true) },
+        buttonBar = { DonatePillButton(text = "Thôi, để lúc khác", onClick = popup::dismiss, quiet = true) },
     ) {
         DonateSheetContent()
     }
@@ -97,7 +97,7 @@ private fun DonateSheetContent() {
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Text(
-                text = "Arigatou! :3",
+                text = "Cảm ơn bạn! :3",
                 fontSize = 36.sp,
                 lineHeight = 40.sp,
                 fontWeight = FontWeight.Bold,
@@ -106,7 +106,7 @@ private fun DonateSheetContent() {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Here’s a way to support and donate to us!",
+                text = "Cách ủng hộ và tiếp sức cho tác giả gốc của dự án!",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.3).sp,
@@ -139,7 +139,7 @@ private fun DonateSheetContent() {
 
             Spacer(Modifier.height(22.dp))
             Text(
-                text = "your donation, no matter how small it is, will always be very very useful for us :3",
+                text = "Mọi sự đóng góp dù nhỏ nhất đều vô cùng ý nghĩa với nhóm tác giả gốc :3",
                 fontSize = 14.sp,
                 lineHeight = 19.sp,
                 fontWeight = FontWeight.Bold,

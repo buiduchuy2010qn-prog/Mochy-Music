@@ -357,7 +357,7 @@ private fun Database(viewModel: AudioLabViewModel, selectedPath: String?, loadin
                 }
                 is AutoEqIndex.Ready -> {
                     if (results.isEmpty()) {
-                        Text("No headphones match “$query”", fontFamily = InterFontFamily, fontSize = 14.sp,
+                        Text("Không có mẫu tai nghe nào khớp với “$query”", fontFamily = InterFontFamily, fontSize = 14.sp,
                             color = LabColors.Secondary, modifier = Modifier.align(Alignment.Center))
                     }
                     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(end = 22.dp)) {

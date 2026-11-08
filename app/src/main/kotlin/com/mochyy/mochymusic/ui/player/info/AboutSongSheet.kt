@@ -231,7 +231,7 @@ private fun AboutCard(about: SongAbout, source: AboutSource, onSwitch: (AboutSou
                             val other = AboutSource.entries.firstOrNull { it != shownSource && textFor(about, it) != null }
                             if (other != null) {
                                 Spacer(Modifier.height(12.dp))
-                                InfoPill(text = "Read it on ${other.label}", filled = true, onClick = { onSwitch(other) })
+                                InfoPill(text = "Đọc trên ${other.label}", filled = true, onClick = { onSwitch(other) })
                             }
                         }
                     }

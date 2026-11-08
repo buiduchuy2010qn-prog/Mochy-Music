@@ -28,7 +28,7 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 36
         val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-        val versionStep = (ciRunNumber - 3).coerceAtLeast(0)
+        val versionStep = (ciRunNumber - 8).coerceAtLeast(0)
         val tenths = 83 + versionStep
         val fallbackSemver = if (versionStep == 0) "8.3.2" else "${tenths / 10}.${tenths % 10}.0"
         val computedSemver = System.getenv("MOCHY_APP_VERSION")?.takeIf { it.isNotBlank() } ?: fallbackSemver

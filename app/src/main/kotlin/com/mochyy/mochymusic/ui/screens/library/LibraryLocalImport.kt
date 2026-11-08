@@ -92,7 +92,7 @@ fun rememberLocalImportActions(viewModel: LibraryImportViewModel): LocalImportAc
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         if (!viewModel.importPicked(uris)) {
-            TopToaster.show("An import is still running. Try again once it's done.", iconRes = R.drawable.library_music)
+            TopToaster.show("Đang có tiến trình nhập nhạc chạy. Vui lòng thử lại khi hoàn tất.", iconRes = R.drawable.library_music)
         }
         showProgress()
     }
@@ -104,7 +104,7 @@ fun rememberLocalImportActions(viewModel: LibraryImportViewModel): LocalImportAc
         } else {
             // a second "no" stops Android asking at all, so point to where it can still be turned on
             TopToaster.show(
-                text = "Mochy can't see your music without access",
+                text = "Mochy cần quyền truy cập bộ nhớ để đọc nhạc trên máy",
                 iconRes = R.drawable.storage,
                 actionLabel = "Cài đặt",
                 onAction = {
@@ -131,7 +131,7 @@ fun rememberLocalImportActions(viewModel: LibraryImportViewModel): LocalImportAc
                 started -> showProgress()
                 actions.hasStorageAccess -> openAddMusic()
                 !viewModel.hasFolders() -> permission.launch(DeviceMusicScanner.permission)
-                else -> TopToaster.show("No new songs in your music folders", iconRes = R.drawable.library_music)
+                else -> TopToaster.show("Không có bài hát mới nào trong thư mục nhạc", iconRes = R.drawable.library_music)
             }
         }
         Unit

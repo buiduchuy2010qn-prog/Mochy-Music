@@ -31,7 +31,7 @@ fun LibraryRecentlyAddedScreen(
     val viewModel: LibraryHomeViewModel = hiltViewModel()
     // with the lifecycle: the Cached shelf looks at the cache every couple of seconds while watched
     val songs by (shelf?.let(viewModel::shelf)?.songs ?: viewModel.songs).collectAsStateWithLifecycle()
-    val queueTitle = shelf?.label ?: "Recently added"
+    val queueTitle = shelf?.label ?: "Đã thêm gần đây"
     val playerConnection = LocalPlayerConnection.current ?: return
 
     val entries = remember(songs) {

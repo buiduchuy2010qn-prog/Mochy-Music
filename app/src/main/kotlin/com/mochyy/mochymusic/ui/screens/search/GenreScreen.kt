@@ -167,7 +167,7 @@ fun GenreScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = "Nothing here yet",
+                                    text = "Chưa có nội dung nào tại đây",
                                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                                     color = SearchColors.Secondary,
                                 )
@@ -178,7 +178,7 @@ fun GenreScreen(
                         item(key = "section_${index}_${section.title}") {
                             if (index == 0) Spacer(modifier = Modifier.height(10.dp))
                             SearchSectionHeader(
-                                title = section.title ?: "Featured",
+                                title = section.title ?: "Nổi bật",
                                 ruleAbove = false,
                                 ruleBelow = false,
                                 large = false,

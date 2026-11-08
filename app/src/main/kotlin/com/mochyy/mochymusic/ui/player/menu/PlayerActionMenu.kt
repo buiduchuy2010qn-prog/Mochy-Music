@@ -263,26 +263,17 @@ fun PlayerActionMenu(
                     )
                     SheetActionCard(
                         icon = R.drawable.playlist_add,
-                        title = "Thêm vào DS phát",
+                        title = "Thêm vào DS",
                         enabled = currentMetadata != null,
                         onClick = { showChoosePlaylistDialog = true },
                         modifier = Modifier.weight(1f),
                     )
+                }
+                Spacer(Modifier.height(10.dp))
+                SheetActionCardRow {
                     SheetActionCard(
                         icon = R.drawable.share,
-                        title = "Chia sẻ",
-                        enabled = currentMetadata != null,
-                        onClick = {
-                            currentMetadata?.let { metadata ->
-                                onDismiss()
-                                com.mochyy.mochymusic.ui.player.share.song.SongShare.open(metadata)
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                    SheetActionCard(
-                        icon = R.drawable.share,
-                        title = "Chia sẻ",
+                        title = "Chia sẻ nhạc",
                         enabled = currentMetadata != null,
                         onClick = {
                             currentMetadata?.let { metadata ->

@@ -324,7 +324,7 @@ internal fun MiniLyricsTicker(
                     TickerSlot.LOADING -> LyricsLoadingDots(alignStart = true)
 
                     else -> Text(
-                        text = "No lyrics for this song",
+                        text = "Chưa có lời cho bài hát này",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White.copy(alpha = 0.55f),

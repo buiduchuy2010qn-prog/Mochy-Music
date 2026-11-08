@@ -120,7 +120,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Edit lyrics",
+                    text = "Chỉnh sửa lời bài hát",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
@@ -128,7 +128,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
                 )
                 if (parsed.isNotEmpty()) {
                     Text(
-                        text = "Save",
+                        text = "Lưu",
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -154,7 +154,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
 
             if (parsed.isEmpty()) {
                 Text(
-                    text = "No lyrics to edit for this song.",
+                    text = "Bài hát này chưa có lời để chỉnh sửa.",
                     color = Color(0xFF9A9A9A),
                     fontSize = 13.sp,
                     modifier = Modifier.padding(vertical = 24.dp),
@@ -274,7 +274,7 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
                 .padding(top = 16.dp, bottom = 24.dp)
         ) {
             Text(
-                text = "Lyrics Provider",
+                text = "Nguồn lời bài hát",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -421,7 +421,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
         ) {
             Text(text = "Dịch lời bài hát", color = Color(0xFF9A9A9A), fontSize = 12.sp)
             Text(
-                text = "Translate from",
+                text = "Dịch từ",
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
@@ -443,7 +443,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             Text(text = "Sang", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             PillButton(
-                label = TranslationTargets.firstOrNull { it.first == target }?.second ?: "unselected",
+                label = TranslationTargets.firstOrNull { it.first == target }?.second ?: "chưa chọn",
                 onClick = { picking = true },
                 trailing = if (target in youtubeLanguages) ({ YouTubeTick() }) else null,
             )
@@ -473,7 +473,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
                 SheetIcon(R.drawable.translate)
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Translate this whole session",
+                    text = "Dịch trong suốt phiên nghe này",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -534,7 +534,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             (status as? LyricsTranslationHelper.TranslationStatus.Error)?.let { error ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Couldn't translate: ${error.message}",
+                    text = "Không thể dịch: ${error.message}",
                     color = Color(0xFFFF8A8A),
                     fontSize = 12.sp,
                 )

@@ -76,7 +76,7 @@ private fun ColumnScope.ChooseVersionContent(match: TrackMatch, onDone: () -> Un
     val sourceSeconds = match.durationMs?.takeIf { it > 0 }?.div(1000.0)
 
     Text(
-        text = "Choose a version",
+        text = "Chọn phiên bản bài hát",
         color = SearchColors.Primary,
         fontSize = 26.sp,
         fontWeight = FontWeight.Bold,
@@ -125,7 +125,7 @@ private fun ColumnScope.ChooseVersionContent(match: TrackMatch, onDone: () -> Un
                 ImportedVersions.scope.launch {
                     ImportedVersions.choose(context.applicationContext, database, match, song)
                     TopToaster.show(
-                        text = "Switched to ${song.title}. Future imports will use this version too.",
+                        text = "Đã chuyển sang ${song.title}. Các lần nhập sau cũng sẽ dùng phiên bản này.",
                         thumbnail = song.thumbnail,
                         iconRes = R.drawable.sync,
                     )
@@ -179,7 +179,7 @@ private fun VersionRow(song: SongItem, sourceSeconds: Double?, isCurrent: Boolea
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = if (isCurrent) "In your library" else lengthHint(song.duration, sourceSeconds).orEmpty(),
+                text = if (isCurrent) "Trong thư viện của bạn" else lengthHint(song.duration, sourceSeconds).orEmpty(),
                 color = SearchColors.Secondary,
                 fontSize = 12.sp,
             )

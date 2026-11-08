@@ -100,15 +100,21 @@ private data class ContributorEntry(
 
 private val LeadDevs = listOf(
     LeadDevEntry(
-        name = "Roo",
-        githubUser = "realidkroo",
+        name = "Đức Huy (Người chỉnh sửa & Việt hóa)",
+        githubUser = "buiduchuy2010qn-prog",
         devSpaceIndex = 0,
+        fallbackAvatar = R.drawable.ic_mochy_mark,
+    ),
+    LeadDevEntry(
+        name = "Roo (Tác giả gốc)",
+        githubUser = "realidkroo",
+        devSpaceIndex = 1,
         fallbackAvatar = R.drawable.frame_51_3,
     ),
     LeadDevEntry(
-        name = "key",
+        name = "key (Đồng tác giả)",
         githubUser = "realkeichi",
-        devSpaceIndex = 1,
+        devSpaceIndex = 2,
         fallbackAvatar = R.drawable.dev_keycii,
     ),
 )
@@ -116,13 +122,13 @@ private val LeadDevs = listOf(
 private val BaseCredits = listOf(
     CreditEntry(
         name = "vivizzz007",
-        subtitle = "Vivimusic dev, The base of this app",
+        subtitle = "Nhà phát triển ViviMusic — Nền tảng của ứng dụng này",
         githubUser = "vivizzz007",
         url = "https://github.com/vivizzz007/vivi-music",
     ),
     CreditEntry(
         name = "Mostafa Alagamy",
-        subtitle = "Metrolist dev, The base of vivmusic too",
+        subtitle = "Nhà phát triển Metrolist — Nền tảng gốc của ViviMusic",
         githubUser = "mostafaalagamy",
         url = "https://github.com/mostafaalagamy/Metrolist",
     ),
@@ -131,49 +137,49 @@ private val BaseCredits = listOf(
 private val MoreCredits = listOf(
     CreditEntry(
         name = "maxrave-dev",
-        subtitle = "SimpMusic · lyrics API provider",
+        subtitle = "SimpMusic · Tích hợp nguồn lời bài hát",
         githubUser = "maxrave-dev",
         url = "https://github.com/maxrave-dev/SimpMusic",
     ),
     CreditEntry(
         name = "Rukamori",
-        subtitle = "ArchiveTune · design & architecture inspiration",
+        subtitle = "ArchiveTune · Cảm hứng thiết kế & kiến trúc",
         githubUser = "rukamori",
         url = "https://github.com/rukamori/ArchiveTune",
     ),
     CreditEntry(
         name = "fast4x",
-        subtitle = "RiMusic · YouTube Music InnerTube service wrapper",
+        subtitle = "RiMusic · Bộ bọc dịch vụ YouTube Music InnerTube",
         githubUser = "fast4x",
         url = "https://github.com/fast4x/RiMusic",
     ),
     CreditEntry(
         name = "tranxuanthang",
-        subtitle = "LRCLIB · synchronized LRC lyrics provider",
+        subtitle = "LRCLIB · Cơ sở dữ liệu lời bài hát đồng bộ LRC",
         githubUser = "tranxuanthang",
         url = "https://github.com/tranxuanthang/lrclib",
     ),
     CreditEntry(
         name = "monochrome-music",
-        subtitle = "Monochrome Music · lossless FLAC streams",
+        subtitle = "Monochrome Music · Luồng nhạc lossless FLAC",
         githubUser = "monochrome-music",
         url = "https://github.com/monochrome-music/monochrome",
     ),
     CreditEntry(
         name = "Jaakko Pasanen",
-        subtitle = "AutoEq · headphone equalizer database",
+        subtitle = "AutoEq · Cơ sở dữ liệu cân chỉnh tai nghe",
         githubUser = "jaakkopasanen",
         url = "https://github.com/jaakkopasanen/AutoEq",
     ),
     CreditEntry(
         name = "Ibra Al Tabian",
-        subtitle = "LyricsPlus · open source lyrics server",
+        subtitle = "LyricsPlus · Máy chủ lời bài hát mã nguồn mở",
         githubUser = "ibratabian17",
         url = "https://github.com/ibratabian17/LyricsPlus",
     ),
     CreditEntry(
         name = "Boidushya",
-        subtitle = "Better Lyrics API · synced syllable lyrics",
+        subtitle = "Better Lyrics API · Lời bài hát đồng bộ từng âm tiết",
         githubUser = "boidushya",
         url = "https://github.com/better-lyrics/api",
     ),
@@ -183,49 +189,49 @@ private val Licenses = listOf(
     LicenseEntry(
         tag = "GPL-3.0",
         title = "Mochy Music · GNU General Public License v3.0",
-        subtitle = "Free and open source software, source code on GitHub",
+        subtitle = "Phần mềm tự do mã nguồn mở, mã nguồn công khai trên GitHub",
         url = "$GithubRepoUrl/blob/main/LICENSE",
     ),
     LicenseEntry(
         tag = "GPL-3.0",
         title = "ViviMusic · GNU General Public License v3.0",
-        subtitle = "by vivizzz007 · base project this app was forked from",
+        subtitle = "bởi vivizzz007 · dự án nền tảng của ứng dụng",
         url = "https://github.com/vivizzz007/vivi-music/blob/main/LICENSE",
     ),
     LicenseEntry(
         tag = "GPL-3.0",
         title = "Metrolist · GNU General Public License v3.0",
-        subtitle = "by Mostafa Alagamy · base framework",
+        subtitle = "bởi Mostafa Alagamy · khung ứng dụng gốc",
         url = "https://github.com/mostafaalagamy/Metrolist/blob/main/LICENSE",
     ),
     LicenseEntry(
         tag = "GPL-3.0",
         title = "SimpMusic · GNU General Public License v3.0",
-        subtitle = "by maxrave-dev · lyrics provider integration",
+        subtitle = "bởi maxrave-dev · tích hợp nguồn lời bài hát",
         url = "https://github.com/maxrave-dev/SimpMusic/blob/dev/LICENSE",
     ),
     LicenseEntry(
         tag = "GPL-3.0",
         title = "ArchiveTune · GNU General Public License v3.0",
-        subtitle = "by Rukamori · design and architectural inspiration",
+        subtitle = "bởi Rukamori · cảm hứng thiết kế và kiến trúc",
         url = "https://github.com/rukamori/ArchiveTune/blob/main/LICENSE",
     ),
     LicenseEntry(
         tag = "GPL-3.0",
         title = "RiMusic · GNU General Public License v3.0",
-        subtitle = "by fast4x · InnerTube API wrapper",
+        subtitle = "bởi fast4x · giao tiếp InnerTube API",
         url = "https://github.com/fast4x/RiMusic/blob/master/LICENSE",
     ),
     LicenseEntry(
         tag = "MIT",
         title = "LRCLIB · MIT License",
-        subtitle = "by tranxuanthang · synchronized lyrics database",
+        subtitle = "bởi tranxuanthang · cơ sở dữ liệu lời bài hát đồng bộ",
         url = "https://github.com/tranxuanthang/lrclib/blob/main/LICENSE",
     ),
     LicenseEntry(
         tag = "MIT",
         title = "AutoEq · MIT License",
-        subtitle = "by Jaakko Pasanen · headphone correction profiles",
+        subtitle = "bởi Jaakko Pasanen · cấu hình cân chỉnh tai nghe",
         url = "https://github.com/jaakkopasanen/AutoEq/blob/master/LICENSE",
     ),
 )
@@ -240,6 +246,11 @@ private val ExtraContributors = listOf(
 )
 
 private val FallbackContributors = listOf(
+    ContributorEntry(
+        login = "buiduchuy2010qn-prog",
+        avatarUrl = githubAvatarUrl("buiduchuy2010qn-prog"),
+        profileUrl = "https://github.com/buiduchuy2010qn-prog",
+    ),
     ContributorEntry(
         login = "realidkroo",
         avatarUrl = githubAvatarUrl("realidkroo"),
@@ -413,16 +424,37 @@ private fun ColumnScope.AboutSheetContent(
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Thao tác & Liên kết gốc")
+            SectionHeader("Người chỉnh sửa & Việt hóa (Bản chính thức)")
+            Spacer(Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF101915))
+                    .border(1.2.dp, Color(0xFF2EE59D).copy(alpha = 0.45f), RoundedCornerShape(24.dp))
+                    .padding(vertical = 6.dp),
+            ) {
+                PersonRow(
+                    name = "Đức Huy (@buiduchuy2010qn-prog)",
+                    subtitle = "Người chỉnh sửa, Việt hóa 100% & phát triển bản Android · Windows · Linux (OTA)",
+                    avatarUrl = githubAvatarUrl("buiduchuy2010qn-prog"),
+                    fallbackRes = R.drawable.ic_mochy_mark,
+                    showArrow = true,
+                    onClick = { onOpenDevSpace(0) },
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionHeader("Kho mã nguồn & Ủng hộ tác giả gốc")
             Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AboutPillRow(
-                    text = "Ủng hộ tác giả gốc (@realidkroo) :3 \u2192",
-                    onClick = { popup.showSupportSheet() },
+                    text = "Kho mã nguồn chính thức (buiduchuy2010qn-prog/Mochy-Music) \u2192",
+                    onClick = { context.openUrl("https://github.com/buiduchuy2010qn-prog/Mochy-Music") },
                 )
                 AboutPillRow(
-                    text = "GitHub gốc (realidkroo/Mochy-Music) \u2192",
-                    onClick = { context.openUrl(GithubRepoUrl) },
+                    text = "Ủng hộ tác giả gốc (@realidkroo) :3 \u2192",
+                    onClick = { popup.showSupportSheet() },
                 )
             }
 

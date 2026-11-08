@@ -78,7 +78,7 @@ fun CreatePlaylistDialog(
             buttonBar = {
                 val scope = rememberCoroutineScope()
                 SheetPillButton(
-                    text = if (form.busy) "Creating…" else "Create playlist",
+                    text = if (form.busy) "Đang tạo…" else "Tạo danh sách phát",
                     enabled = form.name.isNotBlank() && !form.busy,
                     onClick = {
                         form.busy = true
@@ -124,7 +124,7 @@ fun CreatePlaylistDialog(
                                 withContext(Dispatchers.Main) {
                                     currentOnCreated?.invoke(playlistId)
                                     sheet?.dismiss()
-                                    TopToaster.show("Successfully created the playlist", thumbnail = cover, iconRes = R.drawable.playlist_add)
+                                    TopToaster.show("Đã tạo danh sách phát thành công", thumbnail = cover, iconRes = R.drawable.playlist_add)
                                 }
                             } catch (e: kotlinx.coroutines.CancellationException) {
                                 throw e

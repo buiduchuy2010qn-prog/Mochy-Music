@@ -120,7 +120,7 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
 
             VolumeCard(
                 icon = R.drawable.volume_up,
-                title = android.os.Build.MODEL ?: "this device",
+                title = android.os.Build.MODEL ?: "Thiết bị này",
                 value = deviceVolume.floatValue,
                 onValueChange = { next ->
                     deviceVolume.floatValue = next
@@ -177,7 +177,7 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (isCasting) {
                         DeviceRow(
-                            label = castingTo ?: "Cast device",
+                            label = castingTo ?: "Truyền sang thiết bị",
                             detail = "Đang phát tại đây · chạm để dừng truyền",
                             icon = Icons.Rounded.CastConnected,
                             selected = true,

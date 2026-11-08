@@ -32,12 +32,12 @@ enum class SongSwipeAction(
     val color: Color,
     @StringRes val pillLabel: Int,
 ) {
-    Library("Add or remove from library", R.drawable.library_add, SwipeSaveColor, R.string.add_to_library),
-    Queue("Add to queue", R.drawable.queue_music, SwipeQueueColor, R.string.add_to_queue),
-    Download("Download", R.drawable.download, SwipeDownloadColor, R.string.action_download),
-    PlayNext("Play next", R.drawable.playlist_play, SwipePlayNextColor, R.string.play_next),
-    AddToPlaylist("Add to playlist", R.drawable.playlist_add, SwipePlaylistColor, R.string.add_to_playlist),
-    Details("View details", R.drawable.info, SwipeDetailsColor, R.string.details),
+    Library("Thêm hoặc xóa khỏi thư viện", R.drawable.library_add, SwipeSaveColor, R.string.add_to_library),
+    Queue("Thêm vào hàng chờ", R.drawable.queue_music, SwipeQueueColor, R.string.add_to_queue),
+    Download("Tải xuống", R.drawable.download, SwipeDownloadColor, R.string.action_download),
+    PlayNext("Phát tiếp theo", R.drawable.playlist_play, SwipePlayNextColor, R.string.play_next),
+    AddToPlaylist("Thêm vào danh sách phát", R.drawable.playlist_add, SwipePlaylistColor, R.string.add_to_playlist),
+    Details("Xem chi tiết", R.drawable.info, SwipeDetailsColor, R.string.details),
 }
 
 val DefaultSwipeRight = SongSwipeAction.Library

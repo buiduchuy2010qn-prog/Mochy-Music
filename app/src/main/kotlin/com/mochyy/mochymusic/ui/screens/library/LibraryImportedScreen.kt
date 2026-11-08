@@ -36,7 +36,7 @@ fun LibraryImportedScreen(
     val menuState = LocalMenuState.current
     val source = viewModel.source
 
-    val label = source?.label ?: "an unknown source"
+    val label = source?.label ?: "nguồn không xác định"
     val sourceIcon: (@Composable () -> Unit)? = if (source != null) {
         { ImportSourceIcon(source, size = AvatarSize) }
     } else {
@@ -44,7 +44,7 @@ fun LibraryImportedScreen(
     }
 
     LibraryEntityListScreen(
-        title = source?.label ?: "Imported",
+        title = source?.label ?: "Đã nhập",
         subtitle = when (songs.size) {
             1 -> "1 song imported from $label."
             else -> "${songs.size} songs imported from $label."

@@ -443,7 +443,7 @@ fun ArtistScreen(
                             onSimilarTitle = { navController.navigate("artist/${viewModel.artistId}/similar") },
                             topSongsMenu = { dismiss ->
                                 page?.artist?.shuffleEndpoint?.let { endpoint ->
-                                    ArtistMenuItem(text = "Shuffle", icon = R.drawable.shuffle) {
+                                    ArtistMenuItem(text = "Phát ngẫu nhiên", icon = R.drawable.shuffle) {
                                         dismiss()
                                         playerConnection.playQueue(YouTubeQueue(endpoint))
                                     }
@@ -648,7 +648,7 @@ private fun LazyListScope.artistShelves(
     shelves.playlistShelves.forEachIndexed { index, section ->
         coverShelf(
             key = "playlists_$index",
-            title = if (index == 0) "Featured on" else section.title,
+            title = if (index == 0) "Xuất hiện trong" else section.title,
             items = section.items,
             moreEndpoint = section.moreEndpoint,
             revealSeen = revealSeen,
@@ -882,7 +882,7 @@ private fun ArtistAbout(name: String, bio: String, modifier: Modifier = Modifier
             .padding(horizontal = PlaylistInset)
     ) {
         Text(
-            text = "About $name",
+            text = "Giới thiệu về $name",
             style = AboutTitleStyle,
             color = Color.White,
             maxLines = 2,
@@ -912,7 +912,7 @@ private fun ArtistRetry(onRetry: () -> Unit) {
             .padding(top = 40.dp)
     ) {
         Text(
-            text = "Couldn't load this artist. Tap to try again",
+            text = "Không thể tải thông tin nghệ sĩ này. Chạm để thử lại",
             style = PlaylistStatsStyle,
             color = Color.White.copy(alpha = 0.7f),
             modifier = Modifier

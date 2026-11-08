@@ -428,7 +428,7 @@ fun YouTubeAlbumMenu(
                     Material3MenuItemData(
                         title = {
                             Text(
-                                text = if (isPinned) "Unpin from library" else "Pin to library"
+                                text = if (isPinned) "Bỏ ghim khỏi thư viện" else "Ghim vào thư viện"
                             )
                         },
                         icon = {

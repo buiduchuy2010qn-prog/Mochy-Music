@@ -1,133 +1,208 @@
-name: Build & Release APK (OTA)
+name: Build & Release APK + Windows + Linux (OTA)
 
 on:
   push:
-    branches: [ main ]
-    paths-ignore:
-      - 'README.md'
-      - 'fastlane/**'
-      - 'assets/**'
-      - '.github/**/*.md'
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  compute-version:
-    name: Compute Next Version (+0.1)
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
-      build_num: ${{ steps.ver.outputs.build_num }}
-      tag: ${{ steps.ver.outputs.tag }}
-    steps:
-      - name: Calculate Next Version (+0.1 from latest release)
-        id: ver
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_NUM: ${{ github.run_number }}
-        run: |
-          LATEST_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq .tag_name 2>/dev/null || echo "")
-          echo "Latest release tag: '$LATEST_TAG'"
-          if [[ "$LATEST_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
-            MAJOR="${BASH_REMATCH[1]}"
-            MINOR="${BASH_REMATCH[2]}"
-            NEXT_MINOR=$((MINOR + 1))
-            NEXT_VER="${MAJOR}.${NEXT_MINOR}.0"
-          else
-            NEXT_VER="8.4.0"
-          fi
-          BUILD_NUM=$((1228 + RUN_NUM))
-          echo "Computed next version: $NEXT_VER (build#$BUILD_NUM)"
-          echo "version=$NEXT_VER" >> $GITHUB_OUTPUT
-          echo "build_num=$BUILD_NUM" >> $GITHUB_OUTPUT
-          echo "tag=v${NEXT_VER}-b${BUILD_NUM}" >> $GITHUB_OUTPUT
-
   build-android:
-    name: Build Android APK (arm64)
-    needs: compute-version
+    name: Build Android APK (Tiếng Việt + OTA)
     runs-on: ubuntu-latest
-    env:
-      MOCHY_APP_VERSION: ${{ needs.compute-version.outputs.version }}
-      GITHUB_RUN_NUMBER: ${{ github.run_number }}
     steps:
-      - name: Checkout Source
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup JDK 21
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Restore Persistent Signing Keystore (for OTA & In-place Upgrade)
         env:
-          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
           mkdir -p ~/.android
-          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
-            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > /tmp/raw.p12
-            openssl pkcs12 -in /tmp/raw.p12 -passin pass:android -nodes -out /tmp/combined.pem
-            openssl pkcs12 -export -in /tmp/combined.pem -out ~/.android/debug.keystore \
-              -name androiddebugkey -passout pass:android
-            rm -f /tmp/raw.p12 /tmp/combined.pem
-            echo "Restored persistent signing keystore successfully."
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > ~/.android/raw.p12
+            openssl pkcs12 -in ~/.android/raw.p12 -passin pass:android -nodes -out ~/.android/tmp.pem
+            openssl pkcs12 -export -in ~/.android/tmp.pem -out ~/.android/debug.keystore -passout pass:android -name androiddebugkey
+            rm -f ~/.android/raw.p12 ~/.android/tmp.pem
+            echo "Restored persistent signing keystore with alias androiddebugkey."
           else
-            keytool -genkey -v \
-              -keystore ~/.android/debug.keystore \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Build Signed Arm64 Release APK
+      - name: Build Arm64 Release APK & Versioned Artifact
         env:
-          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
-          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
-          LIBREFM_API_KEY: ${{ secrets.LIBREFM_API_KEY }}
-          LIBREFM_SECRET: ${{ secrets.LIBREFM_SECRET }}
-          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          if ! curl -fsSLI --connect-timeout 5 --max-time 10 https://services.gradle.org/distributions/gradle-9.3.1-bin.zip >/dev/null 2>&1; then
-            echo "services.gradle.org is returning 504/timeout, switching to mirror..."
-            sed -i 's|https\\://services.gradle.org/distributions/gradle-9.3.1-bin.zip|https\\://mirrors.cloud.tencent.com/gradle/gradle-9.3.1-bin.zip|g' gradle/wrapper/gradle-wrapper.properties
-            sed -i 's|validateDistributionUrl=true|validateDistributionUrl=false|g' gradle/wrapper/gradle-wrapper.properties
-            sed -i 's|networkTimeout=10000|networkTimeout=60000|g' gradle/wrapper/gradle-wrapper.properties
-          fi
-          chmod +x gradlew
-          ./gradlew assembleArm64GmsRelease --no-configuration-cache --console=plain --warning-mode summary
+          RUN_NUM=${GITHUB_RUN_NUMBER:-10}
+          STEP=$(( RUN_NUM > 8 ? RUN_NUM - 8 : 2 ))
+          TENTHS=$(( 83 + STEP ))
+          APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
+          export MOCHY_APP_VERSION="$APP_VER"
+          ./gradlew assembleArm64GmsRelease --no-daemon
+          mkdir -p dist-android
+          REL_APK=$(find app/build/outputs/apk -name "*arm64*release*.apk" | head -n 1)
+          cp "$REL_APK" "dist-android/Mochy-Music-v${APP_VER}-vi-arm64.apk"
 
-      - name: Prepare Release APK
-        run: |
-          mkdir -p dist
-          cp app/build/outputs/apk/arm64Gms/release/*.apk dist/Mochy-Music-vi-arm64-release.apk
-          ls -lh dist/Mochy-Music-vi-arm64-release.apk
-
-      - name: Publish GitHub Release (OTA Ready)
-        uses: softprops/action-gh-release@v2
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ needs.compute-version.outputs.tag }}
-          name: "Mochy Music ${{ needs.compute-version.outputs.version }} build#${{ needs.compute-version.outputs.build_num }} (Bản Việt Hóa)"
-          body: |
-            ### 🇻🇳 Mochy Music v${{ needs.compute-version.outputs.version }} (build#${{ needs.compute-version.outputs.build_num }}) — Bản Việt Hóa Toàn Diện & Hỗ Trợ OTA
+          name: android-apk
+          path: dist-android/*.apk
 
-            - **Phiên bản:** `v${{ needs.compute-version.outputs.version }}` (`build#${{ needs.compute-version.outputs.build_num }}`) — Tự động tăng `+0.1` mỗi bản phát hành.
-            - **Việt hóa 100% toàn diện:** Đã dịch toàn bộ tệp ngôn ngữ XML (`values-vi`, `values-vi-rVN`) và 100 tệp giao diện Kotlin Compose (Màn hình Chào mừng, Thiết lập ban đầu, Nhập nhạc, Hồ sơ & Thẻ ID, Tổng kết tháng, Trang chủ, Trình phát nhạc, Lời bài hát, Thư viện, Audio Lab, Equalizer, Cài đặt).
-            - **Ngôn ngữ mặc định:** Tự động nhận diện theo ngôn ngữ thiết bị của bạn (`SYSTEM_DEFAULT`).
-            - **Hỗ trợ Cập nhật tự động (OTA) & Cài đè:** Được ký bằng chứng chỉ cố định (`SHA-1: AA637A60634C8C0CBD5E53B5BB0844300F44E494`) giúp bạn cài đè trực tiếp lên bản cũ hoặc cập nhật ngay trong ứng dụng mà không mất dữ liệu.
-            - **Tệp cài đặt:** Tải **`Mochy-Music-vi-arm64-release.apk`** bên dưới để cài đặt trên điện thoại Android.
+  build-windows:
+    name: Build Windows EXE (Setup & Portable + OTA)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-            ---
-            ### 📜 Giấy phép & Tác giả gốc (License & Credits)
-            - **Giấy phép:** [GNU General Public License v3.0 (GPL-3.0)](https://github.com/buiduchuy2010qn-prog/Mochy-Music/blob/main/LICENSE)
-            - **Tác giả gốc (Original Authors):** [@realidkroo](https://github.com/realidkroo) (**mochyDH P ASHOKAN**), [@realkeichi](https://github.com/realkeichi) (**key**) & **T-Boyke** — Kho mã nguồn gốc: [realidkroo/Mochy-Music](https://github.com/realidkroo/Mochy-Music)
-            - **Dự án nền tảng (Upstream):** [ViviMusic](https://github.com/vivizzz007/vivi-music) (@vivizzz007) & [Metrolist](https://github.com/mostafaalagamy/Metrolist) (@mostafaalagamy)
-            - **Bản tùy biến & Việt hóa:** [@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog)
-          files: dist/Mochy-Music-vi-arm64-release.apk
-          draft: false
-          prerelease: false
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Prepare Version, Icon & Build Windows EXE
+        shell: pwsh
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          $runNum = [int]$env:GITHUB_RUN_NUMBER
+          $step = [Math]::Max(2, $runNum - 8)
+          $tenths = 83 + $step
+          $appVer = "$([Math]::Floor($tenths / 10)).$($tenths % 10).0"
+          $buildNum = 1228 + $runNum
+
+          New-Item -ItemType Directory -Force -Path desktop/build | Out-Null
+          Copy-Item app/src/main/ic_launcher-playstore.png desktop/build/icon.png -Force
+
+          $pkgPath = "desktop/package.json"
+          $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
+          $pkg.version = $appVer
+          $pkg.buildNumber = "$buildNum"
+          $pkg | ConvertTo-Json -Depth 10 | Set-Content $pkgPath -Encoding UTF8
+
+          Push-Location desktop
+          npm install --no-audit --no-fund
+          npx electron-builder --win nsis portable --x64 --publish never
+          Pop-Location
+
+      - name: Upload Windows EXE Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: desktop/dist/*.exe
+
+  build-linux:
+    name: Build Linux (AppImage & DEB + OTA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Prepare Version, Icon & Build Linux Packages
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          RUN_NUM=${GITHUB_RUN_NUMBER:-10}
+          STEP=$(( RUN_NUM > 8 ? RUN_NUM - 8 : 2 ))
+          TENTHS=$(( 83 + STEP ))
+          APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
+          BUILD_NUM=$(( 1228 + RUN_NUM ))
+
+          mkdir -p desktop/build
+          cp app/src/main/ic_launcher-playstore.png desktop/build/icon.png
+
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('desktop/package.json', 'utf8'));
+            p.version = '$APP_VER';
+            p.buildNumber = '$BUILD_NUM';
+            fs.writeFileSync('desktop/package.json', JSON.stringify(p, null, 2));
+          "
+
+          cd desktop
+          npm install --no-audit --no-fund
+          npx electron-builder --linux AppImage deb --x64 --publish never
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+
+  publish-release:
+    name: Publish Unified OTA Release (Android, Windows, Linux)
+    runs-on: ubuntu-latest
+    needs: [build-android, build-windows, build-linux]
+    steps:
+      - name: Download All Built Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create GitHub Release (OTA + Multi-Platform)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          RUN_NUM=${GITHUB_RUN_NUMBER:-10}
+          STEP=$(( RUN_NUM > 8 ? RUN_NUM - 8 : 2 ))
+          TENTHS=$(( 83 + STEP ))
+          APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
+          BUILD_NUM=$(( 1228 + RUN_NUM ))
+          TAG="v${APP_VER}-b${BUILD_NUM}"
+          TITLE="Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa Toàn Diện (Android • Windows • Linux)"
+
+          cat <<EOF > release_notes.md
+          ### 🎵 Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa 100% & Đa Nền Tảng (Android • Windows • Linux)
+
+          - **Phiên bản:** \`v${APP_VER} (build#${BUILD_NUM})\` *(Tự động tăng +0.1 mỗi bản phát hành)*
+          - **🌟 Người chỉnh sửa & Việt hóa:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog))**
+          - **Việt hóa 100% toàn diện:** Hoàn thiện toàn bộ giao diện Tiếng Việt trên cả điện thoại Android và máy tính Windows / Linux, tự động nhận diện ngôn ngữ theo thiết bị.
+          - **Nút Chia sẻ bài hát nhanh:** Tích hợp trực tiếp trong menu 3 chấm (\`⋮\`), thanh phát nhạc và mọi danh sách bài hát.
+          - **Hỗ trợ Cập nhật tự động (OTA) & Pop-up thông báo khi mở app:** Tự động hiện bảng thông báo bản cập nhật mới đồng bộ giao diện tối (\`Inter\` font) ngay khi vào ứng dụng trên cả **Android**, **Windows** và **Linux**, hỗ trợ cài đè giữ nguyên toàn bộ dữ liệu.
+
+          #### 📥 Tải tệp cài đặt (có ghi rõ số phiên bản \`v${APP_VER}\`):
+          1. 📱 **Android (\`.apk\` — arm64):** \`Mochy-Music-v${APP_VER}-vi-arm64.apk\`
+          2. 🪟 **Windows Bộ cài đặt (\`.exe\` — Hỗ trợ cài đè OTA):** \`Mochy-Music-v${APP_VER}-Windows-x64-Setup.exe\`
+          3. 🪟 **Windows Bản chạy ngay (\`Portable .exe\`):** \`Mochy-Music-v${APP_VER}-Windows-x64-Portable.exe\`
+          4. 🐧 **Linux Mọi bản phân phối (\`.AppImage\`):** \`Mochy-Music-v${APP_VER}-Linux-x86_64.AppImage\`
+          5. 🐧 **Ubuntu / Debian / Linux Mint (\`.deb\`):** \`Mochy-Music-v${APP_VER}-Linux-amd64.deb\`
+
+          ---
+          #### 📜 Bản quyền & Tác giả (GPL-3.0)
+          - **Người chỉnh sửa, Việt hóa & Phát triển OTA:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog/Mochy-Music))**
+          - **Tác giả gốc (Original Authors):** [@realidkroo (mochyDH P ASHOKAN)](https://github.com/realidkroo), [@realkeichi (key)](https://github.com/realkeichi)
+          - **Dự án nền tảng (Upstream):** ViviMusic (\`@vivizzz007\`) & Metrolist (\`@mostafaalagamy\`)
+          - **Giấy phép:** [GNU General Public License v3.0 (GPL-3.0)](https://github.com/buiduchuy2010qn-prog/Mochy-Music/blob/main/LICENSE)
+          EOF
+
+          sed -i 's/^          //' release_notes.md
+
+          gh release create "$TAG" release-assets/* \
+            --repo "${{ github.repository }}" \
+            --title "$TITLE" \
+            --notes-file release_notes.md \
+            --latest
