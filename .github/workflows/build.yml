@@ -3,6 +3,11 @@ name: Build & Release APK (OTA)
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - 'fastlane/**'
+      - 'assets/**'
+      - '.github/**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -14,12 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.ver.outputs.version }}
+      build_num: ${{ steps.ver.outputs.build_num }}
       tag: ${{ steps.ver.outputs.tag }}
     steps:
       - name: Calculate Next Version (+0.1 from latest release)
         id: ver
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_NUM: ${{ github.run_number }}
         run: |
           LATEST_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq .tag_name 2>/dev/null || echo "")
           echo "Latest release tag: '$LATEST_TAG'"
@@ -31,9 +38,11 @@ jobs:
           else
             NEXT_VER="8.4.0"
           fi
-          echo "Computed next version: $NEXT_VER"
+          BUILD_NUM=$((1228 + RUN_NUM))
+          echo "Computed next version: $NEXT_VER (build#$BUILD_NUM)"
           echo "version=$NEXT_VER" >> $GITHUB_OUTPUT
-          echo "tag=v${NEXT_VER}-b${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "build_num=$BUILD_NUM" >> $GITHUB_OUTPUT
+          echo "tag=v${NEXT_VER}-b${BUILD_NUM}" >> $GITHUB_OUTPUT
 
   build-android:
     name: Build Android APK (arm64)
@@ -41,6 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MOCHY_APP_VERSION: ${{ needs.compute-version.outputs.version }}
+      GITHUB_RUN_NUMBER: ${{ github.run_number }}
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -51,18 +61,37 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Decode Signing Keystore
-        if: env.SIGNING_KEYSTORE_BASE64 != ''
+      - name: Restore Persistent Signing Keystore (for OTA & In-place Upgrade)
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
-          echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > app/release-key.jks
-          echo "RELEASE_STORE_FILE=release-key.jks" >> $GITHUB_ENV
-          echo "RELEASE_STORE_PASSWORD=mochymusic_vi_key" >> $GITHUB_ENV
-          echo "RELEASE_KEY_ALIAS=mochy_vi" >> $GITHUB_ENV
-          echo "RELEASE_KEY_PASSWORD=mochymusic_vi_key" >> $GITHUB_ENV
+          mkdir -p ~/.android
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > /tmp/raw.p12
+            openssl pkcs12 -in /tmp/raw.p12 -passin pass:android -nodes -out /tmp/combined.pem
+            openssl pkcs12 -export -in /tmp/combined.pem -out ~/.android/debug.keystore \
+              -name androiddebugkey -passout pass:android
+            rm -f /tmp/raw.p12 /tmp/combined.pem
+            echo "Restored persistent signing keystore successfully."
+          else
+            keytool -genkey -v \
+              -keystore ~/.android/debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Build Signed Arm64 Release APK
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          LIBREFM_API_KEY: ${{ secrets.LIBREFM_API_KEY }}
+          LIBREFM_SECRET: ${{ secrets.LIBREFM_SECRET }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
         run: |
           if ! curl -fsSLI --connect-timeout 5 --max-time 10 https://services.gradle.org/distributions/gradle-9.3.1-bin.zip >/dev/null 2>&1; then
             echo "services.gradle.org is returning 504/timeout, switching to mirror..."
@@ -71,27 +100,34 @@ jobs:
             sed -i 's|networkTimeout=10000|networkTimeout=60000|g' gradle/wrapper/gradle-wrapper.properties
           fi
           chmod +x gradlew
-          ./gradlew assembleArm64Release -PenableApkSplits=true --no-daemon --stacktrace
+          ./gradlew assembleArm64GmsRelease --no-configuration-cache --console=plain --warning-mode summary
 
       - name: Prepare Release APK
         run: |
           mkdir -p dist
-          APK_FILE=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
-          echo "Found APK: $APK_FILE"
-          cp "$APK_FILE" "dist/Mochy-Music-vi-arm64-release.apk"
+          cp app/build/outputs/apk/arm64Gms/release/*.apk dist/Mochy-Music-vi-arm64-release.apk
+          ls -lh dist/Mochy-Music-vi-arm64-release.apk
 
       - name: Publish GitHub Release (OTA Ready)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.compute-version.outputs.tag }}
-          name: "Mochy Music v${{ needs.compute-version.outputs.version }} (Build ${{ github.run_number }}) - Bản Việt Hóa"
+          name: "Mochy Music ${{ needs.compute-version.outputs.version }} build#${{ needs.compute-version.outputs.build_num }} (Bản Việt Hóa)"
           body: |
-            ### 🇻🇳 Mochy Music — Bản Việt Hóa Toàn Diện (`v${{ needs.compute-version.outputs.version }}` - Build `#${{ github.run_number }}`)
-            - **Phiên bản:** `v${{ needs.compute-version.outputs.version }}` (`versionCode: ${{ github.run_number }}`) — Tự động tăng `+0.1` mỗi bản phát hành.
-            - **Việt hóa 100% toàn diện:** Đã dịch toàn bộ tệp ngôn ngữ XML (`values-vi`, `values-vi-rVN`) và toàn bộ giao diện Kotlin Compose (Màn hình Chào mừng, Thiết lập ban đầu, Nhập nhạc, Hồ sơ & Thẻ ID, Trang chủ, Trình phát nhạc, Lời bài hát, Thư viện, Audio Lab, Equalizer, Cài đặt).
+            ### 🇻🇳 Mochy Music v${{ needs.compute-version.outputs.version }} (build#${{ needs.compute-version.outputs.build_num }}) — Bản Việt Hóa Toàn Diện & Hỗ Trợ OTA
+
+            - **Phiên bản:** `v${{ needs.compute-version.outputs.version }}` (`build#${{ needs.compute-version.outputs.build_num }}`) — Tự động tăng `+0.1` mỗi bản phát hành.
+            - **Việt hóa 100% toàn diện:** Đã dịch toàn bộ tệp ngôn ngữ XML (`values-vi`, `values-vi-rVN`) và 100 tệp giao diện Kotlin Compose (Màn hình Chào mừng, Thiết lập ban đầu, Nhập nhạc, Hồ sơ & Thẻ ID, Tổng kết tháng, Trang chủ, Trình phát nhạc, Lời bài hát, Thư viện, Audio Lab, Equalizer, Cài đặt).
             - **Ngôn ngữ mặc định:** Tự động nhận diện theo ngôn ngữ thiết bị của bạn (`SYSTEM_DEFAULT`).
-            - **Hỗ trợ Cập nhật tự động (OTA) & Cài đè:** Được ký bằng chứng chỉ cố định giúp bạn cài đè trực tiếp hoặc cập nhật ngay trong ứng dụng mà không mất dữ liệu.
-            - **Giấy phép & Tác giả:** Mã nguồn mở theo giấy phép **GPL-3.0**, phát triển gốc bởi **@realidkroo (mochy / DH P ASHOKAN)**, **@realkeichi**, **T-Boyke** (kế thừa từ **ViviMusic** của **@vivizzz007** & **Metrolist** của **@mostafaalagamy**). Bản tùy biến & Việt hóa bởi **@buiduchuy2010qn-prog**.
+            - **Hỗ trợ Cập nhật tự động (OTA) & Cài đè:** Được ký bằng chứng chỉ cố định (`SHA-1: AA637A60634C8C0CBD5E53B5BB0844300F44E494`) giúp bạn cài đè trực tiếp lên bản cũ hoặc cập nhật ngay trong ứng dụng mà không mất dữ liệu.
+            - **Tệp cài đặt:** Tải **`Mochy-Music-vi-arm64-release.apk`** bên dưới để cài đặt trên điện thoại Android.
+
+            ---
+            ### 📜 Giấy phép & Tác giả gốc (License & Credits)
+            - **Giấy phép:** [GNU General Public License v3.0 (GPL-3.0)](https://github.com/buiduchuy2010qn-prog/Mochy-Music/blob/main/LICENSE)
+            - **Tác giả gốc (Original Authors):** [@realidkroo](https://github.com/realidkroo) (**mochyDH P ASHOKAN**), [@realkeichi](https://github.com/realkeichi) (**key**) & **T-Boyke** — Kho mã nguồn gốc: [realidkroo/Mochy-Music](https://github.com/realidkroo/Mochy-Music)
+            - **Dự án nền tảng (Upstream):** [ViviMusic](https://github.com/vivizzz007/vivi-music) (@vivizzz007) & [Metrolist](https://github.com/mostafaalagamy/Metrolist) (@mostafaalagamy)
+            - **Bản tùy biến & Việt hóa:** [@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog)
           files: dist/Mochy-Music-vi-arm64-release.apk
           draft: false
           prerelease: false
