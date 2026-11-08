@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('mochyAPI', {
   checkUpdate: (force) => ipcRenderer.invoke('ota:check', force),
   downloadAndInstallUpdate: (releaseInfo) => ipcRenderer.invoke('ota:install', releaseInfo),
   openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
+  setAppIcon: (iconFileName) => ipcRenderer.invoke('app:set-icon', iconFileName),
   windowControl: (cmd) => ipcRenderer.invoke('window:control', cmd),
   onPlayerState: (cb) => ipcRenderer.on('player:state', (_e, state) => cb(state)),
   onOtaProgress: (cb) => ipcRenderer.on('ota:progress', (_e, data) => cb(data)),

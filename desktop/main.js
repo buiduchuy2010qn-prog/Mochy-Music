@@ -198,14 +198,14 @@ function startAudioTelemetryLoop() {
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 1260,
-    height: 820,
+    width: 1280,
+    height: 840,
     minWidth: 960,
-    minHeight: 640,
+    minHeight: 660,
     frame: false,
-    backgroundColor: '#090d0c',
+    backgroundColor: '#000000',
     icon: getIconPath(),
-    title: 'Mochy Music — Bản Việt Hóa',
+    title: 'Mochy Music',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -411,6 +411,30 @@ ipcMain.handle('player:control', async (_e, action, value) => {
     await audioWindow.webContents.executeJavaScript(`
       (function(){ const v = document.querySelector('video'); if (v) v.volume = ${vol}; })();
     `).catch(() => {});
+  } else if (action === 'speed') {
+    const rate = Math.max(0.25, Math.min(2.5, Number(value) || 1));
+    await audioWindow.webContents.executeJavaScript(`
+      (function(){ const v = document.querySelector('video'); if (v) v.playbackRate = ${rate}; })();
+    `).catch(() => {});
+  }
+});
+
+ipcMain.handle('app:set-icon', (_e, iconFileName) => {
+  if (!iconFileName) return { ok: false };
+  const safeName = path.basename(String(iconFileName));
+  const candidate = path.join(__dirname, 'renderer', 'assets', 'icons', safeName);
+  if (!fs.existsSync(candidate)) return { ok: false };
+  try {
+    const img = nativeImage.createFromPath(candidate);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setIcon(img);
+    }
+    if (tray) {
+      tray.setImage(img.resize({ width: 18, height: 18 }));
+    }
+    return { ok: true };
+  } catch (_) {
+    return { ok: false };
   }
 });
 

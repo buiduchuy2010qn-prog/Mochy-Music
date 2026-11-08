@@ -1,7 +1,7 @@
 {
   "name": "mochy-music-desktop",
-  "version": "8.7.0",
-  "buildNumber": "1242",
+  "version": "8.8.0",
+  "buildNumber": "1243",
   "description": "Mochy Music (Bản Việt Hóa) — Ứng dụng nghe nhạc mã nguồn mở cho Windows & Linux (GPL-3.0)",
   "homepage": "https://github.com/buiduchuy2010qn-prog/Mochy-Music",
   "main": "main.js",

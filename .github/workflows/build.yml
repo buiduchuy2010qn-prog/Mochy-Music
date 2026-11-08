@@ -9,8 +9,39 @@ permissions:
   contents: write
 
 jobs:
+  detect-changes:
+    name: Detect Platform Changes (Android vs PC)
+    runs-on: ubuntu-latest
+    outputs:
+      android_changed: ${{ steps.diff.outputs.android_changed }}
+      desktop_changed: ${{ steps.diff.outputs.desktop_changed }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check Changed Files
+        id: diff
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
+          echo "Changed files:"
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -qE '^(app/|gradle/|build\.gradle|settings\.gradle|all)'; then
+            echo "android_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "android_changed=false" >> $GITHUB_OUTPUT
+          fi
+          if echo "$CHANGED" | grep -qE '^(desktop/|\.github/|all)'; then
+            echo "desktop_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "desktop_changed=false" >> $GITHUB_OUTPUT
+          fi
+
   build-android:
     name: Build Android APK (Tiếng Việt + OTA)
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.android_changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -65,6 +96,8 @@ jobs:
 
   build-windows:
     name: Build Windows EXE (Setup & Portable + OTA)
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.desktop_changed == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout Repository
@@ -114,6 +147,8 @@ jobs:
 
   build-linux:
     name: Build Linux (AppImage & DEB + OTA)
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.desktop_changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -213,6 +248,7 @@ jobs:
     name: Publish Unified OTA Release (Android, Windows, Linux)
     runs-on: ubuntu-latest
     needs: [build-android, build-windows, build-linux]
+    if: always() && (needs.build-windows.result == 'success' || needs.build-linux.result == 'success')
     steps:
       - name: Download All Built Artifacts
         uses: actions/download-artifact@v4
@@ -238,16 +274,16 @@ jobs:
 
           - **Phiên bản:** \`v${APP_VER} (build#${BUILD_NUM})\` *(Tự động tăng +0.1 mỗi bản phát hành)*
           - **🌟 Người chỉnh sửa & Việt hóa:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog))**
-          - **Việt hóa 100% toàn diện:** Hoàn thiện toàn bộ giao diện Tiếng Việt trên cả điện thoại Android và máy tính Windows / Linux, tự động nhận diện ngôn ngữ theo thiết bị.
-          - **Nút Chia sẻ bài hát nhanh:** Tích hợp trực tiếp trong menu 3 chấm (\`⋮\`), thanh phát nhạc và mọi danh sách bài hát.
-          - **Hỗ trợ Cập nhật tự động (OTA) & Pop-up thông báo khi mở app:** Tự động hiện bảng thông báo bản cập nhật mới đồng bộ giao diện tối (\`Inter\` font) ngay khi vào ứng dụng trên cả **Android**, **Windows** và **Linux**, hỗ trợ cài đè giữ nguyên toàn bộ dữ liệu.
+          - **Giao diện gốc Mochy Music APK đồng bộ 100% trên PC:** Toàn bộ font chữ (\`Inter\`, \`JetBrains Mono\`), nền đen tuyền \`#000000\`, thẻ \`#0F0F0F\` / \`#141416\`, hiệu ứng kính mờ chuyển sắc (\`Progressive Blur\`), thẻ ID 3D nghiêng theo chuột, lưới Bento Thư viện và mục **Logo mới** đồng bộ nguyên bản APK trên cả **Windows** và **Linux**.
+          - **Nút Chia sẻ bài hát nhanh:** Tích hợp trực tiếp trong menu 3 chấm (\`⋯\`), thanh phát nhạc và mọi danh sách bài hát.
+          - **Hỗ trợ Cập nhật tự động (OTA) & Pop-up thông báo khi mở app:** Tự động hiện bảng thông báo bản cập nhật mới đồng bộ giao diện gốc ngay khi vào ứng dụng trên cả **Android**, **Windows** và **Linux**, hỗ trợ cài đè giữ nguyên toàn bộ dữ liệu.
 
           #### 📥 Tải tệp cài đặt (có ghi rõ số phiên bản \`v${APP_VER}\`):
-          1. 📱 **Android (\`.apk\` — arm64):** \`Mochy-Music-v${APP_VER}-vi-arm64.apk\`
-          2. 🪟 **Windows Bộ cài đặt (\`.exe\` — Hỗ trợ cài đè OTA):** \`Mochy-Music-v${APP_VER}-Windows-x64-Setup.exe\`
-          3. 🪟 **Windows Bản chạy ngay (\`Portable .exe\`):** \`Mochy-Music-v${APP_VER}-Windows-x64-Portable.exe\`
-          4. 🐧 **Linux Mọi bản phân phối (\`.AppImage\`):** \`Mochy-Music-v${APP_VER}-Linux-x86_64.AppImage\`
-          5. 🐧 **Ubuntu / Debian / Linux Mint (\`.deb\`):** \`Mochy-Music-v${APP_VER}-Linux-amd64.deb\`
+          1. 🪟 **Windows Bộ cài đặt (\`.exe\` — Hỗ trợ cài đè OTA):** \`Mochy-Music-v${APP_VER}-Windows-x64-Setup.exe\`
+          2. 🪟 **Windows Bản chạy ngay (\`Portable .exe\`):** \`Mochy-Music-v${APP_VER}-Windows-x64-Portable.exe\`
+          3. 🐧 **Linux Mọi bản phân phối (\`.AppImage\`):** \`Mochy-Music-v${APP_VER}-Linux-x86_64.AppImage\`
+          4. 🐧 **Ubuntu / Debian / Linux Mint (\`.deb\`):** \`Mochy-Music-v${APP_VER}-Linux-amd64.deb\`
+          5. 📱 **Android (\`.apk\` — arm64):** \`Mochy-Music-v${APP_VER}-vi-arm64.apk\`
 
           ---
           #### 📜 Bản quyền & Tác giả (GPL-3.0)
@@ -259,13 +295,27 @@ jobs:
 
           sed -i 's/^          //' release_notes.md
 
-          # Android OTA job creates the release first. This job only adds the
-          # desktop packages after Windows and Linux have both built successfully.
-          gh release upload "$TAG" release-assets/* \
-            --repo "${{ github.repository }}" \
-            --clobber
-          gh release edit "$TAG" \
-            --repo "${{ github.repository }}" \
-            --title "$TITLE" \
-            --notes-file release_notes.md \
-            --latest
+          if ! ls release-assets/*.apk >/dev/null 2>&1; then
+            mkdir -p tmp-prev-apk
+            if gh release download --repo "${{ github.repository }}" --pattern "*.apk" --dir tmp-prev-apk >/dev/null 2>&1; then
+              PREV_APK=$(ls tmp-prev-apk/*.apk | head -n 1)
+              cp "$PREV_APK" "release-assets/Mochy-Music-v${APP_VER}-vi-arm64.apk"
+            fi
+          fi
+
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-assets/* \
+              --repo "${{ github.repository }}" \
+              --clobber
+            gh release edit "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "$TITLE" \
+              --notes-file release_notes.md \
+              --latest
+          else
+            gh release create "$TAG" release-assets/* \
+              --repo "${{ github.repository }}" \
+              --title "$TITLE" \
+              --notes-file release_notes.md \
+              --latest
+          fi
