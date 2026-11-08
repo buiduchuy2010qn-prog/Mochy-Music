@@ -1,3 +1,16 @@
+> [!IMPORTANT]
+> ### 📜 Giấy phép Bản quyền & Ghi nhận Tác giả (License & Attribution)
+> - **Bản chất dự án:** Đây là bản **Fork cộng đồng (phi thương mại)** của dự án mã nguồn mở **[Mochy Music](https://github.com/realidkroo/Mochy-Music)**, chỉ bổ sung & hoàn thiện gói ngôn ngữ **Tiếng Việt (alues-vi / alues-vi-rVN)** theo đúng điều khoản của giấy phép nguồn mở.
+> - **Giấy phép (License):** Phát hành dưới giấy phép **[GNU General Public License v3.0 (GPL-3.0)](./LICENSE)** — giữ nguyên toàn bộ mã nguồn mở, giấy phép gốc và thông tin tác giả trong ứng dụng.
+> - **Tác giả gốc (Original Authors & Maintainers):**
+>   - **Mochy Music:** [@realidkroo](https://github.com/realidkroo) (**mochyDH P ASHOKAN** — Lead Developer) & **T-Boyke** (Collaborator) — Kho mã nguồn gốc: [realidkroo/Mochy-Music](https://github.com/realidkroo/Mochy-Music)
+> - **Các dự án nền tảng & đóng góp mã nguồn mở (Upstream Credits):**
+>   - **ViviMusic** bởi [@vivizzz007](https://github.com/vivizzz007/vivi-music) *(Base app)*
+>   - **Metrolist** bởi **Mostafa Alagamy** ([@mostafaalagamy](https://github.com/mostafaalagamy/Metrolist)) *(Base framework)*
+>   - **InnerTune** bởi **Zion Huang** ([@z-huang](https://github.com/z-huang/InnerTune))
+>   - **SimpMusic** bởi [@maxrave-dev](https://github.com/maxrave-dev/SimpMusic) · **LRCLib** bởi [@tranxuanthang](https://github.com/tranxuanthang/lrclib) · **Better Lyrics** bởi [@boidushya](https://github.com/better-lyrics/api) · **LyricsPlus** bởi [@ibratabian17](https://github.com/ibratabian17/LyricsPlus) · **ArchiveTune** bởi [@rukamori](https://github.com/rukamori/ArchiveTune) · **RiMusic** bởi [@fast4x](https://github.com/fast4x/RiMusic) · **Monochrome Music** bởi [@monochrome-music](https://github.com/monochrome-music/monochrome)
+
+---
 <img width="1799" height="927" alt="fdb" src="https://github.com/user-attachments/assets/98652d23-a7cd-4c6f-945e-96a85273f61f" />
 
 <div align="center">
