@@ -23,8 +23,11 @@ const val ThreadsUrl = "https://www.threads.net/@furfurrfoxx"
 // dev spaces hides the discord row while this is blank
 const val DiscordUrl = "https://discord.gg/NTmqVphbRY"
 
+const val OtaGithubOwner = "buiduchuy2010qn-prog"
+const val OtaGithubRepo = "Mochy-Music"
+
 private const val ReleasesApi =
-    "https://api.github.com/repos/$GithubOwner/$GithubRepo/releases?per_page=20"
+    "https://api.github.com/repos/$OtaGithubOwner/$OtaGithubRepo/releases?per_page=20"
 
 data class GithubRelease(
     val title: String,
@@ -176,7 +179,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                     for (a in 0 until assets.length()) {
                         val asset = assets.getJSONObject(a)
                         val name = asset.optString("name").orEmpty()
-                        if (!name.endsWith(".apk", ignoreCase = true)) continue
+                        if (!name.endsWith(".apk", ignoreCase = true) || name.contains("debug", ignoreCase = true)) continue
                         val url = asset.optString("browser_download_url").orEmpty()
                         val size = asset.optLong("size", 0L)
 

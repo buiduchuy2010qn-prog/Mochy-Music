@@ -644,7 +644,7 @@ suspend fun checkForUpdate(
 ) {
     withContext(Dispatchers.IO) {
         try {
-            val url = URL("https://api.github.com/repos/realidkroo/Mochy-Music/releases")
+            val url = URL("https://api.github.com/repos/buiduchuy2010qn-prog/Mochy-Music/releases")
             val json = url.openStream().bufferedReader().use { it.readText() }
             val releases = JSONArray(json)
 
@@ -802,7 +802,7 @@ suspend fun checkForUpdate(
                     for (j in 0 until assets.length()) {
                         val asset = assets.getJSONObject(j)
                         val assetName = asset.getString("name")
-                        if (assetName == "mochy.apk") {
+                        if (assetName.endsWith(".apk", ignoreCase = true) && !assetName.contains("debug", ignoreCase = true)) {
                             val apkSizeInBytes = asset.getLong("size")
                             apkSizeInMB = String.format("%.1f", apkSizeInBytes / (1024.0 * 1024.0))
                             apkDownloadUrl = asset.getString("browser_download_url")

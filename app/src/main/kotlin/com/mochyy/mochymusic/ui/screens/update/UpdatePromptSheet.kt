@@ -209,11 +209,11 @@ fun UpdatePromptSheet(
                 enabled = !downloading && release.apkUrl != null,
                 progress = animatedProgress,
                 label = when {
-                    downloading -> "Downloading… ${(animatedProgress * 100).toInt()}%"
-                    release.apkUrl == null -> "No APK in this release"
-                    needsPermission -> "Install here"
-                    readyToInstall -> "Install here"
-                    else -> "Install here"
+                    downloading -> "Đang tải xuống… ${(animatedProgress * 100).toInt()}%"
+                    release.apkUrl == null -> "Chưa có tệp APK"
+                    needsPermission -> "Tải và cài đặt ngay"
+                    readyToInstall -> "Tải và cài đặt ngay"
+                    else -> "Tải và cài đặt ngay"
                 },
                 dimmed = release.apkUrl == null,
                 onClick = {
@@ -241,7 +241,7 @@ fun UpdatePromptSheet(
 
             PromptButton(
                 enabled = !downloading,
-                label = "Open the web",
+                label = "Mở trang tải trên web",
                 dimmed = downloading,
                 onClick = { context.openReleaseUrl(release.htmlUrl) },
             )
@@ -250,7 +250,7 @@ fun UpdatePromptSheet(
 
             PromptButton(
                 enabled = !downloading,
-                label = "no thanks remind me in 24 hour",
+                label = "Để sau, nhắc lại sau 24 giờ",
                 dimmed = downloading,
                 onClick = onSnooze,
             )

@@ -297,21 +297,21 @@ private suspend fun fetchContributors(): List<ContributorEntry> {
 
 fun PopupSheetState.showAboutSheet(onOpenDevSpace: (Int) -> Unit = {}) {
     val popup = this
-    show(buttonBar = { SheetPrimaryButton(text = "Done", onClick = popup::dismiss) }) {
+    show(buttonBar = { SheetPrimaryButton(text = "Xong", onClick = popup::dismiss) }) {
         AboutSheetContent(popup = popup, onOpenDevSpace = onOpenDevSpace)
     }
 }
 
 private fun PopupSheetState.showCreditsSheet() {
     val popup = this
-    show(buttonBar = { SheetPrimaryButton(text = "Done", onClick = popup::dismiss) }) {
+    show(buttonBar = { SheetPrimaryButton(text = "Xong", onClick = popup::dismiss) }) {
         CreditsSheetContent()
     }
 }
 
 private fun PopupSheetState.showLicenseSheet() {
     val popup = this
-    show(buttonBar = { SheetPrimaryButton(text = "Done", onClick = popup::dismiss) }) {
+    show(buttonBar = { SheetPrimaryButton(text = "Xong", onClick = popup::dismiss) }) {
         LicenseSheetContent()
     }
 }
@@ -379,7 +379,7 @@ private fun ColumnScope.AboutSheetContent(
                 }
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    text = "About app",
+                    text = "Giới thiệu",
                     fontSize = 36.sp,
                     lineHeight = 38.sp,
                     fontWeight = FontWeight.Bold,
@@ -404,7 +404,7 @@ private fun ColumnScope.AboutSheetContent(
                     .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Text(
-                    text = "Mochy Music is a music app but\nkinda cool.",
+                    text = "Mochy Music — Ứng dụng nghe nhạc mã nguồn mở hiện đại (GPL-3.0).",
                     fontSize = 15.sp,
                     lineHeight = 19.sp,
                     fontWeight = FontWeight.Bold,
@@ -413,21 +413,21 @@ private fun ColumnScope.AboutSheetContent(
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("actions")
+            SectionHeader("Thao tác & Liên kết gốc")
             Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AboutPillRow(
-                    text = "Support me please :3 \u2192",
+                    text = "Ủng hộ tác giả gốc (@realidkroo) :3 \u2192",
                     onClick = { popup.showSupportSheet() },
                 )
                 AboutPillRow(
-                    text = "Mochy Music github \u2192",
+                    text = "GitHub gốc (realidkroo/Mochy-Music) \u2192",
                     onClick = { context.openUrl(GithubRepoUrl) },
                 )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("meet the lead dev")
+            SectionHeader("Tác giả & Nhà phát triển chính")
             Spacer(Modifier.height(8.dp))
             Column(
                 modifier = Modifier
@@ -449,7 +449,7 @@ private fun ColumnScope.AboutSheetContent(
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("we wont exist without these guys")
+            SectionHeader("Dự án nền tảng mã nguồn mở (Upstream)")
             Spacer(Modifier.height(8.dp))
             Column(
                 modifier = Modifier
@@ -476,15 +476,15 @@ private fun ColumnScope.AboutSheetContent(
             )
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("License")
+            SectionHeader("Giấy phép bản quyền (GPL-3.0)")
             Spacer(Modifier.height(8.dp))
             AboutCardButton(
-                text = "More about license",
+                text = "Xem chi tiết giấy phép mã nguồn mở",
                 onClick = { popup.showLicenseSheet() },
             )
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Cool contributors")
+            SectionHeader("Những người đóng góp")
             Spacer(Modifier.height(8.dp))
             Column(
                 modifier = Modifier
@@ -518,7 +518,7 @@ private fun ColumnScope.CreditsSheetContent() {
     ) {
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Credits",
+            text = "Tác giả & Đóng góp",
             fontSize = 36.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold,
@@ -556,7 +556,7 @@ private fun ColumnScope.LicenseSheetContent() {
     ) {
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "License",
+            text = "Giấy phép",
             fontSize = 36.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold,
@@ -724,7 +724,7 @@ private fun AndMoreRow(
         }
         Spacer(Modifier.width(12.dp))
         Text(
-            text = "And more \u2192",
+            text = "Xem tất cả tác giả đóng góp \u2192",
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.4).sp,

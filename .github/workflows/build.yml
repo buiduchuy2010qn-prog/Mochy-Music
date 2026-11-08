@@ -1,4 +1,4 @@
-name: CI & Vietnamese APK Build
+name: CI & Vietnamese APK Build (OTA)
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   build_apk:
-    name: Build Mochy Music (Tiếng Việt)
+    name: Build Mochy Music (Tiếng Việt + OTA)
     runs-on: ubuntu-latest
     if: github.actor != 'dependabot[bot]'
     steps:
@@ -35,21 +35,33 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Generate debug.keystore
+      - name: Restore Persistent Signing Keystore (for OTA & In-place Upgrade)
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
           mkdir -p ~/.android
-          keytool -genkey -v \
-            -keystore ~/.android/debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > /tmp/raw.p12
+            openssl pkcs12 -in /tmp/raw.p12 -passin pass:android -nodes -out /tmp/combined.pem
+            openssl pkcs12 -export -in /tmp/combined.pem -out ~/.android/debug.keystore \
+              -name androiddebugkey -passout pass:android
+            rm -f /tmp/raw.p12 /tmp/combined.pem
+            echo "Restored persistent signing keystore successfully."
+          else
+            keytool -genkey -v \
+              -keystore ~/.android/debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Build Arm64 Release & Debug APK
         env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
           LIBREFM_API_KEY: ${{ secrets.LIBREFM_API_KEY }}
@@ -57,7 +69,8 @@ jobs:
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
         run: |
           ./gradlew assembleArm64GmsRelease assembleArm64GmsDebug --no-configuration-cache --console=plain --warning-mode summary
-          mkdir -p dist
+          mkdir -p dist release-assets
+          cp app/build/outputs/apk/arm64Gms/release/*.apk release-assets/Mochy-Music-vi-arm64-release.apk
           cp app/build/outputs/apk/arm64Gms/release/*.apk dist/Mochy-Music-vi-arm64-release.apk
           cp app/build/outputs/apk/arm64Gms/debug/*.apk dist/Mochy-Music-vi-arm64-debug.apk
 
@@ -68,19 +81,27 @@ jobs:
           path: dist/*.apk
           retention-days: 14
 
-      - name: Publish to GitHub Releases
+      - name: Publish OTA Release to GitHub Releases
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_NUM: ${{ github.run_number }}
         run: |
-          TAG="v8.3.2-vi"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/*.apk --clobber
-          else
-            gh release create "$TAG" dist/*.apk \
-              --title "Mochy Music v8.3.2 (Bản Việt Hóa 100%)" \
-              --notes "Bản Việt hóa đầy đủ 100% toàn bộ 12 tệp ngôn ngữ cho Mochy Music (giữ nguyên độ nhẹ & giao diện gốc).
+          BUILD_NUM=$((1228 + RUN_NUM))
+          TAG="v8.3.2-b${BUILD_NUM}"
+          TITLE="Mochy Music 8.3.2 build#${BUILD_NUM} (Bản Việt Hóa)"
+          NOTES="### 🇻🇳 Mochy Music v8.3.2 (build#${BUILD_NUM}) — Bản Việt Hóa & Hỗ Trợ OTA
 
-          - **Mochy-Music-vi-arm64-release.apk**: Bản chính thức (Release) đã tối ưu R8, siêu nhẹ và mượt.
-          - **Mochy-Music-vi-arm64-debug.apk**: Bản cài đặt song song (Debug) nếu bạn muốn giữ cả bản gốc trên máy."
-          fi
+          - **Cập nhật tự động (OTA) & Cài đè:** Được ký bằng khóa cố định (SHA-1: \AA637A60634C8C0CBD5E53B5BB0844300F44E494\), hỗ trợ tự động kiểm tra/tải bản mới ngay trong ứng dụng và **cài đè trực tiếp** không mất dữ liệu.
+          - **Tệp cài đặt:** Tải **\Mochy-Music-vi-arm64-release.apk\** bên dưới để cài đặt.
+
+          ---
+          ### 📜 Giấy phép & Tác giả gốc (License & Credits)
+          - **Giấy phép:** [GNU General Public License v3.0 (GPL-3.0)](https://github.com/buiduchuy2010qn-prog/Mochy-Music/blob/main/LICENSE)
+          - **Tác giả gốc (Original Authors):** [@realidkroo](https://github.com/realidkroo) (**mochyDH P ASHOKAN**), [@realkeichi](https://github.com/realkeichi) (**key**) & **T-Boyke** — Kho mã nguồn gốc: [realidkroo/Mochy-Music](https://github.com/realidkroo/Mochy-Music)
+          - **Dự án nền tảng (Upstream):** [ViviMusic](https://github.com/vivizzz007/vivi-music) (@vivizzz007) & [Metrolist](https://github.com/mostafaalagamy/Metrolist) (@mostafaalagamy)"
+
+          gh release create "$TAG" release-assets/*.apk \
+            --title "$TITLE" \
+            --notes "$NOTES" \
+            --latest
