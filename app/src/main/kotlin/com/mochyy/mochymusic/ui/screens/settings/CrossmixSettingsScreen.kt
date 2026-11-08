@@ -121,8 +121,8 @@ fun CrossmixSettingsScreen(navController: NavController) {
     ) {
         LabCard(padding = 10.dp) {
             LabToggleRow(
-                title = "Off",
-                subtitle = "Boring boring boring",
+                title = "Tắt",
+                subtitle = "Chuyển bài thông thường, không trộn âm",
                 checked = selectedMode == CrossmixMode.OFF,
                 onCheckedChange = { selectMode(CrossmixMode.OFF) },
                 leadingDot = true,
@@ -136,8 +136,8 @@ fun CrossmixSettingsScreen(navController: NavController) {
             }
             Spacer(Modifier.height(10.dp))
             LabToggleRow(
-                title = "Auto Crossfade",
-                subtitle = "A smooth ${AutoCrossfadeDurationSeconds.toInt()}-second blend from every song into the next",
+                title = "Tự động chuyển mượt (Auto Crossfade)",
+                subtitle = "Hòa âm mượt mà ${AutoCrossfadeDurationSeconds.toInt()} giây giữa các bài hát",
                 checked = selectedMode == CrossmixMode.AUTO_CROSSFADE,
                 onCheckedChange = { toggle(CrossmixMode.AUTO_CROSSFADE, it) },
             )
@@ -154,8 +154,8 @@ fun CrossmixSettingsScreen(navController: NavController) {
             }
             Spacer(Modifier.height(10.dp))
             LabToggleRow(
-                title = "Manual Crossfade",
-                subtitle = "Set custom crossfade",
+                title = "Chuyển mượt thủ công",
+                subtitle = "Tùy chỉnh thời gian chuyển mượt",
                 checked = selectedMode == CrossmixMode.MANUAL_CROSSFADE,
                 onCheckedChange = { toggle(CrossmixMode.MANUAL_CROSSFADE, it) },
             )
@@ -214,8 +214,8 @@ fun CrossmixSettingsScreen(navController: NavController) {
         LabCollapsible(selectedMode != CrossmixMode.OFF) {
             LabCard(padding = 10.dp) {
                 LabToggleRow(
-                    title = "Keep gapless albums intact",
-                    subtitle = "Album tracks that run straight into each other play through unmixed",
+                    title = "Giữ nguyên các album phát liền mạch (Gapless)",
+                    subtitle = "Các bài trong cùng album nối tiếp nhau sẽ phát nguyên bản không trộn",
                     checked = disableForGapless,
                     onCheckedChange = onDisableForGaplessChange,
                 )

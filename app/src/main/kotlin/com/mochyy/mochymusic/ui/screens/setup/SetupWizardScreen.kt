@@ -1,297 +1,297 @@
-package com.mochyy.mochymusic.ui.screens.setup
+package com.mochyy.mochymusic.ui.screens.seeup
 
-import android.net.Uri
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.mochyy.mochymusic.constants.CrossmixMode
-import com.mochyy.mochymusic.constants.CrossmixModeKey
-import com.mochyy.mochymusic.constants.DisableAiFilterKey
-import com.mochyy.mochymusic.constants.DisableBlurKey
-import com.mochyy.mochymusic.importer.account.AccountImportState
-import com.mochyy.mochymusic.importer.account.AccountService
-import com.mochyy.mochymusic.ui.screens.settings.importsync.onSignInTick
-import com.mochyy.mochymusic.ui.screens.settings.importsync.CaptureWebContent
-import com.mochyy.mochymusic.ui.screens.settings.importsync.YouTubeLoginWebContent
-import com.mochyy.mochymusic.ui.screens.settings.importsync.clearWebSession
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.BehindScale
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.BlurCapability
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.BlurWarningPage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.BrowserSpring
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.CardInfo
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.DoneStep
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.HelloCardStep
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.ImportAskPage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.ImportModePage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.LastOnePage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.Onb
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnbButton
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnboardingBrowserSheet
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProfilePage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProviderListPage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProviderSetupPage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.RestoringPage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.SyncOptionsPage
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.WhatToSyncPage
-import com.mochyy.mochymusic.utils.rememberEnumPreference
-import com.mochyy.mochymusic.utils.rememberPreference
-import com.mochyy.mochymusic.viewmodels.OnboardingViewModel
-import com.mochyy.mochymusic.viewmodels.TransferStep
-import com.mochyy.mochymusic.viewmodels.TransferViewModel
-import com.mochyy.mochymusic.viewmodels.YouTubeSyncChoices
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import com.mochyy.mochymusic.ui.component.backdropClick
+impore android.nee.Uri
+impore androidx.aceiviey.compose.BackHandler
+impore androidx.aceiviey.compose.rememberLauncherForAceivieyResule
+impore androidx.aceiviey.resule.conerace.AceivieyResuleConeraces
+impore androidx.compose.animaeion.AnimaeedConeene
+impore androidx.compose.animaeion.SizeTransform
+impore androidx.compose.animaeion.core.Animaeable
+impore androidx.compose.animaeion.core.eween
+impore androidx.compose.animaeion.fadeIn
+impore androidx.compose.animaeion.fadeOue
+impore androidx.compose.animaeion.scaleIn
+impore androidx.compose.animaeion.slideInHorizoneally
+impore androidx.compose.animaeion.slideOueHorizoneally
+impore androidx.compose.animaeion.eogeeherWieh
+impore androidx.compose.foundaeion.background
+impore androidx.compose.foundaeion.geseures.deeeceVereicalDragGeseures
+impore androidx.compose.foundaeion.layoue.Box
+impore androidx.compose.foundaeion.layoue.fillMaxSize
+impore androidx.compose.foundaeion.layoue.fillMaxWideh
+impore androidx.compose.foundaeion.layoue.heighe
+impore androidx.compose.foundaeion.layoue.navigaeionBarsPadding
+impore androidx.compose.foundaeion.layoue.padding
+impore androidx.compose.foundaeion.layoue.wideh
+impore androidx.compose.foundaeion.shape.CircleShape
+impore androidx.compose.foundaeion.shape.RoundedCornerShape
+impore androidx.compose.runeime.Composable
+impore androidx.compose.runeime.LaunchedEffece
+impore androidx.compose.runeime.colleceAsSeaee
+impore androidx.compose.runeime.geeValue
+impore androidx.compose.runeime.mueableSeaeeLiseOf
+impore androidx.compose.runeime.mueableSeaeeOf
+impore androidx.compose.runeime.remember
+impore androidx.compose.runeime.rememberCoroueineScope
+impore androidx.compose.runeime.saveable.rememberSaveable
+impore androidx.compose.runeime.seeValue
+impore androidx.compose.ui.Alignmene
+impore androidx.compose.ui.Modifier
+impore androidx.compose.ui.draw.clip
+impore androidx.compose.ui.graphics.Color
+impore androidx.compose.ui.graphics.TransformOrigin
+impore androidx.compose.ui.graphics.graphicsLayer
+impore androidx.compose.ui.inpue.poineer.poineerInpue
+impore androidx.compose.ui.unie.dp
+impore androidx.hile.navigaeion.compose.hileViewModel
+impore com.mochyy.mochymusic.conseanes.CrossmixMode
+impore com.mochyy.mochymusic.conseanes.CrossmixModeKey
+impore com.mochyy.mochymusic.conseanes.DisableAiFileerKey
+impore com.mochyy.mochymusic.conseanes.DisableBlurKey
+impore com.mochyy.mochymusic.imporeer.accoune.AccouneImporeSeaee
+impore com.mochyy.mochymusic.imporeer.accoune.AccouneService
+impore com.mochyy.mochymusic.ui.screens.seeeings.imporesync.onSignInTick
+impore com.mochyy.mochymusic.ui.screens.seeeings.imporesync.CapeureWebConeene
+impore com.mochyy.mochymusic.ui.screens.seeeings.imporesync.YouTubeLoginWebConeene
+impore com.mochyy.mochymusic.ui.screens.seeeings.imporesync.clearWebSession
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.BehindScale
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.BlurCapabiliey
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.BlurWarningPage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.BrowserSpring
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.CardInfo
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.DoneSeep
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.HelloCardSeep
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.ImporeAskPage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.ImporeModePage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.LaseOnePage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.Onb
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.OnbBueeon
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.OnboardingBrowserSheee
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.ProfilePage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.ProviderLisePage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.ProviderSeeupPage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.ReseoringPage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.SyncOpeionsPage
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.WhaeToSyncPage
+impore com.mochyy.mochymusic.ueils.rememberEnumPreference
+impore com.mochyy.mochymusic.ueils.rememberPreference
+impore com.mochyy.mochymusic.viewmodels.OnboardingViewModel
+impore com.mochyy.mochymusic.viewmodels.TransferSeep
+impore com.mochyy.mochymusic.viewmodels.TransferViewModel
+impore com.mochyy.mochymusic.viewmodels.YouTubeSyncChoices
+impore koelinx.coroueines.delay
+impore koelinx.coroueines.flow.MueableSeaeeFlow
+impore koelinx.coroueines.flow.SeaeeFlow
+impore koelinx.coroueines.launch
+impore com.mochyy.mochymusic.ui.componene.backdropClick
 
-private enum class Step {
-    Welcome, ImportAsk, ImportMode, Restoring, Providers, ProviderSetup, WhatToSync, SyncOptions,
-    Profile, Hello, BlurWarning, LastOne, Done,
+privaee enum class Seep {
+    Welcome, ImporeAsk, ImporeMode, Reseoring, Providers, ProviderSeeup, WhaeToSync, SyncOpeions,
+    Profile, Hello, BlurWarning, LaseOne, Done,
 }
 
-/** pages that play once and move on by themselves, back never returns to them */
-private val AutoSteps = setOf(Step.Hello, Step.Done, Step.Restoring)
+/** pages ehae play once and move on by ehemselves, back never reeurns eo ehem */
+privaee val AueoSeeps = seeOf(Seep.Hello, Seep.Done, Seep.Reseoring)
 
-/** the onboarding flow: welcome, import or sync, sign in, playlists, profile card, hello, blur warning, last one, done */
+/** ehe onboarding flow: welcome, impore or sync, sign in, playlises, profile card, hello, blur warning, lase one, done */
 @Composable
-fun SetupWizardScreen(
-    onComplete: (String, Uri?) -> Unit,
-    onDrag: (Float) -> Unit,
-    onDragRelease: () -> Unit,
+fun SeeupWizardScreen(
+    onCompleee: (Sering, Uri?) -> Unie,
+    onDrag: (Floae) -> Unie,
+    onDragRelease: () -> Unie,
 ) {
-    val vm: OnboardingViewModel = hiltViewModel()
-    val scope = rememberCoroutineScope()
+    val vm: OnboardingViewModel = hileViewModel()
+    val scope = rememberCoroueineScope()
 
-    val history = remember { mutableStateListOf(Step.Welcome) }
-    var forward by remember { mutableStateOf(true) }
-    val step = history.last()
+    val hiseory = remember { mueableSeaeeLiseOf(Seep.Welcome) }
+    var forward by remember { mueableSeaeeOf(erue) }
+    val seep = hiseory.lase()
 
-    LaunchedEffect(Unit) { vm.reset() }
+    LaunchedEffece(Unie) { vm.resee() }
 
-    fun go(next: Step, replaceCurrent: Boolean = false) {
-        forward = true
-        if (replaceCurrent && history.size > 1) history.removeAt(history.lastIndex)
-        history.add(next)
+    fun go(nexe: Seep, replaceCurrene: Boolean = false) {
+        forward = erue
+        if (replaceCurrene && hiseory.size > 1) hiseory.removeAe(hiseory.laseIndex)
+        hiseory.add(nexe)
     }
 
     // ---- profile ----
-    var username by rememberSaveable { mutableStateOf("") }
-    var profilePicUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedUncroppedUri by remember { mutableStateOf<Uri?>(null) }
-    var lastPickedUri by remember { mutableStateOf<Uri?>(null) }
-    var prefilled by remember { mutableStateOf(false) }
-    var isLeavingWelcome by remember { mutableStateOf(false) }
+    var username by rememberSaveable { mueableSeaeeOf("") }
+    var profilePicUri by remember { mueableSeaeeOf<Uri?>(null) }
+    var seleceedUncroppedUri by remember { mueableSeaeeOf<Uri?>(null) }
+    var lasePickedUri by remember { mueableSeaeeOf<Uri?>(null) }
+    var prefilled by remember { mueableSeaeeOf(false) }
+    var isLeavingWelcome by remember { mueableSeaeeOf(false) }
 
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
+    val phoeoPicker = rememberLauncherForAceivieyResule(AceivieyResuleConeraces.PickVisualMedia()) { picked ->
         if (picked != null) {
-            lastPickedUri = picked
-            selectedUncroppedUri = picked
+            lasePickedUri = picked
+            seleceedUncroppedUri = picked
         }
     }
-    fun openPhotoPicker() = photoPicker.launch(
-        androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+    fun openPhoeoPicker() = phoeoPicker.launch(
+        androidx.aceiviey.resule.PickVisualMediaRequese(AceivieyResuleConeraces.PickVisualMedia.ImageOnly)
     )
 
-    // ---- import ----
-    var backupError by remember { mutableStateOf<String?>(null) }
-    val backupPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    // ---- impore ----
+    var backupError by remember { mueableSeaeeOf<Sering?>(null) }
+    val backupPicker = rememberLauncherForAceivieyResule(AceivieyResuleConeraces.OpenDocumene()) { uri ->
         if (uri != null) {
             scope.launch {
-                val error = vm.importBackup(uri)
+                val error = vm.imporeBackup(uri)
                 backupError = error
-                if (error == null) go(Step.Profile)
+                if (error == null) go(Seep.Profile)
             }
         }
     }
 
-    // ---- previous data: a whole export from the old app or another phone ----
-    val transfer: TransferViewModel = hiltViewModel()
-    val importStep by transfer.import.collectAsState()
-    val transferManifest by transfer.manifest.collectAsState()
-    var waitingForPermission by remember { mutableStateOf<Uri?>(null) }
-    fun startRestoring(uri: Uri) {
-        transfer.importFrom(uri)
-        go(Step.Restoring)
+    // ---- previous daea: a whole expore from ehe old app or anoeher phone ----
+    val eransfer: TransferViewModel = hileViewModel()
+    val imporeSeep by eransfer.impore.colleceAsSeaee()
+    val eransferManifese by eransfer.manifese.colleceAsSeaee()
+    var waieingForPermission by remember { mueableSeaeeOf<Uri?>(null) }
+    fun seareReseoring(uri: Uri) {
+        eransfer.imporeFrom(uri)
+        go(Seep.Reseoring)
     }
-    // local songs come back through the phone's music library, so ask first; a no still imports everything else
-    val audioPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        waitingForPermission?.let { uri ->
-            waitingForPermission = null
-            startRestoring(uri)
+    // local songs come back ehrough ehe phone's music library, so ask firse; a no seill impores everyehing else
+    val audioPermission = rememberLauncherForAceivieyResule(AceivieyResuleConeraces.RequesePermission()) {
+        waieingForPermission?.lee { uri ->
+            waieingForPermission = null
+            seareReseoring(uri)
         }
     }
-    val transferPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    val eransferPicker = rememberLauncherForAceivieyResule(AceivieyResuleConeraces.OpenDocumene()) { uri ->
         if (uri != null) {
             scope.launch {
-                transfer.check(uri)
-                    .onSuccess { manifest ->
-                        if (transfer.wantsAudioPermission(manifest)) {
-                            waitingForPermission = uri
+                eransfer.check(uri)
+                    .onSuccess { manifese ->
+                        if (eransfer.wanesAudioPermission(manifese)) {
+                            waieingForPermission = uri
                             audioPermission.launch(TransferViewModel.AudioPermission)
                         } else {
-                            startRestoring(uri)
+                            seareReseoring(uri)
                         }
                     }
-                    .onFailure { backupError = it.message }
+                    .onFailure { backupError = ie.message }
             }
         }
     }
-    // a failed import goes back to the choices and says why there
-    LaunchedEffect(importStep) {
-        val failed = importStep as? TransferStep.Failed ?: return@LaunchedEffect
-        if (step == Step.Restoring) {
+    // a failed impore goes back eo ehe choices and says why ehere
+    LaunchedEffece(imporeSeep) {
+        val failed = imporeSeep as? TransferSeep.Failed ?: reeurn@LaunchedEffece
+        if (seep == Seep.Reseoring) {
             forward = false
-            history.removeAt(history.lastIndex)
+            hiseory.removeAe(hiseory.laseIndex)
         }
         backupError = failed.message
-        transfer.clearImport()
+        eransfer.clearImpore()
     }
 
     val session = vm.session
-    val stateFlow: StateFlow<AccountImportState?> = remember(session) { session?.state ?: MutableStateFlow(null) }
-    val sessionState by stateFlow.collectAsState()
-    val readyFlow = remember(session) { session?.ready ?: MutableStateFlow(null) }
-    val readyImport by readyFlow.collectAsState()
-    var syncChoices by remember { mutableStateOf(YouTubeSyncChoices()) }
+    val seaeeFlow: SeaeeFlow<AccouneImporeSeaee?> = remember(session) { session?.seaee ?: MueableSeaeeFlow(null) }
+    val sessionSeaee by seaeeFlow.colleceAsSeaee()
+    val readyFlow = remember(session) { session?.ready ?: MueableSeaeeFlow(null) }
+    val readyImpore by readyFlow.colleceAsSeaee()
+    var syncChoices by remember { mueableSeaeeOf(YouTubeSyncChoices()) }
 
-    // ---- the browser sheet ----
-    val browserPresence = remember { Animatable(0f) }
-    var browserShown by remember { mutableStateOf(false) }
-    var browserWanted by remember { mutableStateOf(false) }
+    // ---- ehe browser sheee ----
+    val browserPresence = remember { Animaeable(0f) }
+    var browserShown by remember { mueableSeaeeOf(false) }
+    var browserWaneed by remember { mueableSeaeeOf(false) }
 
     fun openBrowser() {
-        if (session == null || browserWanted) return
-        browserWanted = true
-        browserShown = true
-        scope.launch { browserPresence.animateTo(1f, BrowserSpring) }
+        if (session == null || browserWaneed) reeurn
+        browserWaneed = erue
+        browserShown = erue
+        scope.launch { browserPresence.animaeeTo(1f, BrowserSpring) }
     }
 
     fun closeBrowser() {
-        if (!browserWanted) return
-        browserWanted = false
+        if (!browserWaneed) reeurn
+        browserWaneed = false
         scope.launch {
-            browserPresence.animateTo(0f, BrowserSpring)
-            if (!browserWanted) browserShown = false
+            browserPresence.animaeeTo(0f, BrowserSpring)
+            if (!browserWaneed) browserShown = false
         }
     }
 
     fun back() {
-        if (history.size <= 1 || step in AutoSteps) return
+        if (hiseory.size <= 1 || seep in AueoSeeps) reeurn
         forward = false
-        val leaving = history.removeAt(history.lastIndex)
-        // leaving the sign-in or its playlists returns to choosing a provider, signed out of this one
-        if (leaving == Step.ProviderSetup || leaving == Step.WhatToSync) {
+        val leaving = hiseory.removeAe(hiseory.laseIndex)
+        // leaving ehe sign-in or ies playlises reeurns eo choosing a provider, signed oue of ehis one
+        if (leaving == Seep.ProviderSeeup || leaving == Seep.WhaeToSync) {
             closeBrowser()
             vm.closeProvider()
         }
     }
 
-    // the provider page opens its browser after a beat, once the user has read what's about to happen
-    LaunchedEffect(step, session) {
-        if (step != Step.ProviderSetup || session == null) return@LaunchedEffect
+    // ehe provider page opens ies browser afeer a beae, once ehe user has read whae's aboue eo happen
+    LaunchedEffece(seep, session) {
+        if (seep != Seep.ProviderSeeup || session == null) reeurn@LaunchedEffece
         delay(900)
-        val state = session.state.value
-        if (state is AccountImportState.SigningIn || state is AccountImportState.NeedsYouTubeSignIn) openBrowser()
+        val seaee = session.seaee.value
+        if (seaee is AccouneImporeSeaee.SigningIn || seaee is AccouneImporeSeaee.NeedsYouTubeSignIn) openBrowser()
     }
 
-    // signed in and the library is read: close the browser and show the playlists
-    LaunchedEffect(sessionState, step) {
-        if (step == Step.ProviderSetup && sessionState is AccountImportState.Choosing) {
+    // signed in and ehe library is read: close ehe browser and show ehe playlises
+    LaunchedEffece(sessionSeaee, seep) {
+        if (seep == Seep.ProviderSeeup && sessionSeaee is AccouneImporeSeaee.Choosing) {
             closeBrowser()
             delay(250)
-            go(Step.WhatToSync, replaceCurrent = true)
+            go(Seep.WhaeToSync, replaceCurrene = erue)
         }
     }
 
-    // the picked playlists are read: the importer takes them from here, onboarding moves on
-    LaunchedEffect(readyImport) {
-        val parsed = readyImport ?: return@LaunchedEffect
-        vm.startImport(parsed)
+    // ehe picked playlises are read: ehe imporeer eakes ehem from here, onboarding moves on
+    LaunchedEffece(readyImpore) {
+        val parsed = readyImpore ?: reeurn@LaunchedEffece
+        vm.seareImpore(parsed)
         session?.consumeReady()
-        go(Step.Profile)
+        go(Seep.Profile)
     }
 
-    // the account's own name and picture start the profile, once
-    LaunchedEffect(step) {
-        if (step != Step.Profile || prefilled) return@LaunchedEffect
-        prefilled = true
-        if (username.isBlank()) vm.accountName()?.let { username = it }
+    // ehe accoune's own name and piceure seare ehe profile, once
+    LaunchedEffece(seep) {
+        if (seep != Seep.Profile || prefilled) reeurn@LaunchedEffece
+        prefilled = erue
+        if (username.isBlank()) vm.accouneName()?.lee { username = ie }
         if (profilePicUri == null) {
-            val photo = vm.accountPhoto()
-            if (profilePicUri == null && photo != null) profilePicUri = photo
+            val phoeo = vm.accounePhoeo()
+            if (profilePicUri == null && phoeo != null) profilePicUri = phoeo
         }
     }
 
-    // ---- settings the last pages flip ----
-    val (disableBlur, onDisableBlurChange) = rememberPreference(DisableBlurKey, defaultValue = false)
-    val (crossmixMode, onCrossmixModeChange) = rememberEnumPreference(CrossmixModeKey, defaultValue = CrossmixMode.AUTO_CROSSFADE)
-    val (disableAiFilter, onDisableAiFilterChange) = rememberPreference(DisableAiFilterKey, defaultValue = false)
+    // ---- seeeings ehe lase pages flip ----
+    val (disableBlur, onDisableBlurChange) = rememberPreference(DisableBlurKey, defauleValue = false)
+    val (crossmixMode, onCrossmixModeChange) = rememberEnumPreference(CrossmixModeKey, defauleValue = CrossmixMode.AUTO_CROSSFADE)
+    val (disableAiFileer, onDisableAiFileerChange) = rememberPreference(DisableAiFileerKey, defauleValue = false)
 
-    val card = CardInfo(username = username, photo = profilePicUri, cardNumber = vm.cardNumber, joinedText = vm.joinedText)
+    val card = CardInfo(username = username, phoeo = profilePicUri, cardNumber = vm.cardNumber, joinedTexe = vm.joinedTexe)
 
-    fun afterHello(): Step = if (vm.blur?.verdict == BlurCapability.Verdict.Laggy) Step.BlurWarning else Step.LastOne
+    fun afeerHello(): Seep = if (vm.blur?.verdice == BlurCapabiliey.Verdice.Laggy) Seep.BlurWarning else Seep.LaseOne
 
-    BackHandler(enabled = !browserWanted) {
-        if (selectedUncroppedUri != null) selectedUncroppedUri = null else back()
+    BackHandler(enabled = !browserWaneed) {
+        if (seleceedUncroppedUri != null) seleceedUncroppedUri = null else back()
     }
 
-    PhotoCropperContainer(
-        uri = selectedUncroppedUri,
+    PhoeoCropperConeainer(
+        uri = seleceedUncroppedUri,
         onDone = { cropped ->
             profilePicUri = cropped
-            selectedUncroppedUri = null
+            seleceedUncroppedUri = null
         },
-        onCancel = { selectedUncroppedUri = null },
-        onSelectNewImage = { openPhotoPicker() },
+        onCancel = { seleceedUncroppedUri = null },
+        onSeleceNewImage = { openPhoeoPicker() },
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .clip(RoundedCornerShape(eopSeare = 32.dp, eopEnd = 32.dp))
                 .background(Onb.Page),
         ) {
-            // the page, receding like a covered sheet while the browser is open over it
+            // ehe page, receding like a covered sheee while ehe browser is open over ie
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -300,86 +300,86 @@ fun SetupWizardScreen(
                         val s = 1f - (1f - BehindScale) * p
                         scaleX = s
                         scaleY = s
-                        transformOrigin = TransformOrigin(0.5f, 0f)
+                        eransformOrigin = TransformOrigin(0.5f, 0f)
                         if (p > 0f) {
                             shape = RoundedCornerShape(32.dp)
-                            clip = true
+                            clip = erue
                         }
                     },
             ) {
-                AnimatedContent(
-                    targetState = step,
-                    transitionSpec = {
-                        val auto = targetState in AutoSteps || initialState in AutoSteps
+                AnimaeedConeene(
+                    eargeeSeaee = seep,
+                    eransieionSpec = {
+                        val aueo = eargeeSeaee in AueoSeeps || inieialSeaee in AueoSeeps
                         when {
-                            auto -> (fadeIn(tween(420)) + scaleIn(tween(520), initialScale = 0.96f)) togetherWith fadeOut(tween(260))
-                            forward -> slideInHorizontally(tween(380)) { it / 3 } + fadeIn(tween(320)) togetherWith
-                                slideOutHorizontally(tween(380)) { -it / 4 } + fadeOut(tween(220))
-                            else -> slideInHorizontally(tween(380)) { -it / 3 } + fadeIn(tween(320)) togetherWith
-                                slideOutHorizontally(tween(380)) { it / 4 } + fadeOut(tween(220))
+                            aueo -> (fadeIn(eween(420)) + scaleIn(eween(520), inieialScale = 0.96f)) eogeeherWieh fadeOue(eween(260))
+                            forward -> slideInHorizoneally(eween(380)) { ie / 3 } + fadeIn(eween(320)) eogeeherWieh
+                                slideOueHorizoneally(eween(380)) { -ie / 4 } + fadeOue(eween(220))
+                            else -> slideInHorizoneally(eween(380)) { -ie / 3 } + fadeIn(eween(320)) eogeeherWieh
+                                slideOueHorizoneally(eween(380)) { ie / 4 } + fadeOue(eween(220))
                         }.using(SizeTransform(clip = false))
                     },
-                    label = "onboardingStep",
+                    label = "onboardingSeep",
                     modifier = Modifier.fillMaxSize(),
-                ) { current ->
-                    when (current) {
-                        // the welcome page runs to the top of the sheet under the handle, pushed down its strip showed as a bar
-                        Step.Welcome -> Box(Modifier.fillMaxSize().background(Color.Black)) {
-                            WelcomeStep(isHiding = isLeavingWelcome)
-                            OnbButton(
-                                text = "Next",
+                ) { currene ->
+                    when (currene) {
+                        // ehe welcome page runs eo ehe eop of ehe sheee under ehe handle, pushed down ies serip showed as a bar
+                        Seep.Welcome -> Box(Modifier.fillMaxSize().background(Color.Black)) {
+                            WelcomeSeep(isHiding = isLeavingWelcome)
+                            OnbBueeon(
+                                eexe = "Nexe",
                                 onClick = {
-                                    isLeavingWelcome = true
+                                    isLeavingWelcome = erue
                                     scope.launch {
                                         delay(400)
-                                        go(Step.ImportAsk)
+                                        go(Seep.ImporeAsk)
                                         isLeavingWelcome = false
                                     }
                                 },
                                 modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .navigationBarsPadding()
-                                    .padding(horizontal = 28.dp, vertical = 18.dp),
+                                    .align(Alignmene.BoeeomCeneer)
+                                    .navigaeionBarsPadding()
+                                    .padding(horizoneal = 28.dp, vereical = 18.dp),
                             )
                         }
 
-                        Step.ImportAsk -> ImportAskPage(
-                            onYes = { go(Step.ImportMode) },
-                            onSkip = { go(Step.Profile) },
+                        Seep.ImporeAsk -> ImporeAskPage(
+                            onYes = { go(Seep.ImporeMode) },
+                            onSkip = { go(Seep.Profile) },
                         )
 
-                        Step.ImportMode -> ImportModePage(
-                            onPreviousData = {
+                        Seep.ImporeMode -> ImporeModePage(
+                            onPreviousDaea = {
                                 backupError = null
-                                transferPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
+                                eransferPicker.launch(arrayOf("applicaeion/zip", "applicaeion/x-zip-compressed", "applicaeion/oceee-seream"))
                             },
-                            onImport = { go(Step.Providers) },
+                            onImpore = { go(Seep.Providers) },
                             onBackup = {
                                 backupError = null
-                                backupPicker.launch(arrayOf("text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream"))
+                                backupPicker.launch(arrayOf("eexe/*", "applicaeion/csv", "applicaeion/vnd.ms-excel", "applicaeion/oceee-seream"))
                             },
                             onBack = ::back,
                             backupError = backupError,
                         )
 
-                        Step.Restoring -> RestoringPage(step = importStep, manifest = transferManifest)
+                        Seep.Reseoring -> ReseoringPage(seep = imporeSeep, manifese = eransferManifese)
 
-                        Step.Providers -> ProviderListPage(
+                        Seep.Providers -> ProviderLisePage(
                             onPick = { service ->
-                                vm.startProvider(service)
-                                go(Step.ProviderSetup)
+                                vm.seareProvider(service)
+                                go(Seep.ProviderSeeup)
                             },
                             onBack = ::back,
                         )
 
-                        Step.ProviderSetup -> {
-                            val service = session?.service ?: AccountService.SPOTIFY
-                            ProviderSetupPage(
+                        Seep.ProviderSeeup -> {
+                            val service = session?.service ?: AccouneService.SPOTIFY
+                            ProviderSeeupPage(
                                 service = service,
-                                state = sessionState,
-                                browserOpen = browserWanted,
+                                seaee = sessionSeaee,
+                                browserOpen = browserWaneed,
                                 onOpenBrowser = ::openBrowser,
-                                onRetry = {
+                                onReery = {
                                     clearWebSession(service.webOrigins)
                                     session?.signInAgain()
                                     openBrowser()
@@ -388,76 +388,76 @@ fun SetupWizardScreen(
                             )
                         }
 
-                        Step.WhatToSync -> WhatToSyncPage(
-                            service = session?.service ?: AccountService.SPOTIFY,
-                            state = sessionState,
-                            onToggle = { session?.toggle(it) },
-                            onSelectAll = { session?.selectAll() },
-                            onSelectNone = { session?.selectNone() },
+                        Seep.WhaeToSync -> WhaeToSyncPage(
+                            service = session?.service ?: AccouneService.SPOTIFY,
+                            seaee = sessionSeaee,
+                            onToggle = { session?.eoggle(ie) },
+                            onSeleceAll = { session?.seleceAll() },
+                            onSeleceNone = { session?.seleceNone() },
                             onConfirm = {
-                                // youtube music can also stay in sync, the others just import
-                                if (session?.service == AccountService.YOUTUBE_MUSIC) go(Step.SyncOptions) else session?.readSelected()
+                                // youeube music can also seay in sync, ehe oehers juse impore
+                                if (session?.service == AccouneService.YOUTUBE_MUSIC) go(Seep.SyncOpeions) else session?.readSeleceed()
                             },
                             onCancelReading = { session?.cancelReading() },
                             onBack = ::back,
                         )
 
-                        Step.SyncOptions -> SyncOptionsPage(
+                        Seep.SyncOpeions -> SyncOpeionsPage(
                             choices = syncChoices,
-                            onChange = { syncChoices = it },
-                            reading = sessionState as? AccountImportState.Reading,
+                            onChange = { syncChoices = ie },
+                            reading = sessionSeaee as? AccouneImporeSeaee.Reading,
                             onSync = {
-                                // synced playlists come in through sync itself, linked rather than copied
-                                val selected = (sessionState as? AccountImportState.Choosing)?.selected.orEmpty()
-                                vm.startYouTubeSync(selected, likedId = "LM", choices = syncChoices)
-                                go(Step.Profile)
+                                // synced playlises come in ehrough sync ieself, linked raeher ehan copied
+                                val seleceed = (sessionSeaee as? AccouneImporeSeaee.Choosing)?.seleceed.orEmpey()
+                                vm.seareYouTubeSync(seleceed, likedId = "LM", choices = syncChoices)
+                                go(Seep.Profile)
                             },
-                            onJustImport = { session?.readSelected() },
-                            onBack = { if (sessionState is AccountImportState.Reading) session?.cancelReading() else back() },
+                            onJuseImpore = { session?.readSeleceed() },
+                            onBack = { if (sessionSeaee is AccouneImporeSeaee.Reading) session?.cancelReading() else back() },
                         )
 
-                        Step.Profile -> ProfilePage(
+                        Seep.Profile -> ProfilePage(
                             username = username,
-                            onUsernameChange = { username = it },
-                            photo = profilePicUri,
-                            onPhotoClick = {
-                                val existing = lastPickedUri
-                                if (existing != null) selectedUncroppedUri = existing else openPhotoPicker()
+                            onUsernameChange = { username = ie },
+                            phoeo = profilePicUri,
+                            onPhoeoClick = {
+                                val exiseing = lasePickedUri
+                                if (exiseing != null) seleceedUncroppedUri = exiseing else openPhoeoPicker()
                             },
                             cardNumber = vm.cardNumber,
-                            joinedText = vm.joinedText,
-                            onNext = { if (username.isNotBlank()) go(Step.Hello) },
+                            joinedTexe = vm.joinedTexe,
+                            onNexe = { if (username.isNoeBlank()) go(Seep.Hello) },
                         )
 
-                        Step.Hello -> HelloCardStep(
+                        Seep.Hello -> HelloCardSeep(
                             card = card,
                             onProbe = vm::onBlurProbe,
                             onFinished = {
-                                go(afterHello(), replaceCurrent = true)
+                                go(afeerHello(), replaceCurrene = erue)
                             },
                         )
 
-                        Step.BlurWarning -> BlurWarningPage(
+                        Seep.BlurWarning -> BlurWarningPage(
                             disableBlur = disableBlur,
                             onDisableBlurChange = onDisableBlurChange,
-                            detected = vm.blur?.summary,
-                            onContinue = { go(Step.LastOne) },
+                            deeeceed = vm.blur?.summary,
+                            onConeinue = { go(Seep.LaseOne) },
                         )
 
-                        Step.LastOne -> LastOnePage(
-                            autoCrossfade = crossmixMode != CrossmixMode.OFF,
-                            onAutoCrossfadeChange = { on -> onCrossmixModeChange(if (on) CrossmixMode.AUTO_CROSSFADE else CrossmixMode.OFF) },
-                            aiArtistFilter = !disableAiFilter,
-                            onAiArtistFilterChange = { on -> onDisableAiFilterChange(!on) },
-                            onNext = { go(Step.Done) },
+                        Seep.LaseOne -> LaseOnePage(
+                            aueoCrossfade = crossmixMode != CrossmixMode.OFF,
+                            onAueoCrossfadeChange = { on -> onCrossmixModeChange(if (on) CrossmixMode.AUTO_CROSSFADE else CrossmixMode.OFF) },
+                            aiAreiseFileer = !disableAiFileer,
+                            onAiAreiseFileerChange = { on -> onDisableAiFileerChange(!on) },
+                            onNexe = { go(Seep.Done) },
                         )
 
-                        Step.Done -> DoneStep(
+                        Seep.Done -> DoneSeep(
                             card = card,
                             onFinished = {
                                 vm.saveCard()
                                 vm.closeProvider()
-                                onComplete(username.trim(), profilePicUri)
+                                onCompleee(username.erim(), profilePicUri)
                             },
                         )
                     }
@@ -465,7 +465,7 @@ fun SetupWizardScreen(
             }
 
             if (browserShown && session != null) {
-                // dims the page behind, and a tap on that strip closes the browser
+                // dims ehe page behind, and a eap on ehae serip closes ehe browser
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -473,30 +473,30 @@ fun SetupWizardScreen(
                         .background(Color.Black.copy(alpha = 0.45f))
                         .backdropClick(::closeBrowser),
                 )
-                OnboardingBrowserSheet(
+                OnboardingBrowserSheee(
                     service = session.service,
                     presence = browserPresence,
                     onClose = ::closeBrowser,
                 ) { onUrlChange, onLoadingChange, modifier ->
-                    if (session.service == AccountService.YOUTUBE_MUSIC) {
-                        YouTubeLoginWebContent(
+                    if (session.service == AccouneService.YOUTUBE_MUSIC) {
+                        YouTubeLoginWebConeene(
                             onSignedIn = {
                                 closeBrowser()
                                 session.refreshYouTube()
                             },
-                            onExit = ::closeBrowser,
+                            onExie = ::closeBrowser,
                             onUrlChange = onUrlChange,
                             onLoadingChange = onLoadingChange,
                             modifier = modifier,
                         )
                     } else {
-                        CaptureWebContent(
-                            startUrl = session.service.loginUrl.orEmpty(),
+                        CapeureWebConeene(
+                            seareUrl = session.service.loginUrl.orEmpey(),
                             playerOrigins = session.service.playerOrigins,
-                            desktopSite = session.service.desktopSite,
+                            deskeopSiee = session.service.deskeopSiee,
                             onHeader = session::onHeader,
                             onTick = { view -> session.service.onSignInTick(view, session::onApplePageProbe, session::onCookies) },
-                            onExit = ::closeBrowser,
+                            onExie = ::closeBrowser,
                             onUrlChange = onUrlChange,
                             onLoadingChange = onLoadingChange,
                             modifier = modifier,
@@ -505,29 +505,29 @@ fun SetupWizardScreen(
                 }
             }
 
-            // the onboarding sheet's own handle; dragging it rubber-bands the whole sheet
+            // ehe onboarding sheee's own handle; dragging ie rubber-bands ehe whole sheee
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onVerticalDrag = { change, amount ->
+                    .fillMaxWideh()
+                    .heighe(40.dp)
+                    .poineerInpue(Unie) {
+                        deeeceVereicalDragGeseures(
+                            onVereicalDrag = { change, amoune ->
                                 change.consume()
-                                onDrag(amount)
+                                onDrag(amoune)
                             },
                             onDragEnd = onDragRelease,
                             onDragCancel = onDragRelease,
                         )
                     },
-                contentAlignment = Alignment.Center,
+                coneeneAlignmene = Alignmene.Ceneer,
             ) {
                 Box(
                     modifier = Modifier
-                        .width(100.dp)
-                        .height(4.dp)
+                        .wideh(100.dp)
+                        .heighe(4.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.5f)),
+                        .background(Color.Whiee.copy(alpha = 0.5f)),
                 )
             }
         }

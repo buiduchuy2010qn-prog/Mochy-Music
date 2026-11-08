@@ -120,7 +120,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Edit lyrics",
+                    text = "Chỉnh sửa lời bài hát",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
@@ -128,7 +128,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
                 )
                 if (parsed.isNotEmpty()) {
                     Text(
-                        text = "Save",
+                        text = "Lưu",
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -154,7 +154,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
 
             if (parsed.isEmpty()) {
                 Text(
-                    text = "No lyrics to edit for this song.",
+                    text = "Không có lời bài hát để chỉnh sửa cho bài này.",
                     color = Color(0xFF9A9A9A),
                     fontSize = 13.sp,
                     modifier = Modifier.padding(vertical = 24.dp),
@@ -274,7 +274,7 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
                 .padding(top = 16.dp, bottom = 24.dp)
         ) {
             Text(
-                text = "Lyrics Provider",
+                text = "Nguồn lời bài hát",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -289,15 +289,15 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
                 val available = state as? LyricsMenuViewModel.SourceState.Available
                 val isActive = name == active
                 val status = when {
-                    isActive -> "In use"
+                    isActive -> "Đang dùng"
                     available != null -> when (available.candidate.sync) {
-                        LyricsUtils.SyncKind.WORD -> "Word synced"
-                        LyricsUtils.SyncKind.LINE -> "Line synced"
-                        else -> "Plain"
+                        LyricsUtils.SyncKind.WORD -> "Đồng bộ từng từ"
+                        LyricsUtils.SyncKind.LINE -> "Đồng bộ từng dòng"
+                        else -> "Văn bản thường"
                     } + if (available.candidate.hasDuet) " · duet" else ""
-                    state == LyricsMenuViewModel.SourceState.Unavailable -> "Not found"
-                    state == LyricsMenuViewModel.SourceState.Off -> "Off"
-                    else -> "Checking…"
+                    state == LyricsMenuViewModel.SourceState.Unavailable -> "Không tìm thấy"
+                    state == LyricsMenuViewModel.SourceState.Off -> "Tắt"
+                    else -> "Đang kiểm tra…"
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -419,9 +419,9 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 24.dp)
         ) {
-            Text(text = "Lyrics translation", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+            Text(text = "Dịch lời bài hát", color = Color(0xFF9A9A9A), fontSize = 12.sp)
             Text(
-                text = "Translate from",
+                text = "Dịch từ",
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
@@ -432,7 +432,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             // then nothing could be done about it, so the source can be set by hand too.
             PillButton(
                 label = if (source.isBlank() || source == "auto") {
-                    "Detect automatically"
+                    "Tự động phát hiện"
                 } else {
                     TranslationTargets.firstOrNull { it.first == source }?.second ?: source
                 },
@@ -440,7 +440,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             )
 
             Spacer(modifier = Modifier.height(14.dp))
-            Text(text = "To", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(text = "Sang", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             PillButton(
                 label = TranslationTargets.firstOrNull { it.first == target }?.second ?: "unselected",
@@ -473,7 +473,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
                 SheetIcon(R.drawable.translate)
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Translate this whole session",
+                    text = "Dịch cho toàn bộ phiên nghe này",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -519,10 +519,10 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             ) {
                 Text(
                     text = when {
-                        isTranslating -> "Translating… (tap to stop)"
-                        translationOn -> "Show original"
-                        target.isBlank() -> "Pick a language first"
-                        else -> "Translate!"
+                        isTranslating -> "Đang dịch… (chạm để dừng)"
+                        translationOn -> "Hiện bản gốc"
+                        target.isBlank() -> "Chọn ngôn ngữ trước"
+                        else -> "Dịch ngay!"
                     },
                     color = Color.White.copy(alpha = if (target.isBlank() || isTranslating) 0.45f else 1f),
                     fontSize = 15.sp,
@@ -544,7 +544,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
 
     if (picking) {
         LanguagePickerSheet(
-            title = "Translate to",
+            title = "Dịch sang",
             selected = target,
             marked = youtubeLanguages,
             // The picker closes itself (animated) after a pick; onDismiss then drops it. While a
@@ -555,9 +555,9 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
     }
     if (pickingSource) {
         LanguagePickerSheet(
-            title = "Translate from",
+            title = "Dịch từ",
             selected = source.ifBlank { "auto" },
-            options = listOf("auto" to "Detect automatically") + TranslationTargets,
+            options = listOf("auto" to "Tự động phát hiện") + TranslationTargets,
             onPick = { setSource(it) },
             onDismiss = { pickingSource = false },
         )
@@ -660,7 +660,7 @@ private fun LanguagePickerSheet(
                     .padding(horizontal = 16.dp)
             ) {
                 if (query.isEmpty()) {
-                    Text(text = "Search language", color = Color(0xFF8A8A8A), fontSize = 13.sp)
+                    Text(text = "Tìm ngôn ngữ", color = Color(0xFF8A8A8A), fontSize = 13.sp)
                 }
                 BasicTextField(
                     value = query,

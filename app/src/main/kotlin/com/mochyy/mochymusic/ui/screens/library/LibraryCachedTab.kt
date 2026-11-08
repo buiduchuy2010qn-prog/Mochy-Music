@@ -34,7 +34,7 @@ internal fun LazyListScope.libraryCachedTab(
 ) {
     if (data.songs.isEmpty()) {
         item(key = "cached_empty") {
-            LibraryEmptyState(text = "Nothing cached yet. Songs you play show up here.")
+            LibraryEmptyState(text = "Chưa có bài hát nào trong bộ nhớ đệm. Các bài bạn phát sẽ hiện tại đây.")
         }
     } else {
         libraryShelfCards(data, navController, spaceAbove = 0.dp)
@@ -43,14 +43,14 @@ internal fun LazyListScope.libraryCachedTab(
     // above the list rather than under it: with hundreds of songs cached it would be a long way down
     item(key = "cached_manage") {
         Spacer(modifier = Modifier.height(12.dp))
-        LibraryManagePill(text = "Manage cache", onClick = onManage)
+        LibraryManagePill(text = "Quản lý bộ nhớ đệm", onClick = onManage)
     }
 
     if (data.songs.isEmpty()) return
 
     item(key = "cached_songs_header") {
         Spacer(modifier = Modifier.height(24.dp))
-        LibraryCapsLabel("All cached music")
+        LibraryCapsLabel("Tất cả nhạc trong bộ nhớ đệm")
         Spacer(modifier = Modifier.height(8.dp))
     }
 

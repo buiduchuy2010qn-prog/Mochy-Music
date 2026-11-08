@@ -63,7 +63,7 @@ import com.mochyy.mochymusic.importer.transfer.TransferManifest
 import com.mochyy.mochymusic.viewmodels.TransferStep
 import com.mochyy.mochymusic.viewmodels.YouTubeSyncChoices
 
-private const val GoBack = "hell nah, go back"
+private const val GoBack = "thôi khỏi, quay lại"
 
 // ---- 1. import? ----
 
@@ -71,8 +71,8 @@ private const val GoBack = "hell nah, go back"
 internal fun ImportAskPage(onYes: () -> Unit, onSkip: () -> Unit) {
     OnboardingPage(
         badge = { PageBadge(painterResource(R.drawable.download)) },
-        title = "Importing music",
-        subtitle = "Do you want to import music from other platforms like Spotify, Apple Music, Tidal or SoundCloud, or sync your data with YouTube Music?",
+        title = "Nhập nhạc",
+        subtitle = "Bạn có muốn nhập nhạc từ các nền tảng khác như Spotify, Apple Music, Tidal, SoundCloud hoặc đồng bộ dữ liệu với YouTube Music không?",
         footer = {
             OnbButton("Yes!", onClick = onYes)
             OnbButton("Skip", onClick = onSkip, style = OnbButtonStyle.Secondary)
@@ -92,27 +92,27 @@ internal fun ImportModePage(
 ) {
     OnboardingPage(
         badge = { PageBadge(painterResource(R.drawable.download)) },
-        title = "Importing music",
-        subtitle = "what do you want?",
+        title = "Nhập nhạc",
+        subtitle = "bạn muốn làm gì?",
         footer = { OnbButton(GoBack, onClick = onBack, style = OnbButtonStyle.Secondary) },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OnbChoiceCard(
                 icon = painterResource(R.drawable.restore),
-                title = "Import previous data",
-                description = "the .zip you exported from your old app, with your library, history, downloads and settings",
+                title = "Nhập dữ liệu cũ",
+                description = "tệp .zip bạn đã xuất từ ứng dụng cũ, bao gồm thư viện, lịch sử nghe, nhạc tải xuống và cài đặt",
                 onClick = onPreviousData,
             )
             OnbChoiceCard(
                 icon = painterResource(R.drawable.playlist_add),
-                title = "Import",
-                description = "import music, playlists and albums from supported providers like Apple Music, Spotify, Tidal and YouTube Music",
+                title = "Nhập từ dịch vụ khác",
+                description = "nhập bài hát, danh sách phát và album từ các nền tảng hỗ trợ như Apple Music, Spotify, Tidal và YouTube Music",
                 onClick = onImport,
             )
             OnbChoiceCard(
                 icon = painterResource(R.drawable.backup),
-                title = "Import from backup",
-                description = "if you by any chance have a Mochy backup",
+                title = "Nhập từ bản sao lưu",
+                description = "nếu bạn đã có sẵn một bản sao lưu của Mochy",
                 onClick = onBackup,
             )
             if (backupError != null) {
@@ -130,7 +130,7 @@ internal fun RestoringPage(step: TransferStep, manifest: TransferManifest?) {
     val progress = if (done) 1f else (step as? TransferStep.Working)?.progress ?: 0f
     OnboardingPage(
         badge = { PageBadge(painterResource(if (done) R.drawable.check else R.drawable.restore)) },
-        title = if (done) "All set!" else "Bringing your music over",
+        title = if (done) "Hoàn tất!" else "Đang chuyển nhạc của bạn sang",
         subtitle = when {
             done -> "Mochy restarts once to finish. See you in a sec!"
             manifest != null -> "${countOf(manifest.songs, "song")}, ${countOf(manifest.playlists, "playlist")} and " +
@@ -207,8 +207,8 @@ internal fun ProviderSetupPage(
 ) {
     OnboardingPage(
         badge = { ProviderSquircle(service, size = 40.dp) },
-        title = "${service.label} setup",
-        subtitle = "You will log in to your account. We never see your password. A web page will open.",
+        title = "Thiết lập ${service.label}",
+        subtitle = "Bạn sẽ đăng nhập vào tài khoản của mình. Chúng tôi không bao giờ thấy mật khẩu của bạn. Một trang web sẽ mở ra.",
         footer = {
             when (state) {
                 is AccountImportState.Failed -> OnbButton(if (state.signedOut) "Sign in again" else "Try again", onClick = onRetry)
@@ -226,7 +226,7 @@ internal fun ProviderSetupPage(
             }
             is AccountImportState.Failed -> Text(state.message, color = Color(0xFFFF8A80), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             else -> Text(
-                "Sign in on ${service.label}'s own page. Once you're in, the page closes and your playlists show up here.",
+                "Đăng nhập trực tiếp trên trang của ${service.label}. Sau khi đăng nhập xong, trang sẽ tự đóng và danh sách phát sẽ hiện tại đây.",
                 color = Onb.Muted,
                 fontSize = 14.sp,
             )
@@ -252,7 +252,7 @@ internal fun WhatToSyncPage(
     val selectedCount = choosing?.selected?.size ?: 0
     OnboardingPage(
         badge = { ProviderSquircle(service, size = 40.dp) },
-        title = "What to import",
+        title = "Chọn mục cần nhập",
         subtitle = choosing?.accountName?.let { "Signed in as $it" },
         scrollable = false,
         footer = {
@@ -397,8 +397,8 @@ internal fun SyncOptionsPage(
 ) {
     OnboardingPage(
         badge = { ProviderSquircle(AccountService.YOUTUBE_MUSIC, size = 40.dp) },
-        title = "Also keep in sync?",
-        subtitle = "YouTube Music can stay in step with Mochy: your playlists, likes and history, both ways.",
+        title = "Đồng bộ tự động?",
+        subtitle = "YouTube Music có thể đồng bộ hai chiều với Mochy: danh sách phát, bài hát đã thích và lịch sử nghe.",
         footer = {
             if (reading != null) {
                 Text(
@@ -459,7 +459,7 @@ internal fun ProfilePage(
 ) {
     OnboardingPage(
         badge = { PageBadge(painterResource(R.drawable.person)) },
-        title = "Let's create your profile!",
+        title = "Tạo hồ sơ của bạn!",
         footer = {
             Text(
                 "Mochy will never store your data online!",
@@ -578,7 +578,7 @@ internal fun BlurWarningPage(
                     ),
             )
             OnbButton(
-                text = if (disableBlur) "continue" else "no, continue",
+                text = if (disableBlur) "tiếp tục" else "không, cứ tiếp tục",
                 onClick = onContinue,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -602,8 +602,8 @@ internal fun LastOnePage(
 ) {
     OnboardingPage(
         badge = { PageBadge(painterResource(R.drawable.tune)) },
-        title = "Last one",
-        subtitle = "Disable anything that you don't like",
+        title = "Bước cuối cùng",
+        subtitle = "Tắt bất kỳ tính năng nào bạn không thích",
         footer = { OnbButton("next", onClick = onNext) },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

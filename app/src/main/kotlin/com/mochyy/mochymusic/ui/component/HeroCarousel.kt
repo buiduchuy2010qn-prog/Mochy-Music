@@ -277,14 +277,14 @@ data class DiscoverItem(
         val seedCover = seed.song.thumbnailUrl
         return when (reason) {
             DiscoverReason.YouMayAlsoLike -> HeroLabel("You may also like")
-            DiscoverReason.BecauseYouLike -> HeroLabel("Because you like", seedCover, seed.song.title)
+            DiscoverReason.BecauseYouLike -> HeroLabel("Vì bạn thích", seedCover, seed.song.title)
             DiscoverReason.MoreFrom -> HeroLabel(
-                "More from",
+                "Thêm từ",
                 seedCover,
                 sharedArtist(item) ?: seed.artists.firstOrNull()?.name ?: seed.song.title,
             )
-            DiscoverReason.BecauseYouPlayed -> HeroLabel("Because you played", seedCover, seed.song.title)
-            DiscoverReason.InspiredBy -> HeroLabel("Inspired by", seedCover, seed.song.title)
+            DiscoverReason.BecauseYouPlayed -> HeroLabel("Vì bạn đã nghe", seedCover, seed.song.title)
+            DiscoverReason.InspiredBy -> HeroLabel("Lấy cảm hứng từ", seedCover, seed.song.title)
         }
     }
     override val mainText: String = item.recommendation.title
@@ -316,8 +316,8 @@ private fun playOrOpen(rec: YTItem, playerConnection: PlayerConnection, navContr
 }
 
 /**
- * a pick from Home's related rows, worded by what it grew out of: "Because you listen to" an artist,
- * "Similar to" a song, "Because you played" an album. built from rows Home already loaded, so no fetch
+ * a pick from Home's related rows, worded by what it grew out of: "Vì bạn hay nghe" an artist,
+ * "Tương tự với" a song, "Vì bạn đã nghe" an album. built from rows Home already loaded, so no fetch
  */
 data class RelatedPickItem(
     val recommendation: YTItem,
@@ -416,9 +416,9 @@ internal fun extraHeroPicks(
             val seed = row.title
             val reason = when (seed) {
                 is com.mochyy.mochymusic.db.entities.Artist ->
-                    HeroLabel("Because you listen to", seed.thumbnailUrl, seed.title, roundCover = true)
-                is com.mochyy.mochymusic.db.entities.Album -> HeroLabel("Because you played", seed.thumbnailUrl, seed.title)
-                else -> HeroLabel("Similar to", seed.thumbnailUrl, seed.title)
+                    HeroLabel("Vì bạn hay nghe", seed.thumbnailUrl, seed.title, roundCover = true)
+                is com.mochyy.mochymusic.db.entities.Album -> HeroLabel("Vì bạn đã nghe", seed.thumbnailUrl, seed.title)
+                else -> HeroLabel("Tương tự với", seed.thumbnailUrl, seed.title)
             }
             add(RelatedPickItem(pick, reason))
         }
@@ -461,7 +461,7 @@ class PlaylistPickItem(
     override val thumbnailUrl: String?,
     private val play: () -> Unit,
 ) : HeroCarouselItem {
-    override fun label(isPlaying: Boolean): HeroLabel = HeroLabel("From your playlists")
+    override fun label(isPlaying: Boolean): HeroLabel = HeroLabel("Từ danh sách phát của bạn")
     override val mainText: String = name
     override val subText: String = ""
     override val mediaId: String? = null
@@ -489,7 +489,7 @@ data class StarterItem(
     enum class Kind { Playlist, Artist }
 
     override fun label(isPlaying: Boolean): HeroLabel =
-        HeroLabel(if (kind == Kind.Playlist) "From your import" else "Recommended from")
+        HeroLabel(if (kind == Kind.Playlist) "Từ nhạc đã nhập" else "Đề xuất từ")
     override val mainText: String = title
     override val subText: String = ""
     override val mediaId: String? = null
@@ -511,7 +511,7 @@ data class StarterSongItem(
 ) : HeroCarouselItem {
     override fun label(isPlaying: Boolean): HeroLabel =
         if (isPlaying) HeroLabel("Now playing")
-        else HeroLabel("Recommended from", pickedArtistThumbnail, pickedArtist, roundCover = true)
+        else HeroLabel("Đề xuất từ", pickedArtistThumbnail, pickedArtist, roundCover = true)
     override val mainText: String = song.title
     override val subText: String = song.artists.joinToString(", ") { it.name }
     override val thumbnailUrl: String? = song.thumbnail
@@ -1353,9 +1353,9 @@ private fun QuietHero(modifier: Modifier = Modifier) {
                 .align(Alignment.BottomStart)
                 .padding(start = HomeContentInset, end = HomeContentInset, bottom = 64.dp)
         ) {
-            Text(text = "Nothing here yet", style = HomeLabelStyle, color = HeroLabelColor, maxLines = 1)
+            Text(text = "Chưa có gì ở đây", style = HomeLabelStyle, color = HeroLabelColor, maxLines = 1)
             Text(
-                text = "Play something and it shows up here",
+                text = "Hãy phát một bài hát để hiển thị tại đây",
                 style = HomeTitleStyle,
                 color = Color.White,
                 maxLines = 2,

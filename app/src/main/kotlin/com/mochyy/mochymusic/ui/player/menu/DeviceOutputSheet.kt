@@ -116,7 +116,7 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
                 .padding(horizontal = 20.dp)
                 .padding(top = 10.dp, bottom = 28.dp)
         ) {
-            SectionLabel("Change playback")
+            SectionLabel("Đổi thiết bị phát")
 
             VolumeCard(
                 icon = R.drawable.volume_up,
@@ -136,7 +136,7 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
 
             VolumeCard(
                 icon = R.drawable.music_note,
-                title = "Music volume",
+                title = "Âm lượng nhạc",
                 value = musicVolume.floatValue,
                 onValueChange = { next ->
                     musicVolume.floatValue = next
@@ -145,12 +145,12 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
             )
 
             Spacer(modifier = Modifier.height(22.dp))
-            SectionLabel("Play on")
+            SectionLabel("Phát trên")
 
             Column(modifier = Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DeviceRow(
                     label = "Automatic",
-                    detail = "Wherever Android sends it",
+                    detail = "Theo thiết bị mặc định của Android",
                     icon = Icons.Rounded.AutoMode,
                     selected = !anyChosen && !isCasting,
                     onClick = { service?.setPreferredAudioDevice(null) },
@@ -173,12 +173,12 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
 
             if (castTargets.isNotEmpty() || isCasting) {
                 Spacer(modifier = Modifier.height(22.dp))
-                SectionLabel("Other devices on your network")
+                SectionLabel("Thiết bị khác trong mạng")
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (isCasting) {
                         DeviceRow(
                             label = castingTo ?: "Cast device",
-                            detail = "Playing here now · tap to stop casting",
+                            detail = "Đang phát tại đây · chạm để dừng truyền",
                             icon = Icons.Rounded.CastConnected,
                             selected = true,
                             onClick = { cast?.disconnect() },
@@ -201,8 +201,8 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
 
             Spacer(modifier = Modifier.height(8.dp))
             DeviceRow(
-                label = "Pair a new device",
-                detail = "Opens Bluetooth settings",
+                label = "Ghép nối thiết bị mới",
+                detail = "Mở cài đặt Bluetooth",
                 icon = Icons.Rounded.SettingsBluetooth,
                 onClick = {
                     runCatching {
@@ -219,10 +219,10 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
 
 private fun deviceLabel(device: AudioOutputs.Device): String = device.name.ifBlank {
     when (device.kind) {
-        AudioOutputs.Kind.PHONE -> "This phone"
-        AudioOutputs.Kind.WIRED -> "Wired headphones"
-        AudioOutputs.Kind.USB -> "USB audio"
-        AudioOutputs.Kind.BLUETOOTH -> "Bluetooth device"
+        AudioOutputs.Kind.PHONE -> "Điện thoại này"
+        AudioOutputs.Kind.WIRED -> "Tai nghe có dây"
+        AudioOutputs.Kind.USB -> "Âm thanh USB"
+        AudioOutputs.Kind.BLUETOOTH -> "Thiết bị Bluetooth"
         AudioOutputs.Kind.HDMI -> "HDMI"
     }
 }
@@ -230,8 +230,8 @@ private fun deviceLabel(device: AudioOutputs.Device): String = device.name.ifBla
 // a dac says what it takes, so that's shown; the rest just say what they are
 private fun deviceDetail(device: AudioOutputs.Device, passthrough: Boolean): String {
     val kind = when (device.kind) {
-        AudioOutputs.Kind.PHONE -> "Speaker"
-        AudioOutputs.Kind.WIRED -> "Headphone jack"
+        AudioOutputs.Kind.PHONE -> "Loa ngoài"
+        AudioOutputs.Kind.WIRED -> "Giắc tai nghe"
         AudioOutputs.Kind.USB -> "USB DAC"
         AudioOutputs.Kind.BLUETOOTH -> "Bluetooth"
         AudioOutputs.Kind.HDMI -> "HDMI"

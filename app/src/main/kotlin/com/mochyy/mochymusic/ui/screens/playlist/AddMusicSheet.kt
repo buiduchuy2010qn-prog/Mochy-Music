@@ -84,10 +84,10 @@ fun PopupSheetState.showAddMusicSheet(playlistId: String, startInLibrary: Boolea
             val count = picks.songs.size
             SheetPillButton(
                 text = when {
-                    picks.saving -> "Adding…"
-                    count == 0 -> "Done"
-                    count == 1 -> "Add 1 song"
-                    else -> "Add $count songs"
+                    picks.saving -> "Đang thêm…"
+                    count == 0 -> "Xong"
+                    count == 1 -> "Thêm 1 bài hát"
+                    else -> "Thêm $count bài hát"
                 },
                 enabled = !picks.saving,
                 onClick = {
@@ -186,7 +186,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
             .fillMaxHeight(),
     ) {
         Text(
-            text = "Add music",
+            text = "Thêm nhạc",
             color = Color.White,
             fontSize = 26.sp,
             fontWeight = FontWeight.Bold,
@@ -199,7 +199,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
         SheetSearchField(
             value = query,
             onValueChange = { query = it },
-            placeholder = "Search all songs",
+            placeholder = "Tìm kiếm tất cả bài hát",
         )
 
         Spacer(Modifier.height(12.dp))
@@ -212,7 +212,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
                 .horizontalScroll(rememberScrollState()),
         ) {
             AddMusicChip(
-                text = "Recommended for this playlist",
+                text = "Đề xuất cho danh sách phát này",
                 selected = needle.isEmpty() && tab == AddMusicTab.Suggested,
                 onClick = {
                     query = ""
@@ -220,7 +220,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
                 },
             )
             AddMusicChip(
-                text = "In library",
+                text = "Trong thư viện",
                 selected = needle.isEmpty() && tab == AddMusicTab.Library,
                 onClick = {
                     query = ""

@@ -30,9 +30,9 @@ fun LibrarySongsScreen(
     val menuState = LocalMenuState.current
 
     LibraryEntityListScreen(
-        title = "Songs",
-        subtitle = "All songs on your library listed here.",
-        searchPlaceholder = "Find a song by its title or artist",
+        title = "Bài hát",
+        subtitle = "Tất cả bài hát trong thư viện của bạn.",
+        searchPlaceholder = "Tìm bài hát theo tên hoặc nghệ sĩ",
         items = songs,
         idOf = { it.id },
         nameOf = { it.song.title },
@@ -46,7 +46,7 @@ fun LibrarySongsScreen(
             val ordered = sortForLibraryIndex(songs) { it.song.title }
             playerConnection.playQueue(
                 ListQueue(
-                    title = "Songs",
+                    title = "Bài hát",
                     items = ordered.map { it.toMediaItem() },
                     startIndex = ordered.indexOf(song).coerceAtLeast(0),
                 ),

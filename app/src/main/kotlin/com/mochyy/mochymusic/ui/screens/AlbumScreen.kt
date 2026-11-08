@@ -336,7 +336,7 @@ fun AlbumScreen(
 
         albumShelf(
             key = "more_by_artist",
-            title = if (mainArtistName != null) "More by $mainArtistName" else "More by this artist",
+            title = if (mainArtistName != null) "Thêm từ $mainArtistName" else "Thêm từ nghệ sĩ này",
             albums = moreByArtist,
             onTitleClick = album.artists.firstOrNull()?.id?.let { id -> { navController.navigate("artist/$id") } },
             navController = navController,
@@ -349,7 +349,7 @@ fun AlbumScreen(
         )
         albumShelf(
             key = "other_versions",
-            title = "Other versions",
+            title = "Phiên bản khác",
             albums = otherVersions,
             navController = navController,
             onLongClick = { item ->
@@ -361,7 +361,7 @@ fun AlbumScreen(
         )
         albumShelf(
             key = "releases_for_you",
-            title = "Releases for you",
+            title = "Phát hành dành cho bạn",
             albums = releasesForYou,
             navController = navController,
             onLongClick = { item ->
@@ -384,7 +384,7 @@ private fun albumStats(year: Int?, songCount: Int, totalSeconds: Int, explicit: 
     val minutes = (totalSeconds % 3600) / 60
     return listOfNotNull(
         year?.toString(),
-        "$songCount ${if (songCount == 1) "song" else "songs"}",
+        "$songCount bài hát",
         (if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m").takeIf { totalSeconds > 0 },
         "Explicit".takeIf { explicit },
         format?.ifBlank { null },
@@ -445,7 +445,7 @@ private fun AlbumRetry(onRetry: () -> Unit) {
             .padding(top = 24.dp)
     ) {
         Text(
-            text = "Couldn't load this album. Tap to try again",
+            text = "Không thể tải album này. Chạm để thử lại",
             style = PlaylistStatsStyle,
             color = Color.White.copy(alpha = 0.7f),
             modifier = Modifier

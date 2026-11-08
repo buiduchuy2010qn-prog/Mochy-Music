@@ -76,17 +76,17 @@ internal fun LazyListScope.libraryShelfCards(
         Spacer(modifier = Modifier.height(spaceAbove))
         LibraryCardGrid(
             listOf(
-                LibraryCardEntry("Songs", data.songs.size, data.songs.take(4).map { it.song.thumbnailUrl }, {
+                LibraryCardEntry("Bài hát", data.songs.size, data.songs.take(4).map { it.song.thumbnailUrl }, {
                     navController.navigate("auto_playlist/$key")
                 }),
-                LibraryCardEntry("Playlist", data.playlists.size, data.playlists.take(2).flatMap { it.thumbnails }, {
+                LibraryCardEntry("Danh sách phát", data.playlists.size, data.playlists.take(2).flatMap { it.thumbnails }, {
                     navController.navigate("library/$key/playlists")
                 }),
-                LibraryCardEntry("Albums", data.albums.size, data.albums.take(4).map { it.thumbnailUrl }, {
+                LibraryCardEntry("Album", data.albums.size, data.albums.take(4).map { it.thumbnailUrl }, {
                     navController.navigate("library/$key/albums")
                 }),
                 LibraryCardEntry(
-                    "Artist",
+                    "Nghệ sĩ",
                     data.artists.size,
                     data.artists.take(4).map { it.artist.thumbnailUrl },
                     { navController.navigate("library/$key/artists") },
@@ -99,7 +99,7 @@ internal fun LazyListScope.libraryShelfCards(
 
     item(key = "${key}_recently_added") {
         LibraryWideCard(
-            title = "Recently added",
+            title = "Mới thêm gần đây",
             count = data.songs.size,
             covers = data.songs.take(4).map { it.song.thumbnailUrl },
             onClick = { navController.navigate("library/$key/added") },
@@ -112,7 +112,7 @@ internal fun LazyListScope.libraryShelfCards(
     if (data.liked.isNotEmpty()) {
         item(key = "${key}_liked") {
             LibraryWideCard(
-                title = "Liked",
+                title = "Đã thích",
                 count = data.liked.size,
                 covers = data.liked.take(4).map { it.song.thumbnailUrl },
                 onClick = { navController.navigate("auto_playlist/${key}_liked") },

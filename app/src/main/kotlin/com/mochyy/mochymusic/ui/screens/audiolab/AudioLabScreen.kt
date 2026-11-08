@@ -111,7 +111,7 @@ fun AudioLabScreen(
     ) {
         val equalizer: @Composable (Modifier) -> Unit = { modifier ->
             BigHubCard(
-                title = "Equalizer",
+                title = "Bộ chỉnh âm (Equalizer)",
                 status = equalizerStatus(eq, presets.associate { it.id to it.name }),
                 on = eq.enabled,
                 onClick = { navController.navigate("equalizer") },
@@ -120,7 +120,7 @@ fun AudioLabScreen(
         }
         val effect: @Composable (Modifier) -> Unit = { modifier ->
             BigHubCard(
-                title = "Audio Effect",
+                title = "Hiệu ứng âm thanh",
                 status = effectsStatus(effects),
                 on = effects.isNotEmpty(),
                 onClick = { navController.navigate("audio_fx") },
@@ -129,7 +129,7 @@ fun AudioLabScreen(
         }
         val qualityCard: @Composable (Modifier) -> Unit = { modifier ->
             SmallHubCard(
-                title = "Audio Quality",
+                title = "Chất lượng âm thanh",
                 status = qualityName(quality, firstProvider),
                 onClick = { navController.navigate("audio_quality") },
                 modifier = modifier,
@@ -137,11 +137,11 @@ fun AudioLabScreen(
         }
         val transition: @Composable (Modifier) -> Unit = { modifier ->
             SmallHubCard(
-                title = "Transition",
+                title = "Chuyển bài (Transition)",
                 status = when (mode.playable()) {
-                    CrossmixMode.OFF -> "Off"
-                    CrossmixMode.AUTO_CROSSFADE -> "Auto"
-                    CrossmixMode.MANUAL_CROSSFADE -> "Manual"
+                    CrossmixMode.OFF -> "Tắt"
+                    CrossmixMode.AUTO_CROSSFADE -> "Tự động"
+                    CrossmixMode.MANUAL_CROSSFADE -> "Thủ công"
                     CrossmixMode.CROSSMIX -> "CrossMix"
                 },
                 onClick = { navController.navigate("crossmix_settings") },
@@ -196,7 +196,7 @@ fun AudioLabScreen(
 private fun effectsStatus(effects: List<ActiveEffect>): String {
     val names = effects.map { it.label.uppercase() }
     return when {
-        names.isEmpty() -> "ALL OFF"
+        names.isEmpty() -> "ĐÃ TẮT HẾT"
         names.size <= 2 -> names.joinToString(", ")
         else -> names.take(2).joinToString(", ") + " and ${names.size - 2} more"
     }

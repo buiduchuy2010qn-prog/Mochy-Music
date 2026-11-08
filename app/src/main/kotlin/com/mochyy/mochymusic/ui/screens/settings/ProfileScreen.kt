@@ -268,7 +268,7 @@ fun ProfileScreen(navController: NavController) {
     }
     val cardNumber = cardNumberPref.ifBlank { "00000000000" }
     val joinedDate = if (joinedEpochDay >= 0L) LocalDate.ofEpochDay(joinedEpochDay) else LocalDate.now()
-    val joinedText = "joined at " + joinedDate.format(DateLong)
+    val joinedText = "tham gia ngày " + joinedDate.format(DateLong)
     val photo: Any? = profilePicUri.takeIf { it.isNotBlank() }?.let { if (it.contains("://")) it else "file://$it" }
 
     // ---- header state -------------------------------------------------------------------------
@@ -309,7 +309,7 @@ fun ProfileScreen(navController: NavController) {
             RecapRepository.recapFor(database, LocalDate.now(), force = forceRecap) is RecapAvailability.Ready
         }.getOrDefault(false)
     }
-    // 0 = the chevron, 1 = "swipe down here!!"; it turns into the words every few seconds and back
+    // 0 = the chevron, 1 = "vuốt xuống tại đây!!"; it turns into the words every few seconds and back
     val hintWords = remember { Animatable(0f) }
     LaunchedEffect(recapWaiting, stage) {
         if (!recapWaiting || stage != HeaderStage.Collapsed) {
@@ -540,7 +540,7 @@ fun ProfileScreen(navController: NavController) {
                     ) {
                         // greeting (in the header; its scrolled-away twin lives in the top bar)
                         Text(
-                            text = "${MochyGreeting.current}, ${accountName.ifBlank { "there" }}!",
+                            text = "${MochyGreeting.current}, ${accountName.ifBlank { "bạn" }}!",
                             style = PageTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -655,7 +655,7 @@ fun ProfileScreen(navController: NavController) {
                             )
                             if (recapWaiting) {
                                 Text(
-                                    text = "swipe down here!!",
+                                    text = "vuốt xuống tại đây!!",
                                     style = MonoSmall.copy(color = Color.White.copy(alpha = 0.6f)),
                                     maxLines = 1,
                                     modifier = Modifier.graphicsLayer {
@@ -794,7 +794,7 @@ fun ProfileScreen(navController: NavController) {
             )
             if (collapseProgress > 0.01f) {
                 Text(
-                    text = "${MochyGreeting.current}, ${accountName.ifBlank { "there" }}!",
+                    text = "${MochyGreeting.current}, ${accountName.ifBlank { "bạn" }}!",
                     style = PageTitle.copy(fontSize = 18.sp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1008,7 +1008,7 @@ private fun VersionCard(
  */
 @Composable
 private fun VersionCapsule(update: Boolean, onAbout: () -> Unit) {
-    val shown = if (update) "Update" else "About app"
+    val shown = if (update) "Cập nhật" else "Giới thiệu"
 
     // the pop: a quick squash, then a spring that carries past full size and settles
     val pop = remember { Animatable(1f) }

@@ -450,7 +450,7 @@ fun PlayerSelectorOverlay(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("Styles", color = Color.White, style = studioText(StudioType.Title, FontWeight.Bold))
+                    Text("Kiểu giao diện", color = Color.White, style = studioText(StudioType.Title, FontWeight.Bold))
                     AnimatedContent(
                         // the module style goes by the name its look gives it
                         targetState = styles.getOrNull(focused)?.let { style ->
@@ -509,8 +509,8 @@ fun PlayerSelectorOverlay(
                 ) {
                     // edit stays in its place, only dimmed where there's nothing to edit, so set never moves under the finger
                     val editable = style?.editable == true
-                    CardButton("Edit", enabled = active && editable, dimmed = !editable, onClick = { onEdit(focused) }, modifier = Modifier.weight(1f))
-                    CardButton("Set", enabled = active, onClick = { currentOnSet(focused, 0f) }, modifier = Modifier.weight(1f))
+                    CardButton("Tùy chỉnh", enabled = active && editable, dimmed = !editable, onClick = { onEdit(focused) }, modifier = Modifier.weight(1f))
+                    CardButton("Áp dụng", enabled = active, onClick = { currentOnSet(focused, 0f) }, modifier = Modifier.weight(1f))
                 }
             }
         }

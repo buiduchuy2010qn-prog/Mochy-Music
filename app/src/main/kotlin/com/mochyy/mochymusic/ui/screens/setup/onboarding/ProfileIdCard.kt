@@ -133,7 +133,7 @@ internal fun ProfileIdCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "PROFILE USR#$cardNumber",
+                        text = "HỒ SƠ USR#$cardNumber",
                         color = mutedText,
                         fontFamily = FontFamily.Monospace,
                         fontSize = (unit.value * 11f).sp,

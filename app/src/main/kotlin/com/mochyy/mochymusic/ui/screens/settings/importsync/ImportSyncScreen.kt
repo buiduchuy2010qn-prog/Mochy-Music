@@ -43,7 +43,7 @@ fun ImportSyncScreen(
     }
 
     SubSettingsScaffold(
-        title = "Import & sync",
+        title = "Nhập & đồng bộ",
         onBack = { navController.navigateUp() },
     ) {
         if (progress.isRunning || progress.isDone) {

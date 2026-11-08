@@ -105,7 +105,7 @@ fun SongDetailsSheet(
                         val artistId = artist.id!!
                         val avatar by rememberArtistAvatar(artistId)
                         DetailRow(
-                            title = "View ${artist.name}",
+                            title = "Xem nghệ sĩ ${artist.name}",
                             onClick = { onOpenArtist(artistId) },
                         ) {
                             DetailImage(
@@ -117,7 +117,7 @@ fun SongDetailsSheet(
                     }
                     song.album?.let { album ->
                         DetailRow(
-                            title = "View ${album.title}",
+                            title = "Xem album ${album.title}",
                             onClick = { onOpenAlbum(album.id) },
                         ) {
                             DetailImage(
@@ -128,13 +128,13 @@ fun SongDetailsSheet(
                         }
                     }
                     DetailRow(
-                        title = "About song",
+                        title = "Thông tin bài hát",
                         onClick = { showAbout = true },
                     ) {
                         DetailGlyph(R.drawable.info)
                     }
                     DetailRow(
-                        title = "Stream info",
+                        title = "Thông tin luồng phát",
                         enabled = streaming,
                         onClick = { showStream = true },
                     ) {
@@ -317,7 +317,7 @@ private fun DoneButton(onClick: () -> Unit) {
                 onClick = onClick,
             ),
     ) {
-        Text(text = "done", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(text = "xong", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 

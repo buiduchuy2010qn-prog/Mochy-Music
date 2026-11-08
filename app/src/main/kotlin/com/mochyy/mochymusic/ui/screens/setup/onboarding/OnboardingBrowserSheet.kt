@@ -168,7 +168,7 @@ internal fun BrowserSheetBar(
                 .clickable(onClick = onClose),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(painterResource(R.drawable.close), contentDescription = "Close", tint = Color.White, modifier = Modifier.size(20.dp))
+            Icon(painterResource(R.drawable.close), contentDescription = "Đóng", tint = Color.White, modifier = Modifier.size(20.dp))
         }
     }
 }

@@ -70,14 +70,14 @@ private fun SupportSheetContent() {
             DonateCharacter(width = characterWidth)
             Spacer(Modifier.height(14.dp))
             Text(
-                text = "Enjoying Mochy Music?",
+                text = "Bạn thích Mochy Music chứ?",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = DonateSoftText,
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "Support Mochy’s development!",
+                text = "Hãy ủng hộ quá trình phát triển Mochy nhé!",
                 fontSize = 32.sp,
                 lineHeight = 36.sp,
                 fontWeight = FontWeight.Bold,
@@ -107,18 +107,18 @@ private fun SupportButtons(popup: PopupSheetState) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DonatePillButton(
-                text = "Donate Us!",
+                text = "Ủng hộ ngay!",
                 onClick = { popup.showDonateSheet() },
                 modifier = Modifier.weight(1f),
             )
             DonatePillButton(
-                text = "Star the repo!",
+                text = "Tặng sao cho Repo!",
                 onClick = { context.openUrl(GithubRepoUrl) },
                 modifier = Modifier.weight(1f),
             )
         }
         DonatePillButton(
-            text = "get these beggar outta here, No!",
+            text = "thôi cảm ơn, để sau nhé!",
             onClick = popup::dismiss,
             quiet = true,
         )

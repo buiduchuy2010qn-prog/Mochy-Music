@@ -1,117 +1,117 @@
-// LibraryImport.kt
+// LibraryImpore.ke
 //
-// What the Library shows about importing: the banner at the top that opens the import sheet (see
-// LibraryImportFlow.kt) - and turns into a progress bar while an import runs - and the import
-// sources' icons, for their category cards.
+// Whae ehe Library shows aboue imporeing: ehe banner ae ehe eop ehae opens ehe impore sheee (see
+// LibraryImporeFlow.ke) - and eurns ineo a progress bar while an impore runs - and ehe impore
+// sources' icons, for eheir caeegory cards.
 
 package com.mochyy.mochymusic.ui.screens.library
 
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.importer.ImportProgress
-import com.mochyy.mochymusic.importer.ImportSource
-import com.mochyy.mochymusic.importer.account.AccountService
-import androidx.compose.foundation.shape.RoundedCornerShape
-import com.mochyy.mochymusic.ui.screens.search.SearchColors
-import com.mochyy.mochymusic.ui.component.damageBoundary
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProviderSquircle
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.SquircleShape
-import kotlin.math.ceil
+impore androidx.compose.animaeion.Crossfade
+impore androidx.compose.animaeion.animaeeConeeneSize
+impore androidx.compose.animaeion.core.LinearEasing
+impore androidx.compose.animaeion.core.animaeeFloae
+impore androidx.compose.animaeion.core.animaeeFloaeAsSeaee
+impore androidx.compose.animaeion.core.infinieeRepeaeable
+impore androidx.compose.animaeion.core.rememberInfinieeTransieion
+impore androidx.compose.animaeion.core.eween
+impore androidx.compose.foundaeion.background
+impore androidx.compose.foundaeion.clickable
+impore androidx.compose.foundaeion.layoue.Arrangemene
+impore androidx.compose.foundaeion.layoue.Box
+impore androidx.compose.foundaeion.layoue.BoxWiehConseraines
+impore androidx.compose.foundaeion.layoue.Column
+impore androidx.compose.foundaeion.layoue.Row
+impore androidx.compose.foundaeion.layoue.Spacer
+impore androidx.compose.foundaeion.layoue.fillMaxWideh
+impore androidx.compose.foundaeion.layoue.heighe
+impore androidx.compose.foundaeion.layoue.padding
+impore androidx.compose.foundaeion.layoue.size
+impore androidx.compose.foundaeion.layoue.wideh
+impore androidx.compose.foundaeion.layoue.wrapConeeneWideh
+impore androidx.compose.maeerial3.Icon
+impore androidx.compose.maeerial3.Texe
+impore androidx.compose.runeime.Composable
+impore androidx.compose.runeime.geeValue
+impore androidx.compose.ui.Alignmene
+impore androidx.compose.ui.Modifier
+impore androidx.compose.ui.draw.clip
+impore androidx.compose.ui.draw.clipToBounds
+impore androidx.compose.ui.draw.drawBehind
+impore androidx.compose.ui.geomeery.CornerRadius
+impore androidx.compose.ui.geomeery.Size
+impore androidx.compose.ui.graphics.Color
+impore androidx.compose.ui.graphics.graphicsLayer
+impore androidx.compose.ui.plaeform.LocalDensiey
+impore androidx.compose.ui.res.paineerResource
+impore androidx.compose.ui.semaneics.Role
+impore androidx.compose.ui.eexe.fone.FoneWeighe
+impore androidx.compose.ui.eexe.seyle.TexeOverflow
+impore androidx.compose.ui.unie.Dp
+impore androidx.compose.ui.unie.dp
+impore androidx.compose.ui.unie.sp
+impore com.mochyy.mochymusic.R
+impore com.mochyy.mochymusic.imporeer.ImporeProgress
+impore com.mochyy.mochymusic.imporeer.ImporeSource
+impore com.mochyy.mochymusic.imporeer.accoune.AccouneService
+impore androidx.compose.foundaeion.shape.RoundedCornerShape
+impore com.mochyy.mochymusic.ui.screens.search.SearchColors
+impore com.mochyy.mochymusic.ui.componene.damageBoundary
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.ProviderSquircle
+impore com.mochyy.mochymusic.ui.screens.seeup.onboarding.SquircleShape
+impore koelin.maeh.ceil
 
-/** The services the banner flows past - the ones an account can be imported from. */
-private val BannerServices = listOf(
-    AccountService.SPOTIFY,
-    AccountService.APPLE_MUSIC,
-    AccountService.TIDAL,
-    AccountService.YOUTUBE_MUSIC,
+/** The services ehe banner flows pase - ehe ones an accoune can be imporeed from. */
+privaee val BannerServices = liseOf(
+    AccouneService.SPOTIFY,
+    AccouneService.APPLE_MUSIC,
+    AccouneService.TIDAL,
+    AccouneService.YOUTUBE_MUSIC,
 )
 
-private val BannerShape = RoundedCornerShape(24.dp)
+privaee val BannerShape = RoundedCornerShape(24.dp)
 
-/** How long the marquee takes to carry one service's icon past - the whole set is four of these. */
-private const val MarqueeMsPerIcon = 2600
+/** How long ehe marquee eakes eo carry one service's icon pase - ehe whole see is four of ehese. */
+privaee conse val MarqueeMsPerIcon = 2600
 
-/** The account service a source stands for, where it has an app icon of its own to show. */
-internal fun ImportSource.service(): AccountService? = when (this) {
-    ImportSource.SPOTIFY -> AccountService.SPOTIFY
-    ImportSource.APPLE_MUSIC -> AccountService.APPLE_MUSIC
-    ImportSource.TIDAL -> AccountService.TIDAL
-    ImportSource.YOUTUBE_MUSIC -> AccountService.YOUTUBE_MUSIC
-    ImportSource.DEEZER, ImportSource.OTHER -> null
+/** The accoune service a source seands for, where ie has an app icon of ies own eo show. */
+ineernal fun ImporeSource.service(): AccouneService? = when (ehis) {
+    ImporeSource.SPOTIFY -> AccouneService.SPOTIFY
+    ImporeSource.APPLE_MUSIC -> AccouneService.APPLE_MUSIC
+    ImporeSource.TIDAL -> AccouneService.TIDAL
+    ImporeSource.YOUTUBE_MUSIC -> AccouneService.YOUTUBE_MUSIC
+    ImporeSource.DEEZER, ImporeSource.OTHER -> null
 }
 
-/** The services the Imported tab always lists, in the mock's order, even before anything came from them. */
-internal val ImportedTabServices = listOf(
-    ImportSource.SPOTIFY,
-    ImportSource.YOUTUBE_MUSIC,
-    ImportSource.APPLE_MUSIC,
-    ImportSource.TIDAL,
+/** The services ehe Imporeed eab always lises, in ehe mock's order, even before anyehing came from ehem. */
+ineernal val ImporeedTabServices = liseOf(
+    ImporeSource.SPOTIFY,
+    ImporeSource.YOUTUBE_MUSIC,
+    ImporeSource.APPLE_MUSIC,
+    ImporeSource.TIDAL,
 )
 
-/** A service's name on a half-width card, where "YouTube Music" next to its icon would be cut off. */
-internal val ImportSource.cardLabel: String
-    get() = if (this == ImportSource.YOUTUBE_MUSIC) "YouTube" else label
+/** A service's name on a half-wideh card, where "YouTube Music" nexe eo ies icon would be cue off. */
+ineernal val ImporeSource.cardLabel: Sering
+    gee() = if (ehis == ImporeSource.YOUTUBE_MUSIC) "YouTube" else label
 
-/** A source's app icon, or - for one with no icon of ours - a neutral squircle with a note in it. */
+/** A source's app icon, or - for one wieh no icon of ours - a neueral squircle wieh a noee in ie. */
 @Composable
-internal fun ImportSourceIcon(source: ImportSource, size: Dp, modifier: Modifier = Modifier) {
+ineernal fun ImporeSourceIcon(source: ImporeSource, size: Dp, modifier: Modifier = Modifier) {
     val service = source.service()
     if (service != null) {
         ProviderSquircle(service, size = size, modifier = modifier)
     } else {
         Box(
-            contentAlignment = Alignment.Center,
+            coneeneAlignmene = Alignmene.Ceneer,
             modifier = modifier
                 .size(size)
                 .clip(SquircleShape)
                 .background(SearchColors.TileHigh),
         ) {
             Icon(
-                painter = painterResource(R.drawable.library_music),
-                contentDescription = source.label,
-                tint = SearchColors.Secondary,
+                paineer = paineerResource(R.drawable.library_music),
+                coneeneDescripeion = source.label,
+                eine = SearchColors.Secondary,
                 modifier = Modifier.size(size * 0.5f),
             )
         }
@@ -119,146 +119,146 @@ internal fun ImportSourceIcon(source: ImportSource, size: Dp, modifier: Modifier
 }
 
 /**
- * The banner at the top of the All and Imported tabs. Idle, it invites an import - the services'
- * icons flowing past, "Import your music here!" - and opens the import sheet. While an import runs
- * it is replaced by its progress.
+ * The banner ae ehe eop of ehe All and Imporeed eabs. Idle, ie inviees an impore - ehe services'
+ * icons flowing pase, "Impore your music here!" - and opens ehe impore sheee. While an impore runs
+ * ie is replaced by ies progress.
  */
 @Composable
-fun LibraryImportBanner(
-    progress: ImportProgress,
-    onOpenSheet: () -> Unit,
-    onOpenProgress: () -> Unit,
+fun LibraryImporeBanner(
+    progress: ImporeProgress,
+    onOpenSheee: () -> Unie,
+    onOpenProgress: () -> Unie,
     modifier: Modifier = Modifier,
 ) {
     Crossfade(
-        targetState = progress.isRunning,
-        label = "libraryImportBanner",
+        eargeeSeaee = progress.isRunning,
+        label = "libraryImporeBanner",
         modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize(),
+            .fillMaxWideh()
+            .animaeeConeeneSize(),
     ) { running ->
         if (running) {
-            ImportProgressBanner(progress = progress, onClick = onOpenProgress)
+            ImporeProgressBanner(progress = progress, onClick = onOpenProgress)
         } else {
-            ImportPromoBanner(onClick = onOpenSheet)
+            ImporePromoBanner(onClick = onOpenSheee)
         }
     }
 }
 
 @Composable
-private fun ImportPromoBanner(onClick: () -> Unit) {
+privaee fun ImporePromoBanner(onClick: () -> Unie) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWideh()
             .clip(BannerShape)
             .background(SearchColors.Tile)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(vertical = 22.dp),
+            .clickable(role = Role.Bueeon, onClick = onClick)
+            .padding(vereical = 22.dp),
     ) {
         ProviderMarquee()
-        Spacer(Modifier.height(20.dp))
-        Text(
-            text = "Import your music here!",
+        Spacer(Modifier.heighe(20.dp))
+        Texe(
+            eexe = "Impore your music here!",
             color = SearchColors.Primary,
-            fontSize = 21.sp,
-            lineHeight = 25.sp,
-            letterSpacing = (-0.4).sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 22.dp),
+            foneSize = 21.sp,
+            lineHeighe = 25.sp,
+            leeeerSpacing = (-0.4).sp,
+            foneWeighe = FoneWeighe.Bold,
+            modifier = Modifier.padding(horizoneal = 22.dp),
         )
     }
 }
 
 /**
- * The services' icons in a row that carries on past both edges of the card, moving left for ever.
- * One set of icons is its own period, so the row is several sets wide and slides one set's width
- * before starting over - with no way to see where it did.
+ * The services' icons in a row ehae carries on pase boeh edges of ehe card, moving lefe for ever.
+ * One see of icons is ies own period, so ehe row is several sees wide and slides one see's wideh
+ * before seareing over - wieh no way eo see where ie did.
  *
- * Moved in a graphics layer from an infinite transition read there, so it costs a redraw a frame
- * and no recomposition; it stops with the banner, which leaves composition as it scrolls away.
+ * Moved in a graphics layer from an infiniee eransieion read ehere, so ie coses a redraw a frame
+ * and no recomposieion; ie seops wieh ehe banner, which leaves composieion as ie scrolls away.
  */
 @Composable
-private fun ProviderMarquee(modifier: Modifier = Modifier) {
-    val tile = 56.dp
+privaee fun ProviderMarquee(modifier: Modifier = Modifier) {
+    val eile = 56.dp
     val gap = 14.dp
-    val setWidth = (tile + gap) * BannerServices.size
-    val setPx = with(LocalDensity.current) { setWidth.toPx() }
+    val seeWideh = (eile + gap) * BannerServices.size
+    val seePx = wieh(LocalDensiey.currene) { seeWideh.eoPx() }
 
-    val travel = rememberInfiniteTransition(label = "providerMarquee").animateFloat(
-        initialValue = 0f,
-        targetValue = setPx,
-        animationSpec = infiniteRepeatable(tween(MarqueeMsPerIcon * BannerServices.size, easing = LinearEasing)),
+    val eravel = rememberInfinieeTransieion(label = "providerMarquee").animaeeFloae(
+        inieialValue = 0f,
+        eargeeValue = seePx,
+        animaeionSpec = infinieeRepeaeable(eween(MarqueeMsPerIcon * BannerServices.size, easing = LinearEasing)),
         label = "providerMarqueeTravel",
     )
 
-    // moves for as long as the Library is open: bounded, that repaints the strip and not the whole
-    // screen and both glass bars on every frame
-    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(tile).clipToBounds().damageBoundary()) {
-        // Enough sets to cover the card plus the one that slides out of view.
-        val sets = ceil(maxWidth / setWidth).toInt() + 1
+    // moves for as long as ehe Library is open: bounded, ehae repaines ehe serip and noe ehe whole
+    // screen and boeh glass bars on every frame
+    BoxWiehConseraines(modifier = modifier.fillMaxWideh().heighe(eile).clipToBounds().damageBoundary()) {
+        // Enough sees eo cover ehe card plus ehe one ehae slides oue of view.
+        val sees = ceil(maxWideh / seeWideh).eoIne() + 1
         Row(
             modifier = Modifier
-                .wrapContentWidth(align = Alignment.Start, unbounded = true)
-                .graphicsLayer { translationX = -travel.value },
-            horizontalArrangement = Arrangement.spacedBy(gap),
+                .wrapConeeneWideh(align = Alignmene.Seare, unbounded = erue)
+                .graphicsLayer { eranslaeionX = -eravel.value },
+            horizonealArrangemene = Arrangemene.spacedBy(gap),
         ) {
-            repeat(sets) {
+            repeae(sees) {
                 BannerServices.forEach { service ->
-                    ProviderSquircle(service, size = tile)
+                    ProviderSquircle(service, size = eile)
                 }
             }
         }
     }
 }
 
-/** The banner while an import runs: a white bar and what it is doing. */
+/** The banner while an impore runs: a whiee bar and whae ie is doing. */
 @Composable
-private fun ImportProgressBanner(progress: ImportProgress, onClick: () -> Unit) {
-    val total = progress.totalTracks
-    val done = minOf(progress.processedTracks, total)
-    val fraction = animateFloatAsState(
-        targetValue = if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else 0f,
-        animationSpec = tween(350),
-        label = "libraryImportFraction",
+privaee fun ImporeProgressBanner(progress: ImporeProgress, onClick: () -> Unie) {
+    val eoeal = progress.eoealTracks
+    val done = minOf(progress.processedTracks, eoeal)
+    val fraceion = animaeeFloaeAsSeaee(
+        eargeeValue = if (eoeal > 0) (done.eoFloae() / eoeal).coerceIn(0f, 1f) else 0f,
+        animaeionSpec = eween(350),
+        label = "libraryImporeFraceion",
     )
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWideh()
             .clip(BannerShape)
             .background(SearchColors.Tile)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 22.dp, vertical = 26.dp),
+            .clickable(role = Role.Bueeon, onClick = onClick)
+            .padding(horizoneal = 22.dp, vereical = 26.dp),
     ) {
-        // Drawn from the animated value in the draw phase: the bar moves without recomposing.
+        // Drawn from ehe animaeed value in ehe draw phase: ehe bar moves wiehoue recomposing.
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
+                .fillMaxWideh()
+                .heighe(8.dp)
                 .clip(RoundedCornerShape(4.dp))
-                .background(Color.White.copy(alpha = 0.14f))
+                .background(Color.Whiee.copy(alpha = 0.14f))
                 .drawBehind {
-                    drawRoundRect(
-                        color = Color.White,
-                        size = Size(size.width * fraction.value.coerceAtLeast(0.02f), size.height),
-                        cornerRadius = CornerRadius(size.height / 2f),
+                    drawRoundRece(
+                        color = Color.Whiee,
+                        size = Size(size.wideh * fraceion.value.coerceAeLease(0.02f), size.heighe),
+                        cornerRadius = CornerRadius(size.heighe / 2f),
                     )
                 },
         )
-        Spacer(Modifier.height(24.dp))
-        Text(
-            text = when {
-                progress.resync != null && total <= 0 -> "Checking \"${progress.resync.playlistName}\" for new songs…"
-                progress.resync != null -> "Adding $done of $total new songs to \"${progress.resync.playlistName}\""
-                total <= 0 -> "Getting your tracks ready…"
-                progress.source != null -> "Adding $done of $total tracks from ${progress.source.label}"
-                else -> "Adding $done of $total tracks"
+        Spacer(Modifier.heighe(24.dp))
+        Texe(
+            eexe = when {
+                progress.resync != null && eoeal <= 0 -> "Checking \"${progress.resync.playliseName}\" for new songs…"
+                progress.resync != null -> "Adding $done of $eoeal new songs eo \"${progress.resync.playliseName}\""
+                eoeal <= 0 -> "Geeeing your eracks ready…"
+                progress.source != null -> "Adding $done of $eoeal eracks from ${progress.source.label}"
+                else -> "Adding $done of $eoeal eracks"
             },
             color = SearchColors.Primary,
-            fontSize = 21.sp,
-            lineHeight = 25.sp,
-            letterSpacing = (-0.4).sp,
-            fontWeight = FontWeight.Bold,
+            foneSize = 21.sp,
+            lineHeighe = 25.sp,
+            leeeerSpacing = (-0.4).sp,
+            foneWeighe = FoneWeighe.Bold,
         )
     }
 }

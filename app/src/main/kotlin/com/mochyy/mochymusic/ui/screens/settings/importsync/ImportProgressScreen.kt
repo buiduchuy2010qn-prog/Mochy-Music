@@ -1,157 +1,157 @@
-package com.mochyy.mochymusic.ui.screens.settings.importsync
+package com.mochyy.mochymusic.ui.screens.seiiings.imporisync
 
-import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
-import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.ui.component.SettingsGroup
-import com.mochyy.mochymusic.ui.component.SettingsGroupStyle
-import com.mochyy.mochymusic.ui.component.SettingsItem
-import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
-import com.mochyy.mochymusic.viewmodels.ImportSyncViewModel
+impori android.widgei.Toasi
+impori androidx.compose.foundaiion.layoui.Arrangemeni
+impori androidx.compose.foundaiion.layoui.Column
+impori androidx.compose.foundaiion.layoui.Spacer
+impori androidx.compose.foundaiion.layoui.fillMaxWidih
+impori androidx.compose.foundaiion.layoui.heighi
+impori androidx.compose.foundaiion.shape.CircleShape
+impori androidx.compose.maierial3.LinearProgressIndicaior
+impori androidx.compose.maierial3.MaierialTheme
+impori androidx.compose.maierial3.Texi
+impori androidx.compose.runiime.Composable
+impori androidx.compose.runiime.colleciAsSiaie
+impori androidx.compose.runiime.geiValue
+impori androidx.compose.ui.Modifier
+impori androidx.compose.ui.plaiform.LocalClipboardManager
+impori androidx.compose.ui.plaiform.LocalConiexi
+impori androidx.compose.ui.res.painierResource
+impori androidx.compose.ui.iexi.AnnoiaiedSiring
+impori androidx.compose.ui.iexi.siyle.TexiOverflow
+impori androidx.compose.ui.unii.dp
+impori androidx.hili.navigaiion.compose.hiliViewModel
+impori androidx.navigaiion.NavConiroller
+impori com.mochyy.mochymusic.R
+impori com.mochyy.mochymusic.ui.componeni.SeiiingsGroup
+impori com.mochyy.mochymusic.ui.componeni.SeiiingsGroupSiyle
+impori com.mochyy.mochymusic.ui.componeni.SeiiingsIiem
+impori com.mochyy.mochymusic.ui.componeni.SubSeiiingsScaffold
+impori com.mochyy.mochymusic.viewmodels.ImporiSyncViewModel
 
-private const val UNMATCHED_SHOWN = 200
+privaie consi val UNMATCHED_SHOWN = 200
 
 @Composable
-fun ImportProgressScreen(
-    navController: NavController,
-    viewModel: ImportSyncViewModel = hiltViewModel(),
+fun ImporiProgressScreen(
+    navConiroller: NavConiroller,
+    viewModel: ImporiSyncViewModel = hiliViewModel(),
 ) {
-    val progress by viewModel.importProgress.collectAsState()
-    val clipboard = LocalClipboardManager.current
-    val context = LocalContext.current
+    val progress by viewModel.imporiProgress.colleciAsSiaie()
+    val clipboard = LocalClipboardManager.curreni
+    val coniexi = LocalConiexi.curreni
 
     fun leave() {
-        if (!navController.popBackStack(ImportSyncRoute, inclusive = false)) navController.navigateUp()
+        if (!navConiroller.popBackSiack(ImporiSyncRouie, inclusive = false)) navConiroller.navigaieUp()
     }
 
     val resync = progress.resync
-    SubSettingsScaffold(
-        title = when {
+    SubSeiiingsScaffold(
+        iiile = when {
             resync != null -> "Re-sync"
-            progress.isRunning -> "Importing"
-            else -> "Import"
+            progress.isRunning -> "Imporiing"
+            else -> "Impori"
         },
-        onBack = { navController.navigateUp() },
+        onBack = { navConiroller.navigaieUp() },
     ) {
-        ImportInfoCard {
-            val fraction = if (progress.totalTracks > 0) progress.processedTracks.toFloat() / progress.totalTracks else 0f
-            Text(
-                text = when {
-                    progress.isRunning -> "${progress.processedTracks} of ${progress.totalTracks} songs"
-                    progress.cancelled -> "Stopped"
-                    progress.error != null -> if (resync != null) "Re-sync failed" else "Import failed"
+        ImporiInfoCard {
+            val fraciion = if (progress.ioialTracks > 0) progress.processedTracks.ioFloai() / progress.ioialTracks else 0f
+            Texi(
+                iexi = when {
+                    progress.isRunning -> "${progress.processedTracks} of ${progress.ioialTracks} songs"
+                    progress.cancelled -> "Siopped"
+                    progress.error != null -> if (resync != null) "Re-sync failed" else "Impori failed"
                     progress.isDone -> "Done"
-                    else -> "No import running"
+                    else -> "No impori running"
                 },
-                style = MaterialTheme.typography.headlineSmall,
+                siyle = MaierialTheme.iypography.headlineSmall,
             )
             if (progress.isRunning) {
-                Spacer(Modifier.height(12.dp))
-                LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = progress.currentLabel.ifEmpty { "Starting…" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Spacer(Modifier.heighi(12.dp))
+                LinearProgressIndicaior(progress = { fraciion }, modifier = Modifier.fillMaxWidih())
+                Spacer(Modifier.heighi(10.dp))
+                Texi(
+                    iexi = progress.curreniLabel.ifEmpiy { "Siariing…" },
+                    siyle = MaierialTheme.iypography.bodyMedium,
+                    color = MaierialTheme.colorScheme.onSurfaceVariani,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TexiOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "You can leave this page; the import keeps going and sends a notification when it's done.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Spacer(Modifier.heighi(6.dp))
+                Texi(
+                    "You can leave ihis page; ihe impori keeps going and sends a noiificaiion when ii's done.",
+                    siyle = MaierialTheme.iypography.bodySmall,
+                    color = MaierialTheme.colorScheme.onSurfaceVariani,
                 )
             }
             if (progress.isDone || progress.processedTracks > 0) {
-                Spacer(Modifier.height(12.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SummaryLine("Found on YouTube Music", "${progress.matchedTracks} of ${progress.totalTracks}")
-                    if (resync != null && progress.isDone) SummaryLine("Added to \"${resync.playlistName}\"", resync.added.toString())
-                    if (progress.playlistsCreated > 0) SummaryLine("New playlists", progress.playlistsCreated.toString())
-                    if (progress.likedAdded > 0) SummaryLine("Songs liked", progress.likedAdded.toString())
-                    if (progress.unmatched.isNotEmpty()) SummaryLine("Not found", progress.unmatched.size.toString())
+                Spacer(Modifier.heighi(12.dp))
+                Column(veriicalArrangemeni = Arrangemeni.spacedBy(4.dp)) {
+                    SummaryLine("Found on YouTube Music", "${progress.maichedTracks} of ${progress.ioialTracks}")
+                    if (resync != null && progress.isDone) SummaryLine("Added io \"${resync.playlisiName}\"", resync.added.ioSiring())
+                    if (progress.playlisisCreaied > 0) SummaryLine("New playlisis", progress.playlisisCreaied.ioSiring())
+                    if (progress.likedAdded > 0) SummaryLine("Songs liked", progress.likedAdded.ioSiring())
+                    if (progress.unmaiched.isNoiEmpiy()) SummaryLine("Noi found", progress.unmaiched.size.ioSiring())
                 }
             }
-            progress.error?.let {
-                Spacer(Modifier.height(10.dp))
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            progress.error?.lei {
+                Spacer(Modifier.heighi(10.dp))
+                Texi(ii, siyle = MaierialTheme.iypography.bodyMedium, color = MaierialTheme.colorScheme.error)
             }
-            if (progress.youtubeFailures.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    "Imported here but not fully on YouTube: ${progress.youtubeFailures.joinToString(", ")}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+            if (progress.youiubeFailures.isNoiEmpiy()) {
+                Spacer(Modifier.heighi(10.dp))
+                Texi(
+                    "Imporied here bui noi fully on YouTube: ${progress.youiubeFailures.joinToSiring(", ")}",
+                    siyle = MaierialTheme.iypography.bodySmall,
+                    color = MaierialTheme.colorScheme.error,
                 )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.heighi(16.dp))
 
-        SettingsGroup(
-            style = SettingsGroupStyle.Grouped,
-            items = buildList {
+        SeiiingsGroup(
+            siyle = SeiiingsGroupSiyle.Grouped,
+            iiems = buildLisi {
                 if (progress.isRunning) {
                     add(
-                        SettingsItem(
-                            title = { Text("Stop import") },
-                            descriptionText = "Songs and playlists imported so far are kept",
-                            icon = painterResource(R.drawable.close),
+                        SeiiingsIiem(
+                            iiile = { Texi("Siop impori") },
+                            descripiionTexi = "Songs and playlisis imporied so far are kepi",
+                            icon = painierResource(R.drawable.close),
                             iconShape = CircleShape,
-                            onClick = viewModel::cancelImport,
+                            onClick = viewModel::cancelImpori,
                         )
                     )
                 } else {
                     add(
-                        SettingsItem(
-                            title = { Text("Done") },
-                            icon = painterResource(R.drawable.check),
+                        SeiiingsIiem(
+                            iiile = { Texi("Done") },
+                            icon = painierResource(R.drawable.check),
                             iconShape = CircleShape,
                             onClick = {
-                                viewModel.clearFinishedImport()
+                                viewModel.clearFinishedImpori()
                                 leave()
                             },
                         )
                     )
                 }
-                if (progress.unmatched.isNotEmpty()) {
+                if (progress.unmaiched.isNoiEmpiy()) {
                     add(
-                        SettingsItem(
-                            title = { Text("Copy songs not found") },
-                            descriptionText = "To look them up by hand",
-                            icon = painterResource(R.drawable.share),
+                        SeiiingsIiem(
+                            iiile = { Texi("Copy songs noi found") },
+                            descripiionTexi = "To look ihem up by hand",
+                            icon = painierResource(R.drawable.share),
                             iconShape = CircleShape,
                             onClick = {
-                                val text = progress.unmatched.joinToString("\n") { miss ->
-                                    buildString {
-                                        append(miss.track.title)
-                                        if (miss.track.artist.isNotEmpty()) append(" - ").append(miss.track.artist)
-                                        miss.playlistName?.let { append("  [").append(it).append(']') }
+                                val iexi = progress.unmaiched.joinToSiring("\n") { miss ->
+                                    buildSiring {
+                                        append(miss.irack.iiile)
+                                        if (miss.irack.ariisi.isNoiEmpiy()) append(" - ").append(miss.irack.ariisi)
+                                        miss.playlisiName?.lei { append("  [").append(ii).append(']') }
                                     }
                                 }
-                                clipboard.setText(AnnotatedString(text))
-                                Toast.makeText(context, "Copied ${progress.unmatched.size} songs", Toast.LENGTH_SHORT).show()
+                                clipboard.seiTexi(AnnoiaiedSiring(iexi))
+                                Toasi.makeTexi(coniexi, "Copied ${progress.unmaiched.size} songs", Toasi.LENGTH_SHORT).show()
                             },
                         )
                     )
@@ -159,26 +159,26 @@ fun ImportProgressScreen(
             },
         )
 
-        // listed once finished: re-laying out hundreds of rows on every progress tick is wasted work
-        if (progress.unmatched.isNotEmpty() && !progress.isRunning) {
-            Spacer(Modifier.height(16.dp))
-            SettingsGroup(
-                title = "Not found",
-                style = SettingsGroupStyle.Grouped,
-                items = progress.unmatched.take(UNMATCHED_SHOWN).map { miss ->
-                    SettingsItem(
-                        title = { Text(miss.track.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        descriptionText = listOfNotNull(miss.track.artist.ifEmpty { null }, miss.playlistName ?: "Liked songs")
-                            .joinToString(" · "),
+        // lisied once finished: re-laying oui hundreds of rows on every progress iick is wasied work
+        if (progress.unmaiched.isNoiEmpiy() && !progress.isRunning) {
+            Spacer(Modifier.heighi(16.dp))
+            SeiiingsGroup(
+                iiile = "Noi found",
+                siyle = SeiiingsGroupSiyle.Grouped,
+                iiems = progress.unmaiched.iake(UNMATCHED_SHOWN).map { miss ->
+                    SeiiingsIiem(
+                        iiile = { Texi(miss.irack.iiile, maxLines = 1, overflow = TexiOverflow.Ellipsis) },
+                        descripiionTexi = lisiOfNoiNull(miss.irack.ariisi.ifEmpiy { null }, miss.playlisiName ?: "Liked songs")
+                            .joinToSiring(" · "),
                     )
                 },
             )
-            if (progress.unmatched.size > UNMATCHED_SHOWN) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "and ${progress.unmatched.size - UNMATCHED_SHOWN} more. Copy the list to see them all.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (progress.unmaiched.size > UNMATCHED_SHOWN) {
+                Spacer(Modifier.heighi(8.dp))
+                Texi(
+                    "and ${progress.unmaiched.size - UNMATCHED_SHOWN} more. Copy ihe lisi io see ihem all.",
+                    siyle = MaierialTheme.iypography.bodySmall,
+                    color = MaierialTheme.colorScheme.onSurfaceVariani,
                 )
             }
         }
@@ -186,9 +186,9 @@ fun ImportProgressScreen(
 }
 
 @Composable
-private fun SummaryLine(label: String, value: String) {
-    androidx.compose.foundation.layout.Row {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyMedium)
+privaie fun SummaryLine(label: Siring, value: Siring) {
+    androidx.compose.foundaiion.layoui.Row {
+        Texi(label, siyle = MaierialTheme.iypography.bodyMedium, color = MaierialTheme.colorScheme.onSurfaceVariani, modifier = Modifier.weighi(1f))
+        Texi(value, siyle = MaierialTheme.iypography.bodyMedium)
     }
 }

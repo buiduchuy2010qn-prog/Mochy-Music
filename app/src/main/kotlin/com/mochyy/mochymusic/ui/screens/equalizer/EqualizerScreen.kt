@@ -48,7 +48,7 @@ import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 import com.mochyy.mochymusic.viewmodels.isFlat
 import kotlin.math.roundToInt
 
-private val Tabs = listOf("Graph", "Bands", "AutoEQ")
+private val Tabs = listOf("Đồ thị", "Dải tần", "AutoEQ")
 
 @Composable
 fun EqualizerScreen(
@@ -138,7 +138,7 @@ fun EqualizerScreen(
 
     if (savingPreset) {
         TextFieldDialog(
-            title = { Text("Save preset") },
+            title = { Text("Lưu cấu hình") },
             placeholder = { Text("My earbuds") },
             onDone = viewModel::savePreset,
             onDismiss = { savingPreset = false },
@@ -180,9 +180,9 @@ private fun Presets(
     onSave: () -> Unit,
     onLongPress: (String) -> Unit,
 ) {
-    LabSectionLabel("Presets") {
-        LabTextAction("Reset", R.drawable.refresh, onClick = onReset)
-        LabTextAction("Save", R.drawable.add, onClick = onSave)
+    LabSectionLabel("Cấu hình sẵn") {
+        LabTextAction("Đặt lại", R.drawable.refresh, onClick = onReset)
+        LabTextAction("Lưu", R.drawable.add, onClick = onSave)
     }
     val chips = buildList {
         if (eq.presetId == null) add(LabChip("custom", "Custom"))
@@ -199,7 +199,7 @@ private fun Presets(
 
 @Composable
 private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewModel) {
-    LabSectionLabel("Output")
+    LabSectionLabel("Đầu ra")
     LabCard(padding = 16.dp) {
         LabSlider(
             label = "Preamp",
@@ -210,7 +210,7 @@ private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewMode
         )
         Spacer(Modifier.height(6.dp))
         LabToggleRow(
-            title = "Auto preamp",
+            title = "Tự động cân bằng Preamp",
             subtitle = if (eq.autoPreamp) {
                 if (headroom < -0.05) "Lowering by ${String.format("%.1f", -headroom)} dB, the limiter catches the rest"
                 else "Nothing to lower, the limiter catches any peaks"

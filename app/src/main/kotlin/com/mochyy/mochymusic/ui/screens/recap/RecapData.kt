@@ -125,7 +125,7 @@ internal object RecapRepository {
             val stats = load(db, range)
             if (stats.songCount > 0) return RecapAvailability.Ready(stats, progressOf(range, today))
         }
-        return RecapAvailability.NotYet("once you've played a song")
+        return RecapAvailability.NotYet("sau khi bạn phát một bài hát")
     }
 
     private fun progressOf(range: StatsRange, today: LocalDate): Int = when {
@@ -155,7 +155,7 @@ internal object RecapRepository {
         }
         val missing = RecapMinSongs - stats.songCount
         return RecapAvailability.NotYet(
-            "when you've played $missing more ${if (missing == 1) "song" else "songs"} this month",
+            "khi bạn nghe thêm $missing bài hát nữa trong tháng này",
         )
     }
 
@@ -279,8 +279,8 @@ internal fun formatHoursDecimal(ms: Long): String {
 
 /** Morning / afternoon / evening / night, for the hour a peak falls in. */
 internal fun timeOfDayName(hour: Int): String = when (hour) {
-    in 5..11 -> "mornings"
-    in 12..16 -> "afternoons"
-    in 17..21 -> "evenings"
-    else -> "nights"
+    in 5..11 -> "buổi sáng"
+    in 12..16 -> "buổi chiều"
+    in 17..21 -> "buổi tối"
+    else -> "ban đêm"
 }

@@ -65,7 +65,7 @@ class OnboardingViewModel @Inject constructor(
         private set
 
     val cardNumber: String = (10_000_000_000L + Random.nextLong(89_999_999_999L)).toString()
-    val joinedText: String = "joined at " + LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
+    val joinedText: String = "tham gia ngày " + LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
 
     /** Onboarding can be run again from Settings; start each run clean. */
     fun reset() {
@@ -112,16 +112,16 @@ class OnboardingViewModel @Inject constructor(
     suspend fun importBackup(uri: Uri): String? = withContext(Dispatchers.IO) {
         try {
             val text = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                ?: return@withContext "Couldn't open that file."
-            val parsed = parseImportCsv(text, fallbackPlaylistName = "Imported playlist")
-            if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) return@withContext "No songs in that file."
-            if (!importService.startImport(parsed)) return@withContext "Another import is still running."
+                ?: return@withContext "Không thể mở tệp đó."
+            val parsed = parseImportCsv(text, fallbackPlaylistName = "Danh sách phát đã nhập")
+            if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) return@withContext "Không tìm thấy bài hát nào trong tệp."
+            if (!importService.startImport(parsed)) return@withContext "Một tiến trình nhập khác đang chạy."
             null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Backup import failed")
-            "Couldn't read that file. Make sure it's a .csv backup."
+            "Không thể đọc tệp. Hãy chắc chắn đây là tệp sao lưu .csv."
         }
     }
 

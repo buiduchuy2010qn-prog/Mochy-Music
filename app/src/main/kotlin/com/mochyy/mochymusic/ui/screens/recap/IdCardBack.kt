@@ -207,7 +207,7 @@ internal fun IdCardBack(
                     if (s > 0f) drawScanner(modules, bars, s, v, u)
                     if (v != null && s >= 0.86f) {
                         val p = easeOutBack(((s - 0.86f) / 0.14f).coerceIn(0f, 1f))
-                        val label = if (v == ScanVerdict.Valid) "VERIFIED" else "INVALID"
+                        val label = if (v == ScanVerdict.Valid) "ĐÃ XÁC MINH" else "CHƯA MỞ KHÓA"
                         val color = if (v == ScanVerdict.Valid) ScanGreen else ScanRed
                         val layout = measurer.measure(label, stampStyle.copy(color = color), softWrap = false, maxLines = 1)
                         val center = bars.center
@@ -236,7 +236,7 @@ internal fun IdCardBack(
                 }
             }
             MarqueeStrip(
-                text = "${name}`s CARD",
+                text = "THẺ CỦA ${name}",
                 color = Color(0xFF4B4B4B),
                 background = Color(0xFF131313),
                 modifier = Modifier

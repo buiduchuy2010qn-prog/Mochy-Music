@@ -547,25 +547,25 @@ fun BoxScope.StyleMenu(
         val transport = connection?.uiState?.transportState?.collectAsState()?.value
         // the styles have no shuffle or repeat buttons of their own, so each is a row of the list here, staying open when tapped so the change shows
         val shuffleAndRepeat = if (connection != null && transport != null) listOf(
-            MenuItem("Shuffle", R.drawable.shuffle, active = transport.shuffleModeEnabled) {
+            MenuItem("Trộn bài", R.drawable.shuffle, active = transport.shuffleModeEnabled) {
                 connection.player.shuffleModeEnabled = !connection.player.shuffleModeEnabled
             },
             MenuItem(
-                label = if (transport.repeatMode == Player.REPEAT_MODE_ONE) "Repeat one" else "Repeat",
+                label = if (transport.repeatMode == Player.REPEAT_MODE_ONE) "Lặp một bài" else "Lặp lại",
                 icon = if (transport.repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat,
                 active = transport.repeatMode != Player.REPEAT_MODE_OFF,
             ) { connection.player.toggleRepeatMode() },
         ) else emptyList()
         val rows = listOfNotNull(
-            actions.onLyrics?.let { open -> MenuItem("Lyrics", R.drawable.lyrics) { onOpenChange(false); open() } },
+            actions.onLyrics?.let { open -> MenuItem("Lời bài hát", R.drawable.lyrics) { onOpenChange(false); open() } },
         ) + shuffleAndRepeat + extras.map { extra ->
             MenuItem(extra.label, extra.icon, extra.active, extra.picture) {
                 if (!extra.keepsOpen) onOpenChange(false)
                 extra.onClick()
             }
         } + listOf(
-            MenuItem("Other menu", R.drawable.more_horiz) { onOpenChange(false); actions.onOtherMenu() },
-            MenuItem("Edit player", R.drawable.tune) { onOpenChange(false); actions.onEditPlayer() },
+            MenuItem("Menu khác", R.drawable.more_horiz) { onOpenChange(false); actions.onOtherMenu() },
+            MenuItem("Sửa trình phát", R.drawable.tune) { onOpenChange(false); actions.onEditPlayer() },
         )
         val itemGap = 10.dp
         Column(

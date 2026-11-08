@@ -106,13 +106,13 @@ import com.mochyy.mochymusic.ui.component.navigateToTab
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 private val SearchCategories = listOf(
-    "All" to null,
-    "Music" to FILTER_SONG,
-    "Artist" to FILTER_ARTIST,
+    "Tất cả" to null,
+    "Bài hát" to FILTER_SONG,
+    "Nghệ sĩ" to FILTER_ARTIST,
     "Video" to FILTER_VIDEO,
     "Album" to FILTER_ALBUM,
-    "Playlist" to FILTER_COMMUNITY_PLAYLIST,
-    "Featured" to FILTER_FEATURED_PLAYLIST,
+    "Danh sách phát" to FILTER_COMMUNITY_PLAYLIST,
+    "Nổi bật" to FILTER_FEATURED_PLAYLIST,
 )
 
 @Composable
@@ -260,7 +260,7 @@ fun OnlineSearchResult(
                     } else {
                         if (top != null) {
                             item(key = "top_header") {
-                                SearchSectionHeader(title = "Top Results", ruleAbove = false)
+                                SearchSectionHeader(title = "Kết quả hàng đầu", ruleAbove = false)
                             }
                             item(key = "top_card") {
                                 TopResultCard(
@@ -283,7 +283,7 @@ fun OnlineSearchResult(
                                 renderedSection = true
                                 item(key = "summary_header_${index}_${section.title}") {
                                     SearchSectionHeader(
-                                        title = if (index == 0) "Exact matches" else section.title,
+                                        title = if (index == 0) "Khớp chính xác" else section.title,
                                         ruleAbove = ruleAbove,
                                     )
                                 }
@@ -324,7 +324,7 @@ fun OnlineSearchResult(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = "No results",
+                                    text = "Không có kết quả",
                                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                                     color = SearchColors.Secondary,
                                 )
@@ -369,7 +369,7 @@ fun OnlineSearchResult(
                 value = query,
                 onValueChange = { query = it },
                 onSearch = submit,
-                placeholder = "Search for any tracks, albums, lyrics...",
+                placeholder = "Tìm kiếm bài hát, album, lời bài hát...",
                 leading = {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),

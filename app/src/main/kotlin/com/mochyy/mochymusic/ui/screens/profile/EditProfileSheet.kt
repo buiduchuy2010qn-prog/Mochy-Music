@@ -99,7 +99,7 @@ private fun EditProfileContent(currentName: String, currentPhoto: Any?, onSaved:
                     modifier = Modifier.padding(start = 4.dp),
                 )
                 OnbButton(
-                    text = "Done",
+                    text = "Xong",
                     enabled = name.isNotBlank() && !saving,
                     onClick = {
                         saving = true
