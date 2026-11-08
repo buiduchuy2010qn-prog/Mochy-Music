@@ -51,9 +51,6 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
       - name: Decode Signing Keystore
         if: env.SIGNING_KEYSTORE_BASE64 != ''
         env:
@@ -67,6 +64,12 @@ jobs:
 
       - name: Build Signed Arm64 Release APK
         run: |
+          if ! curl -fsSLI --connect-timeout 5 --max-time 10 https://services.gradle.org/distributions/gradle-9.3.1-bin.zip >/dev/null 2>&1; then
+            echo "services.gradle.org is returning 504/timeout, switching to mirror..."
+            sed -i 's|https\\://services.gradle.org/distributions/gradle-9.3.1-bin.zip|https\\://mirrors.cloud.tencent.com/gradle/gradle-9.3.1-bin.zip|g' gradle/wrapper/gradle-wrapper.properties
+            sed -i 's|validateDistributionUrl=true|validateDistributionUrl=false|g' gradle/wrapper/gradle-wrapper.properties
+            sed -i 's|networkTimeout=10000|networkTimeout=60000|g' gradle/wrapper/gradle-wrapper.properties
+          fi
           chmod +x gradlew
           ./gradlew assembleArm64Release -PenableApkSplits=true --no-daemon --stacktrace
 
