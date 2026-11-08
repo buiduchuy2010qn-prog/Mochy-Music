@@ -114,14 +114,14 @@ class OnboardingViewModel @Inject constructor(
             val text = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
                 ?: return@withContext "Không thể mở tệp đó."
             val parsed = parseImportCsv(text, fallbackPlaylistName = "Danh sách phát đã nhập")
-            if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) return@withContext "Không tìm thấy bài hát nào trong tệp."
-            if (!importService.startImport(parsed)) return@withContext "Một tiến trình nhập khác đang chạy."
+            if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) return@withContext "Không có bài hát nào trong tệp đó."
+            if (!importService.startImport(parsed)) return@withContext "Đang có một tiến trình nhập khác chạy."
             null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Backup import failed")
-            "Không thể đọc tệp. Hãy chắc chắn đây là tệp sao lưu .csv."
+            "Không thể đọc tệp đó. Hãy đảm bảo đó là tệp sao lưu .csv."
         }
     }
 

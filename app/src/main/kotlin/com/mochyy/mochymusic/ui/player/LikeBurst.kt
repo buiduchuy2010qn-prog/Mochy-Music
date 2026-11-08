@@ -479,7 +479,7 @@ fun LikedLabel(
             alpha = ((sheetProgressProvider() - 0.9f) / 0.1f).coerceIn(0f, 1f)
         },
     ) {
-        if (likeShown > 0.001f) NoteText("Added to Library and Liked Songs", likeShown)
+        if (likeShown > 0.001f) NoteText("Đã thêm vào Thư viện và Bài hát đã thích", likeShown)
         if (mixShown > 0.001f) MixingNote("Mixxing…", mixShown, active = { sheetProgressProvider() > 0.9f })
     }
 }

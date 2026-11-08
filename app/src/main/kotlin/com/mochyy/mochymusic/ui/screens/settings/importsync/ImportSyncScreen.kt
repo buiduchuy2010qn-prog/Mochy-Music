@@ -51,14 +51,14 @@ fun ImportSyncScreen(
             ImportInfoCard {
                 Text(
                     text = when {
-                        resync != null && progress.isRunning -> "Re-syncing \"${resync.playlistName}\"…"
-                        progress.isRunning -> "Importing… ${progress.processedTracks} of ${progress.totalTracks}"
-                        progress.cancelled -> "Import stopped"
+                        resync != null && progress.isRunning -> "Đang đồng bộ lại \"${resync.playlistName}\"…"
+                        progress.isRunning -> "Đang nhập… ${progress.processedTracks} / ${progress.totalTracks}"
+                        progress.cancelled -> "Đã dừng nhập"
                         resync != null && resync.failed.size < resync.playlists ->
-                            (if (resync.playlists == 1) "Re-synced \"${resync.playlistName}\": " else "Re-synced ${resync.playlists} playlists: ") +
-                                if (resync.added == 1) "1 new song" else "${resync.added} new songs"
-                        progress.error != null -> "Import failed"
-                        else -> "Import finished: ${progress.matchedTracks} of ${progress.totalTracks} songs"
+                            (if (resync.playlists == 1) "Đã đồng bộ lại \"${resync.playlistName}\": " else "Đã đồng bộ lại ${resync.playlists} danh sách phát: ") +
+                                "${resync.added} bài hát mới"
+                        progress.error != null -> "Nhập nhạc thất bại"
+                        else -> "Hoàn tất nhập: ${progress.matchedTracks} / ${progress.totalTracks} bài hát"
                     },
                     style = MaterialTheme.typography.titleMedium,
                 )
@@ -75,7 +75,7 @@ fun ImportSyncScreen(
                 style = SettingsGroupStyle.Grouped,
                 items = listOf(
                     SettingsItem(
-                        title = { Text(if (progress.isRunning) "See progress" else "See results") },
+                        title = { Text(if (progress.isRunning) "Xem tiến độ" else "Xem kết quả") },
                         icon = painterResource(R.drawable.playlist_play),
                         iconShape = CircleShape,
                         onClick = { navController.navigate(ImportProgressRoute) { launchSingleTop = true } },
@@ -89,19 +89,19 @@ fun ImportSyncScreen(
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 SettingsItem(
-                    title = { Text("Import") },
+                    title = { Text("Nhập nhạc") },
                     highlightKey = "Import",
-                    descriptionText = "Sign in and pick playlists",
-                    detail = "Sign in to Spotify, Apple Music, YouTube Music or Tidal and pick playlists",
+                    descriptionText = "Đăng nhập và chọn danh sách phát",
+                    detail = "Đăng nhập vào Spotify, Apple Music, YouTube Music hoặc Tidal và chọn danh sách phát",
                     icon = painterResource(R.drawable.playlist_add),
                     iconShape = CircleShape,
                     onClick = { navController.navigate(ImportProvidersRoute) },
                 ),
                 SettingsItem(
-                    title = { Text("Sync") },
+                    title = { Text("Đồng bộ") },
                     highlightKey = "Sync",
-                    descriptionText = if (signedIn) "YouTube account connected: playlists, likes and history"
-                    else "Connect your YouTube account to keep playlists, likes and history in step",
+                    descriptionText = if (signedIn) "Đã kết nối tài khoản YouTube: danh sách phát, bài hát đã thích và lịch sử"
+                    else "Kết nối tài khoản YouTube để đồng bộ danh sách phát, bài hát đã thích và lịch sử",
                     icon = painterResource(R.drawable.sync),
                     iconShape = CircleShape,
                     onClick = { navController.navigate(YouTubeSyncRoute) },
@@ -117,8 +117,8 @@ fun ImportSyncScreen(
                 SettingsItem(
                     title = { Text("TuneMyMusic CSV") },
                     highlightKey = "TuneMyMusic CSV",
-                    descriptionText = "Amazon Music, SoundCloud, Deezer and more",
-                    detail = "Any other service, such as Amazon Music, SoundCloud or Deezer libraries",
+                    descriptionText = "Amazon Music, SoundCloud, Deezer và nhiều dịch vụ khác",
+                    detail = "Mọi dịch vụ khác như thư viện Amazon Music, SoundCloud hoặc Deezer",
                     icon = painterResource(R.drawable.web_link),
                     iconShape = CircleShape,
                     onClick = { navController.navigate(ImportTuneMyMusicRoute) },
@@ -129,14 +129,14 @@ fun ImportSyncScreen(
         Spacer(Modifier.height(16.dp))
 
         SettingsGroup(
-            title = "Backup",
+            title = "Sao lưu",
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 SettingsItem(
-                    title = { Text("Export to Mochy CSV") },
+                    title = { Text("Xuất ra tệp CSV Mochy") },
                     highlightKey = "Export to Mochy CSV",
-                    descriptionText = "Liked songs and playlists",
-                    detail = "Liked songs and playlists, import it back from Import → Mochy backup",
+                    descriptionText = "Bài hát đã thích và danh sách phát",
+                    detail = "Bài hát đã thích và danh sách phát, có thể nhập lại từ mục Nhập nhạc → Bản sao lưu Mochy",
                     icon = painterResource(R.drawable.backup),
                     iconShape = CircleShape,
                     onClick = { exportLauncher.launch("mochy-library-${LocalDate.now()}.csv") },
@@ -146,7 +146,7 @@ fun ImportSyncScreen(
     }
 
     exportMessage?.let { message ->
-        val working = message == "Exporting…"
+        val working = message == "Exporting…" || message == "Đang xuất…"
         DefaultDialog(
             onDismiss = { if (!working) viewModel.clearExportMessage() },
             buttons = {

@@ -106,7 +106,7 @@ fun rememberLocalImportActions(viewModel: LibraryImportViewModel): LocalImportAc
             TopToaster.show(
                 text = "Mochy can't see your music without access",
                 iconRes = R.drawable.storage,
-                actionLabel = "Settings",
+                actionLabel = "Cài đặt",
                 onAction = {
                     context.startActivity(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))

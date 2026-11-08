@@ -89,7 +89,7 @@ internal fun PlaylistFormContent(
         SheetTextField(
             value = form.name,
             onValueChange = { form.name = it.take(MaxNameLength) },
-            placeholder = "Name your playlist",
+            placeholder = "Đặt tên danh sách phát",
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Sentences,
                 imeAction = ImeAction.Next,
@@ -103,7 +103,7 @@ internal fun PlaylistFormContent(
         SheetTextField(
             value = form.description,
             onValueChange = { form.description = it.take(MaxDescriptionLength) },
-            placeholder = "What is it about?",
+            placeholder = "Mô tả về danh sách phát này...",
             singleLine = false,
             maxLines = 4,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),

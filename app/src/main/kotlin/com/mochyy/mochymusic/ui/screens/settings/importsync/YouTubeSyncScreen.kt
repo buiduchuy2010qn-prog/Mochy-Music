@@ -60,27 +60,27 @@ fun YouTubeSyncScreen(
     var confirmUndo by remember { mutableStateOf(false) }
 
     SubSettingsScaffold(
-        title = "Sync",
+        title = "Đồng bộ",
         onBack = { navController.navigateUp() },
     ) {
         SettingsGroup(
-            title = "YouTube account",
+            title = "Tài khoản YouTube",
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 if (signedIn) {
                     SettingsItem(
-                        title = { Text(accountName.ifBlank { "Signed in" }) },
+                        title = { Text(accountName.ifBlank { "Đã đăng nhập" }) },
                         descriptionText = accountEmail.ifBlank { "YouTube Music" },
                         icon = painterResource(R.drawable.account),
                         iconShape = CircleShape,
                         trailingContent = {
-                            TextButton(onClick = { confirmSignOut = true }) { Text("Sign out") }
+                            TextButton(onClick = { confirmSignOut = true }) { Text("Đăng xuất") }
                         },
                     )
                 } else {
                     SettingsItem(
-                        title = { Text("Sign in to YouTube") },
-                        descriptionText = "Needed for sync. Your login stays on this phone",
+                        title = { Text("Đăng nhập vào YouTube") },
+                        descriptionText = "Cần thiết để đồng bộ. Thông tin đăng nhập chỉ lưu trên điện thoại này",
                         icon = painterResource(R.drawable.login),
                         iconShape = CircleShape,
                         onClick = { navController.navigate(YouTubeLoginRoute) },
@@ -92,36 +92,36 @@ fun YouTubeSyncScreen(
         Spacer(Modifier.height(16.dp))
 
         SettingsGroup(
-            title = "Keep in sync",
+            title = "Duy trì đồng bộ",
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 toggleItem(
-                    title = "Sync library on launch",
-                    description = "Likes, library, artists and saved playlists from YouTube",
+                    title = "Đồng bộ thư viện khi mở ứng dụng",
+                    description = "Bài hát đã thích, thư viện, nghệ sĩ và danh sách phát đã lưu từ YouTube",
                     icon = R.drawable.sync,
                     checked = autoSync,
                     enabled = signedIn,
                     onChange = onAutoSyncChange,
                 ),
                 toggleItem(
-                    title = "New playlists go to YouTube",
-                    description = "Playlists you create here are created on YouTube too",
+                    title = "Tạo danh sách phát mới trên YouTube",
+                    description = "Danh sách phát bạn tạo tại đây cũng sẽ được tạo trên YouTube",
                     icon = R.drawable.playlist_add,
                     checked = syncNewPlaylists,
                     enabled = signedIn,
                     onChange = onSyncNewPlaylistsChange,
                 ),
                 toggleItem(
-                    title = "Send plays to YouTube history",
-                    description = "Songs you play here show up in your YouTube history",
+                    title = "Gửi lượt phát vào lịch sử YouTube",
+                    description = "Bài hát bạn nghe tại đây sẽ hiển thị trong lịch sử YouTube",
                     icon = R.drawable.history,
                     checked = reportPlays,
                     enabled = signedIn,
                     onChange = onReportPlaysChange,
                 ),
                 toggleItem(
-                    title = "Copy YouTube history here",
-                    description = "Plays from your other devices join Mochy's history on each sync",
+                    title = "Sao chép lịch sử YouTube về đây",
+                    description = "Lượt nghe từ các thiết bị khác sẽ được gộp vào lịch sử Mochy sau mỗi lần đồng bộ",
                     icon = R.drawable.history,
                     checked = pullHistory,
                     enabled = signedIn,
@@ -133,7 +133,7 @@ fun YouTubeSyncScreen(
         Spacer(Modifier.height(16.dp))
 
         SettingsGroup(
-            title = "Other apps",
+            title = "Ứng dụng khác",
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 toggleItem(
@@ -150,20 +150,20 @@ fun YouTubeSyncScreen(
         Spacer(Modifier.height(16.dp))
 
         SettingsGroup(
-            title = "Now",
+            title = "Tác vụ tức thì",
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 SettingsItem(
-                    title = { Text("Sync now") },
-                    descriptionText = if (pullHistory) "Library, playlists and history" else "Library and playlists",
+                    title = { Text("Đồng bộ ngay") },
+                    descriptionText = if (pullHistory) "Thư viện, danh sách phát và lịch sử" else "Thư viện và danh sách phát",
                     icon = painterResource(R.drawable.refresh),
                     iconShape = CircleShape,
                     enabled = signedIn && !state.running,
                     onClick = viewModel::syncNow,
                 ),
                 SettingsItem(
-                    title = { Text("Copy YouTube history now") },
-                    descriptionText = "Only adds plays Mochy doesn't have yet",
+                    title = { Text("Sao chép lịch sử YouTube ngay") },
+                    descriptionText = "Chỉ thêm những lượt phát chưa có trong Mochy",
                     icon = painterResource(R.drawable.history),
                     iconShape = CircleShape,
                     enabled = signedIn && !state.running,
@@ -178,9 +178,9 @@ fun YouTubeSyncScreen(
                     onClick = { confirmUndo = true },
                 ),
                 SettingsItem(
-                    title = { Text("Put local playlists on YouTube") },
-                    descriptionText = "Copy local playlists to YouTube",
-                    detail = "Creates a YouTube copy of every playlist that only exists here",
+                    title = { Text("Đưa danh sách phát cục bộ lên YouTube") },
+                    descriptionText = "Sao chép danh sách phát trên máy lên YouTube",
+                    detail = "Tạo bản sao trên YouTube cho mọi danh sách phát chỉ có trên thiết bị này",
                     icon = painterResource(R.drawable.cloud),
                     iconShape = CircleShape,
                     enabled = signedIn && !state.running,
@@ -208,7 +208,7 @@ fun YouTubeSyncScreen(
         if (!signedIn) {
             Spacer(Modifier.height(16.dp))
             Text(
-                "Import from a YouTube playlist link doesn't need an account. Use Import → YouTube Music.",
+                "Nhập từ liên kết danh sách phát YouTube không cần tài khoản. Hãy dùng Nhập nhạc → YouTube Music.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -219,17 +219,17 @@ fun YouTubeSyncScreen(
         DefaultDialog(
             onDismiss = { confirmSignOut = false },
             horizontalAlignment = Alignment.Start,
-            title = { Text("Sign out of YouTube?") },
+            title = { Text("Đăng xuất khỏi YouTube?") },
             buttons = {
-                TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmSignOut = false }) { Text("Hủy") }
                 TextButton(onClick = {
                     confirmSignOut = false
                     viewModel.signOut()
-                }) { Text("Sign out") }
+                }) { Text("Đăng xuất") }
             },
         ) {
             Text(
-                "Everything already in your library stays. Sync stops until you sign in again.",
+                "Mọi nội dung đã có trong thư viện vẫn được giữ nguyên. Quá trình đồng bộ sẽ dừng cho đến khi bạn đăng nhập lại.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -241,7 +241,7 @@ fun YouTubeSyncScreen(
             horizontalAlignment = Alignment.Start,
             title = { Text(stringResource(R.string.yt_sync_undo_dialog_title)) },
             buttons = {
-                TextButton(onClick = { confirmUndo = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmUndo = false }) { Text("Hủy") }
                 TextButton(onClick = {
                     confirmUndo = false
                     viewModel.undoLastSync(withYouTube = false)
@@ -272,17 +272,17 @@ fun YouTubeSyncScreen(
         DefaultDialog(
             onDismiss = { confirmUpload = false },
             horizontalAlignment = Alignment.Start,
-            title = { Text("Put local playlists on YouTube?") },
+            title = { Text("Đưa danh sách phát cục bộ lên YouTube?") },
             buttons = {
-                TextButton(onClick = { confirmUpload = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmUpload = false }) { Text("Hủy") }
                 TextButton(onClick = {
                     confirmUpload = false
                     viewModel.uploadLocalPlaylists()
-                }) { Text("Create") }
+                }) { Text("Tạo") }
             },
         ) {
             Text(
-                "Each playlist that only exists in Mochy gets a private copy on your YouTube account. After that, changes go to both.",
+                "Mỗi danh sách phát chỉ có trên Mochy sẽ được tạo một bản sao riêng tư trên tài khoản YouTube của bạn. Sau đó, mọi thay đổi sẽ được đồng bộ cả hai bên.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

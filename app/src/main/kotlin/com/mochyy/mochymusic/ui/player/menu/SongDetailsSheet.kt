@@ -105,7 +105,7 @@ fun SongDetailsSheet(
                         val artistId = artist.id!!
                         val avatar by rememberArtistAvatar(artistId)
                         DetailRow(
-                            title = "Xem nghệ sĩ ${artist.name}",
+                            title = "Xem ${artist.name}",
                             onClick = { onOpenArtist(artistId) },
                         ) {
                             DetailImage(
@@ -117,7 +117,7 @@ fun SongDetailsSheet(
                     }
                     song.album?.let { album ->
                         DetailRow(
-                            title = "Xem album ${album.title}",
+                            title = "Xem ${album.title}",
                             onClick = { onOpenAlbum(album.id) },
                         ) {
                             DetailImage(

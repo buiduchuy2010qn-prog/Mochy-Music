@@ -30,6 +30,6 @@ fun ArtistSimilarScreen(
         bigLine = header?.name ?: page?.artist?.title ?: viewModel.picks?.artistName.orEmpty(),
         groups = groups,
         deepLoading = deepLoading,
-        artistsTitle = "Similar Artist",
+        artistsTitle = "Nghệ sĩ tương tự",
     )
 }

@@ -31,7 +31,7 @@ fun LibraryRecentlyAddedScreen(
     val viewModel: LibraryHomeViewModel = hiltViewModel()
     // with the lifecycle: the Cached shelf looks at the cache every couple of seconds while watched
     val songs by (shelf?.let(viewModel::shelf)?.songs ?: viewModel.songs).collectAsStateWithLifecycle()
-    val queueTitle = shelf?.label ?: "Mới thêm gần đây"
+    val queueTitle = shelf?.label ?: "Recently added"
     val playerConnection = LocalPlayerConnection.current ?: return
 
     val entries = remember(songs) {
@@ -58,9 +58,9 @@ fun LibraryRecentlyAddedScreen(
     }
 
     LibraryGridScreen(
-        title = "Mới thêm",
+        title = "Đã thêm",
         subtitle = "Gần đây",
-        searchPlaceholder = "Tìm bài hát tại đây theo tên, lời hoặc nghệ sĩ",
+        searchPlaceholder = "Tìm bài hát theo tên, lời bài hát hoặc nghệ sĩ",
         entries = entries,
         onOpen = { entry -> play(songs.indexOfFirst { it.id == entry.id }.coerceAtLeast(0), shuffle = false) },
         onPlay = { play(0, shuffle = false) },

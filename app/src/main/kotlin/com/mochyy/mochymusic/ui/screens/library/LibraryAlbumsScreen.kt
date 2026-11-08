@@ -132,10 +132,10 @@ private fun ShelfAlbumsScreen(
     LibraryGridScreen(
         title = "Album",
         subtitle = when (shelf) {
-            LibraryShelfKind.Local -> "Album có nhạc lưu trên thiết bị này."
-            LibraryShelfKind.Cached -> "Album có bài hát trong bộ nhớ đệm."
+            LibraryShelfKind.Local -> "Albums with music on this device."
+            LibraryShelfKind.Cached -> "Albums with songs in your cache."
         },
-        searchPlaceholder = "Tìm kiếm album tại đây",
+        searchPlaceholder = "Tìm album trong danh sách này",
         entries = entries,
         onOpen = { entry ->
             val album = albums.firstOrNull { it.key == entry.id } ?: return@LibraryGridScreen

@@ -58,7 +58,7 @@ fun PopupSheetState.showDonateSheet() {
     val popup = this
     show(
         fullBleed = true,
-        buttonBar = { DonatePillButton(text = "thôi để khi khác nhé", onClick = popup::dismiss, quiet = true) },
+        buttonBar = { DonatePillButton(text = "what no i dont want to", onClick = popup::dismiss, quiet = true) },
     ) {
         DonateSheetContent()
     }
@@ -106,7 +106,7 @@ private fun DonateSheetContent() {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Đây là cách để bạn ủng hộ đội ngũ phát triển gốc!",
+                text = "Here’s a way to support and donate to us!",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.3).sp,
@@ -116,13 +116,13 @@ private fun DonateSheetContent() {
             Spacer(Modifier.height(24.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 DonateLinkRow(
-                    title = "Ủng hộ trên Ko-fi",
+                    title = "Ủng hộ chúng tôi trên Ko-fi",
                     icon = R.drawable.ic_kofi,
                     iconSize = 22.dp,
                     onClick = { context.openUrl(KofiUrl) },
                 )
                 DonateLinkRow(
-                    title = "Ủng hộ trên SociaBuzz",
+                    title = "Ủng hộ chúng tôi trên SociaBuzz",
                     subtitle = "Khuyên dùng cho khu vực Đông Nam Á và Mỹ Latinh",
                     icon = R.drawable.link,
                     iconSize = 16.dp,
@@ -130,7 +130,7 @@ private fun DonateSheetContent() {
                     onClick = { context.openUrl(SocialBuzzUrl) },
                 )
                 DonateLinkRow(
-                    title = "Ủng hộ trên Buy Me a Coffee",
+                    title = "Ủng hộ chúng tôi trên Buy Me a Coffee",
                     icon = R.drawable.ic_bmc_logo,
                     iconSize = 20.dp,
                     onClick = { context.openUrl(BuyMeACoffeeUrl) },
@@ -139,7 +139,7 @@ private fun DonateSheetContent() {
 
             Spacer(Modifier.height(22.dp))
             Text(
-                text = "mọi sự ủng hộ của bạn, dù nhỏ đến đâu, đều vô cùng ý nghĩa với chúng mình :3",
+                text = "your donation, no matter how small it is, will always be very very useful for us :3",
                 fontSize = 14.sp,
                 lineHeight = 19.sp,
                 fontWeight = FontWeight.Bold,

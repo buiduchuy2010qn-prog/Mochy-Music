@@ -166,7 +166,7 @@ fun TopPlaylistScreen(
         onShuffleClick = { play(shuffled = true) },
         query = query,
         onQueryChange = { query = it },
-        searchPlaceholder = "Search your top songs",
+        searchPlaceholder = "Tìm trong các bài hát nghe nhiều nhất",
         onBackClick = { navController.navigateUp() },
         onBackLongClick = { navController.backToMain() },
         creator = "mochy",

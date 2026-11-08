@@ -91,7 +91,7 @@ fun LocalPlaylistMenu(
             .padding(bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()),
     ) {
         SheetSearchLauncher(
-            placeholder = "Search any song on playlist",
+            placeholder = "Tìm bài hát trong danh sách phát",
             onClick = {
                 onDismiss()
                 onSearch()
@@ -117,7 +117,7 @@ fun LocalPlaylistMenu(
             // Over this menu rather than closing it: Done comes back here.
             SheetActionCard(
                 icon = R.drawable.edit,
-                title = "Edit playlist",
+                title = "Sửa danh sách phát",
                 onClick = onEdit,
                 modifier = Modifier.weight(1f),
             )
@@ -136,7 +136,7 @@ fun LocalPlaylistMenu(
         Material3MenuGroup(
             items = listOfNotNull(
                 Material3MenuItemData(
-                    title = { Text("Play next") },
+                    title = { Text("Phát tiếp theo") },
                     icon = {
                         Icon(
                             painter = painterResource(R.drawable.playlist_play),
@@ -151,7 +151,7 @@ fun LocalPlaylistMenu(
                     } else null,
                 ),
                 Material3MenuItemData(
-                    title = { Text("Sort by") },
+                    title = { Text("Sắp xếp theo") },
                     icon = {
                         Icon(
                             painter = painterResource(R.drawable.drag_handle),
@@ -179,7 +179,7 @@ fun LocalPlaylistMenu(
                     )
                 } else null,
                 Material3MenuItemData(
-                    title = { Text("Add to playlist") },
+                    title = { Text("Thêm vào danh sách phát") },
                     icon = {
                         Icon(
                             painter = painterResource(R.drawable.playlist_add),
@@ -323,7 +323,7 @@ private fun QueueAndDownloadCards(
 ) {
     if (onSearch != null) {
         SheetSearchLauncher(
-            placeholder = "Search any song here",
+            placeholder = "Tìm bài hát tại đây",
             onClick = {
                 onDismiss()
                 onSearch()

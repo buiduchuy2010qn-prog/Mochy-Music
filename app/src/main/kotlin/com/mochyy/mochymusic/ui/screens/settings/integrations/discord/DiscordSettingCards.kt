@@ -540,21 +540,21 @@ internal fun DiscordPlaceholderCard() {
         color = Color.White.copy(alpha = 0.85f),
     )
     DiscordCard {
-        Text("Placeholder list", color = DiscordColors.Primary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text("Danh sách biến thay thế", color = DiscordColors.Primary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         PresenceText.Placeholders.forEach { (placeholder, meaning) ->
             Text("$placeholder = $meaning", style = body)
         }
         Spacer(Modifier.height(12.dp))
-        Text("For example, this activity name", style = body)
+        Text("Ví dụ, tên hoạt động này", style = body)
         Text("{name} by {artist} on {album}", style = body.copy(color = DiscordColors.Primary, fontWeight = FontWeight.Medium))
         Spacer(Modifier.height(12.dp))
-        Text("shows up as", style = body)
+        Text("sẽ hiển thị thành", style = body)
         Text(
             "Listening to Fake Plastic Trees by Radiohead on The Bends",
             style = body.copy(color = DiscordColors.Primary, fontWeight = FontWeight.Medium),
         )
         Spacer(Modifier.height(12.dp))
-        Text("They work everywhere on this page, buttons included.", style = body)
+        Text("Các biến này hoạt động ở mọi nơi trên trang này, kể cả nút bấm.", style = body)
     }
 }

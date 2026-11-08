@@ -788,7 +788,7 @@ private fun LyricsPlayerStyle(actions: StyleActions, modifier: Modifier, preview
                                 Column {
                                     ExpressiveTitle(text = song.track.title, baseSize = r.sp(0.112f, 32f, 56f), color = tones.ink.copy(alpha = 0.55f))
                                     Spacer(Modifier.height(10.dp))
-                                    Text("No synced lyrics for this song", color = tones.inkSoft, fontSize = r.sp(0.034f, 12f, 15f), fontWeight = FontWeight.Medium)
+                                    Text("Chưa có lời đồng bộ cho bài hát này", color = tones.inkSoft, fontSize = r.sp(0.034f, 12f, 15f), fontWeight = FontWeight.Medium)
                                 }
                             } else {
                                 ExpressiveLyrics(

@@ -52,14 +52,14 @@ internal fun LazyListScope.libraryLocalTab(
     if (!hasStorageAccess) {
         item(key = "local_storage") {
             Text(
-                text = "Hoặc",
+                text = "Or",
                 color = SearchColors.Primary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = SearchHorizontalPadding + 2.dp, vertical = 10.dp),
             )
             LocalCard(onClick = onScan, modifier = Modifier.padding(horizontal = SearchHorizontalPadding)) {
-                LocalCardTitle("Cho phép Mochy quét bộ nhớ để tìm tất cả bài hát của bạn")
+                LocalCardTitle("Let Mochy read your storage to find all your songs")
             }
         }
     }
@@ -72,7 +72,7 @@ internal fun LazyListScope.libraryLocalTab(
 
     item(key = "local_manage") {
         Spacer(modifier = Modifier.height(12.dp))
-        LibraryManagePill(text = "Quản lý nhạc trên máy", onClick = onManage)
+        LibraryManagePill(text = "Manage local", onClick = onManage)
     }
 }
 
@@ -80,7 +80,7 @@ internal fun LazyListScope.libraryLocalTab(
 @Composable
 private fun LocalImportCard(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     LocalCard(onClick = onClick, modifier = modifier) {
-        LocalCardTitle("Nhập nhạc trên máy tại đây")
+        LocalCardTitle("Import your local music here")
         Spacer(modifier = Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
@@ -95,7 +95,7 @@ private fun LocalImportCard(count: Int, onClick: () -> Unit, modifier: Modifier 
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Đã nhập từ thiết bị",
+                text = "Imported from local",
                 color = SearchColors.Secondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,

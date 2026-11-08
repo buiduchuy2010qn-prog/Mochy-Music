@@ -155,7 +155,7 @@ fun CachePlaylistScreen(
         onShuffleClick = { play(shuffled = true) },
         query = query,
         onQueryChange = { query = it },
-        searchPlaceholder = "Search cached songs",
+        searchPlaceholder = "Tìm bài hát trong bộ nhớ đệm",
         onBackClick = { navController.navigateUp() },
         onBackLongClick = { navController.backToMain() },
         creator = "mochy",

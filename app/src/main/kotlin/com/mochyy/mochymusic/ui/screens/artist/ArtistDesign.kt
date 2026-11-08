@@ -470,7 +470,7 @@ private fun SubscribePill(subscribed: Boolean, onClick: () -> Unit) {
         )
         Spacer(Modifier.width(7.dp))
         Text(
-            text = if (subscribed) "Đã đăng ký" else "Đăng ký",
+            text = if (subscribed) "Subscribed" else "Subscribe",
             style = TrackTitleStyle.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
             color = content,
         )
@@ -628,7 +628,7 @@ private fun BioCard(name: String, bio: String, onClick: () -> Unit) {
     ArtistCard(onClick = onClick) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
-                text = "Giới thiệu về $name",
+                text = "About $name",
                 style = CardLabelStyle,
                 color = Color.White,
                 maxLines = 1,

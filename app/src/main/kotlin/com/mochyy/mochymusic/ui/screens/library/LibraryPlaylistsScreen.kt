@@ -41,16 +41,16 @@ fun LibraryPlaylistsScreen(
     LibraryEntityListScreen(
         title = "Danh sách phát",
         subtitle = when {
-            source != null -> "Danh sách phát đã nhập từ ${source.label}."
-            shelf == LibraryShelfKind.Local -> "Danh sách phát có nhạc trên thiết bị này."
-            shelf == LibraryShelfKind.Cached -> "Danh sách phát có nhạc trong bộ nhớ đệm."
-            else -> "Tất cả danh sách phát trong thư viện của bạn."
+            source != null -> "Playlists imported from ${source.label}."
+            shelf == LibraryShelfKind.Local -> "Playlists with music on this device."
+            shelf == LibraryShelfKind.Cached -> "Playlists with songs in your cache."
+            else -> "All playlist on your library listed here."
         },
         searchPlaceholder = "Tìm danh sách phát theo tên",
         items = playlists,
         idOf = { it.id },
         nameOf = { it.playlist.name },
-        subtitleOf = { "${it.songCount} bài hát" },
+        subtitleOf = { "${it.songCount} songs" },
         thumbnailOf = { it.thumbnails.firstOrNull() },
         // the same key Home's cards use, so the playlist opens growing out of its cover
         sharedElementKeyOf = { "playlist-${it.id}" },

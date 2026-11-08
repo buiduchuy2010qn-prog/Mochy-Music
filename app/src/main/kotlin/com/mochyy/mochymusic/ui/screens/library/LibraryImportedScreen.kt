@@ -49,7 +49,7 @@ fun LibraryImportedScreen(
             1 -> "1 song imported from $label."
             else -> "${songs.size} songs imported from $label."
         },
-        searchPlaceholder = "Find a song imported from $label",
+        searchPlaceholder = "Tìm bài hát đã nhập từ $label",
         items = songs,
         idOf = { it.id },
         nameOf = { it.song.title },
@@ -61,7 +61,7 @@ fun LibraryImportedScreen(
             val ordered = sortForLibraryIndex(songs) { it.song.title }
             playerConnection.playQueue(
                 ListQueue(
-                    title = "Imported from $label",
+                    title = "Đã nhập từ $label",
                     items = ordered.map { it.toMediaItem() },
                     startIndex = ordered.indexOf(song).coerceAtLeast(0),
                 ),

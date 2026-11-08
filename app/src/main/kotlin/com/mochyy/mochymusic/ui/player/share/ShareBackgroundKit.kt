@@ -83,14 +83,14 @@ internal fun PictureBackgroundControls(
 ) {
     LabCard(padding = 10.dp) {
         LabToggleRow(
-            title = "Blur",
+            title = "Làm mờ",
             subtitle = null,
             checked = picture.blur,
             onCheckedChange = { on -> onChange(picture.copy(blur = on)) },
             leadingDot = true,
         )
         LabSlider(
-            label = "Opacity",
+            label = "Độ mờ",
             valueText = "${(picture.opacity * 100).toInt()}%",
             value = picture.opacity,
             onValueChange = { v -> onChange(picture.copy(opacity = v)) },

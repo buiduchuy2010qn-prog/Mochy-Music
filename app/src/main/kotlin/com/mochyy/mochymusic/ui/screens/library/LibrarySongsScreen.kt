@@ -32,7 +32,7 @@ fun LibrarySongsScreen(
     LibraryEntityListScreen(
         title = "Bài hát",
         subtitle = "Tất cả bài hát trong thư viện của bạn.",
-        searchPlaceholder = "Tìm bài hát theo tên hoặc nghệ sĩ",
+        searchPlaceholder = "Tìm bài hát theo tiêu đề hoặc nghệ sĩ",
         items = songs,
         idOf = { it.id },
         nameOf = { it.song.title },

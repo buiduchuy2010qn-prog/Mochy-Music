@@ -49,7 +49,7 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
     val hasPoToken = YTPlayerUtils.hasPoToken
 
     SubSettingsScaffold(
-        title = "Playback diagnostics",
+        title = "Chẩn đoán phát nhạc",
         onBack = { navController.navigateUp() },
     ) {
         Card(
@@ -81,18 +81,18 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 SettingsItem(
-                    title = { Text("Copy logs") },
-                    descriptionText = "Copy the full playback log to the clipboard",
+                    title = { Text("Sao chép nhật ký") },
+                    descriptionText = "Sao chép toàn bộ nhật ký phát nhạc vào bộ nhớ tạm",
                     icon = painterResource(R.drawable.key),
                     iconShape = CircleShape,
                     onClick = {
                         copyLogs(context, logs)
-                        Toast.makeText(context, "Playback log copied", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Đã sao chép nhật ký phát nhạc", Toast.LENGTH_SHORT).show()
                     },
                 ),
                 SettingsItem(
-                    title = { Text("Clear logs") },
-                    descriptionText = "Discard everything captured so far",
+                    title = { Text("Xóa nhật ký") },
+                    descriptionText = "Xóa toàn bộ nhật ký đã ghi lại",
                     icon = painterResource(R.drawable.delete),
                     iconShape = CircleShape,
                     onClick = { PlaybackLogManager.clearLogs() },

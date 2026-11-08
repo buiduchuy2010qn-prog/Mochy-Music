@@ -273,7 +273,7 @@ private fun AddToPlaylistContent(
         SheetSearchField(
             value = query,
             onValueChange = { query = it },
-            placeholder = "Search your playlist",
+            placeholder = "Tìm danh sách phát của bạn",
         )
         Spacer(Modifier.height(16.dp))
 

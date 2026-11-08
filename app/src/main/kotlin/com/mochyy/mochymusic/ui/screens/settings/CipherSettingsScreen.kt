@@ -226,15 +226,15 @@ fun CipherSettingsScreen(navController: NavController) {
                     },
                 ),
                 SettingsItem(
-                    title = { Text("Clear cached script") },
-                    descriptionText = "Forces a fresh download on the next stream",
+                    title = { Text("Xóa mã nguồn lưu đệm") },
+                    descriptionText = "Buộc tải lại mã mới ở lần phát nhạc tiếp theo",
                     icon = painterResource(R.drawable.restore),
                     iconShape = CircleShape,
                     onClick = {
                         coroutineScope.launch {
                             withContext(Dispatchers.IO) { PlayerJsFetcher.invalidateCache() }
                             status = PlayerJsFetcher.readCacheStatus()
-                            message = "Cached player script cleared"
+                            message = "Đã xóa mã trình phát trong bộ nhớ đệm"
                         }
                     },
                 ),

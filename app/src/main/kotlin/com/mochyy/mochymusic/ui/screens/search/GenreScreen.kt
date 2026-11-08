@@ -219,7 +219,7 @@ fun GenreScreen(
                             if (cards == null || cards.isNotEmpty()) {
                                 item(key = "community_header") {
                                     SearchSectionHeader(
-                                        title = "From the community",
+                                        title = "Từ cộng đồng",
                                         ruleAbove = false,
                                         ruleBelow = false,
                                         large = false,

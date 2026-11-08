@@ -106,13 +106,13 @@ import com.mochyy.mochymusic.ui.component.navigateToTab
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 private val SearchCategories = listOf(
-    "Tất cả" to null,
-    "Bài hát" to FILTER_SONG,
-    "Nghệ sĩ" to FILTER_ARTIST,
+    "All" to null,
+    "Music" to FILTER_SONG,
+    "Artist" to FILTER_ARTIST,
     "Video" to FILTER_VIDEO,
     "Album" to FILTER_ALBUM,
-    "Danh sách phát" to FILTER_COMMUNITY_PLAYLIST,
-    "Nổi bật" to FILTER_FEATURED_PLAYLIST,
+    "Playlist" to FILTER_COMMUNITY_PLAYLIST,
+    "Featured" to FILTER_FEATURED_PLAYLIST,
 )
 
 @Composable
@@ -283,7 +283,7 @@ fun OnlineSearchResult(
                                 renderedSection = true
                                 item(key = "summary_header_${index}_${section.title}") {
                                     SearchSectionHeader(
-                                        title = if (index == 0) "Khớp chính xác" else section.title,
+                                        title = if (index == 0) "Exact matches" else section.title,
                                         ruleAbove = ruleAbove,
                                     )
                                 }
@@ -324,7 +324,7 @@ fun OnlineSearchResult(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = "Không có kết quả",
+                                    text = "No results",
                                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                                     color = SearchColors.Secondary,
                                 )
@@ -369,7 +369,7 @@ fun OnlineSearchResult(
                 value = query,
                 onValueChange = { query = it },
                 onSearch = submit,
-                placeholder = "Tìm kiếm bài hát, album, lời bài hát...",
+                placeholder = "Tìm bài hát, album, lời bài hát...",
                 leading = {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),

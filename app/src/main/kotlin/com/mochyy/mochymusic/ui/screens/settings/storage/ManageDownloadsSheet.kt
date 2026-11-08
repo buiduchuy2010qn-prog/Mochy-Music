@@ -164,7 +164,7 @@ private fun ManageDownloadsContent(viewModel: StorageViewModel, picks: DownloadP
     val totalBytes = remember(all) { all.orEmpty().sumOf { it.bytes } }
 
     Column(Modifier.fillMaxWidth().fillMaxHeight()) {
-        SheetSearchField(value = query, onValueChange = { query = it }, placeholder = "Search your downloads")
+        SheetSearchField(value = query, onValueChange = { query = it }, placeholder = "Tìm trong nhạc đã tải")
         Text(
             all?.let { "${it.size} ${if (it.size == 1) "song" else "songs"} · ${formatSize(totalBytes)}" } ?: " ",
             style = storageText(12f, FontWeight.Medium, StorageMuted, 0f),
@@ -266,7 +266,7 @@ private fun SortSwitch(sort: DownloadSort, onNext: () -> Unit) {
             .clickable(onClick = onNext)
             .padding(vertical = 2.dp),
     ) {
-        Text("Sort by - ", style = storageText(12f, FontWeight.Medium, StorageMuted, 0f))
+        Text("Sắp xếp theo - ", style = storageText(12f, FontWeight.Medium, StorageMuted, 0f))
         AnimatedContent(
             targetState = sort,
             transitionSpec = { (slideInVertically { it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut()) },

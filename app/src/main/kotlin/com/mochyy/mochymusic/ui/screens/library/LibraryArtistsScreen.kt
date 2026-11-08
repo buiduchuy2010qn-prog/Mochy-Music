@@ -33,9 +33,9 @@ fun LibraryArtistsScreen(
     LibraryEntityListScreen(
         title = "Nghệ sĩ",
         subtitle = when (shelf) {
-            LibraryShelfKind.Local -> "Nghệ sĩ có nhạc lưu trên thiết bị này."
-            LibraryShelfKind.Cached -> "Nghệ sĩ có bài hát trong bộ nhớ đệm."
-            null -> "Tất cả nghệ sĩ trong thư viện của bạn."
+            LibraryShelfKind.Local -> "Artists with music on this device."
+            LibraryShelfKind.Cached -> "Artists with songs in your cache."
+            null -> "All artist on your library listed here."
         },
         searchPlaceholder = "Tìm nghệ sĩ theo tên",
         items = artists,

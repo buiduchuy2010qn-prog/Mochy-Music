@@ -453,7 +453,7 @@ private fun rememberSettled(value: Boolean): State<Boolean> = produceState(initi
 private fun LoadingLabel(style: TextStyle, color: Color) {
     val transition = rememberInfiniteTransition(label = "loadingLabel")
     Row(verticalAlignment = Alignment.Bottom) {
-        Text(text = "Loading", style = style, color = color, maxLines = 1)
+        Text(text = "Đang tải", style = style, color = color, maxLines = 1)
         repeat(3) { index ->
             val lit by transition.animateFloat(
                 initialValue = 0.15f,

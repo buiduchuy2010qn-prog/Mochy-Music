@@ -84,7 +84,7 @@ internal fun LyricsSourceFooter(
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            LabeledText(label = "Source", value = sourceName(provider))
+            LabeledText(label = "Nguồn", value = sourceName(provider))
             if (onSwitchSource != null) {
                 Spacer(modifier = Modifier.width(10.dp))
                 SwitchSourceButton(onClick = onSwitchSource)
@@ -127,7 +127,7 @@ private fun SwitchSourceButton(onClick: () -> Unit) {
         background = Color.White.copy(alpha = 0.08f),
     ) {
         FooterIcon(Icons.Rounded.SwapVert, tint = LabelColor)
-        Text(text = "Switch", style = ButtonTextStyle.copy(color = LabelColor))
+        Text(text = "Đổi nguồn", style = ButtonTextStyle.copy(color = LabelColor))
     }
 }
 
@@ -145,7 +145,7 @@ private fun StarOnGitHubButton(onClick: () -> Unit) {
             tint = Color.White.copy(alpha = 0.85f),
             modifier = Modifier.size(15.dp),
         )
-        Text(text = "Star on GitHub", style = ButtonTextStyle.copy(color = Color.White.copy(alpha = 0.85f)))
+        Text(text = "Tặng sao trên GitHub", style = ButtonTextStyle.copy(color = Color.White.copy(alpha = 0.85f)))
         FooterIcon(Icons.Rounded.Star, tint = StarColor)
     }
 }

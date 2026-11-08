@@ -204,8 +204,8 @@ internal fun HelloCardStep(
                     translationY = (1f - p) * 40.dp.toPx()
                 },
         ) {
-            Text("Hello!", color = Color.White, fontSize = 64.sp, lineHeight = 66.sp, fontWeight = FontWeight.Bold, letterSpacing = (-2).sp)
-            Text("welcome to mochy!", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text("Xin chào!", color = Color.White, fontSize = 48.sp, lineHeight = 52.sp, fontWeight = FontWeight.Bold, letterSpacing = (-2).sp)
+            Text("chào mừng bạn đến với mochy!", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -262,7 +262,7 @@ internal fun DoneStep(card: CardInfo, onFinished: () -> Unit) {
             }
             Spacer(Modifier.height(18.dp))
             Text(
-                "You're good to go",
+                "Mọi thứ đã sẵn sàng",
                 color = Onb.Subtitle,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,

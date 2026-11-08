@@ -79,8 +79,8 @@ class PlaylistResyncState internal constructor(
     fun menuItem(): Material3MenuItemData? {
         val from = source ?: return null
         return Material3MenuItemData(
-            title = { Text("Re-sync with ${from.label}") },
-            description = { Text("Add the songs that are new on ${from.label}") },
+            title = { Text("Đồng bộ lại với ${from.label}") },
+            description = { Text("Thêm các bài hát mới có trên ${from.label}") },
             icon = { Icon(painter = painterResource(R.drawable.sync), contentDescription = null) },
             onClick = ::start,
         )
@@ -176,7 +176,7 @@ private fun resyncAllMessage(start: ResyncAllStart): String? {
 fun ResyncLinkDialog(sourceLabel: String, onDismiss: () -> Unit, onDone: (String) -> Unit) {
     TextFieldDialog(
         icon = { Icon(painter = painterResource(R.drawable.link), contentDescription = null) },
-        title = { Text("Paste its $sourceLabel link") },
+        title = { Text("Dán liên kết $sourceLabel của danh sách phát") },
         placeholder = { Text("https://…") },
         keyboardType = KeyboardType.Uri,
         onDone = onDone,

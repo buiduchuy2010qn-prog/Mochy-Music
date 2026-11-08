@@ -118,11 +118,11 @@ fun PopupSheetState.showAddLocalMusicSheet(viewModel: LibraryImportViewModel, on
             }
         }
         SongPickerContent(
-            title = "Add music",
+            title = "Thêm nhạc",
             songs = songs,
             selection = selection,
             loadingText = "Looking for music on your phone…",
-            emptyText = "Every song on your phone is already in your library.",
+            emptyText = "Mọi bài hát trên điện thoại đều đã có trong thư viện của bạn.",
         )
     }
 }
@@ -131,8 +131,8 @@ fun PopupSheetState.showAddLocalMusicSheet(viewModel: LibraryImportViewModel, on
 fun PopupSheetState.showRemoveLocalSheet(localFiles: List<Song>, viewModel: LibraryImportViewModel) =
     showRemoveSongsSheet(
         songs = localFiles,
-        title = "Remove from list",
-        emptyText = "No files from your phone in your library yet.",
+        title = "Xóa khỏi danh sách",
+        emptyText = "Chưa có tệp nhạc nào từ điện thoại trong thư viện của bạn.",
         hint = "The files stay on your phone.",
         onRemove = { viewModel.removeLocalSongs(it) },
     )
@@ -141,8 +141,8 @@ fun PopupSheetState.showRemoveLocalSheet(localFiles: List<Song>, viewModel: Libr
 fun PopupSheetState.showRemoveCachedSheet(cachedSongs: List<Song>, onRemove: (Set<String>) -> Unit) =
     showRemoveSongsSheet(
         songs = cachedSongs,
-        title = "Remove from cache",
-        emptyText = "Nothing cached yet.",
+        title = "Xóa khỏi bộ nhớ đệm",
+        emptyText = "Chưa có bài hát nào trong bộ nhớ đệm.",
         hint = "They'll stream again the next time you play them.",
         onRemove = onRemove,
     )
@@ -230,7 +230,7 @@ private fun ColumnScope.SongPickerContent(
         Text(text = hint, color = SearchColors.Secondary, fontSize = 13.sp)
     }
     Spacer(Modifier.height(14.dp))
-    SheetSearchField(value = query, onValueChange = { query = it }, placeholder = "Search")
+    SheetSearchField(value = query, onValueChange = { query = it }, placeholder = "Tìm kiếm")
     Spacer(Modifier.height(14.dp))
 
     val message = when {

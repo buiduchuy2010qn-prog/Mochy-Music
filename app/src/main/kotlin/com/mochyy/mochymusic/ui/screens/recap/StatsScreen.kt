@@ -184,7 +184,7 @@ fun StatsScreen(navController: NavController) {
                             .padding(horizontal = PagePadding)
                             .graphicsLayer { alpha = 1f - collapse },
                     ) {
-                        Text("Stats", style = statsText(44f, tracking = -1.6f))
+                        Text("Thống kê", style = statsText(44f, tracking = -1.6f))
                         Spacer(Modifier.width(8.dp))
                         Text(
                             "$year Re'cap  >",
@@ -218,7 +218,7 @@ fun StatsScreen(navController: NavController) {
                             .clickable { val open = !allOpen; CardKeys.forEach { expanded[it] = open } }
                             .padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
                     ) {
-                        Text(if (allOpen) "Collapse all" else "Expand all", style = statsText(13f, FontWeight.SemiBold, tracking = 0f))
+                        Text(if (allOpen) "Thu gọn tất cả" else "Mở rộng tất cả", style = statsText(13f, FontWeight.SemiBold, tracking = 0f))
                         Spacer(Modifier.width(4.dp))
                         Chevron(open = allOpen, size = 18)
                     }
@@ -231,21 +231,21 @@ fun StatsScreen(navController: NavController) {
                     item(key = "empty") {
                         StatsCardBox {
                             Text(
-                                "Nothing played in ${if (kind == StatsRange.Kind.Month) "${monthFull(s.range.month)} ${s.range.year}" else "${s.range.year}"} yet.",
+                                "Chưa có lượt phát nào trong ${if (kind == StatsRange.Kind.Month) "${monthFull(s.range.month)} ${s.range.year}" else "${s.range.year}"}.",
                                 style = statsText(17f),
                             )
-                            Text("Play a few songs and this fills itself in.", style = statsText(13f, FontWeight.Medium, StatsInkMuted, 0f), modifier = Modifier.padding(top = 4.dp))
+                            Text("Hãy nghe vài bài hát để lấp đầy bảng thống kê này.", style = statsText(13f, FontWeight.Medium, StatsInkMuted, 0f), modifier = Modifier.padding(top = 4.dp))
                         }
                     }
                 } else {
-                    val thisWhat = if (kind == StatsRange.Kind.Month) "This month" else "This year"
+                    val thisWhat = if (kind == StatsRange.Kind.Month) "Tháng này" else "Năm nay"
                     item(key = "total") { TotalCard(s, thisWhat, expanded) }
                     item(key = "genre") { GenreCard(genres, expanded) }
                     s.topArtists.firstOrNull()?.let { top -> item(key = "artist") { ArtistCard(s, top, expanded) } }
                     s.topSongs.firstOrNull()?.let { top -> item(key = "song") { SongCard(s, top, expanded) } }
                     item(key = "often") {
                         Text(
-                            "Let's see how often you like to listen to music",
+                            "Hãy xem tần suất bạn nghe nhạc nhé",
                             style = statsText(16f),
                             modifier = Modifier.padding(start = PagePadding, end = PagePadding, top = 18.dp, bottom = 12.dp),
                         )
@@ -254,8 +254,8 @@ fun StatsScreen(navController: NavController) {
                     item(key = "hour") { HourCard(s, expanded) }
                     item(key = "privacy") {
                         Text(
-                            "Everything here is collected by your usage on this app and WILL NEVER BE SENT to some random server! " +
-                                "(Genres are looked up by artist name only.)",
+                            "Mọi dữ liệu tại đây được thống kê trực tiếp trên thiết bị và KHÔNG BAO GIỜ ĐƯỢC GỬI tới bất kỳ máy chủ nào! " +
+                                "(Thể loại nhạc chỉ được tra cứu theo tên nghệ sĩ.)",
                             style = statsText(11f, FontWeight.SemiBold, StatsInkMuted, 0f),
                             modifier = Modifier.padding(horizontal = PagePadding + 4.dp, vertical = 10.dp),
                         )
@@ -333,7 +333,7 @@ fun StatsScreen(navController: NavController) {
                         }
                         .clickable(enabled = morph > 0.5f, onClick = ::openPicker),
                 ) {
-                    Text("Stats", style = statsText(28f, tracking = -1f))
+                    Text("Thống kê", style = statsText(28f, tracking = -1f))
                     Spacer(Modifier.width(6.dp))
                     Text("$year Re'cap", style = statsText(15f, color = StatsInkMuted, tracking = -0.3f), modifier = Modifier.padding(bottom = 4.dp))
                 }
@@ -437,7 +437,7 @@ private fun TotalCard(s: ListeningStats, thisWhat: String, expanded: MutableMap<
         expanded = expanded,
         detail = {
             Text(
-                if (s.range.kind == StatsRange.Kind.Month) "Every day of ${monthFull(s.range.month)}" else "Every month of ${s.range.year}",
+                if (s.range.kind == StatsRange.Kind.Month) "Từng ngày trong ${monthFull(s.range.month)}" else "Từng tháng trong năm ${s.range.year}",
                 style = statsText(13f, FontWeight.SemiBold, StatsInkMuted, 0f),
                 modifier = Modifier.padding(bottom = 8.dp),
             )
@@ -458,7 +458,7 @@ private fun TotalCard(s: ListeningStats, thisWhat: String, expanded: MutableMap<
             }
         },
     ) {
-        Text("$thisWhat, you've been listening for", style = statsText(15f))
+        Text("$thisWhat, bạn đã nghe nhạc trong", style = statsText(15f))
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 2.dp)) {
             OdometerText("${minutes / 60}", big, progress = roll)
             Text("h", style = unit, modifier = Modifier.padding(bottom = 8.dp))
@@ -470,10 +470,10 @@ private fun TotalCard(s: ListeningStats, thisWhat: String, expanded: MutableMap<
         Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF3A3A3A)))
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Fact("${s.songCount}", if (s.songCount == 1) "Song" else "Songs")
-            Fact("${s.artistCount}", if (s.artistCount == 1) "Artist" else "Artists")
-            Fact("${s.albumCount}", if (s.albumCount == 1) "Album" else "Albums")
-            Fact("${s.plays}", if (s.plays == 1) "play" else "plays")
+            Fact("${s.songCount}", "Bài hát")
+            Fact("${s.artistCount}", "Nghệ sĩ")
+            Fact("${s.albumCount}", "Album")
+            Fact("${s.plays}", "lượt phát")
         }
     }
 }
@@ -510,11 +510,11 @@ private fun GenreCard(state: GenreState, expanded: MutableMap<String, Boolean>) 
             }
         },
     ) {
-        Text("Dominant Genre", style = statsText(15f))
+        Text("Thể loại chủ đạo", style = statsText(15f))
         when (state) {
-            GenreState.Loading -> Text("Sorting your genres…", style = statsText(14f, FontWeight.Medium, StatsInkMuted, 0f), modifier = Modifier.padding(vertical = 30.dp))
+            GenreState.Loading -> Text("Đang phân loại thể loại nhạc…", style = statsText(14f, FontWeight.Medium, StatsInkMuted, 0f), modifier = Modifier.padding(vertical = 30.dp))
             GenreState.Unavailable -> Text(
-                "Couldn't name your genres right now - this needs a connection the first time.",
+                "Chưa thể xác định thể loại nhạc lúc này - cần kết nối mạng trong lần đầu tiên.",
                 style = statsText(14f, FontWeight.Medium, StatsInkMuted, 0f),
                 modifier = Modifier.padding(vertical = 18.dp),
             )
@@ -553,13 +553,13 @@ private fun ArtistCard(s: ListeningStats, top: RecapArtist, expanded: MutableMap
         detail = {
             RankList(
                 rows = s.topArtists.take(10).map { a ->
-                    RankRow(a.name, "${shortDuration(a.playTimeMs)} · ${a.plays} plays", a.playTimeMs, a.thumbnailUrl)
+                    RankRow(a.name, "${shortDuration(a.playTimeMs)} · ${a.plays} lượt phát", a.playTimeMs, a.thumbnailUrl)
                 },
                 circle = true,
             )
         },
     ) {
-        Text("You really love listening to this artist", style = statsText(15f))
+        Text("Bạn thực sự yêu thích nghệ sĩ này", style = statsText(15f))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
             AsyncImage(
                 model = top.thumbnailUrl?.resize(240, 240),
@@ -571,7 +571,7 @@ private fun ArtistCard(s: ListeningStats, top: RecapArtist, expanded: MutableMap
             Column {
                 Text(top.name, style = statsText(24f, tracking = -0.8f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${shortDuration(top.playTimeMs)} playtime and ${top.plays} plays from ${top.name}",
+                    "${shortDuration(top.playTimeMs)} nghe nhạc và ${top.plays} lượt phát từ ${top.name}",
                     style = statsText(12f, FontWeight.SemiBold, StatsInkMuted, 0f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -589,13 +589,13 @@ private fun SongCard(s: ListeningStats, top: RecapSong, expanded: MutableMap<Str
         detail = {
             RankList(
                 rows = s.topSongs.take(10).map { song ->
-                    RankRow(song.title, "${song.artistName} · ${song.plays} plays · ${shortDuration(song.playTimeMs)}", song.plays.toLong(), song.thumbnailUrl)
+                    RankRow(song.title, "${song.artistName} · ${song.plays} lượt phát · ${shortDuration(song.playTimeMs)}", song.plays.toLong(), song.thumbnailUrl)
                 },
                 circle = false,
             )
         },
     ) {
-        Text("And without noticing, this song is your #1", style = statsText(15f))
+        Text("Và chẳng biết từ lúc nào, bài hát này đã trở thành #1 của bạn", style = statsText(15f))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
             AsyncImage(
                 model = top.thumbnailUrl?.resize(240, 240),
@@ -605,9 +605,9 @@ private fun SongCard(s: ListeningStats, top: RecapSong, expanded: MutableMap<Str
             )
             Spacer(Modifier.width(16.dp))
             Column {
-                Text("${top.title} from ${top.artistName}", style = statsText(20f, tracking = -0.6f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text("${top.title} của ${top.artistName}", style = statsText(20f, tracking = -0.6f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${shortDuration(top.playTimeMs)} playtime and ${top.plays} plays",
+                    "${shortDuration(top.playTimeMs)} nghe nhạc và ${top.plays} lượt phát",
                     style = statsText(12f, FontWeight.SemiBold, StatsInkMuted, 0f),
                 )
             }
@@ -629,9 +629,9 @@ private fun WeekdayCard(s: ListeningStats, thisWhat: String, expanded: MutableMa
             )
         },
     ) {
-        Text("$thisWhat, you like to listen to music every", style = statsText(13f, FontWeight.SemiBold))
+        Text("$thisWhat, ngày bạn hay nghe nhạc nhất là", style = statsText(13f, FontWeight.SemiBold))
         Text(day.getDisplayName(JavaTextStyle.FULL, Locale.getDefault()), style = statsText(32f, tracking = -1.2f), modifier = Modifier.padding(vertical = 2.dp))
-        Text("totaling ${formatHoursDecimal(s.weekdayMs[best])} hours", style = statsText(12f, FontWeight.SemiBold, StatsInkSecondary, 0f))
+        Text("tổng cộng ${formatHoursDecimal(s.weekdayMs[best])} giờ", style = statsText(12f, FontWeight.SemiBold, StatsInkSecondary, 0f))
     }
 }
 
@@ -649,9 +649,9 @@ private fun HourCard(s: ListeningStats, expanded: MutableMap<String, Boolean>) {
             )
         },
     ) {
-        Text("And you love to listen in the ${timeOfDayName(best)} exactly around", style = statsText(13f, FontWeight.SemiBold))
+        Text("Và bạn thích nghe nhạc vào buổi ${timeOfDayName(best)} khoảng", style = statsText(13f, FontWeight.SemiBold))
         Text(hourLabel(best), style = statsText(32f, tracking = -1.2f), modifier = Modifier.padding(vertical = 2.dp))
-        Text("totaling ${formatHoursDecimal(s.hourMs[best])} hours at this time!", style = statsText(12f, FontWeight.SemiBold, StatsInkSecondary, 0f))
+        Text("tổng cộng ${formatHoursDecimal(s.hourMs[best])} giờ vào khung giờ này!", style = statsText(12f, FontWeight.SemiBold, StatsInkSecondary, 0f))
     }
 }
 
@@ -682,9 +682,9 @@ private fun ColumnScope.StatsPicker(
     if (m !in months) m = months.last()
 
     Column(modifier = Modifier.padding(horizontal = 22.dp).padding(bottom = 20.dp)) {
-        Text("Show by", style = statsText(36f, tracking = -1.4f))
+        Text("Hiển thị theo", style = statsText(36f, tracking = -1.4f))
         Spacer(Modifier.height(10.dp))
-        listOf(StatsRange.Kind.Month to "Month", StatsRange.Kind.Year to "Year").forEach { (value, label) ->
+        listOf(StatsRange.Kind.Month to "Tháng", StatsRange.Kind.Year to "Năm").forEach { (value, label) ->
             val on = k == value
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -702,19 +702,19 @@ private fun ColumnScope.StatsPicker(
                 }
                 Spacer(Modifier.width(14.dp))
                 Text(label, style = statsText(18f), modifier = Modifier.weight(1f))
-                if (on) Text("Selected", style = statsText(13f, FontWeight.SemiBold, StatsInkMuted, 0f))
+                if (on) Text("Đã chọn", style = statsText(13f, FontWeight.SemiBold, StatsInkMuted, 0f))
             }
         }
         Box(Modifier.padding(vertical = 18.dp).fillMaxWidth().height(1.dp).background(Color(0xFF555555)))
-        Text("What year?", style = statsText(36f, tracking = -1.4f))
+        Text("Năm nào?", style = statsText(36f, tracking = -1.4f))
         Wheel(items = years, selected = y, label = { "$it" }, onSelected = { y = it })
         AnimatedVisibility(visible = k == StatsRange.Kind.Month) {
             Column {
-                Text("What month?", style = statsText(36f, tracking = -1.4f), modifier = Modifier.padding(top = 10.dp))
+                Text("Tháng nào?", style = statsText(36f, tracking = -1.4f), modifier = Modifier.padding(top = 10.dp))
                 Wheel(
                     items = months,
                     selected = m,
-                    label = { mm -> monthFull(mm) + if (y == today.year && mm == today.monthValue) " (this month)" else "" },
+                    label = { mm -> monthFull(mm) + if (y == today.year && mm == today.monthValue) " (tháng này)" else "" },
                     onSelected = { m = it },
                 )
             }
@@ -729,7 +729,7 @@ private fun ColumnScope.StatsPicker(
                 .clickable { onDone(k, y, m) },
             contentAlignment = Alignment.Center,
         ) {
-            Text("Done", style = statsText(20f))
+            Text("Xong", style = statsText(20f))
         }
     }
 }

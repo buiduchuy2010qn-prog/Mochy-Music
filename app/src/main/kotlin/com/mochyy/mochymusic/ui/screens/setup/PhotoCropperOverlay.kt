@@ -255,7 +255,7 @@ fun PhotoCropperContainer(
         }
 
         Text(
-            text = "Căn chỉnh ảnh đại diện",
+            text = "Adjust your photo profile",
             color = Color.White,
             fontWeight = FontWeight.Bold,
             fontSize = 18.sp,

@@ -64,14 +64,14 @@ private class TidalLibrary(
     override suspend fun playlists(): List<RemotePlaylist> {
         val likedTotal = AccountHttp.getJson("$API/users/$userId/favorites/tracks?limit=1&countryCode=$country", headers, SERVICE)
             ?.long("totalNumberOfItems")?.toInt()
-        val result = mutableListOf(RemotePlaylist(LIKED_ID, "My Tracks", likedTotal, subtitle = "Your favorite tracks", isLiked = true))
+        val result = mutableListOf(RemotePlaylist(LIKED_ID, "Bài hát của tôi", likedTotal, subtitle = "Bài hát yêu thích của bạn", isLiked = true))
         val seen = HashSet<String>()
 
         forEachPage("$API/users/$userId/playlists?countryCode=$country", pageSize = 50) { item ->
             item.toPlaylist(subtitle = null)?.takeIf { seen.add(it.id) }?.let { result += it }
         }
         forEachPage("$API/users/$userId/favorites/playlists?countryCode=$country", pageSize = 50) { entry ->
-            entry["item"].obj()?.toPlaylist(subtitle = "Saved playlist")?.takeIf { seen.add(it.id) }?.let { result += it }
+            entry["item"].obj()?.toPlaylist(subtitle = "Danh sách phát đã lưu")?.takeIf { seen.add(it.id) }?.let { result += it }
         }
         return result
     }

@@ -145,8 +145,8 @@ private fun SwitchStatus(state: ProviderSwitchState, nameOf: (String) -> String)
         ) {
             when (state) {
                 is ProviderSwitchState.Working -> {
-                    Text("Fetching from ${nameOf(state.providerId)}…", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text("Try ${state.attempt} of ${state.of}, up to a minute", color = InfoMuted, fontSize = 12.sp)
+                    Text("Đang tải từ ${nameOf(state.providerId)}…", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Lần thử ${state.attempt} / ${state.of}, tối đa một phút", color = InfoMuted, fontSize = 12.sp)
                     Spacer(Modifier.height(10.dp))
                     val progress by animateFloatAsState(state.attempt / state.of.toFloat(), label = "switchTries")
                     Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.12f))) {
@@ -154,7 +154,7 @@ private fun SwitchStatus(state: ProviderSwitchState, nameOf: (String) -> String)
                     }
                 }
                 is ProviderSwitchState.Failed -> {
-                    Text("Source unavailable", color = Color(0xFFFF7A7A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Nguồn phát không khả dụng", color = Color(0xFFFF7A7A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(
                         "${nameOf(state.providerId)} didn't answer after ${ProviderSwitch.MaxTries} tries, so the song kept playing where it was. Try another one.",
                         color = InfoMuted,
@@ -162,7 +162,7 @@ private fun SwitchStatus(state: ProviderSwitchState, nameOf: (String) -> String)
                     )
                 }
                 is ProviderSwitchState.Done -> {
-                    Text("Now playing from ${nameOf(state.providerId)}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Đang phát từ ${nameOf(state.providerId)}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
                 ProviderSwitchState.Idle -> Unit
             }

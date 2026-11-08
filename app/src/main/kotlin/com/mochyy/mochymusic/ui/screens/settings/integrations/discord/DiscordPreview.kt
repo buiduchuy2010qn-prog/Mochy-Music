@@ -97,7 +97,7 @@ internal fun DiscordToggleCard(
                 .weight(1f)
                 .padding(horizontal = 12.dp),
         ) {
-            Text("Enable rich presence", color = DiscordColors.Primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text("Bật hiển thị trạng thái (Rich Presence)", color = DiscordColors.Primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text(status, color = DiscordColors.Secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
         AppSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
@@ -279,7 +279,7 @@ private fun Times(activity: PresenceActivity, now: Long) {
     val mono = Modifier.padding(top = 6.dp)
     val end = activity.endMs
     if (end == null) {
-        Text("${clock(now - start)} elapsed", color = DiscordColors.Secondary, fontSize = 10.sp, fontFamily = FontFamily.Monospace, modifier = mono)
+        Text("đã phát ${clock(now - start)}", color = DiscordColors.Secondary, fontSize = 10.sp, fontFamily = FontFamily.Monospace, modifier = mono)
         return
     }
     val total = (end - start).coerceAtLeast(1)

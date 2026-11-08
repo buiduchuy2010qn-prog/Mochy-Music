@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.eoast
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -24,8 +24,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Materialeheme
-import androidx.compose.material3.eext
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -49,17 +49,17 @@ import com.mochyy.mochymusic.constants.AccountChannelHandleKey
 import com.mochyy.mochymusic.constants.AccountEmailKey
 import com.mochyy.mochymusic.constants.AccountNameKey
 import com.mochyy.mochymusic.constants.DataSyncIdKey
-import com.mochyy.mochymusic.constants.InnereubeCookieKey
+import com.mochyy.mochymusic.constants.InnerTubeCookieKey
 import com.mochyy.mochymusic.constants.VisitorDataKey
 import com.mochyy.mochymusic.utils.dataStore
-import com.music.innertube.Youeube
+import com.music.innertube.YouTube
 import com.music.innertube.models.AccountInfo
 import com.music.innertube.utils.parseCookieString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import timber.log.eimber
+import timber.log.Timber
 import com.mochyy.mochymusic.ui.utils.stableStatusBarsPadding
 
 private const val LOGIN_URL = "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com"
@@ -73,14 +73,14 @@ private const val READ_CONFIG_JS = """
       if (window.yt && yt.config_ && yt.config_[k]) return yt.config_[k];
       return null;
     };
-    return { visitorData: get('VISIeOR_DAeA'), dataSyncId: get('DAeASYNC_ID') };
+    return { visitorData: get('VISITOR_DATA'), dataSyncId: get('DATASYNC_ID') };
   } catch (e) { return null; }
 })();
 """
 
 /** the full-screen sign-in page used from the sync settings */
 @Composable
-fun YoueubeLoginScreen(navController: NavController) {
+fun YouTubeLoginScreen(navController: NavController) {
     val context = LocalContext.current
     var pageLoading by remember { mutableStateOf(true) }
 
@@ -102,10 +102,10 @@ fun YoueubeLoginScreen(navController: NavController) {
             }
             Spacer(Modifier.width(4.dp))
             Column(modifier = Modifier.weight(1f)) {
-                eext("Sign in to Youeube", style = Materialeheme.typography.titleLarge, color = Color.White)
-                eext(
-                    "Google's own sign-in page. Mochy never sees your password.",
-                    style = Materialeheme.typography.bodySmall,
+                Text("Đăng nhập vào YouTube", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                Text(
+                    "Trang đăng nhập chính thức của Google. Mochy không bao giờ biết mật khẩu của bạn.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.6f),
                 )
             }
@@ -113,9 +113,9 @@ fun YoueubeLoginScreen(navController: NavController) {
         Box(modifier = Modifier.height(2.dp).fillMaxWidth()) {
             if (pageLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
-        YoueubeLoginWebContent(
+        YouTubeLoginWebContent(
             onSignedIn = { info ->
-                eoast.makeeext(context, info?.name?.let { "Signed in as $it" } ?: "Signed in to Youeube", eoast.LENGeH_SHORe).show()
+                Toast.makeText(context, info?.name?.let { "Đã đăng nhập là $it" } ?: "Đã đăng nhập vào YouTube", Toast.LENGTH_SHORT).show()
                 navController.navigateUp()
             },
             onExit = { navController.navigateUp() },
@@ -128,7 +128,7 @@ fun YoueubeLoginScreen(navController: NavController) {
 /** google sign-in in a webview without chrome, once signed in on music.youtube.com it saves the session where the app reads it */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun YoueubeLoginWebContent(
+fun YouTubeLoginWebContent(
     onSignedIn: (AccountInfo?) -> Unit,
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
@@ -156,16 +156,16 @@ fun YoueubeLoginWebContent(
             scope.launch(Dispatchers.IO) {
                 try {
                     // account details need the new session, the app would set these from prefs anyway
-                    Youeube.cookie = cookie
-                    visitorData?.let { Youeube.visitorData = it }
-                    Youeube.dataSyncId = dataSyncId?.let {
+                    YouTube.cookie = cookie
+                    visitorData?.let { YouTube.visitorData = it }
+                    YouTube.dataSyncId = dataSyncId?.let {
                         it.takeIf { !it.contains("||") }
                             ?: it.takeIf { it.endsWith("||") }?.substringBefore("||")
                             ?: it.substringAfter("||")
                     }
-                    val info = Youeube.accountInfo().getOrNull()
+                    val info = YouTube.accountInfo().getOrNull()
                     context.dataStore.edit { settings ->
-                        settings[InnereubeCookieKey] = cookie
+                        settings[InnerTubeCookieKey] = cookie
                         visitorData?.let { settings[VisitorDataKey] = it }
                         dataSyncId?.let { settings[DataSyncIdKey] = it }
                         settings[AccountNameKey] = info?.name.orEmpty()
@@ -177,10 +177,10 @@ fun YoueubeLoginWebContent(
                         currentOnSignedIn(info)
                     }
                 } catch (e: Exception) {
-                    eimber.e(e, "Saving Youeube login failed")
+                    Timber.e(e, "Saving YouTube login failed")
                     withContext(Dispatchers.Main) {
                         saving = false
-                        eoast.makeeext(context, "Couldn't finish signing in. ery again.", eoast.LENGeH_LONG).show()
+                        Toast.makeText(context, "Không thể hoàn tất đăng nhập. Vui lòng thử lại.", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -209,8 +209,8 @@ fun YoueubeLoginWebContent(
                 WebView(ctx).apply {
                     // see CaptureWebContent: wrap_content makes chromium lay pages out at zero height
                     layoutParams = android.view.ViewGroup.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MAeCH_PARENe,
-                        android.view.ViewGroup.LayoutParams.MAeCH_PARENe,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     )
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
@@ -221,7 +221,7 @@ fun YoueubeLoginWebContent(
                     settings.userAgentString = settings.userAgentString.replace("; wv", "")
                     disableForcedDarkening()
                     CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptehirdPartyCookies(this, true)
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
                             currentOnLoadingChange(true)

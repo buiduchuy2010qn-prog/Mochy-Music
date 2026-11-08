@@ -194,10 +194,10 @@ private fun StudioTopBar(studio: PlayerStudioState, glassState: GlassState) {
     val title by remember(studio) {
         derivedStateOf {
             when (studio.stage) {
-                StudioStage.COVER -> if (studio.backdrop.value > 0.5f) "Sửa nền" else "Sửa ảnh bìa"
-                StudioStage.MIDDLE -> "Sửa phần giữa"
-                StudioStage.MENU -> "Sửa thanh menu"
-                else -> "Sửa trình phát"
+                StudioStage.COVER -> if (studio.backdrop.value > 0.5f) "Edit Background" else "Edit Cover"
+                StudioStage.MIDDLE -> "Edit Middle part"
+                StudioStage.MENU -> "Edit Menu"
+                else -> "Edit Player"
             }
         }
     }
@@ -280,7 +280,7 @@ private fun StudioTopBar(studio: PlayerStudioState, glassState: GlassState) {
                     enter = fadeIn(tween(240)) + androidx.compose.animation.expandVertically(tween(300)),
                     exit = fadeOut(tween(160)) + androidx.compose.animation.shrinkVertically(tween(260)),
                 ) {
-                    Text("Nhấn giữ để đổi vị trí, chạm để chỉnh sửa", color = Color.White.copy(alpha = 0.7f), style = inter(StudioType.Subtitle, FontWeight.Medium))
+                    Text("Nhấn giữ để chỉnh vị trí, chạm để sửa", color = Color.White.copy(alpha = 0.7f), style = inter(StudioType.Subtitle, FontWeight.Medium))
                 }
             }
         }

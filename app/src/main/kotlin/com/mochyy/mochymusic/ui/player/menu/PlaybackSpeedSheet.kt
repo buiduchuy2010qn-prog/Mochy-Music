@@ -81,7 +81,7 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(22.dp))
             Text(
-                text = "Tốc độ phát và nhịp độ",
+                text = "Playback speed and tempo",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -89,13 +89,13 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(18.dp))
 
             ValueSlider(
-                label = "Speed",
+                label = "Tốc độ",
                 value = speed.floatValue,
                 onValueChange = { speed.floatValue = it; apply() },
             )
             Spacer(modifier = Modifier.height(14.dp))
             ValueSlider(
-                label = "Pitch",
+                label = "Cao độ",
                 value = pitch.floatValue,
                 onValueChange = { pitch.floatValue = it; apply() },
             )
@@ -120,7 +120,7 @@ fun PlaybackSpeedSheet(onDismiss: () -> Unit) {
                     .padding(vertical = 14.dp)
             ) {
                 Text(
-                    text = "ĐẶT LẠI BÌNH THƯỜNG",
+                    text = "RESET TO NORMAL",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,

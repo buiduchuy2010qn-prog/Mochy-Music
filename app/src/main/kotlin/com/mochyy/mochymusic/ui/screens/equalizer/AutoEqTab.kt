@@ -106,7 +106,7 @@ fun AutoEqTab(viewModel: AudioLabViewModel, eq: EqSettings) {
     LabSectionLabel("Headphone correction")
     LabCard(padding = 12.dp) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("FREQUENCY RESPONSE", fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+            Text("ĐÁP TUYẾN TẦN SỐ", fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp,
                 letterSpacing = 1.2.sp, color = LabColors.Secondary, modifier = Modifier.weight(1f))
             Legend(OriginalColor, "Original")
             Spacer(Modifier.width(10.dp))
@@ -240,8 +240,8 @@ private fun SelectedHeadphone(
         }
         Spacer(Modifier.height(8.dp))
         LabToggleRow(
-            title = "Apply correction",
-            subtitle = "Flattens these headphones toward the target, under your own curve",
+            title = "Áp dụng hiệu chỉnh",
+            subtitle = "Cân chỉnh tai nghe theo đường chuẩn mục tiêu bên dưới đường EQ của bạn",
             checked = enabled,
             onCheckedChange = viewModel::setCorrectionEnabled,
         )
@@ -316,8 +316,8 @@ private fun Database(viewModel: AudioLabViewModel, selectedPath: String?, loadin
     LabCard(padding = 14.dp) {
         Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Database", fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
-                Text("AutoEq · measured by reviewers", fontFamily = InterFontFamily, fontSize = 12.sp, color = LabColors.Secondary)
+                Text("Cơ sở dữ liệu", fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                Text("AutoEq · đo đạc bởi các chuyên gia", fontFamily = InterFontFamily, fontSize = 12.sp, color = LabColors.Secondary)
             }
             val ready = index as? AutoEqIndex.Ready
             if (ready != null) {
@@ -406,7 +406,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
     ) {
         Box(Modifier.weight(1f)) {
             if (query.isEmpty()) {
-                Text("Search model (e.g. HD 600)", fontFamily = InterFontFamily, fontSize = 15.sp, color = LabColors.Faint)
+                Text("Tìm mẫu tai nghe (VD: HD 600)", fontFamily = InterFontFamily, fontSize = 15.sp, color = LabColors.Faint)
             }
             BasicTextField(
                 value = query,

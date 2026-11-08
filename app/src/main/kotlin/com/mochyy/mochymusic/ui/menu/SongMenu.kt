@@ -692,8 +692,8 @@ fun SongMenu(
                     importMatch?.let { match ->
                         add(
                             Material3MenuItemData(
-                                title = { Text(text = "Choose different version") },
-                                description = { Text(text = "Wrong recording? Pick the right one from a list") },
+                                title = { Text(text = "Chọn phiên bản khác") },
+                                description = { Text(text = "Sai bản thu? Chọn lại bản đúng từ danh sách") },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.tune),

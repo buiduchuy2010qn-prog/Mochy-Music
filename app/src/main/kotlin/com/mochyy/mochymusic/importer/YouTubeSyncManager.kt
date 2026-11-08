@@ -141,13 +141,13 @@ class YouTubeSyncManager @Inject constructor(
             try {
                 message = block()
             } catch (e: CancellationException) {
-                message = "Stopped."
+                message = "Đã dừng."
                 throw e
             } catch (e: NotSignedInException) {
                 message = e.message
             } catch (e: Exception) {
                 Timber.e(e, "YouTube sync task failed")
-                message = "Something went wrong: ${e.message ?: e.javaClass.simpleName}"
+                message = "Đã xảy ra lỗi: ${e.message ?: e.javaClass.simpleName}"
             } finally {
                 _state.value = YtSyncState(running = false, message = message, canUndo = SyncUndo.canUndo(context))
             }

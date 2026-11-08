@@ -60,7 +60,7 @@ fun PopupSheetState.showManageImportsSheet(
         ManageLayout(
             ManageAction(R.drawable.delete, "Delete all imports") {
                 confirmThen(
-                    title = "Delete all imports?",
+                    title = "Xóa tất cả nhạc đã nhập?",
                     message = "Every song, like and playlist you imported leaves your library. Songs that were " +
                         "already in it stay, and so does music YouTube sync keeps up to date.",
                     action = "Delete all imports",
@@ -69,7 +69,7 @@ fun PopupSheetState.showManageImportsSheet(
             },
             ManageAction(R.drawable.undo, "Undo import session") {
                 confirmThen(
-                    title = "Undo your last import?",
+                    title = "Hoàn tác lần nhập gần nhất?",
                     message = "The songs, likes and playlists your last import brought in leave your library. " +
                         "Anything that was there before stays.",
                     action = "Undo import",
@@ -83,7 +83,7 @@ fun PopupSheetState.showManageImportsSheet(
             rows = sources.map { source ->
                 ManageAction(R.drawable.delete, "Delete ${source.label} imports") {
                     confirmThen(
-                        title = "Delete ${source.label} imports?",
+                        title = "Xóa nhạc đã nhập từ ${source.label}?",
                         message = "Everything you imported from ${source.label} leaves your library, playlists included." +
                             if (source == ImportSource.YOUTUBE_MUSIC) " Music YouTube sync keeps up to date stays." else "",
                         action = "Delete",
@@ -123,8 +123,8 @@ fun PopupSheetState.showManageLocalSheet(
             rows = listOf(
                 ManageAction(R.drawable.undo, "Undo import session") {
                     showConfirm(
-                        title = "Undo your last local import?",
-                        message = "The songs it added leave your library. The files stay on your phone.",
+                        title = "Hoàn tác lần nhập nhạc trên máy gần nhất?",
+                        message = "Các bài hát đã thêm sẽ được gỡ khỏi thư viện. Tệp gốc trên điện thoại vẫn được giữ nguyên.",
                         action = "Undo import",
                     ) {
                         viewModel.undoLatestLocalImport()
@@ -150,7 +150,7 @@ fun PopupSheetState.showManageCachedSheet(
         ManageLayout(
             ManageAction(R.drawable.clear_all, "Clear cache") {
                 showConfirm(
-                    title = "Clear your cache?",
+                    title = "Xóa bộ nhớ đệm?",
                     message = "Every cached song is deleted from this phone and streams again the next time " +
                         "you play it. Your library and your downloads stay as they are.",
                     action = "Clear cache",

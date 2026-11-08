@@ -109,7 +109,7 @@ fun ArtistAlbumsScreen(
         item(key = "header", contentType = "header") {
             ArtistSubpageHeader(
                 title = if (name.isNotBlank()) "$name albums" else "Albums",
-                subtitle = "${albums.size} in your library",
+                subtitle = "${albums.size} trong thư viện của bạn",
                 isGrid = isGrid,
                 onGridChange = { isGrid = it },
             )

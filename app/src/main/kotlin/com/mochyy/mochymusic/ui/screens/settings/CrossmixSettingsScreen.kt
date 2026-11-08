@@ -116,13 +116,13 @@ fun CrossmixSettingsScreen(navController: NavController) {
 
     SubSettingsScaffold(
         title = "Crossfade",
-        backLabel = "Audio Lab",
+        backLabel = "Phòng âm thanh",
         onBack = { navController.navigateUp() },
     ) {
         LabCard(padding = 10.dp) {
             LabToggleRow(
                 title = "Tắt",
-                subtitle = "Chuyển bài thông thường, không trộn âm",
+                subtitle = "Phát nhạc thông thường, không trộn bài",
                 checked = selectedMode == CrossmixMode.OFF,
                 onCheckedChange = { selectMode(CrossmixMode.OFF) },
                 leadingDot = true,
@@ -136,8 +136,8 @@ fun CrossmixSettingsScreen(navController: NavController) {
             }
             Spacer(Modifier.height(10.dp))
             LabToggleRow(
-                title = "Tự động chuyển mượt (Auto Crossfade)",
-                subtitle = "Hòa âm mượt mà ${AutoCrossfadeDurationSeconds.toInt()} giây giữa các bài hát",
+                title = "Auto Crossfade",
+                subtitle = "A smooth ${AutoCrossfadeDurationSeconds.toInt()}-second blend from every song into the next",
                 checked = selectedMode == CrossmixMode.AUTO_CROSSFADE,
                 onCheckedChange = { toggle(CrossmixMode.AUTO_CROSSFADE, it) },
             )
@@ -154,14 +154,14 @@ fun CrossmixSettingsScreen(navController: NavController) {
             }
             Spacer(Modifier.height(10.dp))
             LabToggleRow(
-                title = "Chuyển mượt thủ công",
-                subtitle = "Tùy chỉnh thời gian chuyển mượt",
+                title = "Manual Crossfade",
+                subtitle = "Set custom crossfade",
                 checked = selectedMode == CrossmixMode.MANUAL_CROSSFADE,
                 onCheckedChange = { toggle(CrossmixMode.MANUAL_CROSSFADE, it) },
             )
             Box(Modifier.padding(horizontal = 6.dp)) {
                 LabSlider(
-                    label = "Length",
+                    label = "Thời lượng",
                     valueText = "${manualSeconds.roundToInt()}s",
                     value = manualSeconds,
                     onValueChange = { v ->
@@ -215,7 +215,7 @@ fun CrossmixSettingsScreen(navController: NavController) {
             LabCard(padding = 10.dp) {
                 LabToggleRow(
                     title = "Giữ nguyên các album phát liền mạch (Gapless)",
-                    subtitle = "Các bài trong cùng album nối tiếp nhau sẽ phát nguyên bản không trộn",
+                    subtitle = "Các bài hát nối tiếp nhau trong cùng album sẽ phát liền mạch không trộn",
                     checked = disableForGapless,
                     onCheckedChange = onDisableForGaplessChange,
                 )

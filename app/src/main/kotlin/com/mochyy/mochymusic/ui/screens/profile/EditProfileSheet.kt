@@ -87,12 +87,12 @@ private fun EditProfileContent(currentName: String, currentPhoto: Any?, onSaved:
     ) {
         OnboardingPage(
             badge = { PageBadge(painterResource(R.drawable.person)) },
-            title = "Edit profile",
+            title = "Sửa hồ sơ",
             contentTop = 22.dp,
             modifier = Modifier.background(Onb.Page),
             footer = {
                 Text(
-                    "Mochy will never store your data online!",
+                    "Mochy không bao giờ lưu trữ dữ liệu của bạn trực tuyến!",
                     color = Onb.Faint,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -111,11 +111,11 @@ private fun EditProfileContent(currentName: String, currentPhoto: Any?, onSaved:
                 )
             },
         ) {
-            Text("username", color = Onb.Muted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("tên người dùng", color = Onb.Muted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
-            OnbTextField(value = name, onValueChange = { name = it.take(32) }, placeholder = "username")
+            OnbTextField(value = name, onValueChange = { name = it.take(32) }, placeholder = "tên người dùng")
             Spacer(Modifier.height(24.dp))
-            Text("profile picture", color = Onb.Muted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("ảnh đại diện", color = Onb.Muted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
             EditablePhoto(photo = cropped ?: currentPhoto, onClick = ::pickPhoto)
         }
@@ -143,14 +143,14 @@ private fun EditablePhoto(photo: Any?, onClick: () -> Unit) {
         if (photo != null) {
             AsyncImage(
                 model = photo,
-                contentDescription = "Profile picture",
+                contentDescription = "Ảnh đại diện",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
             Icon(
                 painterResource(R.drawable.add),
-                contentDescription = "Add a profile picture",
+                contentDescription = "Thêm ảnh đại diện",
                 tint = Color.White.copy(alpha = 0.7f),
                 modifier = Modifier.size(34.dp),
             )

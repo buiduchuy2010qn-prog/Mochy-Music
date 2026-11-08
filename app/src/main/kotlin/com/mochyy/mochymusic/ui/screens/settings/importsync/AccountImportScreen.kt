@@ -185,8 +185,8 @@ fun AccountImportScreen(
     LaunchedEffect(resyncStart) {
         if (resyncStart != ResyncStart.Started) return@LaunchedEffect
         val missing = viewModel.missingFromAccount
-        val started = "Looking for new songs on ${service.label}…" +
-            if (missing.isEmpty()) "" else " Couldn't find ${missing.joinToString(", ")} there."
+        val started = "Đang tìm bài hát mới trên ${service.label}…" +
+            if (missing.isEmpty()) "" else " Không tìm thấy ${missing.joinToString(", ")} tại đó."
         Toast.makeText(context, started, Toast.LENGTH_LONG).show()
         navController.navigateUp()
         // re-sync all: on to the next service that needs signing in
@@ -214,11 +214,11 @@ fun AccountImportScreen(
 
     when (val current = state) {
         AccountImportState.SigningIn -> CaptureWebView(
-            title = "Sign in to ${service.label}",
+            title = "Đăng nhập vào ${service.label}",
             subtitle = if (viewModel.isResync) {
-                "On ${service.label}'s own page. Mochy only reads the playlist you're re-syncing"
+                "Trên trang chính thức của ${service.label}. Mochy chỉ đọc danh sách phát bạn đang đồng bộ lại"
             } else {
-                "On ${service.label}'s own page. Mochy only reads your playlists"
+                "Trên trang chính thức của ${service.label}. Mochy chỉ đọc danh sách phát của bạn"
             },
             startUrl = service.loginUrl.orEmpty(),
             playerOrigins = service.playerOrigins,
@@ -237,7 +237,7 @@ fun AccountImportScreen(
                 AccountImportState.NeedsYouTubeSignIn -> {
                     ImportInfoCard {
                         Text(
-                            "YouTube Music import uses the app's YouTube account. Sign in, then choose playlists.",
+                            "Tính năng nhập YouTube Music sử dụng tài khoản YouTube trong ứng dụng. Hãy đăng nhập rồi chọn danh sách phát.",
                             style = MaterialTheme.typography.bodyLarge,
                         )
                     }
@@ -246,7 +246,7 @@ fun AccountImportScreen(
                         style = SettingsGroupStyle.Grouped,
                         items = listOf(
                             SettingsItem(
-                                title = { Text("Sign in to YouTube") },
+                                title = { Text("Đăng nhập vào YouTube") },
                                 icon = painterResource(R.drawable.login),
                                 iconShape = CircleShape,
                                 onClick = { navController.navigate(YouTubeLoginRoute) },
@@ -257,7 +257,7 @@ fun AccountImportScreen(
                 is AccountImportState.Loading -> BusyCard(current.label, fraction = null)
                 is AccountImportState.Reading -> {
                     BusyCard(
-                        label = "${current.label} (${current.done + 1} of ${current.total})",
+                        label = "${current.label} (${current.done + 1} / ${current.total})",
                         fraction = current.done.toFloat() / current.total.coerceAtLeast(1),
                     )
                     Spacer(Modifier.height(16.dp))
@@ -265,7 +265,7 @@ fun AccountImportScreen(
                         style = SettingsGroupStyle.Grouped,
                         items = listOf(
                             SettingsItem(
-                                title = { Text("Stop") },
+                                title = { Text("Dừng") },
                                 icon = painterResource(R.drawable.close),
                                 iconShape = CircleShape,
                                 onClick = viewModel::cancelReading,
@@ -283,7 +283,7 @@ fun AccountImportScreen(
                         items = buildList {
                             if (!current.signedOut) add(
                                 SettingsItem(
-                                    title = { Text("Try again") },
+                                    title = { Text("Thử lại") },
                                     icon = painterResource(R.drawable.refresh),
                                     iconShape = CircleShape,
                                     onClick = viewModel::retry,
@@ -291,7 +291,7 @@ fun AccountImportScreen(
                             )
                             add(
                                 SettingsItem(
-                                    title = { Text("Sign in again") },
+                                    title = { Text("Đăng nhập lại") },
                                     icon = painterResource(R.drawable.login),
                                     iconShape = CircleShape,
                                     onClick = {
@@ -366,7 +366,7 @@ private fun PickForResyncContent(
 ) {
     ImportInfoCard {
         Text(
-            "Couldn't find \"$name\" in your ${service.label} library by its name. Which one is it?",
+            "Không tìm thấy \"$name\" trong thư viện ${service.label} của bạn theo tên. Đó là danh sách phát nào dưới đây?",
             style = MaterialTheme.typography.bodyLarge,
         )
     }
@@ -375,8 +375,8 @@ private fun PickForResyncContent(
         style = SettingsGroupStyle.Grouped,
         items = listOf(
             SettingsItem(
-                title = { Text("It's not in this account") },
-                descriptionText = "Paste the playlist's link instead",
+                title = { Text("Không có trong tài khoản này") },
+                descriptionText = "Dán liên kết của danh sách phát để thay thế",
                 icon = painterResource(R.drawable.link),
                 iconShape = CircleShape,
                 onClick = onPasteLink,
@@ -386,13 +386,13 @@ private fun PickForResyncContent(
     if (state.playlists.isEmpty()) return
     Spacer(Modifier.height(16.dp))
     SettingsGroup(
-        title = "${state.playlists.size} in your library",
+        title = "${state.playlists.size} danh sách phát trong thư viện",
         style = SettingsGroupStyle.Grouped,
         items = state.playlists.map { playlist ->
             SettingsItem(
                 title = { Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 descriptionText = listOfNotNull(
-                    playlist.trackCount?.let { if (it == 1) "1 song" else "$it songs" },
+                    playlist.trackCount?.let { "$it bài hát" },
                     playlist.subtitle,
                 ).joinToString(" · ").ifEmpty { null },
                 icon = playlist.coverUrl?.let { rememberAsyncImagePainter(it) } ?: painterResource(R.drawable.playlist_play),
@@ -437,8 +437,8 @@ private fun ChoosingContent(
         style = SettingsGroupStyle.Grouped,
         items = listOf(
             SettingsItem(
-                title = { Text(state.accountName?.let { "Signed in as $it" } ?: "Signed in to ${service.label}") },
-                descriptionText = if (service == AccountService.YOUTUBE_MUSIC) "Manage on the Sync page" else "Use a different account",
+                title = { Text(state.accountName?.let { "Đã đăng nhập là $it" } ?: "Đã đăng nhập vào ${service.label}") },
+                descriptionText = if (service == AccountService.YOUTUBE_MUSIC) "Quản lý tại trang Đồng bộ" else "Dùng tài khoản khác",
                 icon = painterResource(R.drawable.account),
                 iconShape = CircleShape,
                 onClick = onSwitchAccount,
@@ -447,20 +447,20 @@ private fun ChoosingContent(
                 title = {
                     Text(
                         when (selectedCount) {
-                            0 -> "Choose what to import"
-                            1 -> "Import 1 selected"
-                            else -> "Import $selectedCount selected"
+                            0 -> "Chọn mục muốn nhập"
+                            1 -> "Nhập 1 mục đã chọn"
+                            else -> "Nhập $selectedCount mục đã chọn"
                         }
                     )
                 },
-                descriptionText = if (selectedCount == 0) "Tick playlists below" else "Next you can also add them to YouTube",
+                descriptionText = if (selectedCount == 0) "Đánh dấu danh sách phát bên dưới" else "Bước tiếp theo bạn cũng có thể thêm chúng vào YouTube",
                 icon = painterResource(R.drawable.playlist_add),
                 iconShape = CircleShape,
                 enabled = selectedCount > 0,
                 onClick = onImport,
             ),
             SettingsItem(
-                title = { Text(if (allSelected) "Select none" else "Select all") },
+                title = { Text(if (allSelected) "Bỏ chọn tất cả" else "Chọn tất cả") },
                 icon = painterResource(R.drawable.check),
                 iconShape = CircleShape,
                 onClick = if (allSelected) onSelectNone else onSelectAll,
@@ -471,7 +471,7 @@ private fun ChoosingContent(
     if (service == AccountService.YOUTUBE_MUSIC && autoSync) {
         Spacer(Modifier.height(12.dp))
         Text(
-            "Library sync is on, so saved YouTube playlists are already in your library. Importing makes separate local copies.",
+            "Đồng bộ thư viện đang bật, nên các danh sách phát đã lưu trên YouTube đã có sẵn trong thư viện. Việc nhập sẽ tạo các bản sao cục bộ riêng biệt.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -481,20 +481,20 @@ private fun ChoosingContent(
 
     if (state.playlists.isEmpty()) {
         ImportInfoCard {
-            Text("No playlists in this account.", style = MaterialTheme.typography.bodyLarge)
+            Text("Không có danh sách phát nào trong tài khoản này.", style = MaterialTheme.typography.bodyLarge)
         }
         return
     }
 
     SettingsGroup(
-        title = "${state.playlists.size} in your library",
+        title = "${state.playlists.size} danh sách phát trong thư viện",
         style = SettingsGroupStyle.Grouped,
         items = state.playlists.map { playlist ->
             val checked = playlist.id in state.selected
             SettingsItem(
                 title = { Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 descriptionText = listOfNotNull(
-                    playlist.trackCount?.let { if (it == 1) "1 song" else "$it songs" },
+                    playlist.trackCount?.let { "$it bài hát" },
                     playlist.subtitle,
                 ).joinToString(" · ").ifEmpty { null },
                 // the playlist's own cover from the service, when it has one

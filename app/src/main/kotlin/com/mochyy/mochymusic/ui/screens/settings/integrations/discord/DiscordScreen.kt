@@ -103,7 +103,7 @@ fun DiscordScreen(
                 context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             } catch (e: android.content.ActivityNotFoundException) {
                 viewModel.cancelWaiting()
-                Toast.makeText(context, "There's no browser to open Discord's login page in.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Không tìm thấy trình duyệt để mở trang đăng nhập Discord.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -278,7 +278,7 @@ private fun CustomizeSection(
 
     DiscordSectionTitle("Image customisation")
     DiscordImageSourceCard(
-        title = "Small image source",
+        title = "Nguồn ảnh nhỏ",
         selected = settings.smallImage,
         options = PresenceImage.ForSmall,
         onSelect = { image -> edit { copy(smallImage = image) } },
@@ -287,7 +287,7 @@ private fun CustomizeSection(
     )
     Spacer(gap)
     DiscordImageSourceCard(
-        title = "Big image source",
+        title = "Nguồn ảnh lớn",
         selected = settings.largeImage,
         options = PresenceImage.ForLarge,
         onSelect = { image -> edit { copy(largeImage = image) } },

@@ -111,7 +111,7 @@ fun AudioLabScreen(
     ) {
         val equalizer: @Composable (Modifier) -> Unit = { modifier ->
             BigHubCard(
-                title = "Bộ chỉnh âm (Equalizer)",
+                title = "Bộ chỉnh âm (EQ)",
                 status = equalizerStatus(eq, presets.associate { it.id to it.name }),
                 on = eq.enabled,
                 onClick = { navController.navigate("equalizer") },
@@ -137,11 +137,11 @@ fun AudioLabScreen(
         }
         val transition: @Composable (Modifier) -> Unit = { modifier ->
             SmallHubCard(
-                title = "Chuyển bài (Transition)",
+                title = "Chuyển bài",
                 status = when (mode.playable()) {
-                    CrossmixMode.OFF -> "Tắt"
-                    CrossmixMode.AUTO_CROSSFADE -> "Tự động"
-                    CrossmixMode.MANUAL_CROSSFADE -> "Thủ công"
+                    CrossmixMode.OFF -> "Off"
+                    CrossmixMode.AUTO_CROSSFADE -> "Auto"
+                    CrossmixMode.MANUAL_CROSSFADE -> "Manual"
                     CrossmixMode.CROSSMIX -> "CrossMix"
                 },
                 onClick = { navController.navigate("crossmix_settings") },
@@ -196,7 +196,7 @@ fun AudioLabScreen(
 private fun effectsStatus(effects: List<ActiveEffect>): String {
     val names = effects.map { it.label.uppercase() }
     return when {
-        names.isEmpty() -> "ĐÃ TẮT HẾT"
+        names.isEmpty() -> "ALL OFF"
         names.size <= 2 -> names.joinToString(", ")
         else -> names.take(2).joinToString(", ") + " and ${names.size - 2} more"
     }

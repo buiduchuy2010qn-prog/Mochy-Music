@@ -211,7 +211,7 @@ fun PlayerActionMenu(
                         )
                         SheetActionCard(
                             icon = R.drawable.edit,
-                            title = "Chỉnh sửa lời bài hát",
+                            title = "Sửa lời bài hát",
                             onClick = { showLyricsEditor = true },
                             modifier = Modifier.weight(1f),
                         )
@@ -240,7 +240,7 @@ fun PlayerActionMenu(
 
                     MenuRow(
                         icon = R.drawable.translate,
-                        title = "Dịch lời bài hát",
+                        title = "dịch lời bài hát",
                         onClick = { showLyricsTranslation = true },
                     )
 
@@ -251,7 +251,7 @@ fun PlayerActionMenu(
                 SheetActionCardRow {
                     SheetActionCard(
                         icon = R.drawable.radio,
-                        title = "Bắt đầu Radio",
+                        title = "Bắt đầu đài phát",
                         enabled = currentMetadata != null,
                         onClick = {
                             currentMetadata?.let { metadata ->
@@ -345,14 +345,14 @@ fun PlayerActionMenu(
 
                 MenuRow(
                     icon = if (trackInfo.liked) R.drawable.ic_untitled_heart else R.drawable.ic_untitled_heart_unfill,
-                    title = if (trackInfo.liked) "xóa khỏi bài hát đã thích" else "thêm vào bài hát đã thích",
+                    title = if (trackInfo.liked) "remove from liked" else "add to liked",
                     onClick = { playerConnection.toggleLike() },
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 val inLibrary = librarySong?.song?.inLibrary != null
                 MenuRow(
                     icon = if (inLibrary) R.drawable.library_add_check else R.drawable.library_add,
-                    title = if (inLibrary) "xóa khỏi thư viện" else "thêm vào thư viện",
+                    title = if (inLibrary) "remove from library" else "add to library",
                     enabled = currentMetadata != null,
                     onClick = { playerConnection.toggleLibrary() },
                 )
@@ -486,7 +486,7 @@ private fun KeepScreenOnRow() {
     val (keepScreenOn, setKeepScreenOn) = rememberPreference(KeepScreenOn, defaultValue = false)
     MenuRow(
         icon = R.drawable.lock_open,
-        title = "Giữ màn hình luôn bật",
+        title = "Giữ màn hình luôn sáng",
         onClick = { setKeepScreenOn(!keepScreenOn) },
         trailing = { AppSwitch(checked = keepScreenOn, onCheckedChange = setKeepScreenOn) },
     )
@@ -501,7 +501,7 @@ private fun SleepTimerRow(onClick: () -> Unit) {
     LaunchedEffect(sleepTimer.triggerTime, sleepTimer.pauseWhenSongEnd) {
         while (true) {
             remainingLabel = when {
-                sleepTimer.pauseWhenSongEnd -> "tắt khi hết bài"
+                sleepTimer.pauseWhenSongEnd -> "ends with song"
                 sleepTimer.triggerTime > 0L -> {
                     val left = sleepTimer.triggerTime - System.currentTimeMillis()
                     if (left <= 0L) "" else formatRemaining(left)
@@ -520,7 +520,7 @@ private fun SleepTimerRow(onClick: () -> Unit) {
         trailing = {
             if (remainingLabel.isNotEmpty()) {
                 Text(
-                    text = "Còn lại $remainingLabel",
+                    text = "$remainingLabel remaining",
                     color = Color(0xFF9A9A9A),
                     fontSize = 12.sp,
                 )

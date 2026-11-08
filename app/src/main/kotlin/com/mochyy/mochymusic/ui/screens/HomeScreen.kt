@@ -640,7 +640,7 @@ fun HomeScreen(
                     kind = com.mochyy.mochymusic.ui.component.StarterItem.Kind.Playlist,
                     id = it.id,
                     title = it.playlist.name,
-                    detail = "${it.songCount} songs",
+                    detail = "${it.songCount} bài hát",
                     thumbnailUrl = it.thumbnails.firstOrNull() ?: it.playlist.thumbnailUrl,
                 )
             }

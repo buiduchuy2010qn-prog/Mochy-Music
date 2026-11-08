@@ -121,7 +121,7 @@ class MusicImportService @Inject constructor(
         _progress.update {
             it.copy(
                 source = request.source,
-                currentLabel = "Reading \"${request.playlistName}\" on ${request.source.label}",
+                currentLabel = "Đang đọc \"${request.playlistName}\" trên ${request.source.label}",
                 resync = it.resync?.copy(playlistName = request.playlistName),
             )
         }

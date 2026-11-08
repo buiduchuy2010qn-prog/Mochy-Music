@@ -93,20 +93,20 @@ fun LinkInputDialog(
     DefaultDialog(
         onDismiss = onDismiss,
         horizontalAlignment = Alignment.Start,
-        title = { Text("Import from ${source.label}") },
+        title = { Text("Nhập từ ${source.label}") },
         buttons = {
             TextButton(onClick = {
                 clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let { link = it }
-            }) { Text("Paste") }
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            }) { Text("Dán") }
+            TextButton(onClick = onDismiss) { Text("Hủy") }
             TextButton(
                 enabled = link.isNotBlank(),
                 onClick = { onSubmit(link.trim()) },
-            ) { Text("Continue") }
+            ) { Text("Tiếp tục") }
         },
     ) {
         Text(
-            text = "Paste a link to a public playlist or album. Share it from ${source.label} with \"Copy link\".",
+            text = "Dán liên kết tới danh sách phát hoặc album công khai. Chia sẻ từ ${source.label} bằng nút \"Sao chép liên kết\".",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -139,7 +139,7 @@ fun PendingImportHost(
         PendingImport.Idle -> Unit
         is PendingImport.Loading -> DefaultDialog(
             onDismiss = viewModel::dismissPending,
-            buttons = { TextButton(onClick = viewModel::dismissPending) { Text("Cancel") } },
+            buttons = { TextButton(onClick = viewModel::dismissPending) { Text("Hủy") } },
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
@@ -150,7 +150,7 @@ fun PendingImportHost(
         is PendingImport.Failed -> DefaultDialog(
             onDismiss = viewModel::dismissPending,
             horizontalAlignment = Alignment.Start,
-            title = { Text("Couldn't import") },
+            title = { Text("Không thể nhập") },
             buttons = { TextButton(onClick = viewModel::dismissPending) { Text("OK") } },
         ) {
             Text(state.message, style = MaterialTheme.typography.bodyMedium)
@@ -162,7 +162,7 @@ fun PendingImportHost(
             onDismiss = viewModel::dismissPending,
             onImport = { mirror ->
                 if (!viewModel.startImport(state.parsed, mirror)) {
-                    Toast.makeText(context, "An import is already running", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Đang có một tiến trình nhập khác chạy", Toast.LENGTH_SHORT).show()
                     viewModel.dismissPending()
                 }
                 navController.navigate(ImportProgressRoute) { launchSingleTop = true }
@@ -187,29 +187,29 @@ private fun ImportReviewDialog(
         horizontalAlignment = Alignment.Start,
         title = {
             Text(
-                text = names.singleOrNull()?.takeIf { parsed.likedSongs.isEmpty() } ?: "Import from $sourceLabel",
+                text = names.singleOrNull()?.takeIf { parsed.likedSongs.isEmpty() } ?: "Nhập từ $sourceLabel",
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         },
         buttons = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-            TextButton(onClick = { onImport(mirror && signedIn) }) { Text("Import") }
+            TextButton(onClick = onDismiss) { Text("Hủy") }
+            TextButton(onClick = { onImport(mirror && signedIn) }) { Text("Nhập") }
         },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (parsed.likedSongs.isNotEmpty()) {
-                Text("${parsed.likedSongs.size} liked songs", style = MaterialTheme.typography.bodyLarge)
+                Text("${parsed.likedSongs.size} bài hát đã thích", style = MaterialTheme.typography.bodyLarge)
             }
             if (names.isNotEmpty()) {
                 val songCount = parsed.playlists.values.sumOf { it.size }
                 Text(
-                    "${names.size} ${if (names.size == 1) "playlist" else "playlists"} · $songCount songs",
+                    "${names.size} danh sách phát · $songCount bài hát",
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 if (names.size > 1) {
                     Text(
-                        text = names.take(6).joinToString(", ") + if (names.size > 6) " and ${names.size - 6} more" else "",
+                        text = names.take(6).joinToString(", ") + if (names.size > 6) " và ${names.size - 6} mục khác" else "",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 4,
@@ -220,7 +220,7 @@ private fun ImportReviewDialog(
             val needsSearch = parsed.likedSongs.any { it.videoId == null } || parsed.playlists.values.any { list -> list.any { it.videoId == null } }
             if (needsSearch) {
                 Text(
-                    "Each song is searched on YouTube Music. Large libraries take a few minutes; you can leave this page while it runs.",
+                    "Mỗi bài hát sẽ được tìm trên YouTube Music. Thư viện lớn có thể mất vài phút; bạn có thể rời khỏi trang này trong khi ứng dụng xử lý.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -233,9 +233,9 @@ private fun ImportReviewDialog(
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Also create on YouTube", style = MaterialTheme.typography.titleMedium)
+                        Text("Đồng thời tạo trên YouTube", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Playlists and likes are added to your YouTube account too.",
+                            "Danh sách phát và bài hát đã thích cũng sẽ được thêm vào tài khoản YouTube của bạn.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -245,7 +245,7 @@ private fun ImportReviewDialog(
                 }
                 if (!mirror && parsed.likedSongs.isNotEmpty()) {
                     Text(
-                        "YouTube sync keeps likes the same on both sides, so these likes will still be added to YouTube the next time it syncs.",
+                        "Đồng bộ YouTube giúp đồng nhất các bài hát đã thích ở cả hai nơi, nên chúng vẫn sẽ được thêm vào YouTube ở lần đồng bộ tiếp theo.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

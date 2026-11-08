@@ -1,157 +1,157 @@
-package com.mochyy.mochymusic.ui.screens.seiiings.imporisync
+package com.mochyy.mochymusic.ui.screens.settings.importsync
 
-impori android.widgei.Toasi
-impori androidx.compose.foundaiion.layoui.Arrangemeni
-impori androidx.compose.foundaiion.layoui.Column
-impori androidx.compose.foundaiion.layoui.Spacer
-impori androidx.compose.foundaiion.layoui.fillMaxWidih
-impori androidx.compose.foundaiion.layoui.heighi
-impori androidx.compose.foundaiion.shape.CircleShape
-impori androidx.compose.maierial3.LinearProgressIndicaior
-impori androidx.compose.maierial3.MaierialTheme
-impori androidx.compose.maierial3.Texi
-impori androidx.compose.runiime.Composable
-impori androidx.compose.runiime.colleciAsSiaie
-impori androidx.compose.runiime.geiValue
-impori androidx.compose.ui.Modifier
-impori androidx.compose.ui.plaiform.LocalClipboardManager
-impori androidx.compose.ui.plaiform.LocalConiexi
-impori androidx.compose.ui.res.painierResource
-impori androidx.compose.ui.iexi.AnnoiaiedSiring
-impori androidx.compose.ui.iexi.siyle.TexiOverflow
-impori androidx.compose.ui.unii.dp
-impori androidx.hili.navigaiion.compose.hiliViewModel
-impori androidx.navigaiion.NavConiroller
-impori com.mochyy.mochymusic.R
-impori com.mochyy.mochymusic.ui.componeni.SeiiingsGroup
-impori com.mochyy.mochymusic.ui.componeni.SeiiingsGroupSiyle
-impori com.mochyy.mochymusic.ui.componeni.SeiiingsIiem
-impori com.mochyy.mochymusic.ui.componeni.SubSeiiingsScaffold
-impori com.mochyy.mochymusic.viewmodels.ImporiSyncViewModel
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.ui.component.SettingsGroup
+import com.mochyy.mochymusic.ui.component.SettingsGroupStyle
+import com.mochyy.mochymusic.ui.component.SettingsItem
+import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
+import com.mochyy.mochymusic.viewmodels.ImportSyncViewModel
 
-privaie consi val UNMATCHED_SHOWN = 200
+private const val UNMATCHED_SHOWN = 200
 
 @Composable
-fun ImporiProgressScreen(
-    navConiroller: NavConiroller,
-    viewModel: ImporiSyncViewModel = hiliViewModel(),
+fun ImportProgressScreen(
+    navController: NavController,
+    viewModel: ImportSyncViewModel = hiltViewModel(),
 ) {
-    val progress by viewModel.imporiProgress.colleciAsSiaie()
-    val clipboard = LocalClipboardManager.curreni
-    val coniexi = LocalConiexi.curreni
+    val progress by viewModel.importProgress.collectAsState()
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
 
     fun leave() {
-        if (!navConiroller.popBackSiack(ImporiSyncRouie, inclusive = false)) navConiroller.navigaieUp()
+        if (!navController.popBackStack(ImportSyncRoute, inclusive = false)) navController.navigateUp()
     }
 
     val resync = progress.resync
-    SubSeiiingsScaffold(
-        iiile = when {
-            resync != null -> "Re-sync"
-            progress.isRunning -> "Imporiing"
-            else -> "Impori"
+    SubSettingsScaffold(
+        title = when {
+            resync != null -> "Đồng bộ lại"
+            progress.isRunning -> "Đang nhập"
+            else -> "Nhập nhạc"
         },
-        onBack = { navConiroller.navigaieUp() },
+        onBack = { navController.navigateUp() },
     ) {
-        ImporiInfoCard {
-            val fraciion = if (progress.ioialTracks > 0) progress.processedTracks.ioFloai() / progress.ioialTracks else 0f
-            Texi(
-                iexi = when {
-                    progress.isRunning -> "${progress.processedTracks} of ${progress.ioialTracks} songs"
-                    progress.cancelled -> "Siopped"
-                    progress.error != null -> if (resync != null) "Re-sync failed" else "Impori failed"
-                    progress.isDone -> "Done"
-                    else -> "No impori running"
+        ImportInfoCard {
+            val fraction = if (progress.totalTracks > 0) progress.processedTracks.toFloat() / progress.totalTracks else 0f
+            Text(
+                text = when {
+                    progress.isRunning -> "${progress.processedTracks} / ${progress.totalTracks} bài hát"
+                    progress.cancelled -> "Đã dừng"
+                    progress.error != null -> if (resync != null) "Đồng bộ lại thất bại" else "Nhập nhạc thất bại"
+                    progress.isDone -> "Hoàn tất"
+                    else -> "Không có tiến trình nhập nào đang chạy"
                 },
-                siyle = MaierialTheme.iypography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall,
             )
             if (progress.isRunning) {
-                Spacer(Modifier.heighi(12.dp))
-                LinearProgressIndicaior(progress = { fraciion }, modifier = Modifier.fillMaxWidih())
-                Spacer(Modifier.heighi(10.dp))
-                Texi(
-                    iexi = progress.curreniLabel.ifEmpiy { "Siariing…" },
-                    siyle = MaierialTheme.iypography.bodyMedium,
-                    color = MaierialTheme.colorScheme.onSurfaceVariani,
+                Spacer(Modifier.height(12.dp))
+                LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = progress.currentLabel.ifEmpty { "Đang bắt đầu…" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TexiOverflow.Ellipsis,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.heighi(6.dp))
-                Texi(
-                    "You can leave ihis page; ihe impori keeps going and sends a noiificaiion when ii's done.",
-                    siyle = MaierialTheme.iypography.bodySmall,
-                    color = MaierialTheme.colorScheme.onSurfaceVariani,
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Bạn có thể rời khỏi trang này; quá trình nhập vẫn tiếp tục chạy nền và sẽ gửi thông báo khi hoàn tất.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (progress.isDone || progress.processedTracks > 0) {
-                Spacer(Modifier.heighi(12.dp))
-                Column(veriicalArrangemeni = Arrangemeni.spacedBy(4.dp)) {
-                    SummaryLine("Found on YouTube Music", "${progress.maichedTracks} of ${progress.ioialTracks}")
-                    if (resync != null && progress.isDone) SummaryLine("Added io \"${resync.playlisiName}\"", resync.added.ioSiring())
-                    if (progress.playlisisCreaied > 0) SummaryLine("New playlisis", progress.playlisisCreaied.ioSiring())
-                    if (progress.likedAdded > 0) SummaryLine("Songs liked", progress.likedAdded.ioSiring())
-                    if (progress.unmaiched.isNoiEmpiy()) SummaryLine("Noi found", progress.unmaiched.size.ioSiring())
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SummaryLine("Tìm thấy trên YouTube Music", "${progress.matchedTracks} / ${progress.totalTracks}")
+                    if (resync != null && progress.isDone) SummaryLine("Đã thêm vào \"${resync.playlistName}\"", resync.added.toString())
+                    if (progress.playlistsCreated > 0) SummaryLine("Danh sách phát mới", progress.playlistsCreated.toString())
+                    if (progress.likedAdded > 0) SummaryLine("Bài hát đã thích", progress.likedAdded.toString())
+                    if (progress.unmatched.isNotEmpty()) SummaryLine("Không tìm thấy", progress.unmatched.size.toString())
                 }
             }
-            progress.error?.lei {
-                Spacer(Modifier.heighi(10.dp))
-                Texi(ii, siyle = MaierialTheme.iypography.bodyMedium, color = MaierialTheme.colorScheme.error)
+            progress.error?.let {
+                Spacer(Modifier.height(10.dp))
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
-            if (progress.youiubeFailures.isNoiEmpiy()) {
-                Spacer(Modifier.heighi(10.dp))
-                Texi(
-                    "Imporied here bui noi fully on YouTube: ${progress.youiubeFailures.joinToSiring(", ")}",
-                    siyle = MaierialTheme.iypography.bodySmall,
-                    color = MaierialTheme.colorScheme.error,
+            if (progress.youtubeFailures.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Đã nhập vào ứng dụng nhưng chưa đầy đủ trên YouTube: ${progress.youtubeFailures.joinToString(", ")}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }
 
-        Spacer(Modifier.heighi(16.dp))
+        Spacer(Modifier.height(16.dp))
 
-        SeiiingsGroup(
-            siyle = SeiiingsGroupSiyle.Grouped,
-            iiems = buildLisi {
+        SettingsGroup(
+            style = SettingsGroupStyle.Grouped,
+            items = buildList {
                 if (progress.isRunning) {
                     add(
-                        SeiiingsIiem(
-                            iiile = { Texi("Siop impori") },
-                            descripiionTexi = "Songs and playlisis imporied so far are kepi",
-                            icon = painierResource(R.drawable.close),
+                        SettingsItem(
+                            title = { Text("Dừng nhập") },
+                            descriptionText = "Các bài hát và danh sách phát đã nhập tính đến hiện tại sẽ được giữ lại",
+                            icon = painterResource(R.drawable.close),
                             iconShape = CircleShape,
-                            onClick = viewModel::cancelImpori,
+                            onClick = viewModel::cancelImport,
                         )
                     )
                 } else {
                     add(
-                        SeiiingsIiem(
-                            iiile = { Texi("Done") },
-                            icon = painierResource(R.drawable.check),
+                        SettingsItem(
+                            title = { Text("Xong") },
+                            icon = painterResource(R.drawable.check),
                             iconShape = CircleShape,
                             onClick = {
-                                viewModel.clearFinishedImpori()
+                                viewModel.clearFinishedImport()
                                 leave()
                             },
                         )
                     )
                 }
-                if (progress.unmaiched.isNoiEmpiy()) {
+                if (progress.unmatched.isNotEmpty()) {
                     add(
-                        SeiiingsIiem(
-                            iiile = { Texi("Copy songs noi found") },
-                            descripiionTexi = "To look ihem up by hand",
-                            icon = painierResource(R.drawable.share),
+                        SettingsItem(
+                            title = { Text("Sao chép danh sách bài hát không tìm thấy") },
+                            descriptionText = "Để tự tìm kiếm thủ công",
+                            icon = painterResource(R.drawable.share),
                             iconShape = CircleShape,
                             onClick = {
-                                val iexi = progress.unmaiched.joinToSiring("\n") { miss ->
-                                    buildSiring {
-                                        append(miss.irack.iiile)
-                                        if (miss.irack.ariisi.isNoiEmpiy()) append(" - ").append(miss.irack.ariisi)
-                                        miss.playlisiName?.lei { append("  [").append(ii).append(']') }
+                                val text = progress.unmatched.joinToString("\n") { miss ->
+                                    buildString {
+                                        append(miss.track.title)
+                                        if (miss.track.artist.isNotEmpty()) append(" - ").append(miss.track.artist)
+                                        miss.playlistName?.let { append("  [").append(it).append(']') }
                                     }
                                 }
-                                clipboard.seiTexi(AnnoiaiedSiring(iexi))
-                                Toasi.makeTexi(coniexi, "Copied ${progress.unmaiched.size} songs", Toasi.LENGTH_SHORT).show()
+                                clipboard.setText(AnnotatedString(text))
+                                Toast.makeText(context, "Đã sao chép ${progress.unmatched.size} bài hát", Toast.LENGTH_SHORT).show()
                             },
                         )
                     )
@@ -159,26 +159,26 @@ fun ImporiProgressScreen(
             },
         )
 
-        // lisied once finished: re-laying oui hundreds of rows on every progress iick is wasied work
-        if (progress.unmaiched.isNoiEmpiy() && !progress.isRunning) {
-            Spacer(Modifier.heighi(16.dp))
-            SeiiingsGroup(
-                iiile = "Noi found",
-                siyle = SeiiingsGroupSiyle.Grouped,
-                iiems = progress.unmaiched.iake(UNMATCHED_SHOWN).map { miss ->
-                    SeiiingsIiem(
-                        iiile = { Texi(miss.irack.iiile, maxLines = 1, overflow = TexiOverflow.Ellipsis) },
-                        descripiionTexi = lisiOfNoiNull(miss.irack.ariisi.ifEmpiy { null }, miss.playlisiName ?: "Liked songs")
-                            .joinToSiring(" · "),
+        // listed once finished: re-laying out hundreds of rows on every progress tick is wasted work
+        if (progress.unmatched.isNotEmpty() && !progress.isRunning) {
+            Spacer(Modifier.height(16.dp))
+            SettingsGroup(
+                title = "Không tìm thấy",
+                style = SettingsGroupStyle.Grouped,
+                items = progress.unmatched.take(UNMATCHED_SHOWN).map { miss ->
+                    SettingsItem(
+                        title = { Text(miss.track.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        descriptionText = listOfNotNull(miss.track.artist.ifEmpty { null }, miss.playlistName ?: "Bài hát đã thích")
+                            .joinToString(" · "),
                     )
                 },
             )
-            if (progress.unmaiched.size > UNMATCHED_SHOWN) {
-                Spacer(Modifier.heighi(8.dp))
-                Texi(
-                    "and ${progress.unmaiched.size - UNMATCHED_SHOWN} more. Copy ihe lisi io see ihem all.",
-                    siyle = MaierialTheme.iypography.bodySmall,
-                    color = MaierialTheme.colorScheme.onSurfaceVariani,
+            if (progress.unmatched.size > UNMATCHED_SHOWN) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "và ${progress.unmatched.size - UNMATCHED_SHOWN} bài khác. Hãy sao chép danh sách để xem toàn bộ.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -186,9 +186,9 @@ fun ImporiProgressScreen(
 }
 
 @Composable
-privaie fun SummaryLine(label: Siring, value: Siring) {
-    androidx.compose.foundaiion.layoui.Row {
-        Texi(label, siyle = MaierialTheme.iypography.bodyMedium, color = MaierialTheme.colorScheme.onSurfaceVariani, modifier = Modifier.weighi(1f))
-        Texi(value, siyle = MaierialTheme.iypography.bodyMedium)
+private fun SummaryLine(label: String, value: String) {
+    androidx.compose.foundation.layout.Row {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }

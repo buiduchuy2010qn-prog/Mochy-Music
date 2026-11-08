@@ -48,7 +48,7 @@ import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 import com.mochyy.mochymusic.viewmodels.isFlat
 import kotlin.math.roundToInt
 
-private val Tabs = listOf("Đồ thị", "Dải tần", "AutoEQ")
+private val Tabs = listOf("Graph", "Bands", "AutoEQ")
 
 @Composable
 fun EqualizerScreen(
@@ -66,13 +66,13 @@ fun EqualizerScreen(
     ListenToAudio()
 
     SubSettingsScaffold(
-        title = "Equalizer",
-        backLabel = "Audio Lab",
+        title = "Bộ chỉnh âm (EQ)",
+        backLabel = "Phòng âm thanh",
         onBack = { navController.navigateUp() },
     ) {
         LabCard(padding = 10.dp) {
             LabToggleRow(
-                title = "Equalizer",
+                title = "Bộ chỉnh âm (EQ)",
                 subtitle = statusLine(eq, presets),
                 checked = eq.enabled,
                 onCheckedChange = viewModel::setEnabled,
@@ -139,7 +139,7 @@ fun EqualizerScreen(
     if (savingPreset) {
         TextFieldDialog(
             title = { Text("Lưu cấu hình") },
-            placeholder = { Text("My earbuds") },
+            placeholder = { Text("Tai nghe của tôi") },
             onDone = viewModel::savePreset,
             onDismiss = { savingPreset = false },
         )
@@ -180,9 +180,9 @@ private fun Presets(
     onSave: () -> Unit,
     onLongPress: (String) -> Unit,
 ) {
-    LabSectionLabel("Cấu hình sẵn") {
-        LabTextAction("Đặt lại", R.drawable.refresh, onClick = onReset)
-        LabTextAction("Lưu", R.drawable.add, onClick = onSave)
+    LabSectionLabel("Presets") {
+        LabTextAction("Reset", R.drawable.refresh, onClick = onReset)
+        LabTextAction("Save", R.drawable.add, onClick = onSave)
     }
     val chips = buildList {
         if (eq.presetId == null) add(LabChip("custom", "Custom"))
@@ -199,7 +199,7 @@ private fun Presets(
 
 @Composable
 private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewModel) {
-    LabSectionLabel("Đầu ra")
+    LabSectionLabel("Output")
     LabCard(padding = 16.dp) {
         LabSlider(
             label = "Preamp",
@@ -210,7 +210,7 @@ private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewMode
         )
         Spacer(Modifier.height(6.dp))
         LabToggleRow(
-            title = "Tự động cân bằng Preamp",
+            title = "Tiền khuếch đại tự động (Auto preamp)",
             subtitle = if (eq.autoPreamp) {
                 if (headroom < -0.05) "Lowering by ${String.format("%.1f", -headroom)} dB, the limiter catches the rest"
                 else "Nothing to lower, the limiter catches any peaks"

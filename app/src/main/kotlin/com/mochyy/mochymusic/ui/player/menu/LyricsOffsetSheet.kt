@@ -118,7 +118,7 @@ fun LyricsOffsetSheet(onDismiss: () -> Unit) {
                 .padding(top = 16.dp, bottom = 24.dp)
         ) {
             Text(
-                text = "Độ trễ lời bài hát",
+                text = "Lyrics offset",
                 color = Color.White,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
@@ -205,7 +205,7 @@ private fun AutoSyncStatus(state: LyricsAutoSync.State?, timed: Boolean, onUndo:
     )
     if (state is LyricsAutoSync.State.Synced && state.previousOffsetMs != state.offsetMs) {
         Text(
-            text = "Hoàn tác",
+            text = "Undo",
             color = Color.White,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,

@@ -76,17 +76,17 @@ internal fun LazyListScope.libraryShelfCards(
         Spacer(modifier = Modifier.height(spaceAbove))
         LibraryCardGrid(
             listOf(
-                LibraryCardEntry("Bài hát", data.songs.size, data.songs.take(4).map { it.song.thumbnailUrl }, {
+                LibraryCardEntry("Songs", data.songs.size, data.songs.take(4).map { it.song.thumbnailUrl }, {
                     navController.navigate("auto_playlist/$key")
                 }),
-                LibraryCardEntry("Danh sách phát", data.playlists.size, data.playlists.take(2).flatMap { it.thumbnails }, {
+                LibraryCardEntry("Playlist", data.playlists.size, data.playlists.take(2).flatMap { it.thumbnails }, {
                     navController.navigate("library/$key/playlists")
                 }),
-                LibraryCardEntry("Album", data.albums.size, data.albums.take(4).map { it.thumbnailUrl }, {
+                LibraryCardEntry("Albums", data.albums.size, data.albums.take(4).map { it.thumbnailUrl }, {
                     navController.navigate("library/$key/albums")
                 }),
                 LibraryCardEntry(
-                    "Nghệ sĩ",
+                    "Artist",
                     data.artists.size,
                     data.artists.take(4).map { it.artist.thumbnailUrl },
                     { navController.navigate("library/$key/artists") },

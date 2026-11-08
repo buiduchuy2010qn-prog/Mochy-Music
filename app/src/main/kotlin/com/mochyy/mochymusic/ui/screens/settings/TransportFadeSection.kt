@@ -82,7 +82,7 @@ fun TransportFadeSection() {
     val seconds = storedSeconds.coerceIn(TransportFadeMinSeconds, TransportFadeMaxSeconds)
 
     Text(
-        text = "Hiệu ứng chuyển âm khi tạm dừng, phát và tua bài",
+        text = "Pause, play, forward and backward transition",
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 26.sp,
@@ -99,7 +99,7 @@ fun TransportFadeSection() {
         Spacer(Modifier.height(10.dp))
         LabToggleRow(
             title = "Bật chuyển âm mượt (Fade)",
-            subtitle = "Giảm âm nhẹ nhàng khi tạm dừng hoặc chuyển bài, và tăng dần khi phát lại",
+            subtitle = "Giảm dần âm lượng khi tạm dừng hoặc qua bài, và tăng dần khi phát tiếp",
             checked = enabled,
             onCheckedChange = onEnabledChange,
         )
@@ -112,7 +112,7 @@ fun TransportFadeSection() {
         LabCollapsible(enabled) {
             Box(Modifier.padding(horizontal = 6.dp)) {
                 LabSlider(
-                    label = "Length",
+                    label = "Thời lượng",
                     valueText = secondsText(seconds),
                     value = seconds,
                     onValueChange = { onSecondsChange((it * 2f).roundToInt() / 2f) },
@@ -126,7 +126,7 @@ fun TransportFadeSection() {
             }
             Spacer(Modifier.height(14.dp))
             Column(Modifier.padding(horizontal = 6.dp)) {
-                Text("Hiệu ứng lớp phủ", fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LabColors.Primary)
+                Text("Hiệu ứng lớp âm thanh", fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LabColors.Primary)
                 Text(
                     "A CrossMix effect over the fade, like an echo trail or the record spinning back",
                     fontFamily = InterFontFamily,

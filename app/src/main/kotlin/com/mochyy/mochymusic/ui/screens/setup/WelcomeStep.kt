@@ -195,7 +195,7 @@ fun WelcomeStep(isHiding: Boolean = false) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Một cách khác biệt để lắng nghe\nvà làm chủ âm nhạc của bạn.",
+                text = "Một cách hoàn toàn mới để lắng nghe\nvà làm chủ âm nhạc của riêng bạn.",
                 fontSize = 16.sp,
                 color = Color(0xFFB3B3B3),
                 lineHeight = 22.sp,

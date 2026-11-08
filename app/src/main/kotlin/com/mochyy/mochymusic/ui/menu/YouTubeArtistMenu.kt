@@ -63,7 +63,7 @@ fun YouTubeArtistMenu(
     SheetHeader(
         thumbnailUrl = artist.thumbnail,
         title = artist.title,
-        subtitle = "Artist",
+        subtitle = "Nghệ sĩ",
     )
 
     Spacer(Modifier.height(SheetHeaderGap))

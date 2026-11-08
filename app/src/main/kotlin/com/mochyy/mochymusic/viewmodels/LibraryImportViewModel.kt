@@ -100,7 +100,7 @@ class LibraryImportViewModel @Inject constructor(
             TopToaster.show("Couldn't keep access to that folder. Try picking it again.", iconRes = R.drawable.library_music)
             return false
         }
-        return startFolderImport(files, emptyMessage = "Every song in that folder is already in your library")
+        return startFolderImport(files, emptyMessage = "Mọi bài hát trong thư mục đó đều đã có trong thư viện của bạn")
     }
 
     /**

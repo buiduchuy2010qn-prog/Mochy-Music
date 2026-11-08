@@ -207,7 +207,7 @@ fun SelectionSongMenu(
                             onDismiss()
                             playerConnection.playQueue(
                                 ListQueue(
-                                    title = "Selection",
+                                    title = "Mục đã chọn",
                                     items = songSelection.map { it.toMediaItem() },
                                 ),
                             )
@@ -267,7 +267,7 @@ fun SelectionSongMenu(
                                     onDismiss()
                                     playerConnection.playQueue(
                                         ListQueue(
-                                            title = "Selection",
+                                            title = "Mục đã chọn",
                                             items = songSelection.shuffled().map { it.toMediaItem() },
                                         ),
                                     )

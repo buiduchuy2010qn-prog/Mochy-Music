@@ -22,17 +22,17 @@ fun crossmixTestItems(isVisible: Boolean = true): List<SettingsItem> {
     val status by statusFlow.collectAsState()
     return listOf(
         SettingsItem(
-            title = { Text("Crossmix status") },
+            title = { Text("Trạng thái Crossmix") },
             descriptionText = status.ifBlank { "Nothing yet. Play a song with another queued after it" },
             icon = painterResource(R.drawable.info),
             iconShape = androidx.compose.foundation.shape.CircleShape,
             isVisible = isVisible,
         ),
         SettingsItem(
-            title = { Text("Test on this song") },
+            title = { Text("Thử trên bài hát này") },
             highlightKey = "Test on this song",
-            descriptionText = "Mixes into the next song",
-            detail = "Plans the mix into the next song, then jumps to a few seconds before it",
+            descriptionText = "Trộn chuyển sang bài hát tiếp theo",
+            detail = "Lên lịch trộn sang bài tiếp theo rồi tua tới vài giây trước điểm chuyển",
             icon = painterResource(R.drawable.fast_forward),
             iconShape = androidx.compose.foundation.shape.CircleShape,
             enabled = playerConnection != null,

@@ -176,12 +176,12 @@ fun StudioSheets(
             }
 
             StudioSheet.COVER_OPTIONS -> OptionSheet(
-                title = "Options for this cover",
+                title = "Tùy chọn cho ảnh bìa này",
                 subtitle = null,
             ) {
                 val options = coverStyle.options
                 if (options.isEmpty()) {
-                    Text("This cover has nothing more to set", color = Color.White.copy(alpha = 0.6f), style = studioText(StudioType.Body, FontWeight.Normal), modifier = Modifier.padding(vertical = 8.dp))
+                    Text("Ảnh bìa này không có thêm tùy chỉnh nào", color = Color.White.copy(alpha = 0.6f), style = studioText(StudioType.Body, FontWeight.Normal), modifier = Modifier.padding(vertical = 8.dp))
                 }
                 options.forEach { option ->
                     when (option) {
@@ -254,8 +254,8 @@ fun StyleSheets(studio: PlayerStudioState) {
 }
 
 private val PosterVisualizerOption = CoverOption.Switch(
-    title = "Visualizer",
-    description = "bars round the cover, moving with the music",
+    title = "Sóng nhạc (Visualizer)",
+    description = "các thanh sóng nhạc chuyển động quanh ảnh bìa",
     icon = R.drawable.graphic_eq,
     key = com.mochyy.mochymusic.constants.PosterVisualizerKey,
     default = false,
@@ -263,7 +263,7 @@ private val PosterVisualizerOption = CoverOption.Switch(
 
 @Composable
 private fun ColumnScope.PosterOptions() {
-    OptionSheet(title = "The poster") {
+    OptionSheet(title = "Áp phích") {
         SwitchRow(PosterVisualizerOption)
     }
 }
@@ -278,7 +278,7 @@ internal fun ColumnScope.OptionSheet(
     val close = LocalMenuSheetClose.current
     Column(modifier = Modifier.padding(horizontal = 24.dp).navigationBarsPadding()) {
         Spacer(Modifier.height(10.dp))
-        Text("What to change with", color = Color.White, style = studioText(StudioType.Title, FontWeight.Bold))
+        Text("Thay đổi theo", color = Color.White, style = studioText(StudioType.Title, FontWeight.Bold))
         Spacer(Modifier.height(4.dp))
         Text(subtitle ?: title, color = Color.White.copy(alpha = 0.55f), style = studioText(StudioType.Subtitle, FontWeight.Medium))
         Spacer(Modifier.height(18.dp))
@@ -299,7 +299,7 @@ internal fun ColumnScope.OptionSheet(
                 .clickable { close() },
             contentAlignment = Alignment.Center,
         ) {
-            Text("Done", color = Color.White, style = studioText(StudioType.Button))
+            Text("Xong", color = Color.White, style = studioText(StudioType.Button))
         }
         Spacer(Modifier.height(16.dp))
     }

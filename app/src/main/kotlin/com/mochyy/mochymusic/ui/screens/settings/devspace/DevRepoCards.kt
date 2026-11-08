@@ -87,7 +87,7 @@ internal fun DevPanel(modifier: Modifier = Modifier, content: @Composable Column
 internal fun PlaygroundCard(stats: DevSpaceStats?, settled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
     RepoFiguresCard(
-        title = "Developer playground",
+        title = "Khu vực nhà phát triển",
         figures = listOf(
             stats?.newIssues to "new reported issues",
             stats?.newResolved to "new resolved issue",
@@ -176,7 +176,7 @@ internal fun RepoIssuesSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         DevPanel {
-            Text("Repo issues", style = devText(17f, tracking = -0.6f))
+            Text("Vấn đề trên Repo", style = devText(17f, tracking = -0.6f))
             Spacer(Modifier.height(10.dp))
             FilterChips(
                 selected = filter,
@@ -201,7 +201,7 @@ internal fun RepoIssuesSection(
         if (stats != null && shownResolved.isNotEmpty()) {
             DevPanel {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Resolved", style = devText(17f, tracking = -0.6f), modifier = Modifier.weight(1f))
+                    Text("Đã giải quyết", style = devText(17f, tracking = -0.6f), modifier = Modifier.weight(1f))
                     Text("${shownResolved.size}", style = devText(15f, FontWeight.SemiBold, DevMuted))
                 }
                 Spacer(Modifier.height(12.dp))

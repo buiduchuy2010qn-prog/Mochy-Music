@@ -67,7 +67,7 @@ internal class ImportSteps(
     }
 
     private suspend fun importLiked(matcher: TrackMatcher, tracks: List<ImportedTrack>, mirror: Boolean) {
-        val matched = matchAll(matcher, tracks, playlistName = null, label = "Liked songs").distinctBy { it.item.id }
+        val matched = matchAll(matcher, tracks, playlistName = null, label = "Bài hát đã thích").distinctBy { it.item.id }
         if (matched.isEmpty()) return
 
         database.withTransaction {
@@ -91,7 +91,7 @@ internal class ImportSteps(
         // remembered either way: a like that fails now (or before signing in) goes up on the next sync
         PendingYouTubeLikes.add(context, newlyLiked)
         if (mirror && newlyLiked.isNotEmpty()) {
-            progress.update { it.copy(currentLabel = "Liking songs on YouTube") }
+            progress.update { it.copy(currentLabel = "Đang thích bài hát trên YouTube") }
             val pushed = mutableListOf<String>()
             newlyLiked.forEach { id ->
                 coroutineContext.ensureActive()
@@ -107,7 +107,7 @@ internal class ImportSteps(
 
     /** an account's whole song library: into the library's songs, and nowhere else */
     private suspend fun importLibrarySongs(matcher: TrackMatcher, tracks: List<ImportedTrack>) {
-        val matched = matchAll(matcher, tracks, playlistName = null, label = "Library songs").distinctBy { it.item.id }
+        val matched = matchAll(matcher, tracks, playlistName = null, label = "Bài hát thư viện").distinctBy { it.item.id }
         if (matched.isEmpty()) return
         database.withTransaction {
             matched.forEach { insert(it.item.toMediaMetadata()) }
@@ -221,7 +221,7 @@ internal class ImportSteps(
         // already linked to youtube: keep both sides in step
         val browseId = playlist.browseId
         if (browseId != null && signedIn && added.isNotEmpty()) {
-            progress.update { it.copy(currentLabel = "Adding to \"${playlist.name}\" on YouTube") }
+            progress.update { it.copy(currentLabel = "Đang thêm vào \"${playlist.name}\" trên YouTube") }
             YouTube.addVideosToPlaylist(browseId, added).onFailure {
                 progress.update { p -> p.copy(youtubeFailures = p.youtubeFailures + playlist.name) }
             }
@@ -249,7 +249,7 @@ internal class ImportSteps(
     }
 
     private suspend fun mirrorPlaylist(playlistId: String, name: String) {
-        progress.update { it.copy(currentLabel = "Creating \"$name\" on YouTube") }
+        progress.update { it.copy(currentLabel = "Đang tạo \"$name\" trên YouTube") }
         if (!YouTubePlaylistMirror.mirror(database, playlistId, name)) {
             progress.update { it.copy(youtubeFailures = it.youtubeFailures + name) }
         }

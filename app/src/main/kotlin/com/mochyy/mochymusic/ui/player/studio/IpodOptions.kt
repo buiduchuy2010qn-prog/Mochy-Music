@@ -36,7 +36,7 @@ internal fun ColumnScope.IpodOptions() {
     var theme by rememberEnumPreference(IpodThemeKey, IpodTheme.SILVER)
     var wheel by rememberEnumPreference(IpodWheelColorKey, IpodWheelColor.THEME)
     var tall by rememberPreference(IpodTallScreenKey, defaultValue = false)
-    OptionSheet(title = "The iPod") {
+    OptionSheet(title = "Giao diện iPod") {
         IpodTheme.entries.forEachIndexed { index, option ->
             OptionRow(
                 selected = theme == option,
@@ -119,8 +119,8 @@ private val IpodWheelColor.description: String
     }
 
 private val IpodShadowOption = CoverOption.Switch(
-    title = "Shadow",
-    description = "soft shading round the edges of the body",
+    title = "Đổ bóng",
+    description = "đổ bóng mềm quanh viền thân máy",
     icon = R.drawable.contrast,
     key = IpodShadowKey,
     default = true,

@@ -118,7 +118,7 @@ internal fun OnboardingBrowserSheet(
             }
             BrowserSheetBar(
                 icon = { ProviderSquircle(service, size = 38.dp) },
-                title = "Sign in to ${service.label}",
+                title = "Đăng nhập vào ${service.label}",
                 url = url,
                 onClose = onClose,
             )

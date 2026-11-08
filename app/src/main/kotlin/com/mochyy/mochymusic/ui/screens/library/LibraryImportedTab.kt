@@ -82,7 +82,7 @@ internal fun LazyListScope.libraryImportedTab(
     }
 
     item(key = "imported_songs") {
-        LibraryCapsLabel("Tất cả bài hát")
+        LibraryCapsLabel("All music")
         Spacer(modifier = Modifier.height(10.dp))
         LibraryCardGrid(
             services.map { service ->
@@ -99,7 +99,7 @@ internal fun LazyListScope.libraryImportedTab(
     }
 
     item(key = "imported_playlists") {
-        LibraryCapsLabel("Danh sách phát")
+        LibraryCapsLabel("Playlists")
         Spacer(modifier = Modifier.height(10.dp))
         LibraryCardGrid(
             services.map { service ->
@@ -133,6 +133,6 @@ internal fun LazyListScope.libraryImportedTab(
 
     item(key = "imported_manage") {
         Spacer(modifier = Modifier.height(22.dp))
-        LibraryManagePill(text = "Quản lý nhạc đã nhập", onClick = onManage)
+        LibraryManagePill(text = "Manage imports", onClick = onManage)
     }
 }

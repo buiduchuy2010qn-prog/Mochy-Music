@@ -63,7 +63,7 @@ import com.mochyy.mochymusic.importer.transfer.TransferManifest
 import com.mochyy.mochymusic.viewmodels.TransferStep
 import com.mochyy.mochymusic.viewmodels.YouTubeSyncChoices
 
-private const val GoBack = "thôi khỏi, quay lại"
+private const val GoBack = "thôi, quay lại"
 
 // ---- 1. import? ----
 
@@ -74,8 +74,8 @@ internal fun ImportAskPage(onYes: () -> Unit, onSkip: () -> Unit) {
         title = "Nhập nhạc",
         subtitle = "Bạn có muốn nhập nhạc từ các nền tảng khác như Spotify, Apple Music, Tidal, SoundCloud hoặc đồng bộ dữ liệu với YouTube Music không?",
         footer = {
-            OnbButton("Yes!", onClick = onYes)
-            OnbButton("Skip", onClick = onSkip, style = OnbButtonStyle.Secondary)
+            OnbButton("Có!", onClick = onYes)
+            OnbButton("Bỏ qua", onClick = onSkip, style = OnbButtonStyle.Secondary)
         },
     )
 }
@@ -99,20 +99,20 @@ internal fun ImportModePage(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OnbChoiceCard(
                 icon = painterResource(R.drawable.restore),
-                title = "Nhập dữ liệu cũ",
-                description = "tệp .zip bạn đã xuất từ ứng dụng cũ, bao gồm thư viện, lịch sử nghe, nhạc tải xuống và cài đặt",
+                title = "Nhập dữ liệu trước đây",
+                description = "tệp .zip xuất từ ứng dụng cũ, gồm thư viện, lịch sử, nhạc đã tải và cài đặt",
                 onClick = onPreviousData,
             )
             OnbChoiceCard(
                 icon = painterResource(R.drawable.playlist_add),
-                title = "Nhập từ dịch vụ khác",
-                description = "nhập bài hát, danh sách phát và album từ các nền tảng hỗ trợ như Apple Music, Spotify, Tidal và YouTube Music",
+                title = "Nhập nhạc",
+                description = "nhập nhạc, danh sách phát và album từ các dịch vụ như Apple Music, Spotify, Tidal và YouTube Music",
                 onClick = onImport,
             )
             OnbChoiceCard(
                 icon = painterResource(R.drawable.backup),
                 title = "Nhập từ bản sao lưu",
-                description = "nếu bạn đã có sẵn một bản sao lưu của Mochy",
+                description = "nếu bạn đã có sẵn một bản sao lưu Mochy",
                 onClick = onBackup,
             )
             if (backupError != null) {
@@ -130,12 +130,12 @@ internal fun RestoringPage(step: TransferStep, manifest: TransferManifest?) {
     val progress = if (done) 1f else (step as? TransferStep.Working)?.progress ?: 0f
     OnboardingPage(
         badge = { PageBadge(painterResource(if (done) R.drawable.check else R.drawable.restore)) },
-        title = if (done) "Hoàn tất!" else "Đang chuyển nhạc của bạn sang",
+        title = if (done) "Đã hoàn tất!" else "Đang chuyển nhạc của bạn sang",
         subtitle = when {
-            done -> "Mochy restarts once to finish. See you in a sec!"
-            manifest != null -> "${countOf(manifest.songs, "song")}, ${countOf(manifest.playlists, "playlist")} and " +
-                "${countOf(manifest.plays, "play")} from your old app."
-            else -> "Reading your export…"
+            done -> "Mochy sẽ khởi động lại một lần để hoàn tất. Hẹn gặp lại ngay nhé!"
+            manifest != null -> "${manifest.songs} bài hát, ${manifest.playlists} danh sách phát và " +
+                "${manifest.plays} lượt nghe từ ứng dụng cũ của bạn."
+            else -> "Đang đọc tệp dữ liệu…"
         },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -149,7 +149,7 @@ internal fun RestoringPage(step: TransferStep, manifest: TransferManifest?) {
                     .clip(CircleShape),
             )
             Text(
-                if (done) "Restarting…" else "${(progress * 100).toInt()}% · keep Mochy open, it restarts by itself when it's done",
+                if (done) "Đang khởi động lại…" else "${(progress * 100).toInt()}% · vui lòng giữ Mochy mở, ứng dụng sẽ tự khởi động lại khi hoàn tất",
                 color = Onb.Subtitle,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -166,15 +166,15 @@ private fun countOf(count: Int, thing: String): String = "%,d %s".format(count, 
 internal fun ProviderListPage(onPick: (AccountService) -> Unit, onBack: () -> Unit) {
     OnboardingPage(
         badge = { PageBadge(painterResource(R.drawable.library_music)) },
-        title = "Select provider",
+        title = "Chọn dịch vụ",
         footer = { OnbButton(GoBack, onClick = onBack, style = OnbButtonStyle.Secondary) },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf(
-                AccountService.SPOTIFY to "Liked Songs and playlists",
-                AccountService.APPLE_MUSIC to "Library playlists and Favorite Songs",
-                AccountService.YOUTUBE_MUSIC to "Liked music and playlists · also supports sync",
-                AccountService.TIDAL to "My Tracks and your playlists",
+                AccountService.SPOTIFY to "Bài hát đã thích và danh sách phát",
+                AccountService.APPLE_MUSIC to "Danh sách phát thư viện và Bài hát yêu thích",
+                AccountService.YOUTUBE_MUSIC to "Nhạc đã thích và danh sách phát · hỗ trợ đồng bộ",
+                AccountService.TIDAL to "Bài hát của tôi và danh sách phát của bạn",
             ).forEach { (service, description) ->
                 OnbCard(modifier = Modifier.fillMaxWidth(), onClick = { onPick(service) }, shape = RoundedCornerShape(20.dp)) {
                     Row(
@@ -208,12 +208,12 @@ internal fun ProviderSetupPage(
     OnboardingPage(
         badge = { ProviderSquircle(service, size = 40.dp) },
         title = "Thiết lập ${service.label}",
-        subtitle = "Bạn sẽ đăng nhập vào tài khoản của mình. Chúng tôi không bao giờ thấy mật khẩu của bạn. Một trang web sẽ mở ra.",
+        subtitle = "Bạn sẽ đăng nhập vào tài khoản của mình. Chúng tôi không bao giờ biết mật khẩu của bạn. Một trang web sẽ mở ra.",
         footer = {
             when (state) {
-                is AccountImportState.Failed -> OnbButton(if (state.signedOut) "Sign in again" else "Try again", onClick = onRetry)
+                is AccountImportState.Failed -> OnbButton(if (state.signedOut) "Đăng nhập lại" else "Thử lại", onClick = onRetry)
                 is AccountImportState.Loading, is AccountImportState.Choosing -> Unit
-                else -> if (!browserOpen) OnbButton("Open sign-in", onClick = onOpenBrowser)
+                else -> if (!browserOpen) OnbButton("Mở trang đăng nhập", onClick = onOpenBrowser)
             }
             OnbButton(GoBack, onClick = onBack, style = OnbButtonStyle.Secondary)
         },
@@ -226,7 +226,7 @@ internal fun ProviderSetupPage(
             }
             is AccountImportState.Failed -> Text(state.message, color = Color(0xFFFF8A80), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             else -> Text(
-                "Đăng nhập trực tiếp trên trang của ${service.label}. Sau khi đăng nhập xong, trang sẽ tự đóng và danh sách phát sẽ hiện tại đây.",
+                "Đăng nhập trên trang chính thức của ${service.label}. Sau khi đăng nhập xong, trang sẽ tự đóng và danh sách phát của bạn sẽ hiển thị tại đây.",
                 color = Onb.Muted,
                 fontSize = 14.sp,
             )
@@ -252,18 +252,18 @@ internal fun WhatToSyncPage(
     val selectedCount = choosing?.selected?.size ?: 0
     OnboardingPage(
         badge = { ProviderSquircle(service, size = 40.dp) },
-        title = "Chọn mục cần nhập",
-        subtitle = choosing?.accountName?.let { "Signed in as $it" },
+        title = "Chọn mục muốn nhập",
+        subtitle = choosing?.accountName?.let { "Đã đăng nhập là $it" },
         scrollable = false,
         footer = {
             if (reading != null) {
-                OnbButton("Stop", onClick = onCancelReading, style = OnbButtonStyle.Secondary)
+                OnbButton("Dừng", onClick = onCancelReading, style = OnbButtonStyle.Secondary)
             } else {
                 OnbButton(
                     text = when {
-                        selectedCount == 0 -> "Choose what to import"
-                        service == AccountService.YOUTUBE_MUSIC -> "Next"
-                        else -> "Import $selectedCount"
+                        selectedCount == 0 -> "Chọn mục muốn nhập"
+                        service == AccountService.YOUTUBE_MUSIC -> "Tiếp theo"
+                        else -> "Nhập $selectedCount mục"
                     },
                     enabled = selectedCount > 0,
                     onClick = onConfirm,
@@ -273,7 +273,7 @@ internal fun WhatToSyncPage(
         },
     ) {
         if (reading != null) {
-            Text("${reading.label} (${reading.done + 1} of ${reading.total})", color = Onb.Subtitle, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text("${reading.label} (${reading.done + 1} / ${reading.total})", color = Onb.Subtitle, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(10.dp))
             LinearProgressIndicator(
                 progress = { reading.done.toFloat() / reading.total.coerceAtLeast(1) },
@@ -286,7 +286,7 @@ internal fun WhatToSyncPage(
         if (choosing == null) return@OnboardingPage
         val allSelected = selectedCount == choosing.playlists.size && selectedCount > 0
         Text(
-            text = if (allSelected) "Select none" else "Select all",
+            text = if (allSelected) "Bỏ chọn tất cả" else "Chọn tất cả",
             color = Onb.Subtitle,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
@@ -307,7 +307,7 @@ internal fun WhatToSyncPage(
             ) {
                 if (choosing.playlists.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text("Nothing in this account yet.", color = Onb.Muted, fontSize = 14.sp)
+                        Text("Chưa có gì trong tài khoản này.", color = Onb.Muted, fontSize = 14.sp)
                     }
                 }
                 items(choosing.playlists, key = { it.id }) { playlist ->
@@ -373,13 +373,13 @@ private fun CoverTile(playlist: RemotePlaylist, selected: Boolean, onClick: () -
                         .background(Color.White),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(painterResource(R.drawable.check), contentDescription = "Selected", tint = Color.Black, modifier = Modifier.size(18.dp))
+                    Icon(painterResource(R.drawable.check), contentDescription = "Đã chọn", tint = Color.Black, modifier = Modifier.size(18.dp))
                 }
             }
         }
         Spacer(Modifier.height(8.dp))
         Text(playlist.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        val detail = listOfNotNull(playlist.trackCount?.let { "$it songs" }, playlist.subtitle).joinToString(" · ")
+        val detail = listOfNotNull(playlist.trackCount?.let { "$it bài hát" }, playlist.subtitle).joinToString(" · ")
         if (detail.isNotEmpty()) Text(detail, color = Onb.Muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -397,12 +397,12 @@ internal fun SyncOptionsPage(
 ) {
     OnboardingPage(
         badge = { ProviderSquircle(AccountService.YOUTUBE_MUSIC, size = 40.dp) },
-        title = "Đồng bộ tự động?",
+        title = "Đồng thời duy trì đồng bộ?",
         subtitle = "YouTube Music có thể đồng bộ hai chiều với Mochy: danh sách phát, bài hát đã thích và lịch sử nghe.",
         footer = {
             if (reading != null) {
                 Text(
-                    "${reading.label} (${reading.done + 1} of ${reading.total})",
+                    "${reading.label} (${reading.done + 1} / ${reading.total})",
                     color = Onb.Subtitle,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -410,34 +410,34 @@ internal fun SyncOptionsPage(
                     overflow = TextOverflow.Ellipsis,
                 )
             } else {
-                OnbButton("Import & sync", onClick = onSync)
-                OnbButton("Just import", onClick = onJustImport, style = OnbButtonStyle.Secondary)
+                OnbButton("Nhập & đồng bộ", onClick = onSync)
+                OnbButton("Chỉ nhập nhạc", onClick = onJustImport, style = OnbButtonStyle.Secondary)
                 OnbButton(GoBack, onClick = onBack, style = OnbButtonStyle.Secondary)
             }
         },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             OnbToggleCard(
-                title = "Sync library on launch",
-                description = "Likes, library and the playlists you picked, each time Mochy opens",
+                title = "Đồng bộ thư viện khi mở ứng dụng",
+                description = "Bài hát đã thích, thư viện và các danh sách phát bạn đã chọn mỗi khi mở Mochy",
                 checked = choices.syncOnLaunch,
                 onCheckedChange = { onChange(choices.copy(syncOnLaunch = it)) },
             )
             OnbToggleCard(
-                title = "New playlists go to YouTube",
-                description = "Playlists you make here are created on YouTube too",
+                title = "Tạo danh sách phát mới trên YouTube",
+                description = "Danh sách phát bạn tạo tại đây cũng sẽ được tạo trên YouTube",
                 checked = choices.newPlaylistsToYouTube,
                 onCheckedChange = { onChange(choices.copy(newPlaylistsToYouTube = it)) },
             )
             OnbToggleCard(
-                title = "Push plays to YouTube history",
-                description = "What you play here shows up in your YouTube history",
+                title = "Gửi lượt phát vào lịch sử YouTube",
+                description = "Những gì bạn nghe tại đây sẽ hiển thị trong lịch sử YouTube",
                 checked = choices.reportPlays,
                 onCheckedChange = { onChange(choices.copy(reportPlays = it)) },
             )
             OnbToggleCard(
-                title = "Bring YouTube history here",
-                description = "Plays from your other devices join Mochy's history",
+                title = "Đưa lịch sử YouTube về đây",
+                description = "Lượt nghe từ các thiết bị khác sẽ được gộp vào lịch sử Mochy",
                 checked = choices.copyHistory,
                 onCheckedChange = { onChange(choices.copy(copyHistory = it)) },
             )
@@ -459,23 +459,23 @@ internal fun ProfilePage(
 ) {
     OnboardingPage(
         badge = { PageBadge(painterResource(R.drawable.person)) },
-        title = "Tạo hồ sơ của bạn!",
+        title = "Hãy tạo hồ sơ của bạn!",
         footer = {
             Text(
-                "Mochy will never store your data online!",
+                "Mochy không bao giờ lưu trữ dữ liệu của bạn trực tuyến!",
                 color = Onb.Faint,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 4.dp),
             )
-            OnbButton("Next", onClick = onNext, enabled = username.isNotBlank())
+            OnbButton("Tiếp theo", onClick = onNext, enabled = username.isNotBlank())
         },
     ) {
-        Text("what's your username?", color = Onb.Muted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text("tên người dùng của bạn là gì?", color = Onb.Muted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(10.dp))
-        OnbTextField(value = username, onValueChange = { onUsernameChange(it.take(32)) }, placeholder = "username")
+        OnbTextField(value = username, onValueChange = { onUsernameChange(it.take(32)) }, placeholder = "tên người dùng")
         Spacer(Modifier.height(24.dp))
-        Text("Set a profile picture here!", color = Onb.Muted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text("Đặt ảnh đại diện tại đây!", color = Onb.Muted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
         val deviceTilt = rememberDeviceTilt()
         ProfileIdCard(
@@ -519,10 +519,10 @@ internal fun BlurWarningPage(
                 Column(modifier = Modifier.padding(horizontal = side)) {
                     PageBadge(painterResource(R.drawable.warning))
                     Spacer(Modifier.height(22.dp))
-                    Text("Warning", color = Onb.Title, fontSize = 34.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold, letterSpacing = OnbTitleTracking)
+                    Text("Lưu ý", color = Onb.Title, fontSize = 34.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold, letterSpacing = OnbTitleTracking)
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Your phone may be too weak to run blurs. Do you want to disable blur? You can always change this in Settings.",
+                        "Thiết bị của bạn có thể hơi yếu để chạy hiệu ứng làm mờ. Bạn có muốn tắt làm mờ không? Bạn luôn có thể đổi lại trong Cài đặt.",
                         color = Onb.Subtitle,
                         fontSize = 18.sp,
                         lineHeight = 23.sp,
@@ -531,8 +531,8 @@ internal fun BlurWarningPage(
                     )
                     Spacer(Modifier.height(22.dp))
                     OnbToggleCard(
-                        title = "Disable Blur",
-                        description = detected?.let { "Measured: $it" } ?: "",
+                        title = "Tắt hiệu ứng làm mờ",
+                        description = detected?.let { "Đo được: $it" } ?: "",
                         checked = disableBlur,
                         onCheckedChange = onDisableBlurChange,
                         leading = { Box(Modifier.size(22.dp).clip(CircleShape).background(Onb.Badge)) },
@@ -578,7 +578,7 @@ internal fun BlurWarningPage(
                     ),
             )
             OnbButton(
-                text = if (disableBlur) "tiếp tục" else "không, cứ tiếp tục",
+                text = if (disableBlur) "tiếp tục" else "không, tiếp tục",
                 onClick = onContinue,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -604,19 +604,19 @@ internal fun LastOnePage(
         badge = { PageBadge(painterResource(R.drawable.tune)) },
         title = "Bước cuối cùng",
         subtitle = "Tắt bất kỳ tính năng nào bạn không thích",
-        footer = { OnbButton("next", onClick = onNext) },
+        footer = { OnbButton("tiếp theo", onClick = onNext) },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OnbToggleCard(
-                title = "Auto Crossfade",
-                description = "Automatically crossfades, analysing the pitch, tempo and more to pick the perfect moment",
+                title = "Chuyển bài mượt tự động (Auto Crossfade)",
+                description = "Tự động chuyển mượt giữa các bài hát bằng cách phân tích cao độ, nhịp độ để chọn thời điểm hoàn hảo",
                 checked = autoCrossfade,
                 onCheckedChange = onAutoCrossfadeChange,
                 header = { CrossfadeBanner() },
             )
             OnbToggleCard(
-                title = "AI Artist filter",
-                description = "Turning this off may give you AI slop recommendations",
+                title = "Bộ lọc nghệ sĩ AI",
+                description = "Tắt tính năng này có thể khiến xuất hiện nhạc rác do AI tạo ra trong đề xuất",
                 checked = aiArtistFilter,
                 onCheckedChange = onAiArtistFilterChange,
             )
