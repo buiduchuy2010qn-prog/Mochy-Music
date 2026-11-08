@@ -16,9 +16,37 @@ permissions:
   contents: write
 
 jobs:
+  compute-version:
+    name: Compute Next +0.1 Version
+    runs-on: ubuntu-latest
+    outputs:
+      app_ver: ${{ steps.ver.outputs.app_ver }}
+      build_num: ${{ steps.ver.outputs.build_num }}
+    steps:
+      - name: Calculate Next +0.1 Version from Latest Release
+        id: ver
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          LATEST_TAG=$(gh release view --repo "${{ github.repository }}" --json tagName --jq '.tagName' 2>/dev/null || echo "v8.3.2-b1230")
+          MAJOR=$(echo "$LATEST_TAG" | sed -E 's/^v?([0-9]+)\.([0-9]+).*/\1/')
+          MINOR=$(echo "$LATEST_TAG" | sed -E 's/^v?([0-9]+)\.([0-9]+).*/\2/')
+          if ! [[ "$MAJOR" =~ ^[0-9]+$ ]] || ! [[ "$MINOR" =~ ^[0-9]+$ ]]; then
+            MAJOR=8
+            MINOR=3
+          fi
+          TENTHS=$(( MAJOR * 10 + MINOR + 1 ))
+          APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
+          BUILD_NUM=$(( 1228 + GITHUB_RUN_NUMBER ))
+          echo "Latest tag: $LATEST_TAG -> Next version: $APP_VER (build#$BUILD_NUM)"
+          echo "app_ver=$APP_VER" >> "$GITHUB_OUTPUT"
+          echo "build_num=$BUILD_NUM" >> "$GITHUB_OUTPUT"
+
   build-android:
     name: Build Android APK (Tiếng Việt + OTA)
     runs-on: ubuntu-latest
+    needs: compute-version
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -53,6 +81,7 @@ jobs:
       - name: Build Arm64 Release APK
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          MOCHY_APP_VERSION: ${{ needs.compute-version.outputs.app_ver }}
         run: ./gradlew assembleArm64GmsRelease --no-daemon
 
       - name: Prepare Android APK Artifact
@@ -70,6 +99,7 @@ jobs:
   build-windows:
     name: Build Windows EXE (Setup & Portable)
     runs-on: windows-latest
+    needs: compute-version
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -82,21 +112,16 @@ jobs:
       - name: Prepare Version, Icon & Build Windows EXE
         shell: pwsh
         env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          APP_VER: ${{ needs.compute-version.outputs.app_ver }}
+          BUILD_NUM: ${{ needs.compute-version.outputs.build_num }}
         run: |
-          $runNum = [int]$env:GITHUB_RUN_NUMBER
-          $step = [Math]::Max(0, $runNum - 2)
-          $tenths = 83 + $step
-          $appVer = if ($step -eq 0) { "8.3.2" } else { "$([Math]::Floor($tenths / 10)).$($tenths % 10).0" }
-          $buildNum = 1228 + $runNum
-
           New-Item -ItemType Directory -Force -Path desktop/build | Out-Null
           Copy-Item app/src/main/ic_launcher-playstore.png desktop/build/icon.png -Force
 
           $pkgPath = "desktop/package.json"
           $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
-          $pkg.version = $appVer
-          $pkg.buildNumber = "$buildNum"
+          $pkg.version = $env:APP_VER
+          $pkg.buildNumber = "$env:BUILD_NUM"
           $pkg | ConvertTo-Json -Depth 10 | Set-Content $pkgPath -Encoding UTF8
 
           Push-Location desktop
@@ -113,6 +138,7 @@ jobs:
   build-linux:
     name: Build Linux (AppImage & DEB)
     runs-on: ubuntu-latest
+    needs: compute-version
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -124,26 +150,17 @@ jobs:
 
       - name: Prepare Version, Icon & Build Linux Packages
         env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          APP_VER: ${{ needs.compute-version.outputs.app_ver }}
+          BUILD_NUM: ${{ needs.compute-version.outputs.build_num }}
         run: |
-          RUN_NUM=${GITHUB_RUN_NUMBER:-3}
-          STEP=$(( RUN_NUM > 2 ? RUN_NUM - 2 : 0 ))
-          TENTHS=$(( 83 + STEP ))
-          if [ "$STEP" -eq 0 ]; then
-            APP_VER="8.3.2"
-          else
-            APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
-          fi
-          BUILD_NUM=$(( 1228 + RUN_NUM ))
-
           mkdir -p desktop/build
           cp app/src/main/ic_launcher-playstore.png desktop/build/icon.png
 
           node -e "
             const fs = require('fs');
             const p = JSON.parse(fs.readFileSync('desktop/package.json', 'utf8'));
-            p.version = '$APP_VER';
-            p.buildNumber = '$BUILD_NUM';
+            p.version = process.env.APP_VER;
+            p.buildNumber = process.env.BUILD_NUM;
             fs.writeFileSync('desktop/package.json', JSON.stringify(p, null, 2));
           "
 
@@ -162,7 +179,7 @@ jobs:
   publish-release:
     name: Publish Unified OTA Release (Android, Windows, Linux)
     runs-on: ubuntu-latest
-    needs: [build-android, build-windows, build-linux]
+    needs: [compute-version, build-android, build-windows, build-linux]
     steps:
       - name: Download All Built Artifacts
         uses: actions/download-artifact@v4
@@ -173,23 +190,15 @@ jobs:
       - name: Create GitHub Release (OTA + Multi-Platform)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          APP_VER: ${{ needs.compute-version.outputs.app_ver }}
+          BUILD_NUM: ${{ needs.compute-version.outputs.build_num }}
         run: |
-          RUN_NUM=${GITHUB_RUN_NUMBER:-3}
-          STEP=$(( RUN_NUM > 2 ? RUN_NUM - 2 : 0 ))
-          TENTHS=$(( 83 + STEP ))
-          if [ "$STEP" -eq 0 ]; then
-            APP_VER="8.3.2"
-          else
-            APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
-          fi
-          BUILD_NUM=$(( 1228 + RUN_NUM ))
           TAG="v${APP_VER}-b${BUILD_NUM}"
-          TITLE="Mochy Music ${APP_VERSION:-$APP_VER} build#${BUILD_NUM} (Bản Việt Hóa — Android, Windows & Linux)"
+          TITLE="Mochy Music ${APP_VER} build#${BUILD_NUM} (Bản Việt Hóa — Android, Windows & Linux)"
 
           NOTES="### 🎵 Mochy Music ${APP_VER} build#${BUILD_NUM} — Bản Việt Hóa Toàn Diện (Android • Windows • Linux)
 
-          - **Phiên bản:** \`${APP_VER} (build#${BUILD_NUM})\` *(Tự động tăng +0.1 phiên bản mỗi bản cập nhật)*
+          - **Phiên bản:** \`${APP_VER} (build#${BUILD_NUM})\` *(Tự động tăng +0.1 phiên bản mỗi lần phát hành)*
           - **Hỗ trợ Cập nhật tự động (OTA) & Cài đè:** Giữ nguyên toàn bộ danh sách nhạc và cài đặt trên cả **Android** và **Windows / Linux**.
 
           #### 📥 Chọn tệp tải về phù hợp với thiết bị của bạn:
