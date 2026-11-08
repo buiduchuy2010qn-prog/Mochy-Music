@@ -48,7 +48,7 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 8 ? RUN_NUM - 8 : 2 ))
+          STEP=$(( RUN_NUM > 9 ? RUN_NUM - 9 : 2 ))
           TENTHS=$(( 83 + STEP ))
           APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
           export MOCHY_APP_VERSION="$APP_VER"
@@ -81,7 +81,7 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           $runNum = [int]$env:GITHUB_RUN_NUMBER
-          $step = [Math]::Max(2, $runNum - 8)
+          $step = [Math]::Max(2, $runNum - 9)
           $tenths = 83 + $step
           $appVer = "$([Math]::Floor($tenths / 10)).$($tenths % 10).0"
           $buildNum = 1228 + $runNum
@@ -123,7 +123,7 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 8 ? RUN_NUM - 8 : 2 ))
+          STEP=$(( RUN_NUM > 9 ? RUN_NUM - 9 : 2 ))
           TENTHS=$(( 83 + STEP ))
           APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
           BUILD_NUM=$(( 1228 + RUN_NUM ))
@@ -168,7 +168,7 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 8 ? RUN_NUM - 8 : 2 ))
+          STEP=$(( RUN_NUM > 9 ? RUN_NUM - 9 : 2 ))
           TENTHS=$(( 83 + STEP ))
           APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
           BUILD_NUM=$(( 1228 + RUN_NUM ))

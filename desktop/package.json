@@ -1,10 +1,11 @@
 {
   "name": "mochy-music-desktop",
   "version": "8.5.0",
-  "buildNumber": "1231",
+  "buildNumber": "1239",
   "description": "Mochy Music (Bản Việt Hóa) — Ứng dụng nghe nhạc mã nguồn mở cho Windows & Linux (GPL-3.0)",
+  "homepage": "https://github.com/buiduchuy2010qn-prog/Mochy-Music",
   "main": "main.js",
-  "author": "realidkroo (Original Author) & buiduchuy2010qn-prog (Vietnamese Localization & Desktop Port)",
+  "author": "Đức Huy <buiduchuy2010qn-prog@users.noreply.github.com>",
   "license": "GPL-3.0-only",
   "scripts": {
     "start": "electron .",
@@ -18,7 +19,7 @@
   "build": {
     "appId": "com.mochyy.mochymusic.desktop",
     "productName": "Mochy Music",
-    "copyright": "Copyright (C) 2026 realidkroo (mochyDH P ASHOKAN) & Contributors — Licensed under GNU GPL v3.0",
+    "copyright": "Copyright (C) 2026 Đức Huy (@buiduchuy2010qn-prog) & @realidkroo — Licensed under GNU GPL v3.0",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -45,15 +46,15 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Mochy Music",
-      "artifactName": "Mochy-Music-vi-Windows-x64-Setup.exe"
+      "artifactName": "Mochy-Music-v${version}-Windows-x64-Setup.exe"
     },
     "portable": {
-      "artifactName": "Mochy-Music-vi-Windows-x64-Portable.exe"
+      "artifactName": "Mochy-Music-v${version}-Windows-x64-Portable.exe"
     },
     "linux": {
       "icon": "build/icon.png",
       "category": "AudioVideo;Audio;Player;",
-      "maintainer": "Mochy Music Viet Hoa <buiduchuy2010qn-prog@users.noreply.github.com>",
+      "maintainer": "Duc Huy <buiduchuy2010qn-prog@users.noreply.github.com>",
       "synopsis": "Ung dung nghe nhac ma nguon mo Mochy Music (Ban Viet Hoa - GPL-3.0)",
       "target": [
         { "target": "AppImage", "arch": ["x64"] },
@@ -61,10 +62,10 @@
       ]
     },
     "appImage": {
-      "artifactName": "Mochy-Music-vi-Linux-x86_64.AppImage"
+      "artifactName": "Mochy-Music-v${version}-Linux-x86_64.AppImage"
     },
     "deb": {
-      "artifactName": "Mochy-Music-vi-Linux-amd64.deb"
+      "artifactName": "Mochy-Music-v${version}-Linux-amd64.deb"
     }
   }
 }
