@@ -1,78 +1,58 @@
-> [!IMPORTANT]
-> ### 📜 Giấy phép Bản quyền & Ghi nhận Tác giả (License & Attribution)
-> - **Bản chất dự án:** Đây là bản **Fork cộng đồng (phi thương mại)** của dự án mã nguồn mở **[Mochy Music](https://github.com/realidkroo/Mochy-Music)**, chỉ bổ sung & hoàn thiện gói ngôn ngữ **Tiếng Việt (alues-vi / alues-vi-rVN)** theo đúng điều khoản của giấy phép nguồn mở.
-> - **Giấy phép (License):** Phát hành dưới giấy phép **[GNU General Public License v3.0 (GPL-3.0)](./LICENSE)** — giữ nguyên toàn bộ mã nguồn mở, giấy phép gốc và thông tin tác giả trong ứng dụng.
-> - **Tác giả gốc (Original Authors & Maintainers):**
->   - **Mochy Music:** [@realidkroo](https://github.com/realidkroo) (**mochyDH P ASHOKAN** — Lead Developer) & **T-Boyke** (Collaborator) — Kho mã nguồn gốc: [realidkroo/Mochy-Music](https://github.com/realidkroo/Mochy-Music)
-> - **Các dự án nền tảng & đóng góp mã nguồn mở (Upstream Credits):**
->   - **ViviMusic** bởi [@vivizzz007](https://github.com/vivizzz007/vivi-music) *(Base app)*
->   - **Metrolist** bởi **Mostafa Alagamy** ([@mostafaalagamy](https://github.com/mostafaalagamy/Metrolist)) *(Base framework)*
->   - **InnerTune** bởi **Zion Huang** ([@z-huang](https://github.com/z-huang/InnerTune))
->   - **SimpMusic** bởi [@maxrave-dev](https://github.com/maxrave-dev/SimpMusic) · **LRCLib** bởi [@tranxuanthang](https://github.com/tranxuanthang/lrclib) · **Better Lyrics** bởi [@boidushya](https://github.com/better-lyrics/api) · **LyricsPlus** bởi [@ibratabian17](https://github.com/ibratabian17/LyricsPlus) · **ArchiveTune** bởi [@rukamori](https://github.com/rukamori/ArchiveTune) · **RiMusic** bởi [@fast4x](https://github.com/fast4x/RiMusic) · **Monochrome Music** bởi [@monochrome-music](https://github.com/monochrome-music/monochrome)
-
----
-<img width="1799" height="927" alt="fdb" src="https://github.com/user-attachments/assets/98652d23-a7cd-4c6f-945e-96a85273f61f" />
+<img width="1799" height="927" alt="Mochy Music Banner" src="https://github.com/user-attachments/assets/98652d23-a7cd-4c6f-945e-96a85273f61f" />
 
 <div align="center">
 
-  <sub>What is Mochy Music? its a sleek modern cool music player for android, open source, packed with features and doesn’t collect ur data >_< !! oh and, still in beta! so please expect some bug :)</sub>
-  <br/>
-<p align="center">
-<a href="https://trendshift.io/repositories/305501?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-305501" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/305501" alt="realidkroo%2FMochy-Music | Trendshift" width="250" height="55"/>
-</a>
+  <h3>🇻🇳 Mochy Music — Bản Việt Hóa 100% (Hỗ trợ Cập nhật OTA & Cài đè)</h3>
+  <sub>Ứng dụng nghe nhạc mã nguồn mở hiện đại, mượt mà dành cho Android — đã được Việt hóa toàn diện 100%, tích hợp cập nhật tự động (OTA) và không thu thập dữ liệu người dùng.</sub>
+  <br/><br/>
 
-<br/>
-<p align="center">
-
-<a href="https://github.com/realidkroo/mochy-music/releases">
-    <img src="https://shieldcn.dev/github/downloads/realidkroo/mochy-music.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=fab387" alt="Downloads">
-</a>
-  <a href="https://github.com/realidkroo/mochy-music/stargazers">
-    <img src="https://shieldcn.dev/github/stars/realidkroo/mochy-music.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=f9e2af" alt="Stars">
-  </a>
-  <a href="https://github.com/realidkroo/mochy-music/network/members">
-    <img src="https://shieldcn.dev/github/forks/realidkroo/mochy-music.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=89b4fa" alt="Forks">
-      <a href="https://github.com/realidkroo/mochy-music/releases">
-    <img src="https://shieldcn.dev/badge/Android-8.0%2B-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=android&logoColor=94e2d5" alt="Android 8.0+">
-  </a>
-  <a href="https://github.com/realidkroo/mochy-music/releases/latest">
-    <img src="https://shieldcn.dev/github/release/realidkroo/mochy-music.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=cba6f7" alt="Release">
-  </a>
-  <a href="https://www.figma.com/board/NWTElXRZ21LaaJotjuOe8D/Untitled?node-id=0-1&t=bMsq80RJXYybjXsh-1">
-    <img src="https://shieldcn.dev/badge/Roadmap-View-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=b4befe" alt="Roadmap">
-  </a>
-  <a href="https://discord.gg/4DAafDMxZb">
-  <img src="https://shieldcn.dev/badge/Discord-Join%20Server-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=discord&logoColor=b4befe" alt="Mochy's Bar">
-</a>
-
-</a>
-</p>
+  <p align="center">
+    <a href="https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/latest">
+      <img src="https://shieldcn.dev/github/downloads/buiduchuy2010qn-prog/Mochy-Music.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=fab387" alt="Lượt tải">
+    </a>
+    <a href="https://github.com/buiduchuy2010qn-prog/Mochy-Music/stargazers">
+      <img src="https://shieldcn.dev/github/stars/buiduchuy2010qn-prog/Mochy-Music.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=f9e2af" alt="Stars">
+    </a>
+    <a href="https://github.com/buiduchuy2010qn-prog/Mochy-Music/network/members">
+      <img src="https://shieldcn.dev/github/forks/buiduchuy2010qn-prog/Mochy-Music.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=89b4fa" alt="Forks">
+    </a>
+    <a href="https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/latest">
+      <img src="https://shieldcn.dev/badge/Android-8.0%2B-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logo=android&logoColor=94e2d5" alt="Android 8.0+">
+    </a>
+    <a href="https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/latest">
+      <img src="https://shieldcn.dev/github/release/buiduchuy2010qn-prog/Mochy-Music.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=cba6f7" alt="Bản phát hành">
+    </a>
+    <a href="./LICENSE">
+      <img src="https://shieldcn.dev/badge/Gi%E1%BA%A5y%20ph%C3%A9p-GPL--3.0-313244.svg?mode=dark&radius=999&font=geist&split=true&height=28&fontSize=13&labelColor=1e1e2e&labelTextColor=ffffff&color=313244&valueColor=ffffff&logoColor=a6e3a1" alt="GPL-3.0">
+    </a>
+  </p>
 </div>
 
-
-> [!WARNING]
-> This app still on beta!, expect some bugs! reporting it will be useful too!!!
-
 ---
 
-## Hhhh-how to install? :3
+## 📥 Hướng dẫn cài đặt & Cập nhật OTA
 
-1. On your phone, open the [latest release](https://github.com/realidkroo/mochy-music/releases/latest).
-2. Download the `.apk` that matches your phone. If you are not sure, pick **arm64**, that is almost every phone from the last 8 years. The **universal** one works everywhere but is bigger.
-3. Open the downloaded file. Android will ask you to allow installs from your browser or file manager, say yes (you can turn it off again after).
-4. Open Mochy. You are done, no account needed to start listening.
-
-Updating works the same way: install the new apk over the old one and your library stays.
+1. Trên điện thoại Android, mở trang **[Bản phát hành mới nhất (Releases)](https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/latest)** của repo này.
+2. Tải tệp **Mochy-Music-vi-arm64-release.apk** về máy.
+3. Mở tệp .apk vừa tải để cài đặt (cho phép cài đặt ứng dụng từ trình duyệt hoặc trình quản lý tệp nếu được hỏi).
+4. Mở **Mochy Music** và thưởng thức ngay bằng giao diện **Tiếng Việt 100%** (không bắt buộc đăng nhập tài khoản).
 
 > [!TIP]
-> Only download Mochy from the releases page of this repo. A random mediafire or telegram link could be a modified app, and then your logins would not be safe, pls avoid those
-
-> [!BTW]
-> We support android 7 unofficially.
+> **Hỗ trợ Cập nhật tự động (OTA) & Cài đè trực tiếp:**
+> - Các bản APK phát hành trên repo này được ký bằng khóa số cố định.
+> - Khi có bản cập nhật mới, bạn có thể tải trực tiếp ngay trong ứng dụng (**Cài đặt → Kiểm tra cập nhật**) hoặc tải .apk mới cài đè lên bản cũ mà **không bị mất thư viện nhạc hay lịch sử nghe**.
 
 ---
 
-## Some Prview 
+## ✨ Điểm nổi bật của bản Việt Hóa này
+
+- **Việt hóa toàn diện 100% (12/12 tệp ngôn ngữ):** Dịch đầy đủ hơn 2.200 chuỗi văn bản từ trình phát nhạc, lời bài hát đồng bộ, bộ chỉnh âm mochyEqualizer, phòng âm thanh Audio Pass (USB DAC / Bit-perfect), chế độ Nghe cùng nhau, Dịch lời AI, Chia sẻ thẻ bài hát, Đồng hồ đầu giường (Bedside) đến giao diện Android TV.
+- **Sửa lỗi ghi đè ngôn ngữ vùng Việt Nam (i-rVN):** Đồng bộ cả alues-vi và alues-vi-rVN giúp mọi dòng máy Android tại Việt Nam hiển thị đúng tiếng Việt ngay từ lần đầu mở app.
+- **Giữ nguyên độ nhẹ & mượt của bản gốc:** Build bản Release chuẩn rm64-v8a đã tối ưu R8, hỗ trợ màn hình tần số quét cao 120Hz.
+
+---
+
+## 🖼️ Hình ảnh giao diện (Preview)
 
 <img width="1799" height="927" alt="Frame 289" src="https://github.com/user-attachments/assets/c4c122ed-b86c-44e4-a618-417f5287bc98" />
 <img width="1799" height="927" alt="Frame 287" src="https://github.com/user-attachments/assets/186be8ac-ff3e-4e2a-ab7e-ae80bc9da7e7" />
@@ -82,177 +62,41 @@ Updating works the same way: install the new apk over the old one and your libra
 <img width="1799" height="927" alt="Frame 332" src="https://github.com/user-attachments/assets/e8c2084f-68ec-4959-a881-03a3b93df292" />
 <img width="1799" height="927" alt="Frame 333" src="https://github.com/user-attachments/assets/50580702-6bc9-4204-8665-b7d6c6390f78" />
 
-
 ---
-# FAQ
-Q - Is it safe to log in? (read this before signing in)
 
-A - Tbh, you never have to log in to use this thing btw. Search, play, lyrics and downloads work without an account. Signing in is only for syncing your YouTube Music library, importing playlists from Spotify / Apple Music / Tidal, and Discord status
+## ❓ Câu hỏi thường gặp (FAQ)
 
-**How the sign-in works**
-- Mochy opens the real login page of the service (for example accounts.google.com or open.spotify.com) inside the app. You type your password into **their** page, not into a Mochy form.
-- After you log in, the app keeps the session token or cookie that the service gives out, so you stay signed in. Your password is not what gets saved.
-- That session stays on your phone, in the app's private storage. Mochy has no account system of its own and does not run a server that collects logins.
-- The tokens are meant to be used only to talk to the service you signed in to (for example Spotify's own site to read your playlists).
-- The app is open source under GPL-3.0 so you do not have to take my word for it, you can always read exactly what it does with them :)
+**Hỏi: Đăng nhập tài khoản vào ứng dụng có an toàn không?**
+> Bạn **không bắt buộc phải đăng nhập** mới dùng được ứng dụng — tìm kiếm, phát nhạc, lời bài hát và tải ngoại tuyến đều hoạt động bình thường không cần tài khoản.
+> Việc đăng nhập chỉ dùng khi bạn muốn đồng bộ thư viện YouTube Music cá nhân, nhập playlist từ Spotify / Apple Music / Tidal hoặc hiển thị trạng thái Discord. Khi đăng nhập, bạn nhập trực tiếp trên trang chính thức của dịch vụ (ví dụ ccounts.google.com) và khóa phiên chỉ lưu cục bộ trên điện thoại của bạn.
 
-
-Q - Pls add liquid glass
-
-A - No, and not now. maybe in form of modules created by someone in the future
-
-
-Q - Monochrome/flac stream doesnt work
-
-A - The server down, its on their side not us. use other anvailable sources, join our discord
-
-
-Q - Animation is too slow, can you speed it up?
-
-A - You can speed it up on customize page.
-
-
-Q - Official Desktop app?
-
-A - Later
-
-
-Q - App too laggy, how to fix?
-
-A - Disabling blur will helps
-
-
-Q - Can i contribute?
-
-A - Ofc
-
-
-Q - Can you add less spacing for the player
-
-A - You can customize it yourself
-
-Q - I hate this app, i dont want to use it
-A - Nobody is forcing you to use this
+**Hỏi: Máy cấu hình yếu bị giật nhẹ thì chỉnh ở đâu?**
+> Vào **Cài đặt → Tùy biến → Làm mờ (Blur)** và chọn chất lượng **Thấp** hoặc tắt làm mờ để giao diện nhẹ và mượt nhất.
 
 ---
 
-## How to build it yourself
+## 📜 Giấy phép Bản quyền & Ghi nhận Tác giả (License & Credits)
 
-You only need this if you want to change the code. If you just want to use the app, use the install steps above.
+Dự án này là bản **Fork cộng đồng (phi thương mại)** phục vụ mục đích học tập và Việt hóa giao diện, được phân phối theo đúng điều khoản của giấy phép mã nguồn mở **[GNU General Public License v3.0 (GPL-3.0)](./LICENSE)**.
 
-### What you need
-- A Mac, Linux or Windows computer with screen
-- [Android Studio](https://developer.android.com/studio) (latest stable). It brings JDK 21 and the Android SDK with it
-- Android SDK 36 and NDK `27.0.12077973`. Android Studio offers to download both the first time you open the project
-- About 10 gb free disk space, the first build downloads a lottt
-- A phone with USB debugging on, or an emulator.
+### Tác giả gốc (Original Authors)
+- **Mochy Music:** [@realidkroo](https://github.com/realidkroo) (**mochyDH P ASHOKAN** — Lead Developer), [@realkeichi](https://github.com/realkeichi) (**key**) & **T-Boyke** (Collaborator)
+  - Kho mã nguồn gốc: **[realidkroo/Mochy-Music](https://github.com/realidkroo/Mochy-Music)**
 
-### Steps
-```bash
-git clone https://github.com/realidkroo/mochy-music.git
-cd mochy-music
-```
-
-1. Open the folder in Android Studio once and let it finish syncing. This also creates `local.properties` with your SDK path.
-2. Build and install on your connected phone:
-   ```bash
-   ./build.sh --debug -i
-   ```
-   First build takes a while, the next ones are much faster.
-3. Or build the apk only and install it by hand. The apk lands in `apk-generated/`:
-   ```bash
-   ./build.sh --debug
-   adb install -r apk-generated/*-debug.apk
-   ```
-
-Handy options (see `./build.sh --help` for all of them):
-
-| Command | What it does |
-|---|---|
-| `./build.sh --debug -i` | debug build, installs and opens it on your phone |
-| `./build.sh --release -cc` | release build for arm64 and universal |
-| `./build.sh -fd --release` | F-Droid flavor, without the self-update permission |
-| `./build.sh -k` | stops stuck Gradle builds |
-
-Use **debug** while you are playing around, it builds much much faster. A debug build installs next to the real app (`com.example.mochy.debug`), so it will not touch your normal install, but it is also a bit slower to run.
-
-### Optional keys
-Mochy builds fine without these, only the matching feature is switched off. Put them in `local.properties` (it is never committed):
-
-```properties
-LASTFM_API_KEY=...
-LASTFM_SECRET=...
-DISCORD_CLIENT_ID=...
-```
-
-Never commit your keys. Libre.fm works without any key.
-
-### If the build fails
-- `Unresolved reference` or Hilt errors that make no sense: delete the `build/` folders and `.gradle/` and build again.
-- Stuck or weird Gradle: `./build.sh -k`, then try again.
-- Wrong Java: make sure Gradle uses JDK 21 (Android Studio → Settings → Build Tools → Gradle → Gradle JDK).
-- Still stuck? Open an [issue](https://github.com/realidkroo/mochy-music/issues) with the error text.
-
-Want to send a fix? Read [CONTRIBUTING](.github/CONTRIBUTING.md) first.
-
----
-## How to build module?
-im working on it wait
-
----
-## Wants to help? bug report? report it on issues!
-
-Or read contribute.md there
-
----
-## Disclaimer
-
-Mochy is an independent, unofficial project made for personal and educational use. It is provided as is, without warranty of any kind.
-
-- Mochy is a fully open source project that is created purely for educationa and personal use. thats why, we dont sell this software, or monetize it. we do not have any intent to add commercial values in the future. thanks!
-- And were deeply respect the hardwork of artist musicians ajd contwnt creators. without them there is also no mochy: i strongly suggest that you, as user, subscribe to Apple music or youtube premium, to support the creators you listen. I do not intend to hurt creator with this app.
-- It is **not affiliated with, endorsed by, or sponsored by** YouTube, YouTube Music, Google, Spotify, Apple, Last.fm, Shazam, Discord or any other service it can connect to. All names, logos and brands belong to their respective owners.
-- Mochy does not host, store or distribute any music. Everything is fetched from third-party services when you ask for it, and those services can change or stop working at any time.
-- You are responsible for how you use the app, including the terms of service of the accounts and services you connect and the copyright laws where you live.
-- Importing from other services (Spotify, etc.) uses your own account. Don't share your login data or tokens with anyone.
-- Importing music MAY need your own account with its password. WE'RE NEVER see your password.
+### Các dự án nền tảng & API mã nguồn mở (Upstream Credits)
+- **ViviMusic** bởi [@vivizzz007](https://github.com/vivizzz007/vivi-music) — *Ứng dụng nền tảng mà Mochy được fork từ đó.*
+- **Metrolist** bởi **Mostafa Alagamy** ([@mostafaalagamy](https://github.com/mostafaalagamy/Metrolist)) — *Framework nền tảng.*
+- **SimpMusic** bởi [@maxrave-dev](https://github.com/maxrave-dev/SimpMusic) — *Nguồn API lời bài hát.*
+- **ArchiveTune** bởi [@rukamori](https://github.com/rukamori/ArchiveTune) — *Cảm hứng thiết kế & kiến trúc.*
+- **RiMusic / InnerTube** bởi [@fast4x](https://github.com/fast4x/RiMusic) — *Wrapper dịch vụ YouTube Music InnerTube.*
+- **LRCLib** bởi [@tranxuanthang](https://github.com/tranxuanthang/lrclib) — *Cơ sở dữ liệu lời bài hát đồng bộ LRC.*
+- **Better Lyrics API** bởi [@boidushya](https://github.com/better-lyrics/api) & **LyricsPlus** bởi [@ibratabian17](https://github.com/ibratabian17/LyricsPlus) — *Nguồn lời bài hát đồng bộ từng từ.*
+- **Monochrome Music** bởi [@monochrome-music](https://github.com/monochrome-music/monochrome) — *Nguồn phát nhạc lossless FLAC.*
+- **AutoEq** ([autoeq.app](https://autoeq.app)) — *Cơ sở dữ liệu cân bằng âm thanh tai nghe.*
 
 ---
 
-## These incredible project helped mochy a lot! check them out too :3
+## ⚠️ Tuyên bố miễn trừ trách nhiệm (Disclaimer)
 
-- **ViviMusic** by [vivizzz007Z](https://github.com/vivizzz007Z) )[Their repo](https://github.com/vivizzz007/vivi-music)) -- For the base app. This app is a fork from this project.
-- **Metrolist** by [Mostafa Alagamy](https://github.com/mostafaalagamy) ([Repository](https://github.com/mostafaalagamy/Metrolist)) -- For the base framework.
-- **SimpMusic** by [maxrave-dev](https://github.com/maxrave-dev) ([Repository](https://github.com/maxrave-dev/SimpMusic)) -- For the lyrics API provider.
-- **Archivetune** by [Rukamori](https://github.com/rukamori) ([Repository](https://github.com/rukamori/ArchiveTune)) -- For design and architectural inspiration.
-- **RiMusic / InnerTube** by [fast4x](https://github.com/fast4x) ([Repository](https://github.com/fast4x/RiMusic)) -- For YouTube Music InnerTube API service wrapper.
-- **LRCLib** by [tranxuanthang](https://github.com/tranxuanthang) ([Repository](https://github.com/tranxuanthang/lrclib) / [Website](https://lrclib.net/)) -- For synchronized LRC lyrics provider integration.
-- **Monochrome Music** by [monochrome-music](https://github.com/monochrome-music) ([Repository](https://github.com/monochrome-music/monochrome) / ([Website](https://monochrome.st)) -- Flac streams, visit their web, very cool one.
-- **Auto Eq** ([Web](https://autoeq.app)) -- The equalizer database
-
----
-
-## Open source APIs mochy talks to!!
-
-These are the open source apis and server we get gets its lyrics, streams and data from. They r free for everyone because of these good people, so go give them a star!
-
-- **LyricsPlus** by [Ibra Al Tabian](https://github.com/ibratabian17) ([repos](https://github.com/ibratabian17/LyricsPlus)) s
-- **Better Lyrics API** by [Boidushya](https://github.com/boidushya) ([repos](https://github.com/better-lyrics/api)) 
-- **LRCLIB** by [tranxuanthang](https://github.com/tranxuanthang) ([repos](https://github.com/tranxuanthang/lrclib) / [Website](https://lrclib.net/)) 
-- **SimpMusic Lyrics** by [maxrave-dev](https://github.com/maxrave-dev) ([repos](https://github.com/maxrave-dev/SimpMusic)) 
-
----
-## Star History
-
-<a href="https://www.star-history.com/?repos=realidkroo%2Fmochy-music&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=realidkroo/mochy-music&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=realidkroo/mochy-music&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=realidkroo/mochy-music&type=date&legend=top-left" />
- </picture>
-</a>
-
-<div align="center">
-  <sub>star the repo plssss apreciate it!!!!!</sub>
-</div>
-
+- Đây là dự án mã nguồn mở độc lập, phi thương mại, phục vụ mục đích cá nhân và học tập, được cung cấp nguyên trạng ("as-is") theo giấy phép **GPL-3.0**.
+- Ứng dụng không lưu trữ hay phân phối bất kỳ tệp nhạc nào trên máy chủ riêng; mọi nội dung được truy xuất trực tiếp từ các dịch vụ bên thứ ba theo yêu cầu của người dùng. Khuyến khích người dùng đăng ký YouTube Premium / Apple Music để ủng hộ các nghệ sĩ và nhà sáng tạo nội dung.
