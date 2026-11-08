@@ -48,7 +48,7 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 9 ? RUN_NUM - 9 : 2 ))
+          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 2 ))
           TENTHS=$(( 83 + STEP ))
           APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
           export MOCHY_APP_VERSION="$APP_VER"
@@ -81,7 +81,7 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           $runNum = [int]$env:GITHUB_RUN_NUMBER
-          $step = [Math]::Max(2, $runNum - 9)
+          $step = [Math]::Max(2, $runNum - 10)
           $tenths = 83 + $step
           $appVer = "$([Math]::Floor($tenths / 10)).$($tenths % 10).0"
           $buildNum = 1228 + $runNum
@@ -98,6 +98,11 @@ jobs:
           Push-Location desktop
           npm install --no-audit --no-fund
           npx electron-builder --win nsis portable --x64 --publish never
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Retrying Windows build with ELECTRON_MIRROR..."
+            $env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
+            npx electron-builder --win nsis portable --x64 --publish never
+          }
           Pop-Location
 
       - name: Upload Windows EXE Artifacts
@@ -123,7 +128,7 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 9 ? RUN_NUM - 9 : 2 ))
+          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 2 ))
           TENTHS=$(( 83 + STEP ))
           APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
           BUILD_NUM=$(( 1228 + RUN_NUM ))
@@ -141,7 +146,8 @@ jobs:
 
           cd desktop
           npm install --no-audit --no-fund
-          npx electron-builder --linux AppImage deb --x64 --publish never
+          npx electron-builder --linux AppImage deb --x64 --publish never || \
+            ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" npx electron-builder --linux AppImage deb --x64 --publish never
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
@@ -168,7 +174,7 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 9 ? RUN_NUM - 9 : 2 ))
+          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 2 ))
           TENTHS=$(( 83 + STEP ))
           APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
           BUILD_NUM=$(( 1228 + RUN_NUM ))

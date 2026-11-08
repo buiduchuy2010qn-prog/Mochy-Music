@@ -94,4 +94,8 @@
     <string name="storage_import_title">Thay thế thư viện hiện tại?</string>
     <string name="storage_import_message">Mọi dữ liệu trong Mochy hiện tại sẽ được thay bằng dữ liệu từ bản sao lưu, bao gồm thư viện, lịch sử nghe, nhạc đã tải và cài đặt. Các tài khoản đã đăng nhập vẫn được giữ nguyên. Mochy sẽ khởi động lại một lần để hoàn tất.</string>
     <string name="storage_import_action">Chọn tệp .zip</string>
+    <string name="storage_export_folder_music" translatable="false">Music</string>
+    <string name="storage_export_folder_playlists" translatable="false">Playlist</string>
+    <string name="storage_export_folder_albums" translatable="false">Albums</string>
+    <string name="storage_export_folder_liked" translatable="false">Liked songs</string>
 </resources>
