@@ -2050,23 +2050,72 @@ body.blur-enabled .mochy-nav-pill {
 .player-art-column {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 15px;
 }
 
 .player-artwork-box {
+  position: relative;
   width: 100%;
-  max-width: 390px;
+  max-width: 340px;
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   border-radius: 26px;
   overflow: hidden;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
-  background: #18181B;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72);
+  background: #141416;
+  transition: border-radius 0.35s ease, max-width 0.35s ease, transform 0.35s ease;
 }
-.player-artwork-box img {
+.player-artwork-box img,
+.player-artwork-box video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+}
+/* Crop 4:3 YouTube hqdefault black bars cleanly so the song logo fills the square */
+.player-artwork-box img.yt-thumb-crop {
+  transform: scale(1.34);
+}
+.player-artwork-box.canvas-breathing img {
+  animation: canvasKenBurns 14s ease-in-out infinite alternate;
+}
+@keyframes canvasKenBurns {
+  0% { transform: scale(1.34) translate(0, 0); }
+  100% { transform: scale(1.48) translate(-2%, -2%); }
+}
+
+.player-artwork-box.cover-style-disc {
+  border-radius: 50%;
+  border: 6px solid #1C1C1E;
+}
+.player-artwork-box.cover-style-disc.playing img {
+  animation: spinDisc 18s linear infinite;
+}
+@keyframes spinDisc {
+  from { transform: scale(1.35) rotate(0deg); }
+  to { transform: scale(1.35) rotate(360deg); }
+}
+
+.disc-center-hole {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #000000 38%, #262626 42%, #141416 100%);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  z-index: 3;
+}
+.player-artwork-box.cover-style-disc .disc-center-hole {
+  display: block;
+}
+
+.player-artwork-box.cover-style-full {
+  max-width: 390px;
+  border-radius: 30px;
 }
 
 .player-meta-row {
@@ -2081,21 +2130,47 @@ body.blur-enabled .mochy-nav-pill {
   flex: 1;
 }
 
+.player-title-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .player-full-title {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: #FFFFFF;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Exact StreamFormatBadge.kt style from APK screenshot */
+.stream-format-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 7px;
+  border: 1.2px solid rgba(255, 255, 255, 0.34);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.76);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .player-full-artist {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.68);
-  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.62);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .player-meta-actions {
@@ -2108,41 +2183,79 @@ body.blur-enabled .mochy-nav-pill {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.11);
   color: #FFFFFF;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 .player-circle-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
 }
 .player-circle-btn svg {
   width: 20px;
   height: 20px;
 }
 
+/* Thick Pill Scrubber matching APK PlayerProgressSlider.kt */
+.player-scrubber-wrap {
+  position: relative;
+  padding-top: 2px;
+}
+
+.apk-progress-pill-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+  position: relative;
+}
+
+.apk-progress-pill-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: #FFFFFF;
+  transition: width 0.18s linear;
+}
+
+.player-hidden-range {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 100%;
+  height: 18px;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .player-time-row {
   display: flex;
   justify-content: space-between;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.58);
-  margin-top: 7px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  margin-top: 8px;
 }
 
+/* Iconic Pure-White APK Transport Controls */
 .player-transport-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 22px;
+  gap: 28px;
+  padding: 4px 0;
 }
 
 .transport-icon-btn {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.68);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2153,55 +2266,112 @@ body.blur-enabled .mochy-nav-pill {
   background: rgba(255, 255, 255, 0.1);
 }
 .transport-icon-btn svg {
-  width: 22px;
-  height: 22px;
-}
-.transport-icon-btn.large svg {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
 }
 
-.transport-play-pill {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: #FFFFFF;
-  color: #000000;
+.transport-apk-skip,
+.transport-apk-play {
+  color: #FFFFFF;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 28px rgba(255, 255, 255, 0.25);
-  transition: transform 0.15s ease;
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease;
 }
-.transport-play-pill:hover {
-  transform: scale(1.06);
+.transport-apk-skip:hover,
+.transport-apk-play:hover {
+  transform: scale(1.08);
 }
-.transport-play-pill svg {
-  width: 30px;
-  height: 30px;
+.transport-apk-skip svg {
+  width: 46px;
+  height: 46px;
+}
+.transport-apk-play svg {
+  width: 58px;
+  height: 58px;
 }
 
-/* Synchronized Lyrics Column */
+/* Bottom Frosted Lyrics Ticker Pill (MiniLyricsTicker.kt replica) */
+.mini-lyrics-ticker-pill {
+  width: 100%;
+  background: rgba(34, 34, 38, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 22px;
+  padding: 15px 22px;
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(24px);
+}
+
+/* Synchronized Lyrics & Queue Column */
 .player-lyrics-column {
   height: 100%;
-  max-height: 560px;
-  background: rgba(20, 20, 22, 0.56);
+  max-height: 580px;
+  background: rgba(18, 18, 20, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 26px;
-  padding: 22px 26px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  backdrop-filter: blur(28px);
 }
 
 .lyrics-column-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.75);
+  gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 14px;
+}
+
+.lyrics-pane-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 3px;
+  border-radius: 999px;
+}
+
+.lyrics-tab-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  transition: all 0.16s ease;
+}
+.lyrics-tab-btn.active {
+  background: #FFFFFF;
+  color: #000000;
+}
+
+.lyrics-head-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lyrics-tool-pill {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  transition: background 0.15s ease;
+}
+.lyrics-tool-pill:hover,
+.lyrics-tool-pill.active {
+  background: #FFFFFF;
+  color: #000000;
 }
 
 .lyrics-badge {
@@ -2209,7 +2379,7 @@ body.blur-enabled .mochy-nav-pill {
   font-size: 11px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   color: #FFFFFF;
 }
 
@@ -2224,12 +2394,12 @@ body.blur-enabled .mochy-nav-pill {
 
 .lyric-line {
   font-size: 21px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.03em;
-  color: rgba(255, 255, 255, 0.34);
+  color: rgba(255, 255, 255, 0.32);
   line-height: 1.35;
   cursor: pointer;
-  transition: color 0.25s ease, transform 0.25s ease, filter 0.25s ease;
+  transition: color 0.25s ease, transform 0.25s ease, filter 0.25s ease, text-shadow 0.25s ease;
 }
 
 body.component-blur-enabled .lyric-line:not(.active) {
@@ -2240,6 +2410,35 @@ body.component-blur-enabled .lyric-line:not(.active) {
   color: #FFFFFF;
   transform: scale(1.02);
   filter: none !important;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.28);
+}
+
+.lyric-translation {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.58);
+  margin-top: 4px;
+}
+
+.lyric-interlude-dots {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px 0;
+}
+.lyric-interlude-dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  opacity: 0.4;
+  animation: dotPulse 1.4s infinite ease-in-out;
+}
+.lyric-interlude-dots i:nth-child(2) { animation-delay: 0.2s; }
+.lyric-interlude-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.28; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.18); }
 }
 
 .lyrics-placeholder {

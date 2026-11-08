@@ -528,6 +528,29 @@
 
               <div class="apk-section-divider"></div>
 
+              <!-- Ảnh bìa trình phát (Player Cover & Quick Canvas Toggle - 1:1 with PlayerCoverStyles.kt) -->
+              <div class="custom-section-label">Ảnh bìa trình phát &amp; Logo bài hát</div>
+              <div class="apk-dark-card">
+                <div class="blur-header-row" style="margin-bottom:10px;">
+                  <div>
+                    <div class="blur-card-title">Ảnh bìa động (Canvas) &amp; Video nền</div>
+                    <div class="version-card-sub" id="settings-canvas-desc">Đang tắt • Chỉ hiện logo bài hát tĩnh (Không chạy video)</div>
+                  </div>
+                  <button class="mochy-switch" id="switch-settings-canvas" role="switch" aria-checked="false">
+                    <span class="mochy-switch-thumb"></span>
+                  </button>
+                </div>
+                <div class="apk-card-hairline" style="margin: 12px 0;"></div>
+                <div class="bubble-label" style="margin-bottom: 10px;">Kiểu hiển thị logo bài hát</div>
+                <div class="apk-segmented-bar" id="cover-style-segmented" style="margin-bottom: 0; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr);">
+                  <button class="apk-seg-pill active" data-coverstyle="squared">Logo vuông (Squared)</button>
+                  <button class="apk-seg-pill" data-coverstyle="disc">Đĩa nhạc xoay (Disc)</button>
+                  <button class="apk-seg-pill" data-coverstyle="full">Tràn viền (Edge)</button>
+                </div>
+              </div>
+
+              <div class="apk-section-divider"></div>
+
               <!-- Làm mờ (Blur) — Exact 1:1 with media_1794147562686_e6f51cd9.jpg -->
               <div class="apk-dark-card blur-main-card">
                 <div class="blur-header-row">
@@ -739,10 +762,11 @@
       </nav>
     </div>
 
-    <!-- ==================== EXPANDABLE FULL-SCREEN PLAYER SHEET ==================== -->
+    <!-- ==================== EXPANDABLE FULL-SCREEN PLAYER SHEET (1:1 APK) ==================== -->
     <div class="mochy-player-sheet" id="mochy-player-sheet" style="display: none;">
       <div class="player-sheet-backdrop" id="player-sheet-backdrop"></div>
       <div class="player-sheet-content">
+        <div class="sheet-drag-handle" style="margin-bottom: 10px;"></div>
         <!-- Player Top Bar -->
         <div class="player-top-bar">
           <button class="player-top-btn" id="btn-collapse-player" title="Thu nhỏ trình phát">
@@ -750,75 +774,105 @@
           </button>
           <div class="player-top-center">
             <span class="player-playing-from">ĐANG PHÁT TỪ MOCHY MUSIC</span>
-            <span class="player-source-sub" id="player-source-sub">Chất lượng cao • Không quảng cáo</span>
+            <span class="player-source-sub" id="player-source-sub">Chỉ hiện logo bài hát tĩnh • Không quảng cáo</span>
           </div>
-          <div class="player-top-right">
+          <div class="player-top-right" style="display:flex;gap:8px;align-items:center;">
+            <button class="apk-capsule-pill" id="btn-player-quick-canvas" style="padding:7px 14px;font-size:12px;" title="Bật / Tắt ảnh bìa động nhanh">
+              Logo tĩnh
+            </button>
             <button class="player-top-btn" id="btn-player-more" title="Menu bài hát & Chia sẻ (⋯)">
               <svg viewBox="0 0 24 24"><use href="#svg-more-horiz"></use></svg>
             </button>
           </div>
         </div>
 
-        <!-- Player Main Split (Left: Artwork + Controls, Right: Synced Lyrics) -->
+        <!-- Player Main Split (Left: APK Native Artwork + Controls + Ticker, Right: Synced Lyrics & Queue) -->
         <div class="player-main-grid">
           <div class="player-art-column">
-            <div class="player-artwork-box" id="player-artwork-box">
+            <div class="player-artwork-box cover-style-squared" id="player-artwork-box">
               <img src="assets/icons/mochy_play_dark.png" alt="Album Art" id="player-full-cover" />
+              <video id="player-canvas-video" muted loop playsinline style="display:none;"></video>
+              <div class="disc-center-hole" id="disc-center-hole"></div>
             </div>
 
+            <!-- SongInfoRow.kt + StreamFormatBadge.kt Replica (1:1 with media_1794150884409_44ebe445.jpg) -->
             <div class="player-meta-row">
               <div class="player-meta-text">
-                <h2 class="player-full-title" id="player-full-title">Chưa phát bài hát</h2>
+                <div class="player-title-badge-row">
+                  <h2 class="player-full-title" id="player-full-title">Chưa phát bài hát</h2>
+                  <span class="stream-format-badge" id="player-format-badge">FLAC • 384,0 KHz</span>
+                </div>
                 <p class="player-full-artist" id="player-full-artist">Chọn bài hát bất kỳ để thưởng thức</p>
               </div>
               <div class="player-meta-actions">
                 <button class="player-circle-btn" id="btn-player-like" title="Yêu thích">
                   <svg viewBox="0 0 24 24" id="svg-player-like-icon"><use href="#svg-heart-outline"></use></svg>
                 </button>
-                <button class="player-circle-btn" id="btn-player-share-direct" title="Chia sẻ bài hát">
-                  <svg viewBox="0 0 24 24"><use href="#svg-share"></use></svg>
+                <button class="player-circle-btn" id="btn-player-chevron-menu" title="Tùy chọn trình phát & Chia sẻ">
+                  <svg viewBox="0 0 24 24" style="transform:rotate(180deg);"><use href="#svg-chevron-down"></use></svg>
                 </button>
               </div>
             </div>
 
-            <!-- Scrubber -->
+            <!-- Thick Pill Scrubber (PlayerProgressSlider.kt Replica) -->
             <div class="player-scrubber-wrap">
-              <input type="range" min="0" max="1000" value="0" class="mochy-white-slider" id="player-seek-slider" />
+              <div class="apk-progress-pill-bar" id="apk-progress-pill-bar">
+                <div class="apk-progress-pill-fill" id="apk-progress-pill-fill"></div>
+              </div>
+              <input type="range" min="0" max="1000" value="0" class="player-hidden-range" id="player-seek-slider" />
               <div class="player-time-row">
                 <span id="player-time-cur">0:00</span>
                 <span id="player-time-dur">0:00</span>
               </div>
             </div>
 
-            <!-- Transport Controls -->
+            <!-- Iconic Pure-White APK Transport Controls (PlayerControls.kt Replica) -->
             <div class="player-transport-row">
               <button class="transport-icon-btn" id="btn-player-shuffle" title="Phát ngẫu nhiên">
                 <svg viewBox="0 0 24 24"><use href="#svg-shuffle"></use></svg>
               </button>
-              <button class="transport-icon-btn large" id="btn-player-prev" title="Bài trước">
+              <button class="transport-apk-skip" id="btn-player-prev" title="Bài trước">
                 <svg viewBox="0 0 24 24"><use href="#svg-prev"></use></svg>
               </button>
-              <button class="transport-play-pill" id="btn-player-play" title="Phát / Tạm dừng">
+              <button class="transport-apk-play" id="btn-player-play" title="Phát / Tạm dừng">
                 <svg viewBox="0 0 24 24" id="svg-player-play-icon"><use href="#svg-play"></use></svg>
               </button>
-              <button class="transport-icon-btn large" id="btn-player-next" title="Bài tiếp theo">
+              <button class="transport-apk-skip" id="btn-player-next" title="Bài tiếp theo">
                 <svg viewBox="0 0 24 24"><use href="#svg-next"></use></svg>
               </button>
               <button class="transport-icon-btn" id="btn-player-repeat" title="Lặp lại">
                 <svg viewBox="0 0 24 24"><use href="#svg-repeat"></use></svg>
               </button>
             </div>
+
+            <!-- Bottom Frosted Lyrics Ticker Pill (MiniLyricsTicker.kt Replica - 1:1 with APK screenshot) -->
+            <div class="mini-lyrics-ticker-pill" id="mini-lyrics-ticker-pill">
+              <span id="mini-lyrics-ticker-text">Lời bài hát đồng bộ sẽ hiển thị tại đây...</span>
+            </div>
           </div>
 
-          <!-- Synchronized LRCLIB Lyrics Column -->
+          <!-- Synchronized Multi-Provider Lyrics & Queue Column -->
           <div class="player-lyrics-column">
             <div class="lyrics-column-head">
-              <span>Lời bài hát đồng bộ</span>
-              <span class="lyrics-badge" id="lyrics-status-badge">LRCLIB</span>
+              <div class="lyrics-pane-tabs">
+                <button class="lyrics-tab-btn active" id="tab-btn-lyrics">Lời bài hát</button>
+                <button class="lyrics-tab-btn" id="tab-btn-queue">Tiếp theo</button>
+              </div>
+              <div class="lyrics-head-tools">
+                <button class="lyrics-tool-pill" id="btn-lyrics-offset-minus" title="Chỉnh sớm lời bài hát -0.5s">-0.5s</button>
+                <button class="lyrics-tool-pill" id="btn-lyrics-offset-plus" title="Chỉnh trễ lời bài hát +0.5s">+0.5s</button>
+                <button class="lyrics-tool-pill" id="btn-lyrics-translate" title="Dịch lời bài hát sang Tiếng Việt">Dịch VI</button>
+                <span class="lyrics-badge" id="lyrics-status-badge">LRCLIB</span>
+              </div>
             </div>
+
+            <!-- Synced Lyrics Scroll Box -->
             <div class="lyrics-scroll-box" id="lyrics-scroll-box">
               <div class="lyrics-placeholder">Chọn một bài hát để tự động tải lời bài hát đồng bộ theo từng câu.</div>
             </div>
+
+            <!-- Queue Scroll Box -->
+            <div class="lyrics-scroll-box" id="queue-scroll-box" style="display:none;"></div>
           </div>
         </div>
       </div>
@@ -844,9 +898,30 @@
 
         <!-- Menu Action Rows -->
         <div class="menu-rows-stack">
+          <!-- Quick Toggle: Bật / Tắt ảnh bìa động (Chỉ hiện logo bài hát tĩnh) -->
+          <div class="menu-row-card" id="menu-act-toggle-canvas" style="justify-content:space-between;cursor:pointer;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <svg class="menu-row-icon"><use href="#svg-fullscreen"></use></svg>
+              <div>
+                <div style="font-size:15px;font-weight:700;">Ảnh bìa động (Canvas) &amp; Video</div>
+                <div id="menu-canvas-sub" style="font-size:12px;color:#B3B3B3;font-weight:500;margin-top:2px;">
+                  Đang tắt • Chỉ hiện logo bài hát tĩnh
+                </div>
+              </div>
+            </div>
+            <button class="mochy-switch small" id="switch-menu-canvas" type="button">
+              <span class="mochy-switch-thumb"></span>
+            </button>
+          </div>
+
+          <button class="menu-row-card" id="menu-act-cover-style">
+            <svg class="menu-row-icon"><use href="#svg-lyrics"></use></svg>
+            <span id="menu-cover-style-label">Kiểu logo bài hát: Logo vuông (Squared)</span>
+          </button>
+
           <button class="menu-row-card" id="menu-act-video">
             <svg class="menu-row-icon"><use href="#svg-fullscreen"></use></svg>
-            <span>Xem video đầy đủ</span>
+            <span>Xem video đầy đủ trên YouTube Music</span>
           </button>
 
           <!-- Volume Slider Card -->

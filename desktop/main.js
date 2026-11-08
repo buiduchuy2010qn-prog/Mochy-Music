@@ -447,38 +447,295 @@ ipcMain.handle('player:set-eq', async (_e, eqState) => {
   `).catch(() => {});
 });
 
+function parseLrcText(rawLrc) {
+  if (!rawLrc || typeof rawLrc !== 'string') return [];
+  const synced = [];
+  const lines = rawLrc.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const m = /^\[(\d+):(\d+(?:[.:]\d+)?)\](.*)/.exec(trimmed);
+    if (m) {
+      const mins = parseInt(m[1], 10);
+      const secs = parseFloat(m[2].replace(':', '.'));
+      const text = m[3]
+        .replace(/<[^>]+>/g, '')
+        .replace(/^\{[^}]+\}/, '')
+        .trim();
+      if (text && !Number.isNaN(mins) && !Number.isNaN(secs)) {
+        synced.push({ time: mins * 60 + secs, text });
+      }
+    }
+  }
+  return synced.sort((a, b) => a.time - b.time);
+}
+
+function parseSmartTrackQueries(track) {
+  const rawTitle = String(track?.title || '').trim();
+  const rawArtist = String(track?.artist || '').trim();
+
+  // Strip pipe suffixes, brackets, MV tags
+  let t = rawTitle
+    .replace(/\|.*$/g, '')
+    .replace(/\/\/.*$/g, '')
+    .replace(/【.*?】/g, '')
+    .replace(/\[.*?\]/g, '')
+    .replace(/\((?:[^)]*(?:official|music|video|mv|lyrics?|audio|visualizer|live|remaster|version|edit|hd|4k|prod|ost|cover|karaoke|ver)[^)]*)\)/gi, '')
+    .replace(/\b(?:official\s*(?:music\s*)?video|official\s*mv|official\s*audio|lyric\s*video|visualizer|mv|hd|4k)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s\-|•–—]+|[\s\-|•–—]+$/g, '');
+
+  const cleanChannelArtist = rawArtist
+    .split(/[/|•,]|\b(?:official|channel|music|vevo|entertainment)\b/i)[0]
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  let titleArtist = '';
+  let songPart = t;
+  const dashParts = t.split(/\s+[-–—]\s+/);
+  if (dashParts.length >= 2) {
+    titleArtist = dashParts[0].trim();
+    songPart = dashParts.slice(1).join(' - ').trim();
+  } else {
+    titleArtist = cleanChannelArtist;
+  }
+
+  // Extract feat / ft artist
+  let featArtist = '';
+  const featMatch = /(?:^|\s|\()(?:ft\.?|feat\.?|featuring)\s+([^()[\]]+)/i.exec(songPart);
+  if (featMatch) {
+    featArtist = featMatch[1].replace(/[()]/g, '').trim();
+  }
+
+  const songClean = songPart
+    .replace(/\s*\(?(?:ft\.?|feat\.?|featuring)\s+.*$/i, '')
+    .replace(/\s*\(.*?\)\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const reverseSong = dashParts.length >= 2
+    ? dashParts[0].replace(/\s*\(?(?:ft\.?|feat\.?|featuring)\s+.*$/i, '').trim()
+    : '';
+  const reverseArtist = dashParts.length >= 2 ? dashParts[1].trim() : '';
+
+  const rawCandidates = [
+    `${songClean} ${titleArtist} ${featArtist}`,
+    `${songClean} ${featArtist}`,
+    `${songClean} ${titleArtist}`,
+    `${songClean} ${cleanChannelArtist}`,
+    reverseSong && reverseArtist ? `${reverseSong} ${reverseArtist}` : '',
+    `${t} ${cleanChannelArtist}`,
+    songClean,
+    t
+  ];
+
+  const seen = new Set();
+  const candidates = [];
+  for (const c of rawCandidates) {
+    const norm = c.replace(/\s+/g, ' ').trim();
+    if (norm && norm.length >= 2 && !seen.has(norm.toLowerCase())) {
+      seen.add(norm.toLowerCase());
+      candidates.push(norm);
+    }
+  }
+
+  return {
+    songClean: songClean || t,
+    primaryArtist: titleArtist || cleanChannelArtist || rawArtist,
+    featArtist,
+    candidates
+  };
+}
+
 ipcMain.handle('lyrics:get', async (_e, track) => {
-  if (!track || !track.title) return { synced: [], plain: '' };
+  if (!track || !track.title) return { synced: [], plain: '', provider: '' };
+  const videoId = track.videoId || (track.source === 'youtube' ? track.id : '');
+  const parsed = parseSmartTrackQueries(track);
+  let plainFallback = null;
+
+  // 1. Try SimpMusic Lyrics API by YouTube videoId (same as Android APK SimpMusicLyrics.kt)
+  if (videoId && !String(videoId).startsWith('local:')) {
+    for (const base of ['https://api-lyrics.simpmusic.org/v1/', 'https://musicfy-yt-music-server.onrender.com/v1/']) {
+      try {
+        const simp = await httpsRequestJson(`${base}${encodeURIComponent(videoId)}`, {
+          headers: { 'User-Agent': 'SimpMusicLyrics/1.0' }
+        });
+        const items = simp && simp.success && Array.isArray(simp.data) ? simp.data : [];
+        if (items.length > 0) {
+          const best = items.find(x => x.syncedLyrics || x.richSyncLyrics) || items[0];
+          const synced = parseLrcText(best.syncedLyrics || best.richSyncLyrics || '');
+          if (synced.length > 0) {
+            return {
+              synced,
+              plain: best.plainLyrics || synced.map(s => s.text).join('\n'),
+              provider: 'SimpMusic',
+              trackName: best.songTitle || parsed.songClean,
+              artistName: best.artistName || parsed.primaryArtist
+            };
+          }
+          if (!plainFallback && best.plainLyrics) {
+            plainFallback = {
+              synced: [],
+              plain: best.plainLyrics,
+              provider: 'SimpMusic',
+              trackName: best.songTitle || parsed.songClean,
+              artistName: best.artistName || parsed.primaryArtist
+            };
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 2. Try LRCLIB with multi-step smart Vietnamese/International query candidates
+  for (const query of parsed.candidates) {
+    try {
+      const q = encodeURIComponent(query);
+      const list = await httpsRequestJson(`https://lrclib.net/api/search?q=${q}`);
+      if (!Array.isArray(list) || list.length === 0) continue;
+
+      const withSynced = list.find(item => item && item.syncedLyrics && parseLrcText(item.syncedLyrics).length > 0);
+      if (withSynced) {
+        const synced = parseLrcText(withSynced.syncedLyrics);
+        return {
+          synced,
+          plain: withSynced.plainLyrics || synced.map(s => s.text).join('\n'),
+          provider: 'LRCLIB',
+          trackName: withSynced.trackName || parsed.songClean,
+          artistName: withSynced.artistName || parsed.primaryArtist
+        };
+      }
+
+      if (!plainFallback) {
+        const withPlain = list.find(item => item && item.plainLyrics);
+        if (withPlain) {
+          plainFallback = {
+            synced: [],
+            plain: withPlain.plainLyrics,
+            provider: 'LRCLIB',
+            trackName: withPlain.trackName || parsed.songClean,
+            artistName: withPlain.artistName || parsed.primaryArtist
+          };
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 3. Try Paxsenix Apple Music Lyrics (same as Android APK Paxsenix.kt)
   try {
-    const cleanTitle = track.title
-      .replace(/\(.*?\)|\[.*?\]/g, '')
-      .replace(/official\s*(music\s*)?video|mv|lyrics?|audio|hd|4k/gi, '')
-      .trim();
-    const q = encodeURIComponent(`${cleanTitle} ${track.artist || ''}`.trim());
-    const list = await httpsRequestJson(`https://lrclib.net/api/search?q=${q}`);
-    if (!Array.isArray(list) || list.length === 0) return { synced: [], plain: '' };
-    const best = list.find(item => item.syncedLyrics) || list[0];
-    const synced = [];
-    if (best.syncedLyrics) {
-      const lines = best.syncedLyrics.split('\n');
-      for (const line of lines) {
-        const m = /^\[(\d+):(\d+(?:\.\d+)?)\](.*)/.exec(line.trim());
-        if (m) {
-          const time = parseInt(m[1], 10) * 60 + parseFloat(m[2]);
-          const text = m[3].trim();
-          if (text) synced.push({ time, text });
+    const q = encodeURIComponent(`${parsed.songClean} ${parsed.primaryArtist}`.trim());
+    const searchRes = await httpsRequestJson(`https://lyrics.paxsenix.org/apple-music/search?q=${q}`, {
+      headers: { 'User-Agent': `Mochy/${pkg.version || '8.9.0'}` }
+    });
+    if (Array.isArray(searchRes) && searchRes.length > 0 && searchRes[0].id) {
+      const lrcData = await httpsRequestJson(`https://lyrics.paxsenix.org/apple-music/lyrics?id=${encodeURIComponent(searchRes[0].id)}`, {
+        headers: { 'User-Agent': `Mochy/${pkg.version || '8.9.0'}` }
+      });
+      if (lrcData && Array.isArray(lrcData.content) && lrcData.content.length > 0) {
+        const synced = [];
+        for (const line of lrcData.content) {
+          const text = Array.isArray(line.text) ? line.text.map(w => w.text).join(' ').replace(/\s+/g, ' ').trim() : '';
+          if (text && typeof line.timestamp === 'number') {
+            synced.push({ time: line.timestamp / 1000, text });
+          }
+        }
+        if (synced.length > 0) {
+          return {
+            synced,
+            plain: synced.map(s => s.text).join('\n'),
+            provider: 'Apple Music',
+            trackName: searchRes[0].songName || parsed.songClean,
+            artistName: searchRes[0].artistName || parsed.primaryArtist
+          };
         }
       }
     }
-    return {
-      synced,
-      plain: best.plainLyrics || '',
-      trackName: best.trackName,
-      artistName: best.artistName
-    };
-  } catch (_) {
-    return { synced: [], plain: '' };
+  } catch (_) {}
+
+  // 4. Try YouTube Closed Captions from active audioWindow (same as YouTubeCaptionsLyricsProvider.kt)
+  if (audioWindow && !audioWindow.isDestroyed()) {
+    try {
+      const ytCapUrl = await audioWindow.webContents.executeJavaScript(`
+        (function() {
+          try {
+            const tracks = window.ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+            if (!Array.isArray(tracks) || !tracks.length) return null;
+            const vi = tracks.find(t => t.languageCode === 'vi') || tracks[0];
+            return vi && vi.baseUrl ? (vi.baseUrl + '&fmt=json3') : null;
+          } catch (_) { return null; }
+        })();
+      `);
+      if (ytCapUrl) {
+        const capJson = await httpsRequestJson(ytCapUrl);
+        if (capJson && Array.isArray(capJson.events)) {
+          const synced = [];
+          for (const ev of capJson.events) {
+            if (!Array.isArray(ev.segs)) continue;
+            const text = ev.segs.map(s => s.utf8 || '').join('').replace(/\s+/g, ' ').trim();
+            if (text && typeof ev.tStartMs === 'number') {
+              synced.push({ time: ev.tStartMs / 1000, text });
+            }
+          }
+          if (synced.length >= 3) {
+            return {
+              synced,
+              plain: synced.map(s => s.text).join('\n'),
+              provider: 'YouTube CC',
+              trackName: parsed.songClean,
+              artistName: parsed.primaryArtist
+            };
+          }
+        }
+      }
+    } catch (_) {}
   }
+
+  return plainFallback || { synced: [], plain: '', provider: '' };
+});
+
+// Translate lyrics lines into Vietnamese (matching GoogleTranslateEngine.kt in Android APK)
+ipcMain.handle('lyrics:translate', async (_e, lines) => {
+  if (!Array.isArray(lines) || !lines.length) return [];
+  try {
+    const joined = lines.slice(0, 120).join('\n');
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=vi&dt=t&q=${encodeURIComponent(joined)}`;
+    const data = await httpsRequestJson(url);
+    if (!Array.isArray(data) || !Array.isArray(data[0])) return [];
+    const fullTranslated = data[0].map(seg => (Array.isArray(seg) ? seg[0] : '')).join('');
+    return fullTranslated.split('\n').map(s => s.trim());
+  } catch (_) {
+    return [];
+  }
+});
+
+// Fetch animated cover video (Canvas) via Monochrome / Tidal API (matching MonochromeApiCanvas.kt)
+ipcMain.handle('canvas:get', async (_e, track) => {
+  if (!track || !track.title) return { videoUrl: null };
+  const parsed = parseSmartTrackQueries(track);
+  const q = encodeURIComponent(`${parsed.primaryArtist} - ${parsed.songClean}`.trim());
+  const instances = [
+    'https://api.monochrome.tf/',
+    'https://eu-central.monochrome.tf/',
+    'https://us-west.monochrome.tf/'
+  ];
+  for (const base of instances) {
+    try {
+      const root = await httpsRequestJson(`${base}search/?s=${q}`);
+      const items = root?.tracks?.items || root?.data?.tracks?.items || root?.items || [];
+      if (!Array.isArray(items)) continue;
+      for (const item of items) {
+        const vc = item?.album?.videoCover;
+        if (vc && typeof vc === 'string') {
+          const parts = vc.split('-');
+          if (parts.length === 5) {
+            return {
+              videoUrl: `https://resources.tidal.com/videos/${parts[0]}/${parts[1]}/${parts[2]}/${parts[3]}/${parts[4]}/1280x1280.mp4`
+            };
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  return { videoUrl: null };
 });
 
 ipcMain.handle('ytm:open-web-window', () => {

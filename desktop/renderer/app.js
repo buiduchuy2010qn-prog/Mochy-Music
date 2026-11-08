@@ -87,6 +87,13 @@
       strength: 25,
       componentBlur: true
     }),
+    playerCover: storage.get('mochy_player_cover_v2', {
+      animatedCanvas: false, // Default OFF: chỉ hiện logo bài hát tĩnh, không tự chạy video
+      coverStyle: 'squared'  // 'squared' | 'disc' | 'full'
+    }),
+    lyricsOffsetSec: 0,
+    lyricsTranslated: false,
+    translatedLines: [],
     eq: storage.get('mochy_eq_v2', {
       enabled: true,
       gains: [0, 0, 0, 0, 0],
@@ -799,7 +806,136 @@
     });
   });
 
-  // ==================== AUDIO PLAYBACK & LYRICS ====================
+  // ==================== PLAYER COVER STYLE & QUICK CANVAS TOGGLE ====================
+  const COVER_STYLE_NAMES = {
+    squared: 'Logo vuông (Squared)',
+    disc: 'Đĩa nhạc xoay (Disc)',
+    full: 'Tràn viền (Edge)'
+  };
+
+  function applyPlayerCoverSettings() {
+    const pc = state.playerCover;
+    const artBox = document.getElementById('player-artwork-box');
+    const coverImg = document.getElementById('player-full-cover');
+    const canvasVideo = document.getElementById('player-canvas-video');
+
+    if (artBox) {
+      artBox.classList.remove('cover-style-squared', 'cover-style-disc', 'cover-style-full', 'canvas-breathing', 'playing');
+      artBox.classList.add(`cover-style-${pc.coverStyle || 'squared'}`);
+      if (state.isPlaying) artBox.classList.add('playing');
+      if (pc.animatedCanvas && state.isPlaying && (!canvasVideo || canvasVideo.style.display === 'none')) {
+        artBox.classList.add('canvas-breathing');
+      }
+    }
+
+    if (canvasVideo) {
+      if (pc.animatedCanvas && canvasVideo.dataset.hasVideo === '1') {
+        canvasVideo.style.display = 'block';
+        if (coverImg) coverImg.style.display = 'none';
+        if (state.isPlaying) canvasVideo.play().catch(() => {});
+        else canvasVideo.pause();
+      } else {
+        canvasVideo.pause();
+        canvasVideo.style.display = 'none';
+        if (coverImg) coverImg.style.display = 'block';
+      }
+    }
+
+    // Sync switches & labels in 3-dot menu, Settings, and Player top bar
+    const menuSw = document.getElementById('switch-menu-canvas');
+    const setSw = document.getElementById('switch-settings-canvas');
+    const menuSub = document.getElementById('menu-canvas-sub');
+    const setSub = document.getElementById('settings-canvas-desc');
+    const quickBtn = document.getElementById('btn-player-quick-canvas');
+    const sourceSub = document.getElementById('player-source-sub');
+    const menuStyleLbl = document.getElementById('menu-cover-style-label');
+
+    menuSw?.classList.toggle('active', !!pc.animatedCanvas);
+    setSw?.classList.toggle('active', !!pc.animatedCanvas);
+
+    const statusText = pc.animatedCanvas
+      ? 'Đang bật • Chạy hiệu ứng ảnh bìa động (Canvas)'
+      : 'Đang tắt • Chỉ hiện logo bài hát tĩnh (Không chạy video)';
+    if (menuSub) menuSub.textContent = statusText;
+    if (setSub) setSub.textContent = statusText;
+    if (quickBtn) {
+      quickBtn.textContent = pc.animatedCanvas ? 'Ảnh bìa động: BẬT' : 'Chỉ hiện logo tĩnh';
+      quickBtn.style.background = pc.animatedCanvas ? '#FFFFFF' : '#4D4D4D';
+      quickBtn.style.color = pc.animatedCanvas ? '#000000' : '#FFFFFF';
+    }
+    if (sourceSub) {
+      sourceSub.textContent = pc.animatedCanvas
+        ? 'Ảnh bìa động (Canvas) • Không quảng cáo'
+        : 'Chỉ hiện logo bài hát tĩnh • Không quảng cáo';
+    }
+    if (menuStyleLbl) {
+      menuStyleLbl.textContent = `Kiểu logo bài hát: ${COVER_STYLE_NAMES[pc.coverStyle] || COVER_STYLE_NAMES.squared}`;
+    }
+
+    document.querySelectorAll('#cover-style-segmented .apk-seg-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.coverstyle === (pc.coverStyle || 'squared'));
+    });
+  }
+
+  async function refreshCanvasForCurrentTrack(track) {
+    const canvasVideo = document.getElementById('player-canvas-video');
+    if (!canvasVideo) return;
+    canvasVideo.pause();
+    canvasVideo.removeAttribute('src');
+    canvasVideo.dataset.hasVideo = '0';
+    canvasVideo.style.display = 'none';
+    document.getElementById('player-full-cover').style.display = 'block';
+
+    if (!state.playerCover.animatedCanvas || !track) {
+      applyPlayerCoverSettings();
+      return;
+    }
+
+    try {
+      const res = await api.getCanvasArtwork(track);
+      if (res && res.videoUrl && state.currentTrack && state.currentTrack.id === track.id && state.playerCover.animatedCanvas) {
+        canvasVideo.src = res.videoUrl;
+        canvasVideo.dataset.hasVideo = '1';
+      }
+    } catch (_) {}
+    applyPlayerCoverSettings();
+  }
+
+  function toggleAnimatedCanvas() {
+    state.playerCover.animatedCanvas = !state.playerCover.animatedCanvas;
+    storage.set('mochy_player_cover_v2', state.playerCover);
+    if (state.playerCover.animatedCanvas && state.currentTrack) {
+      refreshCanvasForCurrentTrack(state.currentTrack);
+      showToast('Đã bật Ảnh bìa động (Canvas)');
+    } else {
+      applyPlayerCoverSettings();
+      showToast('Đã tắt chạy video • Chỉ hiện logo bài hát tĩnh');
+    }
+  }
+
+  document.getElementById('menu-act-toggle-canvas')?.addEventListener('click', toggleAnimatedCanvas);
+  document.getElementById('switch-settings-canvas')?.addEventListener('click', toggleAnimatedCanvas);
+  document.getElementById('btn-player-quick-canvas')?.addEventListener('click', toggleAnimatedCanvas);
+
+  document.getElementById('menu-act-cover-style')?.addEventListener('click', () => {
+    const styles = ['squared', 'disc', 'full'];
+    const idx = styles.indexOf(state.playerCover.coverStyle || 'squared');
+    state.playerCover.coverStyle = styles[(idx + 1) % styles.length];
+    storage.set('mochy_player_cover_v2', state.playerCover);
+    applyPlayerCoverSettings();
+    showToast(`Kiểu logo bài hát: ${COVER_STYLE_NAMES[state.playerCover.coverStyle]}`);
+  });
+
+  document.querySelectorAll('#cover-style-segmented .apk-seg-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.playerCover.coverStyle = btn.dataset.coverstyle || 'squared';
+      storage.set('mochy_player_cover_v2', state.playerCover);
+      applyPlayerCoverSettings();
+      showToast(`Kiểu logo bài hát: ${COVER_STYLE_NAMES[state.playerCover.coverStyle]}`);
+    });
+  });
+
+  // ==================== AUDIO PLAYBACK & MULTI-PROVIDER LYRICS ====================
   async function playTrackFromList(track, list) {
     if (!track) return;
     if (Array.isArray(list) && list.length) {
@@ -813,10 +949,14 @@
     state.isPlaying = true;
     state.currentTime = 0;
     state.duration = 0;
+    state.lyricsOffsetSec = 0;
+    state.translatedLines = [];
 
     updatePlayerUI();
+    renderQueueList();
     addTrackToRecent(track);
     loadLyricsForTrack(track);
+    refreshCanvasForCurrentTrack(track);
 
     if (track.source === 'local' && track.fileUrl) {
       await api.playerControl('stop');
@@ -843,10 +983,19 @@
     document.getElementById('mini-title').textContent = title;
     document.getElementById('mini-artist').textContent = artist;
 
-    document.getElementById('player-full-cover').src = cover;
+    const fullCoverEl = document.getElementById('player-full-cover');
+    if (fullCoverEl) {
+      fullCoverEl.src = cover;
+      fullCoverEl.classList.toggle('yt-thumb-crop', cover.includes('ytimg.com'));
+    }
     document.getElementById('player-full-title').textContent = title;
     document.getElementById('player-full-artist').textContent = artist;
     document.getElementById('player-sheet-backdrop').style.backgroundImage = `url("${cover}")`;
+
+    const badgeEl = document.getElementById('player-format-badge');
+    if (badgeEl) {
+      badgeEl.textContent = t?.source === 'local' ? 'LOSSLESS • LOCAL' : 'FLAC • 384,0 KHz';
+    }
 
     const playHref = state.isPlaying ? '#svg-pause' : '#svg-play';
     document.querySelector('#svg-mini-play-icon use')?.setAttribute('href', playHref);
@@ -854,6 +1003,7 @@
 
     const liked = t ? isLiked(t.id) : false;
     document.querySelector('#svg-player-like-icon use')?.setAttribute('href', liked ? '#svg-heart-filled' : '#svg-heart-outline');
+    applyPlayerCoverSettings();
   }
 
   async function togglePlayPause() {
@@ -895,51 +1045,165 @@
     playTrackFromList(state.queue[prevIdx], state.queue);
   }
 
-  async function loadLyricsForTrack(track) {
-    const box = document.getElementById('lyrics-scroll-box');
-    box.innerHTML = '<div class="lyrics-placeholder">Đang đồng bộ lời bài hát từ LRCLIB...</div>';
-    state.lyrics = { synced: [], plain: '' };
+  function renderQueueList() {
+    const qBox = document.getElementById('queue-scroll-box');
+    if (!qBox) return;
+    qBox.innerHTML = '';
+    if (!state.queue.length) {
+      qBox.innerHTML = '<div class="lyrics-placeholder">Danh sách chờ đang trống.</div>';
+      return;
+    }
+    state.queue.forEach((t, idx) => {
+      const row = createTrackListRow(t, state.queue);
+      if (idx === state.currentIndex) {
+        row.style.border = '1px solid rgba(255,255,255,0.28)';
+        row.style.background = '#1C1C1E';
+      }
+      qBox.appendChild(row);
+    });
+  }
 
-    const res = await api.getLyrics(track);
-    state.lyrics = res || { synced: [], plain: '' };
+  // Switch between Lyrics & Queue tabs in Player
+  document.getElementById('tab-btn-lyrics')?.addEventListener('click', () => {
+    document.getElementById('tab-btn-lyrics').classList.add('active');
+    document.getElementById('tab-btn-queue').classList.remove('active');
+    document.getElementById('lyrics-scroll-box').style.display = 'flex';
+    document.getElementById('queue-scroll-box').style.display = 'none';
+  });
+  document.getElementById('tab-btn-queue')?.addEventListener('click', () => {
+    document.getElementById('tab-btn-queue').classList.add('active');
+    document.getElementById('tab-btn-lyrics').classList.remove('active');
+    document.getElementById('lyrics-scroll-box').style.display = 'none';
+    document.getElementById('queue-scroll-box').style.display = 'flex';
+    renderQueueList();
+  });
+
+  function renderLyricsLines() {
+    const box = document.getElementById('lyrics-scroll-box');
+    const ticker = document.getElementById('mini-lyrics-ticker-text');
+    const badge = document.getElementById('lyrics-status-badge');
+    if (badge) badge.textContent = state.lyrics.provider || 'LRCLIB';
 
     if (state.lyrics.synced && state.lyrics.synced.length) {
       box.innerHTML = '';
+      // Add APK Interlude Dots at top if first line starts after 4 seconds
+      if (state.lyrics.synced[0].time > 4) {
+        const dots = document.createElement('div');
+        dots.className = 'lyric-line interlude-line active';
+        dots.dataset.idx = '-1';
+        dots.innerHTML = '<span class="lyric-interlude-dots"><i></i><i></i><i></i></span>';
+        dots.addEventListener('click', () => seekToSeconds(0));
+        box.appendChild(dots);
+      }
+
       state.lyrics.synced.forEach((line, idx) => {
         const div = document.createElement('div');
         div.className = 'lyric-line';
         div.dataset.idx = idx;
-        div.textContent = line.text;
+        const transText = state.lyricsTranslated && state.translatedLines[idx] ? state.translatedLines[idx] : '';
+        div.innerHTML = `
+          <span>${escapeHtml(line.text)}</span>
+          ${transText ? `<span class="lyric-translation">${escapeHtml(transText)}</span>` : ''}
+        `;
         div.addEventListener('click', () => {
-          seekToSeconds(line.time);
+          seekToSeconds(Math.max(0, line.time - state.lyricsOffsetSec));
         });
         box.appendChild(div);
       });
+      if (ticker) ticker.textContent = state.lyrics.synced[0].text;
     } else if (state.lyrics.plain) {
       box.innerHTML = '';
-      state.lyrics.plain.split('\n').forEach(text => {
-        if (!text.trim()) return;
+      const plainLines = state.lyrics.plain.split(/\r?\n/).filter(x => x.trim());
+      plainLines.forEach((text, idx) => {
         const div = document.createElement('div');
         div.className = 'lyric-line active';
-        div.style.fontSize = '17px';
-        div.textContent = text;
+        div.style.fontSize = '17.5px';
+        const transText = state.lyricsTranslated && state.translatedLines[idx] ? state.translatedLines[idx] : '';
+        div.innerHTML = `
+          <span>${escapeHtml(text)}</span>
+          ${transText ? `<span class="lyric-translation">${escapeHtml(transText)}</span>` : ''}
+        `;
         box.appendChild(div);
       });
+      if (ticker) ticker.textContent = plainLines[0] || 'Đang hiển thị lời bài hát văn bản';
     } else {
-      box.innerHTML = '<div class="lyrics-placeholder">Chưa tìm thấy lời bài hát đồng bộ cho bài hát này.</div>';
+      box.innerHTML = '<div class="lyrics-placeholder">Chưa tìm thấy lời bài hát cho bài hát này.</div>';
+      if (ticker) ticker.textContent = state.currentTrack ? `${state.currentTrack.title} — ${state.currentTrack.artist}` : 'Chưa phát bài hát';
     }
   }
+
+  async function loadLyricsForTrack(track) {
+    const box = document.getElementById('lyrics-scroll-box');
+    const ticker = document.getElementById('mini-lyrics-ticker-text');
+    box.innerHTML = '<div class="lyrics-placeholder">Đang tìm & đồng bộ lời bài hát (SimpMusic • LRCLIB • Apple Music • YouTube)...</div>';
+    if (ticker) ticker.textContent = 'Đang đồng bộ lời bài hát...';
+    state.lyrics = { synced: [], plain: '', provider: 'LRCLIB' };
+
+    const res = await api.getLyrics(track);
+    if (state.currentTrack && state.currentTrack.id !== track.id) return;
+    state.lyrics = res || { synced: [], plain: '', provider: 'LRCLIB' };
+
+    if (state.lyricsTranslated) {
+      await translateCurrentLyrics();
+    } else {
+      renderLyricsLines();
+    }
+  }
+
+  async function translateCurrentLyrics() {
+    const rawLines = state.lyrics.synced?.length
+      ? state.lyrics.synced.map(x => x.text)
+      : (state.lyrics.plain ? state.lyrics.plain.split(/\r?\n/).filter(x => x.trim()) : []);
+    if (!rawLines.length) return;
+    state.translatedLines = await api.translateLyrics(rawLines);
+    renderLyricsLines();
+  }
+
+  document.getElementById('btn-lyrics-translate')?.addEventListener('click', async (e) => {
+    state.lyricsTranslated = !state.lyricsTranslated;
+    e.currentTarget.classList.toggle('active', state.lyricsTranslated);
+    if (state.lyricsTranslated) {
+      showToast('Đang dịch lời bài hát sang Tiếng Việt...');
+      await translateCurrentLyrics();
+    } else {
+      renderLyricsLines();
+      showToast('Đã tắt dịch lời bài hát');
+    }
+  });
+
+  document.getElementById('btn-lyrics-offset-minus')?.addEventListener('click', () => {
+    state.lyricsOffsetSec = Math.round((state.lyricsOffsetSec - 0.5) * 10) / 10;
+    showToast(`Độ trễ lời bài hát: ${state.lyricsOffsetSec > 0 ? '+' : ''}${state.lyricsOffsetSec}s`);
+    syncActiveLyric(state.currentTime);
+  });
+  document.getElementById('btn-lyrics-offset-plus')?.addEventListener('click', () => {
+    state.lyricsOffsetSec = Math.round((state.lyricsOffsetSec + 0.5) * 10) / 10;
+    showToast(`Độ trễ lời bài hát: ${state.lyricsOffsetSec > 0 ? '+' : ''}${state.lyricsOffsetSec}s`);
+    syncActiveLyric(state.currentTime);
+  });
 
   function syncActiveLyric(currentTime) {
     const synced = state.lyrics.synced;
     if (!synced || !synced.length) return;
+    const effectiveTime = currentTime + state.lyricsOffsetSec;
     let activeIdx = -1;
     for (let i = 0; i < synced.length; i++) {
-      if (currentTime >= synced[i].time) activeIdx = i;
+      if (effectiveTime >= synced[i].time) activeIdx = i;
       else break;
     }
+
+    const ticker = document.getElementById('mini-lyrics-ticker-text');
+    if (ticker) {
+      if (activeIdx >= 0 && synced[activeIdx]) {
+        ticker.textContent = synced[activeIdx].text;
+      } else if (synced[0]) {
+        ticker.textContent = `♪ ${synced[0].text}`;
+      }
+    }
+
     const lines = document.querySelectorAll('#lyrics-scroll-box .lyric-line');
-    lines.forEach((el, idx) => {
+    lines.forEach((el) => {
+      const idx = Number(el.dataset.idx);
       const isAct = idx === activeIdx;
       if (isAct && !el.classList.contains('active')) {
         el.classList.add('active');
@@ -994,6 +1258,9 @@
   function updateProgressBars() {
     const pct = state.duration > 0 ? Math.min(100, (state.currentTime / state.duration) * 100) : 0;
     document.getElementById('mini-progress-fill').style.width = `${pct}%`;
+    const apkFill = document.getElementById('apk-progress-pill-fill');
+    if (apkFill) apkFill.style.width = `${pct}%`;
+
     const seekSlider = document.getElementById('player-seek-slider');
     if (seekSlider && !seekSlider.__dragging) {
       seekSlider.value = Math.round(pct * 10);
@@ -1038,6 +1305,11 @@
   const seekSlider = document.getElementById('player-seek-slider');
   seekSlider?.addEventListener('mousedown', () => { seekSlider.__dragging = true; });
   seekSlider?.addEventListener('mouseup', () => { seekSlider.__dragging = false; });
+  seekSlider?.addEventListener('input', () => {
+    const pct = Number(seekSlider.value) / 10;
+    const apkFill = document.getElementById('apk-progress-pill-fill');
+    if (apkFill) apkFill.style.width = `${pct}%`;
+  });
   seekSlider?.addEventListener('change', () => {
     seekSlider.__dragging = false;
     if (state.duration > 0) {
@@ -1075,6 +1347,7 @@
     document.getElementById('menu-like-label').textContent = isLiked(target.id)
       ? 'Xóa khỏi bài hát yêu thích'
       : 'Thêm vào bài hát yêu thích';
+    applyPlayerCoverSettings();
     document.getElementById('sheet-player-menu').style.display = 'flex';
   }
 
@@ -1101,7 +1374,7 @@
 
   document.getElementById('btn-mini-more')?.addEventListener('click', () => openPlayerMenuSheet(state.currentTrack));
   document.getElementById('btn-player-more')?.addEventListener('click', () => openPlayerMenuSheet(state.currentTrack));
-  document.getElementById('btn-player-share-direct')?.addEventListener('click', () => openShareSongSheet(state.currentTrack));
+  document.getElementById('btn-player-chevron-menu')?.addEventListener('click', () => openPlayerMenuSheet(state.currentTrack));
 
   // Close overlays when clicking backdrop
   ['sheet-player-menu', 'sheet-share-song', 'sheet-about-app', 'sheet-ota-update'].forEach(id => {
@@ -1305,6 +1578,7 @@
     renderProfileUI();
     renderLogoMoiGrid();
     applyBlurState();
+    applyPlayerCoverSettings();
     syncEqUI();
     renderMoodGrid();
     renderRecentSection();

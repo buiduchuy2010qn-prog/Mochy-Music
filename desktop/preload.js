@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('mochyAPI', {
   searchMusic: (query) => ipcRenderer.invoke('ytm:search', query),
   getTrendingMusic: (category) => ipcRenderer.invoke('ytm:trending', category),
   getLyrics: (track) => ipcRenderer.invoke('lyrics:get', track),
+  translateLyrics: (lines) => ipcRenderer.invoke('lyrics:translate', lines),
+  getCanvasArtwork: (track) => ipcRenderer.invoke('canvas:get', track),
   playYouTube: (videoId) => ipcRenderer.invoke('player:load-yt', videoId),
   playerControl: (action, value) => ipcRenderer.invoke('player:control', action, value),
   setEqualizer: (eqState) => ipcRenderer.invoke('player:set-eq', eqState),
