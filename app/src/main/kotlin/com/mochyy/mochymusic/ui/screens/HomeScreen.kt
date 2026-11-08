@@ -1767,9 +1767,9 @@ fun HomeScreen(
                                 // every stop is black, so the fade is built once and only its alpha follows the scroll
                                 val fade = if (progressiveBar) {
                                     Brush.verticalGradient(
-                                        0f to Color.Black.copy(alpha = 0.9f),
-                                        0.3f to Color.Black.copy(alpha = 0.6f),
-                                        0.6f to Color.Black.copy(alpha = 0.3f),
+                                        0f to Color.Black.copy(alpha = 0.52f),
+                                        0.3f to Color.Black.copy(alpha = 0.30f),
+                                        0.6f to Color.Black.copy(alpha = 0.12f),
                                         1f to Color.Transparent
                                     )
                                 } else {

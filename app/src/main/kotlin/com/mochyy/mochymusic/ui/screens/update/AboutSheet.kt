@@ -430,8 +430,7 @@ private fun ColumnScope.AboutSheetContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF101915))
-                    .border(1.2.dp, Color(0xFF2EE59D).copy(alpha = 0.45f), RoundedCornerShape(24.dp))
+                    .background(MenuRowSurface)
                     .padding(vertical = 6.dp),
             ) {
                 PersonRow(

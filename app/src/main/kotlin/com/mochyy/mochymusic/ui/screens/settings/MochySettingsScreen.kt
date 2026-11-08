@@ -349,7 +349,7 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .glassRoot(glassState, isActive = { !scrollState.isScrollInProgress && collapseProgress > 0f }),
+                .glassRoot(glassState, isActive = { collapseProgress > 0.005f }),
         ) {
         Column(
             modifier = Modifier

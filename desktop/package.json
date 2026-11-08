@@ -1,7 +1,7 @@
 {
   "name": "mochy-music-desktop",
-  "version": "8.5.0",
-  "buildNumber": "1239",
+  "version": "8.7.0",
+  "buildNumber": "1242",
   "description": "Mochy Music (Bản Việt Hóa) — Ứng dụng nghe nhạc mã nguồn mở cho Windows & Linux (GPL-3.0)",
   "homepage": "https://github.com/buiduchuy2010qn-prog/Mochy-Music",
   "main": "main.js",
@@ -13,10 +13,11 @@
     "dist:linux": "electron-builder --linux AppImage deb --x64"
   },
   "devDependencies": {
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
+    "electron": "33.2.0",
+    "electron-builder": "25.1.8"
   },
   "build": {
+    "electronVersion": "33.2.0",
     "appId": "com.mochyy.mochymusic.desktop",
     "productName": "Mochy Music",
     "copyright": "Copyright (C) 2026 Đức Huy (@buiduchuy2010qn-prog) & @realidkroo — Licensed under GNU GPL v3.0",

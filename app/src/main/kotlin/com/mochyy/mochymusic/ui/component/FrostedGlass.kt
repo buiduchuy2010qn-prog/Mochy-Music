@@ -32,11 +32,11 @@ import com.mochyy.mochymusic.utils.rememberPreference
  */
 
 /** How much of the chrome colour covers the blurred app. */
-private const val FrostTintAlpha = 0.78f
+private const val FrostTintAlpha = 0.42f
 
 /** The hairline is 2 real pixels on every screen, not 2dp: any thicker and it reads as a border. */
 private const val ChromeOutlineWidthPx = 2f
-private val ChromeOutlineColor = Color.White.copy(alpha = 0.05f)
+private val ChromeOutlineColor = Color.White.copy(alpha = 0.11f)
 private val ChromeOutlineStroke = Stroke(ChromeOutlineWidthPx)
 
 /** Lifts the chrome off a light page without looking like a dark halo on a black one. */
@@ -88,7 +88,7 @@ fun FrostedChromeGlass(
         ModuleChromeGlass(state, moduleGlass, pureBlack, accentWash, modifier)
         return
     }
-    val color = if (pureBlack) Color.Black else GlassChromeColor
+    val color = if (pureBlack && blurOff) Color.Black else GlassChromeColor
     // the grain only matters on the finer, high quality glass
     val grain = LocalBlurQuality.current == com.mochyy.mochymusic.constants.BlurQuality.HIGH
     Box(
@@ -100,8 +100,8 @@ fun FrostedChromeGlass(
         GlassPillBackground(
             state = state,
             blurRadius = { GlassChromeBlurRadius },
-            tint = color.copy(alpha = FrostTintAlpha),
-            foundationColor = color,
+            tint = if (blurOff) color else color.copy(alpha = FrostTintAlpha),
+            foundationColor = if (blurOff) color else color.copy(alpha = 0.42f),
             accentWash = accentWash,
             // Only reaches the margin's outer edge now, too far out to show.
             tileMode = android.graphics.Shader.TileMode.CLAMP,

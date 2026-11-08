@@ -270,15 +270,25 @@ fun SearchGlassTopBar(
                                 return@onDrawBehind
                             }
 
-                            val boost = if (blurActive) 1f else 1.12f
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    0f to pageColor.copy(alpha = (p * 0.95f * boost).coerceAtMost(1f)),
-                                    0.45f to pageColor.copy(alpha = (p * 0.72f * boost).coerceAtMost(1f)),
-                                    0.78f to pageColor.copy(alpha = (p * 0.34f * boost).coerceAtMost(1f)),
-                                    1f to Color.Transparent,
+                            if (blurActive) {
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        0f to pageColor.copy(alpha = (p * 0.52f).coerceAtMost(1f)),
+                                        0.45f to pageColor.copy(alpha = (p * 0.30f).coerceAtMost(1f)),
+                                        0.78f to pageColor.copy(alpha = (p * 0.12f).coerceAtMost(1f)),
+                                        1f to Color.Transparent,
+                                    )
                                 )
-                            )
+                            } else {
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        0f to pageColor.copy(alpha = (p * 0.95f * 1.12f).coerceAtMost(1f)),
+                                        0.45f to pageColor.copy(alpha = (p * 0.72f * 1.12f).coerceAtMost(1f)),
+                                        0.78f to pageColor.copy(alpha = (p * 0.34f * 1.12f).coerceAtMost(1f)),
+                                        1f to Color.Transparent,
+                                    )
+                                )
+                            }
                         }
                     }
             )

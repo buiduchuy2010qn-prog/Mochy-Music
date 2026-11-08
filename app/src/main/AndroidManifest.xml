@@ -994,6 +994,134 @@
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
         </activity-alias>
+        <activity-alias
+            android:name=".IconNewAvatarDefault"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/app_icon_new_avatar_default"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/app_icon_new_avatar_default"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNewAvatarHappy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/app_icon_new_avatar_happy"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/app_icon_new_avatar_happy"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNewAvatarMusic"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/app_icon_new_avatar_music"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/app_icon_new_avatar_music"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNewAvatarSleep"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/app_icon_new_avatar_sleep"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/app_icon_new_avatar_sleep"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNewPlayDark"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/app_icon_new_play_dark"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/app_icon_new_play_dark"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNewPlayGradient"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/app_icon_new_play_gradient"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/app_icon_new_play_gradient"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNewPlayGlass"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/app_icon_new_play_glass"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/app_icon_new_play_glass"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNewPlayGalaxy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/app_icon_new_play_galaxy"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/app_icon_new_play_galaxy"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"

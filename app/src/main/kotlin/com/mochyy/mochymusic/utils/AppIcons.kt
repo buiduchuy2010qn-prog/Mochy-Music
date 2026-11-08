@@ -14,7 +14,8 @@ import androidx.annotation.StringRes
 import androidx.core.content.edit
 import com.mochyy.mochymusic.R
 
-enum class AppIconFamily(@StringRes val title: Int) {
+enum class AppIconFamily(@StringRes val title: Int, val supportsCustomColor: Boolean = true) {
+    NewLogo(R.string.app_icon_family_new_logo, supportsCustomColor = false),
     Mark(R.string.app_icon_family_mark),
     Outline(R.string.app_icon_family_outline),
     Anime(R.string.app_icon_family_anime),
@@ -23,6 +24,7 @@ enum class AppIconFamily(@StringRes val title: Int) {
     // the art this family wears on a custom colour: the outline goes dark on a pale one, like on white
     @DrawableRes
     fun artOn(color: AppIconColor): Int = when (this) {
+        NewLogo -> R.drawable.ic_logo_moi_avatar_default
         Mark -> R.drawable.ic_launcher_mark
         Outline -> if (color.pale) R.drawable.ic_launcher_outline_dark else R.drawable.ic_launcher_monochrome
         Anime -> R.drawable.ic_launcher_anime
@@ -61,6 +63,14 @@ class AppIcon private constructor(
 
         // the ready-made ones, each family's in the order its row shows them
         val presets: List<AppIcon> = listOf(
+            AppIcon("NewAvatarDefault", "IconNewAvatarDefault", AppIconFamily.NewLogo, R.drawable.ic_logo_moi_avatar_default, R.color.app_icon_black, R.string.app_icon_new_avatar_default),
+            AppIcon("NewAvatarHappy", "IconNewAvatarHappy", AppIconFamily.NewLogo, R.drawable.ic_logo_moi_avatar_happy, R.color.app_icon_black, R.string.app_icon_new_avatar_happy),
+            AppIcon("NewAvatarMusic", "IconNewAvatarMusic", AppIconFamily.NewLogo, R.drawable.ic_logo_moi_avatar_music, R.color.app_icon_black, R.string.app_icon_new_avatar_music),
+            AppIcon("NewAvatarSleep", "IconNewAvatarSleep", AppIconFamily.NewLogo, R.drawable.ic_logo_moi_avatar_sleep, R.color.app_icon_black, R.string.app_icon_new_avatar_sleep),
+            AppIcon("NewPlayDark", "IconNewPlayDark", AppIconFamily.NewLogo, R.drawable.ic_logo_moi_play_dark, R.color.app_icon_black, R.string.app_icon_new_play_dark),
+            AppIcon("NewPlayGradient", "IconNewPlayGradient", AppIconFamily.NewLogo, R.drawable.ic_logo_moi_play_gradient, R.color.app_icon_black, R.string.app_icon_new_play_gradient),
+            AppIcon("NewPlayGlass", "IconNewPlayGlass", AppIconFamily.NewLogo, R.drawable.ic_logo_moi_play_glass, R.color.app_icon_black, R.string.app_icon_new_play_glass),
+            AppIcon("NewPlayGalaxy", "IconNewPlayGalaxy", AppIconFamily.NewLogo, R.drawable.ic_logo_moi_play_galaxy, R.color.app_icon_black, R.string.app_icon_new_play_galaxy),
             Default,
             AppIcon("MarkWhite", "IconMarkWhite", AppIconFamily.Mark, R.drawable.ic_launcher_mark, R.color.app_icon_white, R.string.app_icon_white),
             AppIcon("MarkBlack", "IconMarkBlack", AppIconFamily.Mark, R.drawable.ic_launcher_mark, R.color.app_icon_black, R.string.app_icon_black),
@@ -78,7 +88,7 @@ class AppIcon private constructor(
         )
 
         // every family on every custom colour, named MarkRed with the alias IconMarkRed, as the manifest has them
-        private val customs: List<AppIcon> = AppIconFamily.entries.flatMap { family ->
+        private val customs: List<AppIcon> = AppIconFamily.entries.filter { it.supportsCustomColor }.flatMap { family ->
             AppIconColor.entries.map { color ->
                 AppIcon(
                     name = family.name + color.name,
@@ -109,13 +119,13 @@ object AppIcons {
         return AppIcon.entries.firstOrNull { started.endsWith(".${it.alias}") }
     }
 
-    /** whether this launch's splash showed [icon] itself: only an anime one, and only on android 13+, which can pick a splash per launch */
-    fun splashShows(icon: AppIcon?): Boolean = icon?.family == AppIconFamily.Anime && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    /** whether this launch's splash showed [icon] itself: only an anime or new logo one, and only on android 13+, which can pick a splash per launch */
+    fun splashShows(icon: AppIcon?): Boolean = (icon?.family == AppIconFamily.Anime || icon?.family == AppIconFamily.NewLogo) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
     // the next launch's splash: the launcher icon for an anime one to bounce out of, the bare mark for the rest
     fun syncSplash(activity: Activity, icon: AppIcon = current(activity)) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val theme = if (icon.family == AppIconFamily.Anime) R.style.Theme_App_Starting_Icon else R.style.Theme_App_Starting
+        val theme = if (icon.family == AppIconFamily.Anime || icon.family == AppIconFamily.NewLogo) R.style.Theme_App_Starting_Icon else R.style.Theme_App_Starting
         runCatching { activity.splashScreen.setSplashScreenTheme(theme) }
     }
 

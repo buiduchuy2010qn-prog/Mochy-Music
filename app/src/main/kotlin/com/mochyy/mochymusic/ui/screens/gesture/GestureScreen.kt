@@ -34,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import com.mochyy.mochymusic.ui.component.glassRoot
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -153,46 +155,91 @@ fun CustomisationScreen(navController: NavController) {
     val titles = CustomiseSection.entries.associateWith { stringResource(it.titleRes) }
     val shown = CustomiseSection.entries.filter { it.available && it.matches(query, titles.getValue(it)) }
     val scroll = rememberScrollState()
+    val glassState = remember { com.mochyy.mochymusic.ui.component.GlassState() }
+    val topBarAlpha by remember { androidx.compose.runtime.derivedStateOf { (scroll.value / 72f).coerceIn(0f, 1f) } }
     // nothing stays pinned over this page, so a highlighted section lands just under the status bar
-    val settingsScroll = remember(scroll, statusTop) { SettingsScroll(scroll, statusTop + 16.dp) }
+    val settingsScroll = remember(scroll, statusTop) { SettingsScroll(scroll, statusTop + 28.dp) }
 
     // a plain black page like the mock: back button, the title, the search, then the cards
     CompositionLocalProvider(LocalSettingsScroll provides settingsScroll) {
         Box(
-            contentAlignment = Alignment.TopCenter,
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
-                .verticalScroll(scroll),
+                .background(Color.Black),
         ) {
-            Column(
+            Box(
+                contentAlignment = Alignment.TopCenter,
                 modifier = Modifier
-                    .widthIn(max = PageMaxWidth)
-                    .fillMaxWidth()
-                    .padding(horizontal = CustomisePageMargin)
-                    .padding(top = statusTop + 18.dp, bottom = bottomInset + 32.dp),
+                    .fillMaxSize()
+                    .glassRoot(glassState, isActive = { topBarAlpha > 0.005f }),
             ) {
-                LabBackButton(onBack = { navController.navigateUp() })
-                Spacer(Modifier.height(14.dp))
-                Text(text = stringResource(R.string.customise_title), style = PageTitleStyle, color = Color.White)
-                Spacer(Modifier.height(16.dp))
-                SubSettingsSearchBar(query = query, onQueryChange = { query = it })
-                Spacer(Modifier.height(18.dp))
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = PageMaxWidth)
+                        .fillMaxWidth()
+                        .verticalScroll(scroll)
+                        .padding(horizontal = CustomisePageMargin)
+                        .padding(top = statusTop + 18.dp, bottom = bottomInset + 32.dp),
+                ) {
+                    LabBackButton(onBack = { navController.navigateUp() })
+                    Spacer(Modifier.height(14.dp))
+                    Text(text = stringResource(R.string.customise_title), style = PageTitleStyle, color = Color.White)
+                    Spacer(Modifier.height(16.dp))
+                    SubSettingsSearchBar(query = query, onQueryChange = { query = it })
+                    Spacer(Modifier.height(18.dp))
 
-                if (shown.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.customise_nothing_matches, query),
-                        fontFamily = InterFontFamily,
-                        fontSize = 15.sp,
-                        color = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
-                    )
-                }
-                shown.forEachIndexed { index, section ->
-                    if (index > 0) SectionRule()
-                    Box(Modifier.highlightTarget(section.keys)) {
-                        CustomiseSectionContent(section)
+                    if (shown.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.customise_nothing_matches, query),
+                            fontFamily = InterFontFamily,
+                            fontSize = 15.sp,
+                            color = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
+                        )
                     }
+                    shown.forEachIndexed { index, section ->
+                        if (index > 0) SectionRule()
+                        Box(Modifier.highlightTarget(section.keys)) {
+                            CustomiseSectionContent(section)
+                        }
+                    }
+                }
+            }
+
+            if (topBarAlpha > 0.005f) {
+                val progressive = com.mochyy.mochymusic.ui.component.rememberProgressiveBlur()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(statusTop + 36.dp)
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer { alpha = topBarAlpha },
+                ) {
+                    com.mochyy.mochymusic.ui.component.ProgressiveGlassBackground(
+                        state = glassState,
+                        maxBlurRadius = { 42f * topBarAlpha },
+                        foundationColor = Color.Black.copy(alpha = 0.35f * topBarAlpha),
+                        direction = com.mochyy.mochymusic.ui.component.BlurDirection.BottomToTop,
+                        steps = 3,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                if (progressive) {
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        listOf(
+                                            Color.Black.copy(alpha = 0.52f),
+                                            Color.Black.copy(alpha = 0.24f),
+                                            Color.Transparent,
+                                        ),
+                                    )
+                                } else {
+                                    androidx.compose.ui.graphics.SolidColor(Color.Black.copy(alpha = com.mochyy.mochymusic.ui.component.FlatBarScrimAlpha))
+                                },
+                            ),
+                    )
                 }
             }
         }

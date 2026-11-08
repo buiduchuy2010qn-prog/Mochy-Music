@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
+import com.mochyy.mochymusic.ui.component.glassRoot
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlin.math.roundToInt
 import com.mochyy.mochymusic.ui.utils.stableStatusBars
@@ -145,30 +146,37 @@ fun AudioLabPage(
             }.map { it.measure(constraints) }
 
             val body = subcompose("body") {
+                val glassState = remember { com.mochyy.mochymusic.ui.component.GlassState() }
                 // its own layer: scrolling repaints the sheet, not the backdrop and title behind it
                 Box(Modifier.fillMaxSize().graphicsLayer()) {
-                    Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
-                        Spacer(Modifier.height(headerDp))
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                // black to the bottom even when there's little on the page
-                                .heightIn(min = viewport - headerDp + SheetCorner)
-                                .clip(RoundedCornerShape(topStart = SheetCorner, topEnd = SheetCorner))
-                                .background(SheetColor),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .glassRoot(glassState, isActive = { scroll.value > 0 })
+                    ) {
+                        Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                            Spacer(Modifier.height(headerDp))
                             Column(
                                 modifier = Modifier
-                                    .widthIn(max = ContentMaxWidth)
                                     .fillMaxWidth()
-                                    .padding(horizontal = SideMargin)
-                                    .padding(top = 30.dp, bottom = bottomInset + 32.dp),
-                                content = content,
-                            )
+                                    // black to the bottom even when there's little on the page
+                                    .heightIn(min = viewport - headerDp + SheetCorner)
+                                    .clip(RoundedCornerShape(topStart = SheetCorner, topEnd = SheetCorner))
+                                    .background(SheetColor),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .widthIn(max = ContentMaxWidth)
+                                        .fillMaxWidth()
+                                        .padding(horizontal = SideMargin)
+                                        .padding(top = 30.dp, bottom = bottomInset + 32.dp),
+                                    content = content,
+                                )
+                            }
                         }
                     }
-                    TopScrim(scroll, headerHeight, statusTop)
+                    TopScrim(scroll, headerHeight, statusTop, glassState)
                     LabBackButton(onBack, Modifier.padding(start = inset, top = statusTop + 14.dp))
                 }
             }.map { it.measure(constraints) }
@@ -329,7 +337,13 @@ private fun LabBadge(text: String) {
 
 /** keeps what scrolls up under the status bar and the back button readable */
 @Composable
-private fun TopScrim(scroll: ScrollState, headerHeight: Int, statusTop: Dp) {
+private fun TopScrim(
+    scroll: ScrollState,
+    headerHeight: Int,
+    statusTop: Dp,
+    glassState: com.mochyy.mochymusic.ui.component.GlassState,
+) {
+    val progressive = com.mochyy.mochymusic.ui.component.rememberProgressiveBlur()
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -338,9 +352,28 @@ private fun TopScrim(scroll: ScrollState, headerHeight: Int, statusTop: Dp) {
                 // only once the sheet has reached the top
                 val reach = headerHeight - (statusTop + 64.dp).toPx()
                 alpha = ((scroll.value - reach) / 48.dp.toPx()).coerceIn(0f, 1f)
-            }
-            .background(Brush.verticalGradient(listOf(Color.Black, Color.Black.copy(alpha = 0.85f), Color.Transparent))),
-    )
+            },
+    ) {
+        com.mochyy.mochymusic.ui.component.ProgressiveGlassBackground(
+            state = glassState,
+            maxBlurRadius = { 42f },
+            foundationColor = Color.Black.copy(alpha = 0.35f),
+            direction = com.mochyy.mochymusic.ui.component.BlurDirection.BottomToTop,
+            steps = 3,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    if (progressive) {
+                        Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.52f), Color.Black.copy(alpha = 0.24f), Color.Transparent))
+                    } else {
+                        androidx.compose.ui.graphics.SolidColor(Color.Black.copy(alpha = com.mochyy.mochymusic.ui.component.FlatBarScrimAlpha))
+                    },
+                ),
+        )
+    }
 }
 
 // the round grey back button, shared with the customize page

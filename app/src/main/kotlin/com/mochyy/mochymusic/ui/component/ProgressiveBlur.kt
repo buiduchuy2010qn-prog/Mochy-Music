@@ -50,7 +50,7 @@ half4 main(float2 p) {
     float along = clamp(mix(g.y, g.x, across), 0.0, 1.0);
     if (growDown < 0.5) { along = 1.0 - along; }
     float t = clamp(along / ramp, 0.0, 1.0);
-    float r = maxRadius * t * t;
+    float r = maxRadius * t;
     float sigma = 0.57735 * r + 0.5;
     float rest = sigma * sigma - preSigma * preSigma;
     if (r < 0.5 || rest < 0.25) { return content.eval(p); }
@@ -112,7 +112,7 @@ private class BandPlan {
         val rampLength = max(ramp * length, 1f)
         fun radiusAt(a: Float): Float {
             val t = (a / rampLength).coerceIn(0f, 1f)
-            return radius * t * t
+            return radius * t
         }
         fun reach(r: Float, k: Int, preSigma: Float): Float {
             val sigma = 0.57735f * r / k + 0.5f

@@ -30,7 +30,7 @@ extensions.configure<ApplicationExtension> {
         val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
         val versionStep = (ciRunNumber - 10).coerceAtLeast(0)
         val tenths = 83 + versionStep
-        val fallbackSemver = if (versionStep == 0) "8.3.2" else "${tenths / 10}.${tenths % 10}.0"
+        val fallbackSemver = if (versionStep == 0) "8.7.0" else "${tenths / 10}.${tenths % 10}.0"
         val computedSemver = System.getenv("MOCHY_APP_VERSION")?.takeIf { it.isNotBlank() } ?: fallbackSemver
         versionCode = 73 + ciRunNumber
         versionName = "$computedSemver build#${1228 + ciRunNumber}"

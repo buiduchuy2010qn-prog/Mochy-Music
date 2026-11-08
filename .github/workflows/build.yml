@@ -96,7 +96,8 @@ jobs:
           $pkg | ConvertTo-Json -Depth 10 | Set-Content $pkgPath -Encoding UTF8
 
           Push-Location desktop
-          npm install --no-audit --no-fund
+          $env:ELECTRON_SKIP_BINARY_DOWNLOAD = "1"
+          npm install --no-audit --no-fund --ignore-scripts
           npx electron-builder --win nsis portable --x64 --publish never
           if ($LASTEXITCODE -ne 0) {
             Write-Host "Retrying Windows build with ELECTRON_MIRROR..."
@@ -145,7 +146,7 @@ jobs:
           "
 
           cd desktop
-          npm install --no-audit --no-fund
+          ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install --no-audit --no-fund --ignore-scripts
           npx electron-builder --linux AppImage deb --x64 --publish never || \
             ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" npx electron-builder --linux AppImage deb --x64 --publish never
 

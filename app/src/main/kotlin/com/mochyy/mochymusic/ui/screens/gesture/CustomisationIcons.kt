@@ -237,17 +237,21 @@ private fun FamilyIcons(
                 TileLabel(text = stringResource(icon.label), picked = icon == picked)
             }
         }
-        val custom = AppIcon.custom(family, customColor)
-        IconTile(icon = custom, art = art, picked = custom == picked, onClick = { onPick(custom) }) {
-            CustomizeButton(open = customizing, onClick = onCustomize)
+        if (family.supportsCustomColor) {
+            val custom = AppIcon.custom(family, customColor)
+            IconTile(icon = custom, art = art, picked = custom == picked, onClick = { onPick(custom) }) {
+                CustomizeButton(open = customizing, onClick = onCustomize)
+            }
         }
     }
-    AnimatedVisibility(
-        visible = customizing,
-        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
-    ) {
-        ColorSwatches(selected = customColor, onPick = { color -> onPick(AppIcon.custom(family, color)) })
+    if (family.supportsCustomColor) {
+        AnimatedVisibility(
+            visible = customizing,
+            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+        ) {
+            ColorSwatches(selected = customColor, onPick = { color -> onPick(AppIcon.custom(family, color)) })
+        }
     }
 }
 
@@ -289,8 +293,8 @@ private fun IconArt(icon: AppIcon, art: Map<Int, Painter>, picked: Boolean, modi
         Image(
             painter = art.getValue(icon.foreground),
             contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.requiredSize(TileSize * 1.5f),
+            contentScale = if (icon.family == AppIconFamily.NewLogo) ContentScale.Crop else ContentScale.Fit,
+            modifier = if (icon.family == AppIconFamily.NewLogo) Modifier.size(TileSize) else Modifier.requiredSize(TileSize * 1.5f),
         )
     }
 }

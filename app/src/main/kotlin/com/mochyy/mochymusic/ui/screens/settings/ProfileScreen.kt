@@ -769,7 +769,11 @@ fun ProfileScreen(navController: NavController) {
                             .background(
                                 if (progressiveBar) {
                                     Brush.verticalGradient(
-                                        listOf(Color.Black, Color.Black.copy(alpha = 0.85f * collapseProgress), Color.Transparent),
+                                        listOf(
+                                            Color.Black.copy(alpha = 0.50f * collapseProgress),
+                                            Color.Black.copy(alpha = 0.25f * collapseProgress),
+                                            Color.Transparent,
+                                        ),
                                     )
                                 } else {
                                     androidx.compose.ui.graphics.SolidColor(Color.Black.copy(alpha = com.mochyy.mochymusic.ui.component.FlatBarScrimAlpha))
@@ -1120,10 +1124,9 @@ private fun ModderCard(onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF101915))
-            .border(1.2.dp, Color(0xFF2EE59D).copy(alpha = 0.45f), RoundedCornerShape(22.dp))
+            .background(PageCard)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(CardPadding),
     ) {
         coil3.compose.AsyncImage(
             model = "https://github.com/buiduchuy2010qn-prog.png?size=160",
@@ -1132,30 +1135,47 @@ private fun ModderCard(onClick: () -> Unit) {
             error = painterResource(R.drawable.ic_mochy_mark),
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(42.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF1E2D24))
-                .border(1.5.dp, Color(0xFF2EE59D), CircleShape),
+                .background(Color(0xFF232323))
+                .border(1.5.dp, PageCard, CircleShape),
         )
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "NGƯỜI CHỈNH SỬA & VIỆT HÓA",
-                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 10.5.sp, letterSpacing = 0.4.sp, color = Color(0xFF2EE59D)),
+                "Người chỉnh sửa & Việt hóa",
+                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF9A9A9A)),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                "Đức Huy (@buiduchuy2010qn-prog)",
-                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.5.sp, letterSpacing = (-0.4).sp, color = Color.White),
+                "Đức Huy",
+                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, letterSpacing = (-0.6).sp, color = Color.White),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                "Bản Việt hóa 100% • Android, Windows, Linux (OTA)",
-                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Medium, fontSize = 12.sp, color = Color(0xFFB5C4BC)),
+                "@buiduchuy2010qn-prog",
+                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Medium, fontSize = 12.5.sp, color = Color(0xFF8A8A8A)),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(Color(0xFF4D4D4D))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            Text(
+                "Tác giả",
+                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White),
+                maxLines = 1,
+                softWrap = false,
             )
         }
     }

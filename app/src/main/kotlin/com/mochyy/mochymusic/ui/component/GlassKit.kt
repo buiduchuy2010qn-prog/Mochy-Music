@@ -185,10 +185,10 @@ fun Modifier.glassRoot(state: GlassState, isActive: () -> Boolean = { true }): M
  * with white icons over a white hairline border, so they are meant to read as dark glass. The
  * shade is the Figma's.
  */
-val GlassChromeColor = Color(0xFF131313)
+val GlassChromeColor = Color(0xFF161618)
 
 /** Backdrop blur for that chrome, heavier than the 24f default so it reads as properly frosted. */
-const val GlassChromeBlurRadius = 48f
+const val GlassChromeBlurRadius = 32f
 
 /** how strongly a coloured page's accent washes over the chrome glass, over its usual dark tint */
 private const val ChromeAccentWash = 0.55f
@@ -506,7 +506,7 @@ private val FlatBarEdgeColor = Color.White.copy(alpha = 0.16f)
 private val FlatBarEdgeWidth = 1.dp
 
 // how dark the one even tint is that replaces a bar's fading scrim while progressive blur is off
-const val FlatBarScrimAlpha = 0.45f
+const val FlatBarScrimAlpha = 0.24f
 
 // whether bars blur progressively; off, they're flat with a hairline, and their own fading scrims turn into one tint
 @Composable
@@ -525,6 +525,7 @@ fun ProgressiveGlassBackground(
     modifier: Modifier = Modifier,
     steps: Int = 5
 ) {
+    val effectiveFoundation = foundationColor?.let { it.copy(alpha = it.alpha.coerceAtMost(0.36f)) }
     // off, the bar is one even blur that stops at a hard edge with a hairline, a classic frosted bar instead of a fade
     if (!rememberProgressiveBlur()) {
         Box(
@@ -541,7 +542,7 @@ fun ProgressiveGlassBackground(
                 state = state,
                 blurRadius = maxBlurRadius,
                 tint = tint,
-                foundationColor = foundationColor,
+                foundationColor = effectiveFoundation,
                 tileMode = android.graphics.Shader.TileMode.CLAMP,
                 // blurred from what's really past the edge, so the hard edge doesn't smear into a glow
                 bleed = true,
@@ -567,7 +568,7 @@ fun ProgressiveGlassBackground(
                 state = state,
                 blurRadius = maxBlurRadius,
                 tint = tint,
-                foundationColor = foundationColor,
+                foundationColor = effectiveFoundation,
                 mask = mask,
                 progressive = direction,
                 modifier = Modifier.fillMaxSize(),
@@ -575,17 +576,18 @@ fun ProgressiveGlassBackground(
         }
         return
     }
+    val actualSteps = steps.coerceAtLeast(3)
     Box(modifier = modifier) {
-        for (i in 1..steps) {
-            val fraction = i.toFloat() / steps
+        for (i in 1..actualSteps) {
+            val fraction = i.toFloat() / actualSteps
 
-            val radiusProvider = { maxBlurRadius() * (fraction * fraction) }
+            val radiusProvider = { maxBlurRadius() * fraction }
 
-            val fadeStart = (i - 1).toFloat() / steps
+            val fadeStart = (i - 1).toFloat() / actualSteps
             val heightFraction = 1f - fadeStart
 
             if (heightFraction > 0f) {
-                val internalFadeDistance = (1f / steps) / heightFraction
+                val internalFadeDistance = (1f / actualSteps) / heightFraction
                 // Each step fades in over its first slice. The mask used to be DstIn-ed over the
                 // step in an offscreen layer of its own - one more full-width buffer per step,
                 // every frame the bar's backdrop moved; it now runs inside the step's blur.
@@ -609,7 +611,7 @@ fun ProgressiveGlassBackground(
                     state = state,
                     blurRadius = radiusProvider,
                     tint = tint,
-                    foundationColor = foundationColor,
+                    foundationColor = if (i == 1) effectiveFoundation else null,
                     mask = mask,
                     modifier = Modifier
                         .fillMaxWidth()

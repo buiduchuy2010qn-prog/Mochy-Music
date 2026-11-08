@@ -1068,9 +1068,9 @@ class MainActivity : ComponentActivity() {
                                                         androidx.compose.ui.graphics.Brush.verticalGradient(
                                                             colors = listOf(
                                                                 Color.Transparent,
-                                                                tint.copy(alpha = 0.5f),
-                                                                tint.copy(alpha = 0.9f),
-                                                                tint
+                                                                tint.copy(alpha = 0.14f),
+                                                                tint.copy(alpha = 0.36f),
+                                                                tint.copy(alpha = 0.58f)
                                                             )
                                                         )
                                                     )

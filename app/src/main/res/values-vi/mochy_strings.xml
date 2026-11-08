@@ -1142,4 +1142,13 @@
     <string name="recent_search_artist">Nghệ sĩ</string>
     <string name="recent_search_remove">Xóa khỏi tìm kiếm gần đây</string>
     <string name="meta_app_id" translatable="false"></string>
+    <string name="app_icon_family_new_logo">Logo mới</string>
+    <string name="app_icon_new_avatar_default">Mochy Mặc định</string>
+    <string name="app_icon_new_avatar_happy">Mochy Vui vẻ</string>
+    <string name="app_icon_new_avatar_music">Mochy Nghe nhạc</string>
+    <string name="app_icon_new_avatar_sleep">Mochy Ngủ ngon</string>
+    <string name="app_icon_new_play_dark">Play Tối</string>
+    <string name="app_icon_new_play_gradient">Play Chuyển sắc</string>
+    <string name="app_icon_new_play_glass">Play Trong suốt</string>
+    <string name="app_icon_new_play_galaxy">Play Ngân hà</string>
 </resources>
