@@ -32,7 +32,7 @@ jobs:
           else
             echo "android_changed=false" >> $GITHUB_OUTPUT
           fi
-          if echo "$CHANGED" | grep -qE '^(desktop/|\.github/|all)'; then
+          if echo "$CHANGED" | grep -qE '^(desktop/|all)'; then
             echo "desktop_changed=true" >> $GITHUB_OUTPUT
           else
             echo "desktop_changed=false" >> $GITHUB_OUTPUT
@@ -78,12 +78,13 @@ jobs:
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 2 ))
+          RUN_NUM=${GITHUB_RUN_NUMBER:-17}
+          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 7 ))
           TENTHS=$(( 83 + STEP ))
           APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
+          BUILD_NUM=$(( 1228 + RUN_NUM ))
           export MOCHY_APP_VERSION="$APP_VER"
-          ./gradlew assembleArm64GmsRelease --no-daemon
+          ./gradlew assembleArm64GmsRelease -PmochyAppVersion="$APP_VER" -PmochyBuildNumber="$BUILD_NUM" --no-configuration-cache --no-daemon
           mkdir -p dist-android
           REL_APK=$(find app/build/outputs/apk -name "*arm64*release*.apk" | head -n 1)
           cp "$REL_APK" "dist-android/Mochy-Music-v${APP_VER}-vi-arm64.apk"
@@ -193,62 +194,11 @@ jobs:
             desktop/dist/*.AppImage
             desktop/dist/*.deb
 
-  publish-android-ota:
-    name: Publish Android APK OTA (independent)
-    runs-on: ubuntu-latest
-    needs: [build-android]
-    steps:
-      - name: Download Android APK Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: android-apk
-          path: dist-android
-
-      - name: Publish Android OTA Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 2 ))
-          TENTHS=$(( 83 + STEP ))
-          APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
-          BUILD_NUM=$(( 1228 + RUN_NUM ))
-          TAG="v${APP_VER}-b${BUILD_NUM}"
-          TITLE="Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Android OTA (Bản Việt Hóa)"
-
-          cat <<EOF > release_notes.md
-          ### 📱 Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Android OTA
-
-          - **Phiên bản:** `v${APP_VER}` (build#${BUILD_NUM})
-          - **Nền tảng:** Android ARM64
-          - **Cập nhật OTA:** Tải và cài đè trực tiếp từ ứng dụng Mochy Music.
-          - **Tệp APK:** `Mochy-Music-v${APP_VER}-vi-arm64.apk`
-          - Bản phát hành Android được tạo độc lập; lỗi build Windows hoặc Linux không chặn OTA Android.
-
-          ---
-          **Việt hóa & phát triển:** [buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog)
-          **Mã nguồn:** [Mochy-Music](https://github.com/${{ github.repository }})
-          **Giấy phép:** GPL-3.0
-          EOF
-          sed -i 's/^          //' release_notes.md
-
-          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist-android/*.apk --repo "${{ github.repository }}" --clobber
-            gh release edit "$TAG" --repo "${{ github.repository }}" --title "$TITLE" --notes-file release_notes.md --latest
-          else
-            gh release create "$TAG" dist-android/*.apk \
-              --repo "${{ github.repository }}" \
-              --title "$TITLE" \
-              --notes-file release_notes.md \
-              --latest
-          fi
-
   publish-release:
     name: Publish Unified OTA Release (Android, Windows, Linux)
     runs-on: ubuntu-latest
     needs: [build-android, build-windows, build-linux]
-    if: always() && (needs.build-windows.result == 'success' || needs.build-linux.result == 'success')
+    if: always() && (needs.build-android.result == 'success' || needs.build-windows.result == 'success' || needs.build-linux.result == 'success')
     steps:
       - name: Download All Built Artifacts
         uses: actions/download-artifact@v4
@@ -261,47 +211,61 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 2 ))
+          RUN_NUM=${GITHUB_RUN_NUMBER:-17}
+          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 7 ))
           TENTHS=$(( 83 + STEP ))
           APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
           BUILD_NUM=$(( 1228 + RUN_NUM ))
           TAG="v${APP_VER}-b${BUILD_NUM}"
           TITLE="Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa Toàn Diện (Android • Windows • Linux)"
 
+          # If Android was not built in this run (PC-only commit), keep the previous APK with its ORIGINAL filename
+          if ! ls release-assets/*.apk >/dev/null 2>&1; then
+            mkdir -p tmp-prev-apk
+            if gh release download --repo "${{ github.repository }}" --pattern "*.apk" --dir tmp-prev-apk >/dev/null 2>&1; then
+              PREV_APK=$(ls tmp-prev-apk/*.apk | head -n 1)
+              cp "$PREV_APK" "release-assets/$(basename "$PREV_APK")"
+            fi
+          fi
+
+          # If Desktop was not built in this run (Android-only commit), keep the previous PC installers with their ORIGINAL filenames
+          if ! ls release-assets/*.exe >/dev/null 2>&1; then
+            mkdir -p tmp-prev-pc
+            if gh release download --repo "${{ github.repository }}" --pattern "*.exe" --pattern "*.AppImage" --pattern "*.deb" --dir tmp-prev-pc >/dev/null 2>&1; then
+              for f in tmp-prev-pc/*; do
+                [ -e "$f" ] && cp "$f" "release-assets/$(basename "$f")"
+              done
+            fi
+          fi
+
+          APK_FILE=$(ls release-assets/*.apk 2>/dev/null | xargs -n 1 basename | head -n 1)
+          APK_FILE=${APK_FILE:-Mochy-Music-v${APP_VER}-vi-arm64.apk}
+
           cat <<EOF > release_notes.md
-          ### 🎵 Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa 100% & Đa Nền Tảng (Android • Windows • Linux)
+          ### 🎵 Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa 100%
 
-          - **Phiên bản:** \`v${APP_VER} (build#${BUILD_NUM})\` *(Tự động tăng +0.1 mỗi bản phát hành)*
-          - **🌟 Người chỉnh sửa & Việt hóa:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog))**
-          - **Giao diện gốc Mochy Music APK đồng bộ 100% trên PC:** Toàn bộ font chữ (\`Inter\`, \`JetBrains Mono\`), nền đen tuyền \`#000000\`, thẻ \`#0F0F0F\` / \`#141416\`, hiệu ứng kính mờ chuyển sắc (\`Progressive Blur\`), thẻ ID 3D nghiêng theo chuột, lưới Bento Thư viện và mục **Logo mới** đồng bộ nguyên bản APK trên cả **Windows** và **Linux**.
-          - **Nút Chia sẻ bài hát nhanh:** Tích hợp trực tiếp trong menu 3 chấm (\`⋯\`), thanh phát nhạc và mọi danh sách bài hát.
-          - **Hỗ trợ Cập nhật tự động (OTA) & Pop-up thông báo khi mở app:** Tự động hiện bảng thông báo bản cập nhật mới đồng bộ giao diện gốc ngay khi vào ứng dụng trên cả **Android**, **Windows** và **Linux**, hỗ trợ cài đè giữ nguyên toàn bộ dữ liệu.
+          - **Phiên bản mới:** **v${APP_VER} (build#${BUILD_NUM})**
+          - **Người chỉnh sửa & Việt hóa:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog))**
+          - **Đồng bộ 100% Font chữ Inter & Giao diện gốc:** Toàn bộ mô tả bản cập nhật, hộp thoại thông báo OTA, thẻ thông tin và trình phát nhạc đều đồng bộ font chữ **Inter** rõ nét, cỡ chữ lớn dễ đọc và hiệu ứng kính mờ chuẩn của ứng dụng.
+          - **Nút tắt/bật nhanh Ảnh bìa động (Canvas) & Video nền:** Tích hợp công tắc bật/tắt nhanh ngay trong **menu 3 chấm (⋯)** của màn hình phát nhạc và trong **Cài đặt**.
+          - **Sửa lỗi nhận diện phiên bản OTA:** Đồng bộ chính xác mã phiên bản cài đặt thực tế giúp ứng dụng không còn báo cập nhật lặp lại sau khi đã nâng cấp.
 
-          #### 📥 Tải tệp cài đặt (có ghi rõ số phiên bản \`v${APP_VER}\`):
-          1. 🪟 **Windows Bộ cài đặt (\`.exe\` — Hỗ trợ cài đè OTA):** \`Mochy-Music-v${APP_VER}-Windows-x64-Setup.exe\`
-          2. 🪟 **Windows Bản chạy ngay (\`Portable .exe\`):** \`Mochy-Music-v${APP_VER}-Windows-x64-Portable.exe\`
-          3. 🐧 **Linux Mọi bản phân phối (\`.AppImage\`):** \`Mochy-Music-v${APP_VER}-Linux-x86_64.AppImage\`
-          4. 🐧 **Ubuntu / Debian / Linux Mint (\`.deb\`):** \`Mochy-Music-v${APP_VER}-Linux-amd64.deb\`
-          5. 📱 **Android (\`.apk\` — arm64):** \`Mochy-Music-v${APP_VER}-vi-arm64.apk\`
+          #### 📥 Danh sách tệp cài đặt chính thức:
+          1. 📱 **Android (APK arm64 — Hỗ trợ cài đè OTA):** **${APK_FILE}**
+          2. 🪟 **Windows Bộ cài đặt (.exe — Hỗ trợ cài đè OTA):** **Mochy-Music-v${APP_VER}-Windows-x64-Setup.exe**
+          3. 🪟 **Windows Bản chạy ngay (Portable .exe):** **Mochy-Music-v${APP_VER}-Windows-x64-Portable.exe**
+          4. 🐧 **Linux Mọi bản phân phối (.AppImage):** **Mochy-Music-v${APP_VER}-Linux-x86_64.AppImage**
+          5. 🐧 **Ubuntu / Debian / Linux Mint (.deb):** **Mochy-Music-v${APP_VER}-Linux-amd64.deb**
 
           ---
           #### 📜 Bản quyền & Tác giả (GPL-3.0)
           - **Người chỉnh sửa, Việt hóa & Phát triển OTA:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog/Mochy-Music))**
           - **Tác giả gốc (Original Authors):** [@realidkroo (mochyDH P ASHOKAN)](https://github.com/realidkroo), [@realkeichi (key)](https://github.com/realkeichi)
-          - **Dự án nền tảng (Upstream):** ViviMusic (\`@vivizzz007\`) & Metrolist (\`@mostafaalagamy\`)
+          - **Dự án nền tảng (Upstream):** ViviMusic (@vivizzz007) & Metrolist (@mostafaalagamy)
           - **Giấy phép:** [GNU General Public License v3.0 (GPL-3.0)](https://github.com/buiduchuy2010qn-prog/Mochy-Music/blob/main/LICENSE)
           EOF
 
           sed -i 's/^          //' release_notes.md
-
-          if ! ls release-assets/*.apk >/dev/null 2>&1; then
-            mkdir -p tmp-prev-apk
-            if gh release download --repo "${{ github.repository }}" --pattern "*.apk" --dir tmp-prev-apk >/dev/null 2>&1; then
-              PREV_APK=$(ls tmp-prev-apk/*.apk | head -n 1)
-              cp "$PREV_APK" "release-assets/Mochy-Music-v${APP_VER}-vi-arm64.apk"
-            fi
-          fi
 
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload "$TAG" release-assets/* \

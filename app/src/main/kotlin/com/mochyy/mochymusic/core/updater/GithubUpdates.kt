@@ -143,6 +143,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
         val json = connection.inputStream.bufferedReader().use { it.readText() }
         val releases = JSONArray(json)
         val appArch = runCatching { BuildConfig.ARCHITECTURE }.getOrDefault("universal")
+        val seenSemvers = mutableSetOf<Triple<Int, Int, Int>>()
 
         buildList {
             for (i in 0 until releases.length()) {
@@ -151,16 +152,9 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
 
                 val tag = release.optString("tag_name").orEmpty()
                 val title = release.optString("name").orEmpty().ifBlank { tag }
-                val fullVer = parseFullVersion("$title $tag")
+                val tagVer = parseFullVersion("$title $tag")
 
-                if (fullVer.major == 0 && fullVer.minor == 0 && fullVer.patch == 0) continue
-                if (fullVer.copy(buildNumber = 0) < FirstReleaseWithThisId) continue
-
-                val displayVersion = if (fullVer.buildNumber > 0) {
-                    "${fullVer.major}.${fullVer.minor}.${fullVer.patch} (${fullVer.buildNumber})"
-                } else {
-                    "${fullVer.major}.${fullVer.minor}.${fullVer.patch}"
-                }
+                if (tagVer.major == 0 && tagVer.minor == 0 && tagVer.patch == 0) continue
 
                 val assets = release.optJSONArray("assets")
                 var selectedUrl: String? = null
@@ -207,6 +201,32 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                     else -> fallbackSize
                 }
 
+                // Skip PC-only releases that do not contain an Android APK asset
+                if (apkUrl == null || apkName == null) continue
+
+                // If the APK filename encodes its own version (e.g. Mochy-Music-v8.7.0-vi-arm64.apk),
+                // prefer the APK's actual version over a PC-only release tag.
+                val apkVer = parseFullVersion(apkName)
+                val fullVer = if (
+                    apkVer.major > 0 &&
+                    (apkVer.major != tagVer.major || apkVer.minor != tagVer.minor || apkVer.patch != tagVer.patch)
+                ) {
+                    apkVer
+                } else {
+                    tagVer
+                }
+
+                if (fullVer.copy(buildNumber = 0) < FirstReleaseWithThisId) continue
+
+                val semverKey = Triple(fullVer.major, fullVer.minor, fullVer.patch)
+                if (!seenSemvers.add(semverKey)) continue
+
+                val displayVersion = if (fullVer.buildNumber > 0) {
+                    "${fullVer.major}.${fullVer.minor}.${fullVer.patch} (${fullVer.buildNumber})"
+                } else {
+                    "${fullVer.major}.${fullVer.minor}.${fullVer.patch}"
+                }
+
                 add(
                     ParsedRelease(
                         version = fullVer,
@@ -229,8 +249,8 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
 }
 
 fun isNewerThanInstalled(candidateVersionText: String): Boolean {
-    val candidate = parseFullVersion(candidateVersionText)
-    val installed = parseFullVersion(BuildConfig.VERSION_NAME)
+    val candidate = parseFullVersion(candidateVersionText).copy(buildNumber = 0)
+    val installed = parseFullVersion(BuildConfig.VERSION_NAME).copy(buildNumber = 0)
     return candidate > installed
 }
 
@@ -296,7 +316,7 @@ fun requestInstallPermission(context: Context) {
             Intent(
                 android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                 android.net.Uri.parse("package:" + context.packageName),
-            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
 }

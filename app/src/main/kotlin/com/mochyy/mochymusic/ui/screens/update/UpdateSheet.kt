@@ -63,7 +63,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -85,12 +84,13 @@ import com.mochyy.mochymusic.core.updater.isNewerThanInstalled
 import com.mochyy.mochymusic.core.updater.parseFullVersion
 import com.mochyy.mochymusic.ui.component.BetaBadge
 import com.mochyy.mochymusic.ui.component.PopupSheetState
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuSurface
 import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.launch
-import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 @Composable
 fun rememberUpdateState(): androidx.compose.runtime.State<UpdateState> {
@@ -146,7 +146,13 @@ internal fun SheetPrimaryButton(text: String, onClick: () -> Unit) {
             .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = text, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
+        Text(
+            text = text,
+            fontFamily = InterFontFamily,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.4).sp,
+        )
     }
 }
 
@@ -216,10 +222,17 @@ private fun ColumnScope.UpdateSheetContent(
             }
 
             Spacer(Modifier.height(14.dp))
-            Text("Mochy", fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+            Text(
+                text = "Mochy",
+                fontFamily = InterFontFamily,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp,
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    installed,
+                    text = installed,
+                    fontFamily = InterFontFamily,
                     fontSize = 44.sp,
                     lineHeight = 46.sp,
                     fontWeight = FontWeight.Bold,
@@ -237,7 +250,13 @@ private fun ColumnScope.UpdateSheetContent(
             )
 
             Spacer(Modifier.height(22.dp))
-            Text("Thao tác", fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+            Text(
+                text = "Thao tác",
+                fontFamily = InterFontFamily,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp,
+            )
             Spacer(Modifier.height(10.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ActionRow(
@@ -369,9 +388,16 @@ private fun StatusRow(
     }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
             Text(
-                big,
+                text = title,
+                fontFamily = InterFontFamily,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp,
+            )
+            Text(
+                text = big,
+                fontFamily = InterFontFamily,
                 fontSize = 40.sp,
                 lineHeight = 42.sp,
                 fontWeight = FontWeight.Bold,
@@ -383,10 +409,11 @@ private fun StatusRow(
         if (action != null) {
             val interaction = remember { MutableInteractionSource() }
             Text(
-                action,
+                text = action,
                 fontSize = 13.sp,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 0.6.sp,
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.2).sp,
                 modifier = Modifier
                     .pressBounce(interaction)
                     .clip(CircleShape)
@@ -453,7 +480,8 @@ private fun ActionRow(
         }
         Spacer(Modifier.width(14.dp))
         Text(
-            label,
+            text = label,
+            fontFamily = InterFontFamily,
             fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.5).sp,
@@ -463,7 +491,13 @@ private fun ActionRow(
             modifier = Modifier.weight(1f),
         )
         if (hint != null) {
-            Text(hint, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.4f))
+            Text(
+                text = hint,
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.4f),
+            )
         }
     }
 }
@@ -490,177 +524,216 @@ private fun ColumnScope.UpdateDetailContent(
     }
 
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                enabled = !downloading,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = RemoteFocus,
-                onClick = onBack,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    enabled = !downloading,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = RemoteFocus,
+                    onClick = onBack,
+                )
+                .padding(vertical = 6.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.arrow_back),
+                contentDescription = "Quay lại",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp),
             )
-            .padding(vertical = 4.dp),
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.arrow_back),
-            contentDescription = "Back",
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            painter = painterResource(R.drawable.ic_mochy_mark),
-            contentDescription = null,
-            modifier = Modifier.size(22.dp),
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            text = release.title,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(MenuRowSurface)
-            .padding(16.dp)
-            .animateContentSize()
-    ) {
-        Text(text = "Nhật ký thay đổi", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(4.dp))
-        ChangelogMarkdown(
-            markdown = release.body,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            strongColor = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-
-    Spacer(modifier = Modifier.height(18.dp))
-
-    Text(
-        text = "Tệp sẽ cài đặt -",
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(MenuRowSurface)
-            .padding(14.dp)
-    ) {
-        AppIconImage(modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)))
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+            Spacer(modifier = Modifier.width(10.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_mochy_mark),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = release.apkName ?: "mochy.apk",
-                fontSize = 14.sp,
+                text = release.title,
+                fontFamily = InterFontFamily,
+                color = Color.White,
+                fontSize = 16.sp,
+                lineHeight = 21.sp,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = "${BuildConfig.APPLICATION_ID} · ${formatBytes(release.apkSizeBytes)}",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                maxLines = 1,
+                letterSpacing = (-0.4).sp,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-    }
 
-    error?.let {
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(text = it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-    }
+        Spacer(modifier = Modifier.height(16.dp))
 
-    Spacer(modifier = Modifier.height(18.dp))
-
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress.floatValue,
-        animationSpec = tween(durationMillis = 120),
-        label = "downloadProgress",
-    )
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clip(RoundedCornerShape(50))
-            .background(MenuRowSurface)
-            .clickable(
-                enabled = !downloading && release.apkUrl != null,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = RemoteFocus,
-                onClick = {
-                    error = null
-                    if (isDownloaded(context, release)) {
-                        startInstall(apkFileFor(context, release))
-                    } else {
-                        downloading = true
-                        onLocked(true)
-                        progress.floatValue = 0f
-                        scope.launch {
-                            val result = downloadApk(context, release) { progress.floatValue = it }
-                            downloading = false
-                            onLocked(false)
-                            result.fold(
-                                onSuccess = { startInstall(it) },
-                                onFailure = { error = it.message ?: "Tải xuống thất bại" },
-                            )
-                        }
-                    }
-                },
-            )
-    ) {
-        Box(
+        Column(
             modifier = Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxHeight()
-                .fillMaxWidth(fraction = animatedProgress)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-        )
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(MenuRowSurface)
+                .padding(18.dp)
+                .animateContentSize()
+        ) {
+            Text(
+                text = "Nhật ký thay đổi",
+                fontFamily = InterFontFamily,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            ChangelogMarkdown(
+                markdown = release.body,
+                color = Color(0xFFD4D4D8),
+                strongColor = Color.White,
+                fontSize = 14.5.sp,
+                lineHeight = 21.sp,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
         Text(
-            text = when {
-                downloading -> "Đang tải xuống… ${(animatedProgress * 100).toInt()}%"
-                release.apkUrl == null -> "Bản phát hành này chưa có APK"
-                else -> "Tải và cài đặt ngay"
-            },
+            text = "Tệp sẽ cài đặt -",
+            fontFamily = InterFontFamily,
+            color = Color.White.copy(alpha = 0.78f),
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.3).sp,
         )
-    }
+        Spacer(modifier = Modifier.height(8.dp))
 
-    Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(MenuRowSurface)
+                .padding(16.dp)
+        ) {
+            AppIconImage(modifier = Modifier.size(46.dp).clip(RoundedCornerShape(12.dp)))
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = release.apkName ?: "Mochy-Music-vi-arm64.apk",
+                    fontFamily = InterFontFamily,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.3).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${BuildConfig.APPLICATION_ID} · ${formatBytes(release.apkSizeBytes)}",
+                    fontFamily = InterFontFamily,
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.2).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
 
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clip(RoundedCornerShape(50))
-            .background(MenuRowSurface)
-            .clickable(
-                enabled = !downloading,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = RemoteFocus,
-                onClick = { context.openUrl(release.htmlUrl) },
+        error?.let {
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = it,
+                fontFamily = InterFontFamily,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
             )
-    ) {
-        Text(text = "Mở trang tải trên web", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-    }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        val animatedProgress by animateFloatAsState(
+            targetValue = progress.floatValue,
+            animationSpec = tween(durationMillis = 120),
+            label = "downloadProgress",
+        )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(RoundedCornerShape(50))
+                .background(MenuRowSurface)
+                .clickable(
+                    enabled = !downloading && release.apkUrl != null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = RemoteFocus,
+                    onClick = {
+                        error = null
+                        if (isDownloaded(context, release)) {
+                            startInstall(apkFileFor(context, release))
+                        } else {
+                            downloading = true
+                            onLocked(true)
+                            progress.floatValue = 0f
+                            scope.launch {
+                                val result = downloadApk(context, release) { progress.floatValue = it }
+                                downloading = false
+                                onLocked(false)
+                                result.fold(
+                                    onSuccess = { startInstall(it) },
+                                    onFailure = { error = it.message ?: "Tải xuống thất bại" },
+                                )
+                            }
+                        }
+                    },
+                )
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction = animatedProgress)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+            )
+            Text(
+                text = when {
+                    downloading -> "Đang tải xuống… ${(animatedProgress * 100).toInt()}%"
+                    release.apkUrl == null -> "Bản phát hành này chưa có APK"
+                    else -> "Tải và cài đặt ngay"
+                },
+                fontFamily = InterFontFamily,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.3).sp,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(RoundedCornerShape(50))
+                .background(MenuRowSurface)
+                .clickable(
+                    enabled = !downloading,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = RemoteFocus,
+                    onClick = { context.openUrl(release.htmlUrl) },
+                )
+        ) {
+            Text(
+                text = "Mở trang tải trên web",
+                fontFamily = InterFontFamily,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.3).sp,
+            )
+        }
     }
 }
 

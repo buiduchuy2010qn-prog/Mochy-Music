@@ -1,4 +1,4 @@
-// PlayerActionMenu.kt
+﻿// PlayerActionMenu.kt
 
 package com.mochyy.mochymusic.ui.player.menu
 
@@ -62,7 +62,9 @@ import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.LocalDownloadUtil
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.CanvasThumbnailAnimationKey
 import com.mochyy.mochymusic.constants.KeepScreenOn
+import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
 import com.mochyy.mochymusic.playback.ExoDownloadService
 import com.mochyy.mochymusic.playback.queues.YouTubeQueue
 import com.mochyy.mochymusic.ui.component.AppSwitch
@@ -337,6 +339,8 @@ fun PlayerActionMenu(
                 Spacer(modifier = Modifier.height(8.dp))
                 SleepTimerRow(onClick = { showSleepTimer = true })
                 Spacer(modifier = Modifier.height(8.dp))
+                CanvasArtworkRow()
+                Spacer(modifier = Modifier.height(8.dp))
                 KeepScreenOnRow()
                 Spacer(modifier = Modifier.height(8.dp))
                 MenuRow(
@@ -495,6 +499,30 @@ internal fun MenuRow(
     }
 }
 
+@Composable
+private fun CanvasArtworkRow() {
+    val (canvasEnabled, setCanvasEnabled) = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true)
+    val (_, setVideoBg) = rememberPreference(PlayVideoBackgroundKey, defaultValue = false)
+    MenuRow(
+        icon = R.drawable.sparks,
+        title = "Ảnh bìa động (Canvas) & Video nền",
+        onClick = {
+            val next = !canvasEnabled
+            setCanvasEnabled(next)
+            if (!next) setVideoBg(false)
+        },
+        trailing = {
+            AppSwitch(
+                checked = canvasEnabled,
+                onCheckedChange = { next ->
+                    setCanvasEnabled(next)
+                    if (!next) setVideoBg(false)
+                },
+            )
+        },
+    )
+}
+
 /** The phone doesn't sleep while Mochy is open: for following lyrics, or a phone on a car mount. */
 @Composable
 private fun KeepScreenOnRow() {
@@ -624,3 +652,4 @@ private fun DeviceVolumeRow() {
         }
     }
 }
+

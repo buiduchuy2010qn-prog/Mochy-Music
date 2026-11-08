@@ -1,4 +1,4 @@
-package com.mochyy.mochymusic.core.updater
+﻿package com.mochyy.mochymusic.core.updater
 
 import android.content.Context
 import android.content.Intent
@@ -612,29 +612,9 @@ private fun formatGitHubDate(githubDate: String): String = try {
 }
 
 fun isNewerVersion(latestVersion: String, currentVersion: String): Boolean {
-    val latestVersionClean = latestVersion.removePrefix("b").removePrefix("v")
-    val currentVersionClean = currentVersion.removePrefix("b").removePrefix("v")
-
-    val latestParts = latestVersionClean.split(".").map { it.toIntOrNull() ?: 0 }
-    val currentParts = currentVersionClean.split(".").map { it.toIntOrNull() ?: 0 }
-
-    for (i in 0 until maxOf(latestParts.size, currentParts.size)) {
-        val latest = latestParts.getOrElse(i) { 0 }
-        val current = currentParts.getOrElse(i) { 0 }
-        when {
-            latest > current -> return true
-            latest < current -> return false
-        }
-    }
-
-    if (latestVersionClean == currentVersionClean) {
-        val latestIsBeta = latestVersion.startsWith("b")
-        val currentIsBeta = currentVersion.startsWith("b")
-
-        if (currentIsBeta && !latestIsBeta) return true
-    }
-
-    return false
+    val latestVer = parseFullVersion(latestVersion).copy(buildNumber = 0)
+    val currentVer = parseFullVersion(currentVersion).copy(buildNumber = 0)
+    return latestVer > currentVer
 }
 
 suspend fun checkForUpdate(
@@ -753,10 +733,7 @@ suspend fun checkForUpdate(
 
                     if (currentIsBeta && targetIsStable) {
                         shouldShow = true
-                    } else if (isDifferentVersion && targetIsStable) {
-
-                        shouldShow = true
-                    }
+                    } 
                 }
 
                 if (shouldShow) {
@@ -845,3 +822,5 @@ fun String.extractUrls(): List<Pair<IntRange, String>> {
 
     return urlList
 }
+
+

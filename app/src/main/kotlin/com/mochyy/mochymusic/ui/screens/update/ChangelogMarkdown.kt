@@ -24,7 +24,6 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 
 private sealed interface MdBlock {
     data class Heading(val level: Int, val text: String) : MdBlock
@@ -175,17 +175,27 @@ private fun AnnotatedString.Builder.appendInline(text: String, strong: SpanStyle
         val g = match.groupValues
         when {
             g[2].isNotEmpty() -> withStyle(strong) { appendInline(g[2], strong, link) }
-            g[3].isNotEmpty() -> withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) {
+            g[3].isNotEmpty() -> withStyle(
+                SpanStyle(fontFamily = InterFontFamily, textDecoration = TextDecoration.LineThrough)
+            ) {
                 appendInline(g[3], strong, link)
             }
             g[4].isNotEmpty() -> withStyle(
-                SpanStyle(fontFamily = FontFamily.Monospace, background = Color.White.copy(alpha = 0.08f))
+                SpanStyle(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = strong.color,
+                )
             ) { append(g[4]) }
             g[5].isNotEmpty() -> withLink(LinkAnnotation.Url(g[6], TextLinkStyles(style = link))) {
                 appendInline(g[5], strong, link)
             }
-            g[7].isNotEmpty() -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { appendInline(g[7], strong, link) }
-            g[8].isNotEmpty() -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { appendInline(g[8], strong, link) }
+            g[7].isNotEmpty() -> withStyle(
+                SpanStyle(fontFamily = InterFontFamily, fontStyle = FontStyle.Italic)
+            ) { appendInline(g[7], strong, link) }
+            g[8].isNotEmpty() -> withStyle(
+                SpanStyle(fontFamily = InterFontFamily, fontStyle = FontStyle.Italic)
+            ) { appendInline(g[8], strong, link) }
             g[9].isNotEmpty() -> withLink(LinkAnnotation.Url(g[9], TextLinkStyles(style = link))) { append(g[9]) }
         }
         cursor = match.range.last + 1
@@ -195,8 +205,17 @@ private fun AnnotatedString.Builder.appendInline(text: String, strong: SpanStyle
 private fun inline(text: String, strongColor: Color): AnnotatedString = buildAnnotatedString {
     appendInline(
         text = text,
-        strong = SpanStyle(fontWeight = FontWeight.Bold, color = strongColor),
-        link = SpanStyle(color = strongColor, textDecoration = TextDecoration.Underline),
+        strong = SpanStyle(
+            fontFamily = InterFontFamily,
+            fontWeight = FontWeight.Bold,
+            color = strongColor,
+        ),
+        link = SpanStyle(
+            fontFamily = InterFontFamily,
+            fontWeight = FontWeight.Bold,
+            color = strongColor,
+            textDecoration = TextDecoration.Underline,
+        ),
     )
 }
 
@@ -205,36 +224,51 @@ private fun inline(text: String, strongColor: Color): AnnotatedString = buildAnn
 fun ChangelogMarkdown(
     markdown: String,
     modifier: Modifier = Modifier,
-    color: Color = Color(0xFF9A9A9A),
+    color: Color = Color(0xFFD4D4D8),
     strongColor: Color = Color.White,
-    fontSize: TextUnit = 12.sp,
-    lineHeight: TextUnit = 17.sp,
+    fontSize: TextUnit = 14.5.sp,
+    lineHeight: TextUnit = 21.sp,
     emptyText: String = "Không có ghi chú thay đổi cho bản phát hành này.",
 ) {
     val blocks = remember(markdown) { parseBlocks(markdown.trim()) }
 
     if (blocks.isEmpty()) {
-        Text(text = emptyText, color = color, fontSize = fontSize, lineHeight = lineHeight, modifier = modifier)
+        Text(
+            text = emptyText,
+            fontFamily = InterFontFamily,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.3).sp,
+            color = color,
+            fontSize = fontSize,
+            lineHeight = lineHeight,
+            modifier = modifier,
+        )
         return
     }
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         blocks.forEach { block ->
             when (block) {
                 is MdBlock.Heading -> Text(
                     text = remember(block) { inline(block.text, strongColor) },
+                    fontFamily = InterFontFamily,
                     color = strongColor,
                     fontSize = when (block.level) {
-                        1 -> fontSize * 1.5f
-                        2 -> fontSize * 1.32f
-                        else -> fontSize * 1.16f
+                        1 -> fontSize * 1.25f
+                        2 -> fontSize * 1.18f
+                        else -> fontSize * 1.10f
                     },
+                    lineHeight = lineHeight * 1.15f,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp),
+                    letterSpacing = (-0.4).sp,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
                 )
 
                 is MdBlock.Paragraph -> Text(
                     text = remember(block) { inline(block.text, strongColor) },
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.3).sp,
                     color = color,
                     fontSize = fontSize,
                     lineHeight = lineHeight,
@@ -243,13 +277,18 @@ fun ChangelogMarkdown(
                 is MdBlock.ListItem -> Row(modifier = Modifier.padding(start = (block.indent * 12).dp)) {
                     Text(
                         text = block.marker,
-                        color = color,
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = strongColor.copy(alpha = 0.85f),
                         fontSize = fontSize,
                         lineHeight = lineHeight,
-                        modifier = Modifier.width(if (block.marker == "•") 12.dp else 20.dp),
+                        modifier = Modifier.width(if (block.marker == "•") 16.dp else 24.dp),
                     )
                     Text(
                         text = remember(block) { inline(block.text, strongColor) },
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.3).sp,
                         color = color,
                         fontSize = fontSize,
                         lineHeight = lineHeight,
@@ -260,12 +299,15 @@ fun ChangelogMarkdown(
                     Box(
                         modifier = Modifier
                             .width(3.dp)
-                            .heightIn(min = 16.dp)
+                            .heightIn(min = 18.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(color.copy(alpha = 0.5f))
                     )
                     Text(
                         text = remember(block) { inline(block.text, strongColor) },
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.3).sp,
                         color = color,
                         fontSize = fontSize,
                         lineHeight = lineHeight,
@@ -276,15 +318,17 @@ fun ChangelogMarkdown(
 
                 is MdBlock.Code -> Text(
                     text = block.text,
-                    color = strongColor.copy(alpha = 0.85f),
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.2).sp,
+                    color = strongColor.copy(alpha = 0.9f),
                     fontSize = fontSize * 0.95f,
                     lineHeight = lineHeight,
-                    fontFamily = FontFamily.Monospace,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(Color.White.copy(alpha = 0.06f))
-                        .padding(10.dp),
+                        .padding(12.dp),
                 )
 
                 is MdBlock.Image -> AsyncImage(

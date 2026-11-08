@@ -204,16 +204,18 @@ fun UpdatePromptSheet(
                                     text = "Mới · v${shortVersion(release.version)}",
                                     fontFamily = InterFontFamily,
                                     color = PopupAccentGreen,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.2).sp,
                                 )
                             }
                             Text(
                                 text = "Hiện tại: v${shortVersion(BuildConfig.VERSION_NAME)}",
                                 fontFamily = InterFontFamily,
-                                color = Color.White.copy(alpha = 0.55f),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
+                                color = Color.White.copy(alpha = 0.65f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = (-0.2).sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -248,7 +250,7 @@ fun UpdatePromptSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 90.dp, max = 250.dp)
+                        .heightIn(min = 90.dp, max = 270.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(CardSurface)
                         .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(20.dp))
@@ -259,13 +261,17 @@ fun UpdatePromptSheet(
                         text = "Có gì mới trong bản ${shortVersion(release.version)}",
                         fontFamily = InterFontFamily,
                         color = Color.White,
-                        fontSize = 15.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.3).sp,
+                        letterSpacing = (-0.4).sp,
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     ChangelogMarkdown(
                         markdown = release.body.ifBlank { "Cập nhật giao diện Tiếng Việt đồng bộ 100%, bổ sung chia sẻ nhanh ở menu 3 chấm và tối ưu hiệu năng." },
+                        color = Color(0xFFD4D4D8),
+                        strongColor = Color.White,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
                     )
                 }
 
@@ -281,26 +287,28 @@ fun UpdatePromptSheet(
                 ) {
                     AppIconImage(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(44.dp)
                             .clip(RoundedCornerShape(11.dp)),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = release.apkName ?: "Mochy-Music-vi-arm64-release.apk",
+                            text = release.apkName ?: "Mochy-Music-vi-arm64.apk",
                             fontFamily = InterFontFamily,
                             color = Color.White,
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.3).sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = "${BuildConfig.APPLICATION_ID} · ${formatBytes(release.apkSizeBytes)}",
                             fontFamily = InterFontFamily,
-                            color = Color(0xFF9A9A9A),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.65f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = (-0.2).sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -313,8 +321,8 @@ fun UpdatePromptSheet(
                         text = it,
                         fontFamily = InterFontFamily,
                         color = Color(0xFFE0736B),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
 
@@ -432,7 +440,7 @@ private fun PromptButton(
             text = label,
             fontFamily = InterFontFamily,
             color = Color.White.copy(alpha = if (dimmed) 0.5f else 1f),
-            fontSize = if (primary) 15.sp else 13.sp,
+            fontSize = if (primary) 15.sp else 14.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.3).sp,
             maxLines = 1,

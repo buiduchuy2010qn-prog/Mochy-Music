@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+﻿import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 import java.security.MessageDigest
@@ -30,10 +30,13 @@ extensions.configure<ApplicationExtension> {
         val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
         val versionStep = (ciRunNumber - 10).coerceAtLeast(0)
         val tenths = 83 + versionStep
-        val fallbackSemver = if (versionStep == 0) "8.7.0" else "${tenths / 10}.${tenths % 10}.0"
-        val computedSemver = System.getenv("MOCHY_APP_VERSION")?.takeIf { it.isNotBlank() } ?: fallbackSemver
+        val fallbackSemver = if (versionStep == 0) "9.0.0" else "${tenths / 10}.${tenths % 10}.0"
+        val propVer = (project.findProperty("mochyAppVersion") as? String)?.takeIf { it.isNotBlank() }
+        val propBuild = (project.findProperty("mochyBuildNumber") as? String)?.toIntOrNull()
+        val computedSemver = propVer ?: System.getenv("MOCHY_APP_VERSION")?.takeIf { it.isNotBlank() } ?: fallbackSemver
+        val computedBuildNum = propBuild ?: (1228 + ciRunNumber)
         versionCode = 73 + ciRunNumber
-        versionName = "$computedSemver build#${1228 + ciRunNumber}"
+        versionName = "$computedSemver build#$computedBuildNum"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -476,3 +479,5 @@ dependencies {
 
     testImplementation(libs.junit)
 }
+
+

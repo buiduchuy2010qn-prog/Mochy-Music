@@ -1,4 +1,4 @@
-// PlayerCoverStyles.kt
+﻿// PlayerCoverStyles.kt
 
 package com.mochyy.mochymusic.ui.player.customize
 
@@ -37,14 +37,14 @@ val PlayerCoverStyle.hasTonearm: Boolean
 
 val PlayerCoverStyle.displayName: String
     get() = when (this) {
-        PlayerCoverStyle.EDGE_TO_EDGE -> "Full edge to edge"
-        PlayerCoverStyle.SQUARED -> "Squared"
-        PlayerCoverStyle.DISC_SMALL_FULL -> "Disc Music - inside - small"
-        PlayerCoverStyle.DISC_SMALL_LABEL -> "Disc Music - label - small"
-        PlayerCoverStyle.DISC_BIG_FULL -> "Disc Music - inside - big"
-        PlayerCoverStyle.DISC_BIG_LABEL -> "Disc Music - label - big"
-        PlayerCoverStyle.DISC_ALBUM -> "Disc + album Music"
-        PlayerCoverStyle.TURNTABLE -> "Turntable"
+        PlayerCoverStyle.EDGE_TO_EDGE -> "Tràn viền toàn màn hình"
+        PlayerCoverStyle.SQUARED -> "Logo vuông (Squared)"
+        PlayerCoverStyle.DISC_SMALL_FULL -> "Đĩa nhạc nhỏ - Tràn viền"
+        PlayerCoverStyle.DISC_SMALL_LABEL -> "Đĩa nhạc nhỏ - Nhãn tâm"
+        PlayerCoverStyle.DISC_BIG_FULL -> "Đĩa nhạc lớn - Tràn viền"
+        PlayerCoverStyle.DISC_BIG_LABEL -> "Đĩa nhạc lớn - Có kim đĩa"
+        PlayerCoverStyle.DISC_ALBUM -> "Đĩa nhạc kèm bìa Album"
+        PlayerCoverStyle.TURNTABLE -> "Mâm đĩa than (Turntable)"
     }
 
 sealed interface CoverOption {
@@ -132,3 +132,4 @@ val PlayerCoverStyle.options: List<CoverOption>
         )
         else -> DiscOptions
     }
+
