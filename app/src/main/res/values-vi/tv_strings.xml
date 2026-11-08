@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the tv app -->
+    <string name="tv_hii">xin chào!</string>
+    <string name="tv_tap_anything">Nhấn phím bất kỳ để tiếp tục</string>
+    <string name="tv_welcome">chào mừng đến với\nMochy Music</string>
+    <string name="tv_lets_sync">Đồng bộ với điện thoại của bạn</string>
+    <string name="tv_skip_phone">Dùng Mochy không cần điện thoại</string>
+    <string name="tv_whats_your_name">Bạn muốn chúng tôi gọi bạn là gì?</string>
+    <string name="tv_continue">Tiếp tục</string>
+    <string name="tv_whos_listening">Ai đang nghe nhạc?</string>
+    <string name="tv_add_profile">Thêm hồ sơ</string>
+    <string name="tv_remove_profile">Xóa %1$s khỏi TV này? Thư viện của họ trên TV cũng sẽ bị xóa.</string>
+    <string name="tv_remove">Xóa</string>
+    <string name="tv_cancel">Hủy</string>
+    <string name="tv_done">Xong</string>
+
+    <string name="tv_your_phone">Điện thoại của bạn</string>
+    <string name="tv_library">Thư viện</string>
+    <string name="tv_playing">Đang phát</string>
+    <string name="tv_paused">Đã tạm dừng</string>
+    <string name="tv_loading">Đang tải…</string>
+    <string name="tv_nothing_found">Không tìm thấy kết quả nào. Hãy thử từ khóa khác.</string>
+    <string name="tv_nothing_here">Chưa có gì ở đây.</string>
+    <string name="tv_search_hint">Bài hát, nghệ sĩ, album</string>
+
+    <string name="tv_recap_headline">Xem tổng kết\ntháng này!</string>
+    <string name="tv_view">Xem</string>
+    <string name="tv_hello_again">Chào mừng trở lại, %1$s</string>
+    <string name="tv_play_something">Phát nhạc ngay</string>
+    <string name="tv_regular_music">nhạc &amp; album thường nghe</string>
+    <string name="tv_recap_title">%1$s của bạn</string>
+    <string name="tv_recap_stats">%1$d phút · %2$d lượt phát</string>
+
+    <string name="tv_tab_all">Tất cả</string>
+    <string name="tv_cached">Bộ nhớ đệm</string>
+    <string name="tv_local_and_downloaded">Trên máy &amp; đã tải</string>
+    <string name="tv_imported">Đã nhập</string>
+    <string name="tv_downloaded_here">Đã tải về TV này</string>
+    <string name="tv_local_files">Tệp nhạc</string>
+    <string name="tv_on_your_phone">Trên điện thoại của bạn</string>
+
+    <string name="tv_end_of_line">Đã hết danh sách</string>
+    <plurals name="tv_ledger_songs">
+        <item quantity="one">%d bài hát</item>
+        <item quantity="other">%d bài hát</item>
+    </plurals>
+    <plurals name="tv_ledger_minutes">
+        <item quantity="one">%d phút</item>
+        <item quantity="other">%d phút</item>
+    </plurals>
+    <plurals name="tv_song_count">
+        <item quantity="one">%d bài hát</item>
+        <item quantity="other">%d bài hát</item>
+    </plurals>
+
+    <string name="tv_follow">Theo dõi</string>
+    <string name="tv_following">Đang theo dõi</string>
+    <string name="tv_similar_artists">nghệ sĩ tương tự</string>
+
+    <string name="tv_lyrics">Lời bài hát</string>
+    <string name="tv_song_info">Thông tin bài hát</string>
+    <string name="tv_source">Nguồn phát</string>
+    <string name="tv_flagship_square">Khung vuông nổi bật</string>
+    <string name="tv_like">Thích</string>
+    <string name="tv_unlike">Bỏ thích</string>
+    <string name="tv_go_to_album">Đi tới album</string>
+    <string name="tv_go_to_artist">Đi tới %1$s</string>
+    <string name="tv_copy_to_tv">Sao chép từ điện thoại sang TV này</string>
+
+    <string name="tv_sync_from_phone">Đồng bộ từ điện thoại</string>
+    <string name="tv_same_wifi">Đảm bảo điện thoại đang kết nối cùng mạng Wi-Fi với TV này</string>
+    <string name="tv_pair_step_open">Mở Mochy trên điện thoại và vào Cài đặt → Mochy trên TV</string>
+    <string name="tv_pair_step_pick">Chọn %1$s từ danh sách</string>
+    <string name="tv_pair_step_code">Nhập mã hiển thị ở phía trên</string>
+    <string name="tv_from_phone">Từ %1$s</string>
+    <string name="tv_sync_now">Đồng bộ ngay</string>
+    <string name="tv_copy_all">Sao chép tất cả bài hát sang đây</string>
+    <string name="tv_unlink">Hủy liên kết</string>
+    <string name="tv_sync_looking">Đang tìm điện thoại của bạn…</string>
+    <string name="tv_sync_syncing">Đang đồng bộ thư viện…</string>
+    <string name="tv_sync_away">Không tìm thấy điện thoại. Hãy mở Mochy trên điện thoại cùng mạng Wi-Fi.</string>
+    <string name="tv_sync_unlinked">Điện thoại đã hủy liên kết với TV này. Thư viện hiện tại vẫn được giữ lại trên TV.</string>
+    <string name="tv_sync_failed">Không thể đồng bộ. Hãy đảm bảo cả hai thiết bị đều dùng bản Mochy mới nhất và thử lại.</string>
+    <string name="tv_sync_no_phone">Chưa liên kết điện thoại nào</string>
+    <string name="tv_sync_just_now">Vừa đồng bộ xong</string>
+    <plurals name="tv_sync_minutes_ago">
+        <item quantity="one">Đã đồng bộ 1 phút trước</item>
+        <item quantity="other">Đã đồng bộ %d phút trước</item>
+    </plurals>
+    <plurals name="tv_sync_copying">
+        <item quantity="one">Đang sao chép 1 bài hát sang TV…</item>
+        <item quantity="other">Đang sao chép %d bài hát sang TV…</item>
+    </plurals>
+
+    <!-- the phone side of the tv link -->
+    <string name="tv_link_title">Mochy trên TV</string>
+    <string name="tv_link_row_detail">Liên kết TV một lần để đồng bộ toàn bộ thư viện của bạn</string>
+    <string name="tv_link_intro">Chỉ cần liên kết TV một lần để mang toàn bộ thư viện của bạn lên TV: bài hát đã thích, danh sách phát, lịch sử và nhạc đã tải. Nhạc đã tải có thể phát trực tiếp từ điện thoại hoặc sao chép sang TV. Liên kết sẽ được duy trì cho đến khi bạn gỡ bỏ.</string>
+    <string name="tv_link_your_tvs">TV của bạn</string>
+    <string name="tv_link_tap_to_unlink">Đã liên kết. Chạm để hủy liên kết.</string>
+    <string name="tv_link_found">TV trên cùng mạng Wi-Fi</string>
+    <string name="tv_link_looking">Đang tìm TV…</string>
+    <string name="tv_link_looking_detail">Hãy mở Mochy trên TV và vào mục Điện thoại, TV sẽ xuất hiện tại đây.</string>
+    <string name="tv_link_tap_to_pair">Chạm để liên kết</string>
+    <string name="tv_link_enter_code">Nhập mã hiển thị trên %1$s</string>
+    <string name="tv_link_code_label">Mã 6 chữ số</string>
+    <string name="tv_link_pair">Liên kết</string>
+    <string name="tv_link_pairing">Đang liên kết…</string>
+    <string name="tv_link_wrong_code">Mã không khớp. Hãy kiểm tra lại trên TV và thử lại.</string>
+    <string name="tv_link_failed">Không thể kết nối tới TV. Hãy đảm bảo cả hai thiết bị đang dùng chung mạng Wi-Fi.</string>
+    <string name="tv_link_paired">Đã liên kết với %1$s. Đang chuyển thư viện của bạn sang TV.</string>
+    <string name="tv_link_unlink_question">Hủy liên kết %1$s? TV vẫn sẽ giữ lại những dữ liệu đã đồng bộ trước đó.</string>
+    <string name="tv_link_stay_reachable">Phát sang TV ngay cả khi chạy nền</string>
+    <string name="tv_link_stay_reachable_detail">TV có thể đồng bộ và phát nhạc ngay cả khi bạn đã đóng Mochy trên điện thoại (hiển thị một thông báo nhỏ).</string>
+    <string name="tv_link_channel">Liên kết TV</string>
+    <string name="tv_link_notification_title">Đã liên kết với TV của bạn</string>
+    <string name="tv_link_notification_text">%1$s có thể đồng bộ và phát nhạc từ điện thoại này</string>
+
+    <!-- the tv's mochy page -->
+    <string name="tv_mochy">Mochy</string>
+    <string name="tv_mochy_version">Phiên bản %1$s</string>
+    <string name="tv_mochy_link_phone">Liên kết điện thoại để mang thư viện của bạn sang đây</string>
+    <string name="tv_mochy_phone_control">Cho phép điện thoại điều khiển TV này</string>
+    <string name="tv_on">Bật</string>
+    <string name="tv_off">Tắt</string>
+    <string name="tv_mochy_updates">Cập nhật</string>
+    <string name="tv_mochy_support">Ủng hộ Mochy</string>
+    <string name="tv_mochy_support_detail">Giúp dự án tiếp tục phát triển</string>
+
+    <!-- playing next, up in the tv's player -->
+    <string name="tv_playing_next">Phát tiếp theo</string>
+    <string name="tv_queue_empty">Chưa có bài hát nào trong hàng chờ sau bài này</string>
+    <string name="tv_queue_play_now">Phát ngay</string>
+    <string name="tv_queue_earlier">Đưa lên trên</string>
+    <string name="tv_queue_later">Đưa xuống dưới</string>
+    <string name="tv_queue_remove">Xóa khỏi hàng chờ</string>
+
+    <!-- the phone's player menu and remote for a linked tv -->
+    <string name="tv_menu_play_on">Phát trên %1$s</string>
+    <string name="tv_menu_play_next_on">Phát tiếp theo trên %1$s</string>
+    <string name="tv_menu_control">Điều khiển %1$s</string>
+    <string name="tv_menu_sent">Đang phát trên %1$s</string>
+    <string name="tv_menu_next_sent">Đã xếp phát tiếp theo trên %1$s</string>
+    <string name="tv_menu_unreachable">Không thể kết nối tới %1$s. Hãy đảm bảo Mochy đang mở trên TV đó.</string>
+    <string name="tv_menu_remote_title">%1$s</string>
+    <string name="tv_menu_nothing_on">Không có nhạc đang phát</string>
+    <string name="tv_menu_tv_look">Giao diện trình phát trên TV</string>
+    <string name="tv_link_open_now">Đang mở. Chạm để hủy liên kết.</string>
+    <string name="tv_link_control_title">Đang hoạt động</string>
+    <string name="tv_link_control_detail">Phát, chuyển bài và đổi giao diện trình phát TV ngay tại đây</string>
+    <string name="tv_link_in_player_menu">Hiện TV trong menu trình phát</string>
+    <string name="tv_link_in_player_menu_detail">Phát lên TV, thêm bài vào hàng chờ hoặc điều khiển TV từ menu trình phát</string>
+
+    <!-- the phone's tv page, its notices, the tv's banner and the tv's song panel -->
+    <string name="tv_link_add_another">Liên kết TV khác</string>
+    <string name="tv_link_how_title">Cách hoạt động của liên kết TV</string>
+    <string name="tv_link_notify">Thông báo khi TV đồng bộ</string>
+    <string name="tv_link_notify_detail">Hiện thông báo ngắn khi TV kết nối và khi đã đồng bộ thư viện mới nhất</string>
+    <string name="tv_link_hero_title">Mang thư viện nhạc lên TV</string>
+    <string name="tv_link_hero_detail">Mở Mochy trên TV, vào trang Mochy và chọn TV của bạn ở bên dưới</string>
+    <string name="tv_link_hero_linked">Đã liên kết với %1$s</string>
+    <string name="tv_link_hero_linked_detail">Tự động đồng bộ và phát nhạc từ điện thoại này mỗi khi bạn mở Mochy trên TV</string>
+    <string name="tv_link_hero_connected">Đã kết nối với %1$s</string>
+    <string name="tv_link_hero_connected_detail">Thư viện đã đồng bộ và có thể phát nhạc đã tải từ điện thoại này</string>
+    <string name="tv_link_control">Điều khiển</string>
+    <string name="tv_link_play_there">Phát bài này trên TV</string>
+    <string name="tv_link_status_open">Đang mở</string>
+    <string name="tv_link_status_open_synced">Đang mở · đã đồng bộ %1$s</string>
+    <string name="tv_link_status_seen">Mở lần cuối %1$s</string>
+    <string name="tv_link_status_waiting">Đang chờ mở Mochy trên TV</string>
+    <string name="tv_link_status_connected">Đã kết nối với %1$s</string>
+    <string name="tv_link_status_connected_detail">Thư viện của bạn đã đồng bộ</string>
+    <string name="tv_link_status_streaming">Đang truyền phát tới %1$s</string>
+    <string name="tv_link_status_streaming_detail">Nhạc đã tải đang được phát trên TV từ điện thoại này</string>
+    <string name="tv_link_events_channel">Đồng bộ TV</string>
+    <string name="tv_link_notice_connected">Đã kết nối với %1$s</string>
+    <string name="tv_link_notice_connected_detail">TV của bạn có thể đồng bộ và phát nhạc từ điện thoại này</string>
+    <string name="tv_link_notice_synced">%1$s đã đồng bộ</string>
+    <string name="tv_link_notice_synced_detail">TV đã cập nhật bài hát đã thích, danh sách phát và nhạc tải xuống mới nhất</string>
+    <string name="tv_toast_connected">Đã kết nối với %1$s</string>
+    <string name="tv_toast_connected_detail">Đang đồng bộ thư viện của bạn</string>
+    <string name="tv_toast_synced">Đã đồng bộ với %1$s</string>
+    <string name="tv_toast_synced_detail">Thư viện của bạn đã được cập nhật mới nhất</string>
+    <string name="tv_info_about">Giới thiệu</string>
+    <string name="tv_info_go_to">Đi tới</string>
+    <string name="tv_info_source">Đang phát từ</string>
+    <string name="tv_info_source_unknown">Đang tìm nguồn phát</string>
+    <string name="tv_info_close">Đóng</string>
+</resources>

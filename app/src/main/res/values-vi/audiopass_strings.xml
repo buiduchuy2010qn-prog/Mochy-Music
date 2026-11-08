@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- audio pass: audio lab's page for usb dacs, bluetooth codecs and bit-perfect output -->
+    <string name="audiopass_hub_title">Audio Pass</string>
+    <string name="audiopass_title_first">Thiết bị</string>
+    <string name="audiopass_title_second">DAC &amp; Âm thanh</string>
+    <string name="audiopass_joined">%1$s · %2$s</string>
+
+    <string name="audiopass_status_label">trạng thái</string>
+    <string name="audiopass_status_connected">Đã kết nối</string>
+    <string name="audiopass_status_driven">Điều khiển bởi Mochy</string>
+    <string name="audiopass_status_bluetooth">Bluetooth</string>
+    <string name="audiopass_status_wired">Tai nghe có dây</string>
+    <string name="audiopass_status_none">Chưa kết nối</string>
+    <string name="audiopass_status_none_hint">Cắm USB DAC hoặc kết nối tai nghe của bạn.</string>
+    <string name="audiopass_kind_usb">USB DAC</string>
+    <string name="audiopass_kind_speaker">Loa điện thoại</string>
+
+    <string name="audiopass_info_dac">DAC</string>
+    <string name="audiopass_info_maker">Hãng sản xuất</string>
+    <string name="audiopass_info_usb">Âm thanh USB</string>
+    <string name="audiopass_info_takes">Hỗ trợ</string>
+    <string name="audiopass_info_bitperfect">Bit-perfect</string>
+    <string name="audiopass_info_mixer">Bộ trộn Android</string>
+    <string name="audiopass_info_id">ID</string>
+    <string name="audiopass_info_power">Nguồn điện</string>
+    <string name="audiopass_info_mic">Micrô</string>
+    <string name="audiopass_info_headphones">Tai nghe</string>
+    <string name="audiopass_info_codec">Codec</string>
+    <string name="audiopass_info_quality">Chất lượng</string>
+    <string name="audiopass_info_also">Cũng hỗ trợ</string>
+    <string name="audiopass_info_output">Đầu ra</string>
+    <string name="audiopass_info_playing">Đang phát</string>
+
+    <string name="audiopass_value_uac">UAC %1$d</string>
+    <string name="audiopass_value_uac_async">UAC %1$d · chạy xung nhịp riêng</string>
+    <string name="audiopass_value_any_rate">Mọi tần số lấy mẫu</string>
+    <string name="audiopass_value_khz">%1$s kHz</string>
+    <string name="audiopass_value_bits">%1$s-bit</string>
+    <string name="audiopass_value_needs_14">Cần Android 14</string>
+    <string name="audiopass_value_not_offered">DAC này không hỗ trợ</string>
+    <string name="audiopass_value_power">Yêu cầu tối đa %1$d mA</string>
+    <string name="audiopass_value_firmware">%1$s · firmware %2$s</string>
+    <string name="audiopass_value_yes">Có</string>
+    <string name="audiopass_value_no">Không</string>
+    <string name="audiopass_value_kbps">%1$d kbps</string>
+    <string name="audiopass_value_adaptive">Thích ứng (Adaptive)</string>
+    <string name="audiopass_value_jack">Cổng tai nghe 3.5mm</string>
+    <string name="audiopass_value_le_audio">LE Audio</string>
+    <string name="audiopass_value_unknown">Điện thoại chưa cung cấp thông tin này</string>
+
+    <string name="audiopass_bt_reencoded">Bluetooth luôn mã hóa lại âm thanh nên không bao giờ đạt bit-perfect. Codec tốt hơn chỉ giúp giảm suy hao ít hơn.</string>
+    <string name="audiopass_bt_lossless">aptX Lossless giữ chất lượng chuẩn CD khi tín hiệu mạnh.</string>
+    <string name="audiopass_bt_better">Tai nghe của bạn hỗ trợ %1$s, nhưng hiện đang phát bằng %2$s. Bạn có thể chuyển đổi trong Tùy chọn nhà phát triển.</string>
+    <string name="audiopass_bt_ldac_low">LDAC đang đặt ở mức %1$s. Mức 990 kbps nghe hay nhất khi để điện thoại ở gần.</string>
+    <string name="audiopass_bt_open_developer">Mở Tùy chọn nhà phát triển</string>
+    <string name="audiopass_bt_developer_off">Hãy bật Tùy chọn nhà phát triển trước: chạm 7 lần vào Số bản dựng trong mục Giới thiệu về điện thoại.</string>
+    <string name="audiopass_bt_permission">Hiển thị codec</string>
+    <string name="audiopass_bt_permission_hint">Mochy cần quyền Thiết bị ở gần để xem tai nghe của bạn đang dùng codec nào.</string>
+    <string name="audiopass_bt_unknown_hint">Điện thoại này không báo ngay codec cho ứng dụng. Thông tin sẽ hiện tại đây ngay khi có thay đổi.</string>
+
+    <string name="audiopass_options">Tùy chọn</string>
+    <string name="audiopass_prefer_usb">Ưu tiên dùng DAC khi được cắm</string>
+    <string name="audiopass_hires">Đầu ra Hi-res (32-bit)</string>
+    <string name="audiopass_exclusive">Chế độ độc quyền (Exclusive)</string>
+    <string name="audiopass_resampler">Bộ lấy mẫu lại Hi-Fi của Mochy</string>
+    <string name="audiopass_resampler_desc">Chỉ áp dụng cho loa ngoài và cổng tai nghe. Bài hát được đưa về tần số chuẩn của máy bằng bộ lọc sạch hơn mặc định của Android.</string>
+    <string name="audiopass_passthrough">Truyền thẳng Bit-perfect</string>
+    <string name="audiopass_passthrough_desc">Bài hát được truyền nguyên bản tới DAC mà không bị Android trộn âm hay lấy mẫu lại.</string>
+    <string name="audiopass_modes">Chế độ</string>
+    <string name="audiopass_mode_song_rate">Theo tần số bài hát</string>
+    <string name="audiopass_mode_song_rate_desc">Android chạy DAC theo đúng tần số mẫu của từng bài hát. Các hiệu ứng âm thanh vẫn hoạt động.</string>
+    <string name="audiopass_mode_bit_perfect">Bit-perfect</string>
+    <string name="audiopass_mode_bit_perfect_desc">Android chuyển mọi bài nhạc lossless tới DAC nguyên vẹn không chỉnh sửa.</string>
+    <string name="audiopass_mode_direct_usb">USB Trực tiếp (Direct USB)</string>
+    <string name="audiopass_mode_direct_usb_desc">Mochy tự điều khiển trực tiếp DAC trên mọi bản Android và chỉnh âm lượng ngay trên DAC. Sẽ hỏi quyền truy cập USB.</string>
+    <string name="audiopass_mode_exclusive_usb">USB Độc quyền (Exclusive USB)</string>
+    <string name="audiopass_mode_exclusive_usb_desc">Mở DAC dành riêng cho Mochy ở đúng tần số bài hát. Không phải điện thoại nào cũng hỗ trợ.</string>
+    <string name="audiopass_mode_exclusive_dac">DAC tích hợp</string>
+    <string name="audiopass_mode_exclusive_dac_desc">Dành cho máy nghe nhạc có DAC riêng: cổng tai nghe được mở độc quyền cho Mochy.</string>
+    <string name="audiopass_mode_needs">Cần Android %1$s</string>
+
+    <string name="audiopass_blockers_title">Bit-perfect đang chờ bạn tắt các mục sau</string>
+    <string name="audiopass_blockers_clear_title">Không có gì cản trở</string>
+    <string name="audiopass_blockers_button">Tắt các mục này</string>
+    <string name="audiopass_blocker_equalizer">Bộ chỉnh âm (Equalizer)</string>
+    <string name="audiopass_blocker_fx">Hiệu ứng âm thanh (Audio FX)</string>
+    <string name="audiopass_blocker_volume">Âm lượng dưới 100%</string>
+    <string name="audiopass_blocker_normalization">Cân bằng âm lượng (Normalization)</string>
+    <string name="audiopass_blocker_speed">Đã đổi tốc độ hoặc cao độ</string>
+    <string name="audiopass_blocker_transitions">Chuyển bài mượt (Crossfade) hoặc hiệu ứng mờ dần</string>
+    <string name="audiopass_blocker_silence">Bỏ qua khoảng lặng hoặc rung phản hồi</string>
+    <string name="audiopass_blocker_lossy">Nhạc nén suy hao (YouTube, Apple Music) luôn phát theo cách thông thường.</string>
+    <string name="audiopass_now_bitperfect">Bit-perfect tới %1$s · %2$s kHz · %3$s-bit</string>
+    <string name="audiopass_now_untouched">Nguyên bản tới %1$s · %2$s kHz · %3$s-bit. Bản thân bài hát đã được nén từ trước khi tải về.</string>
+    <string name="audiopass_now_inexact">Truyền nguyên vẹn tới %1$s, nhưng mẫu âm thanh của bài này đã được làm tròn trước khi tới Mochy.</string>
+    <string name="audiopass_now_waiting">Đã sẵn sàng. Bài hát tương thích tiếp theo sẽ được truyền thẳng vào DAC.</string>
+    <string name="audiopass_now_fell">Bài hát %1$s kHz %2$s-bit không thể mở DAC theo cách này nên được phát theo cách thông thường.</string>
+    <string name="audiopass_usb_title">USB Trực tiếp</string>
+    <string name="audiopass_usb_permission">Cho phép truy cập USB</string>
+    <string name="audiopass_usb_permission_hint">Android sẽ hỏi mỗi khi cắm DAC. Cho đến khi bạn đồng ý, nhạc vẫn phát theo cách thông thường.</string>
+    <string name="audiopass_usb_no_dac">Hãy cắm USB DAC vào và Mochy sẽ tự động tiếp quản.</string>
+    <string name="audiopass_fixed_volume">DAC không có bộ chỉnh âm lượng riêng</string>
+    <string name="audiopass_fixed_volume_desc">Phát ở mức tối đa để bạn chỉnh bằng núm vặn riêng trên DAC. Lưu ý có thể rất to với tai nghe độ nhạy cao.</string>
+    <string name="audiopass_dac_volume">Âm lượng DAC</string>
+    <string name="audiopass_dac_volume_desc">Chỉnh trực tiếp trên phần cứng DAC để tín hiệu nhạc không bị suy giảm. Phím âm lượng điện thoại cũng điều khiển mức này.</string>
+    <string name="audiopass_value_db">%1$s dB</string>
+    <string name="audiopass_blocker_lossy_direct">Nhạc nén cũng được truyền nguyên vẹn tới DAC (chỉ bị nén từ nguồn trước khi về máy).</string>
+    <string name="audiopass_blockers_restore">Bật lại các mục này</string>
+    <string name="audiopass_beta">THỬ NGHIỆM</string>
+</resources>
