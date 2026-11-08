@@ -28,8 +28,11 @@ extensions.configure<ApplicationExtension> {
         minSdk = 24
         targetSdk = 36
         val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+        val versionStep = (ciRunNumber - 2).coerceAtLeast(0)
+        val tenths = 83 + versionStep
+        val computedSemver = if (versionStep == 0) "8.3.2" else "${tenths / 10}.${tenths % 10}.0"
         versionCode = 73 + ciRunNumber
-        versionName = "8.3.2 build#${1228 + ciRunNumber}"
+        versionName = "$computedSemver build#${1228 + ciRunNumber}"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
