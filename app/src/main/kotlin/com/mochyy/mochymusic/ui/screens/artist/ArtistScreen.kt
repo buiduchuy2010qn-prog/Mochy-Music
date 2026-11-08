@@ -449,13 +449,13 @@ fun ArtistScreen(
                                     }
                                 }
                                 page?.artist?.radioEndpoint?.let { endpoint ->
-                                    ArtistMenuItem(text = "Start radio", icon = R.drawable.radio) {
+                                    ArtistMenuItem(text = "Bắt đầu đài phát", icon = R.drawable.radio) {
                                         dismiss()
                                         playerConnection.playQueue(YouTubeQueue(endpoint))
                                     }
                                 }
                                 page?.artist?.shareLink?.let { link ->
-                                    ArtistMenuItem(text = "Copy link", icon = R.drawable.link) {
+                                    ArtistMenuItem(text = "Sao chép liên kết", icon = R.drawable.link) {
                                         dismiss()
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         clipboard.setPrimaryClip(ClipData.newPlainText("Artist Link", link))

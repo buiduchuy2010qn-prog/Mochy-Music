@@ -1506,7 +1506,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             com.mochyy.mochymusic.ui.component.TopToaster.show(
-                if (done == 0) "Couldn't import that" else "Imported $done song${if (done != 1) "s" else ""} to Mochy",
+                if (done == 0) "Không thể nhập tệp đó" else "Đã nhập $done bài hát vào Mochy",
             )
         }
         return true
@@ -1664,12 +1664,12 @@ private const val UpdateSnoozeWindowMillis = 24L * 60L * 60L * 1000L
 
 @Composable
 private fun HomeUpdatePrompt(currentRoute: String?) {
-    if (currentRoute != Screens.Home.route) return
+    if (currentRoute == "setup" || currentRoute == "wrapped") return
     val (noticeHidden) = rememberPreference(com.mochyy.mochymusic.constants.HideUpdateNoticeKey, defaultValue = false)
     if (noticeHidden) return
 
     val updateState by com.mochyy.mochymusic.ui.screens.update.rememberUpdateState()
-    val (snoozedAt, setSnoozedAt) = rememberPreference(
+    val (_, setSnoozedAt) = rememberPreference(
         com.mochyy.mochymusic.constants.UpdatePromptSnoozedAtKey,
         defaultValue = 0L,
     )
@@ -1678,9 +1678,8 @@ private fun HomeUpdatePrompt(currentRoute: String?) {
     var dismissed by rememberSaveable { mutableStateOf(false) }
 
     val release = (updateState as? com.mochyy.mochymusic.core.updater.UpdateState.Available)?.release
-    val snoozeExpired = System.currentTimeMillis() - snoozedAt > UpdateSnoozeWindowMillis
 
-    if (release != null && snoozeExpired && !dismissed) {
+    if (release != null && !dismissed) {
         com.mochyy.mochymusic.ui.screens.update.UpdatePromptSheet(
             release = release,
             userName = userName,

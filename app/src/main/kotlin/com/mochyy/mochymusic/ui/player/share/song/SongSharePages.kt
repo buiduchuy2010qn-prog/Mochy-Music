@@ -108,6 +108,72 @@ internal fun PopupSheetState.showKindPage(session: SongShareSession): PopupSheet
                     modifier = Modifier.align(Alignment.Center).size(40.dp),
                 )
             }
+            ChoiceTile(
+                title = "Chia sẻ qua ứng dụng khác",
+                subtitle = if (session.link != null) "Gửi nhanh liên kết qua Zalo, Messenger, v.v." else stringResource(R.string.song_share_type_link_missing),
+                enabled = session.link != null,
+                onClick = {
+                    val link = session.link
+                    if (link != null) {
+                        val artistText = session.song.artists.joinToString(", ") { it.name }
+                        val shareText = if (artistText.isNotBlank()) {
+                            "${session.song.title} - $artistText\n$link"
+                        } else {
+                            "${session.song.title}\n$link"
+                        }
+                        val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, session.song.title)
+                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                        }
+                        context.startActivity(
+                            android.content.Intent.createChooser(sendIntent, "Chia sẻ bài hát")
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                    popup.dismissAll()
+                },
+            ) {
+                Icon(
+                    painterResource(R.drawable.share),
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.align(Alignment.Center).size(36.dp),
+                )
+            }
+            ChoiceTile(
+                title = "Chia sẻ qua ứng dụng khác",
+                subtitle = if (session.link != null) "Gửi nhanh liên kết qua Zalo, Messenger, v.v." else stringResource(R.string.song_share_type_link_missing),
+                enabled = session.link != null,
+                onClick = {
+                    val link = session.link
+                    if (link != null) {
+                        val artistText = session.song.artists.joinToString(", ") { it.name }
+                        val shareText = if (artistText.isNotBlank()) {
+                            "${session.song.title} - $artistText\n$link"
+                        } else {
+                            "${session.song.title}\n$link"
+                        }
+                        val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, session.song.title)
+                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                        }
+                        context.startActivity(
+                            android.content.Intent.createChooser(sendIntent, "Chia sẻ bài hát")
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                    popup.dismissAll()
+                },
+            ) {
+                Icon(
+                    painterResource(R.drawable.share),
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.align(Alignment.Center).size(36.dp),
+                )
+            }
         }
     }
 }

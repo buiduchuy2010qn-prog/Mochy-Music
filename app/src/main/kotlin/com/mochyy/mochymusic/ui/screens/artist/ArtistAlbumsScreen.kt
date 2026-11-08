@@ -108,7 +108,7 @@ fun ArtistAlbumsScreen(
     ) {
         item(key = "header", contentType = "header") {
             ArtistSubpageHeader(
-                title = if (name.isNotBlank()) "$name albums" else "Albums",
+                title = if (name.isNotBlank()) "Album của $name" else "Album",
                 subtitle = "${albums.size} trong thư viện của bạn",
                 isGrid = isGrid,
                 onGridChange = { isGrid = it },
@@ -141,7 +141,7 @@ fun ArtistAlbumsScreen(
                 PlaylistTrackRow(
                     thumbnailUrl = album.album.thumbnailUrl,
                     title = album.album.title,
-                    subtitle = listOfNotNull(album.album.year?.toString(), "${album.album.songCount} songs").joinToString(" • "),
+                    subtitle = listOfNotNull(album.album.year?.toString(), "${album.album.songCount} bài hát").joinToString(" • "),
                     isActive = album.id == mediaMetadata?.album?.id,
                     isPlaying = isPlaying,
                     coverModifier = Modifier.containerTransformSource(

@@ -86,7 +86,7 @@ fun StreamInfoSheet(onDismiss: () -> Unit) {
                     .navigationBarsPadding(),
             ) {
                 InfoColumn(modifier = Modifier.widthIn(max = 600.dp)) {
-                    InfoSheetTitle("Stream Info")
+                    InfoSheetTitle("Thông tin luồng phát")
                     Spacer(Modifier.height(16.dp))
                     SongHeader(song)
                     InfoDivider()
@@ -94,7 +94,7 @@ fun StreamInfoSheet(onDismiss: () -> Unit) {
                     Spacer(Modifier.height(12.dp))
                     ProviderRow(service, from, onForce = { showForce = true })
                     NerdsDivider()
-                    InfoSectionTitle("Format & about")
+                    InfoSectionTitle("Định dạng & thông tin")
                     Spacer(Modifier.height(14.dp))
                     cards.forEachIndexed { index, card ->
                         if (index > 0) CardConnector()
@@ -150,11 +150,11 @@ private fun ProviderRow(service: MusicService, from: PlayingFrom?, onForce: () -
                 // only a module that publishes its code gets the star; others say nothing rather than a dead button
                 val sourceUrl = service.sourceModules.module(from.providerId)?.info?.sourceUrl
                 if (sourceUrl != null) {
-                    InfoPill(text = "Star on GitHub", filled = false, onClick = { runCatching { uriHandler.openUri(sourceUrl) } })
+                    InfoPill(text = "Tặng sao GitHub", filled = false, onClick = { runCatching { uriHandler.openUri(sourceUrl) } })
                 }
                 // a file on the phone has nowhere else to come from
                 if (from.providerId != PlayingFrom.Device) {
-                    InfoPill(text = "Force change", filled = true, onClick = onForce)
+                    InfoPill(text = "Đổi nguồn phát", filled = true, onClick = onForce)
                 }
             }
         }

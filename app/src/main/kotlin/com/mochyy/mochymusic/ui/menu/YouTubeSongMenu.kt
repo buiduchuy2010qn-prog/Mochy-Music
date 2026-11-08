@@ -267,6 +267,24 @@ fun YouTubeSongMenu(
                     },
                     modifier = Modifier.weight(1f),
                 )
+                SheetActionCard(
+                    icon = R.drawable.share,
+                    title = stringResource(R.string.share),
+                    onClick = {
+                        onDismiss()
+                        com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song.toMediaMetadata())
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                SheetActionCard(
+                    icon = R.drawable.share,
+                    title = stringResource(R.string.share),
+                    onClick = {
+                        onDismiss()
+                        com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song.toMediaMetadata())
+                    },
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
 

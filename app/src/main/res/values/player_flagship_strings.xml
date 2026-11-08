@@ -1,27 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- the new flagship player's bottom bar: where the sound is going -->
-    <string name="flagship_output_speaker">Internal speaker</string>
-    <string name="flagship_output_wired">Wired headphones</string>
-    <string name="flagship_output_usb">USB audio</string>
+    <string name="flagship_output_speaker">Loa trong máy</string>
+    <string name="flagship_output_wired">Tai nghe có dây</string>
+    <string name="flagship_output_usb">Âm thanh USB</string>
     <string name="flagship_output_bluetooth">Bluetooth</string>
     <string name="flagship_output_hdmi">HDMI</string>
-    <string name="flagship_output_change">Change where the music plays</string>
+    <string name="flagship_output_change">Đổi thiết bị phát nhạc</string>
 
     <!-- read out for the buttons that only show an icon -->
-    <string name="flagship_play">Play</string>
-    <string name="flagship_pause">Pause</string>
-    <string name="flagship_next">Next song</string>
-    <string name="flagship_previous">Previous song</string>
-    <string name="flagship_back_ten">Back 10 seconds</string>
-    <string name="flagship_forward_ten">Forward 10 seconds</string>
-    <string name="flagship_lyrics">Lyrics</string>
-    <string name="flagship_queue">Queue</string>
-    <string name="flagship_volume">Volume</string>
+    <string name="flagship_play">Phát</string>
+    <string name="flagship_pause">Tạm dừng</string>
+    <string name="flagship_next">Bài tiếp theo</string>
+    <string name="flagship_previous">Bài trước đó</string>
+    <string name="flagship_back_ten">Tua lùi 10 giây</string>
+    <string name="flagship_forward_ten">Tua tới 10 giây</string>
+    <string name="flagship_lyrics">Lời bài hát</string>
+    <string name="flagship_queue">Hàng chờ</string>
+    <string name="flagship_volume">Âm lượng</string>
 
     <!-- the flagship's controls sheet in the player editor -->
-    <string name="flagship_layout_three">Back, play, next</string>
-    <string name="flagship_layout_three_caption">Three big buttons, nothing round them</string>
-    <string name="flagship_layout_ten">With 10 second skips</string>
-    <string name="flagship_layout_ten_caption">Jump 10 seconds either way, play in a circle</string>
+    <string name="flagship_layout_three">Lùi, phát, tiếp</string>
+    <string name="flagship_layout_three_caption">Ba nút lớn gọn gàng, không có nút phụ xung quanh</string>
+    <string name="flagship_layout_ten">Kèm nút tua 10 giây</string>
+    <string name="flagship_layout_ten_caption">Thêm nút tua nhanh 10 giây hai bên, nút phát dạng tròn ở giữa</string>
 </resources>

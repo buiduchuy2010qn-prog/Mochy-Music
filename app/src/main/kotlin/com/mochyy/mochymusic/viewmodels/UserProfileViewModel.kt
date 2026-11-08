@@ -33,7 +33,7 @@ import javax.inject.Inject
 data class ListenTotal(val label: String, val songs: Int, val playTimeMs: Long) {
     companion object {
         /** Shown until the first count arrives, so the numbers roll up from zero instead of popping in. */
-        val Placeholder = listOf(ListenTotal("ALL TIME", 0, 0L), ListenTotal("THIS MONTH", 0, 0L), ListenTotal("THIS WEEK", 0, 0L))
+        val Placeholder = listOf(ListenTotal("MỌI LÚC", 0, 0L), ListenTotal("THÁNG NÀY", 0, 0L), ListenTotal("TUẦN NÀY", 0, 0L))
     }
 }
 
@@ -90,6 +90,6 @@ class UserProfileViewModel @Inject constructor(
             return ListenTotal(label, songs.size, ms)
         }
 
-        return listOf(total("ALL TIME", 0L), total("THIS MONTH", monthStart), total("THIS WEEK", weekStart))
+        return listOf(total("MỌI LÚC", 0L), total("THÁNG NÀY", monthStart), total("TUẦN NÀY", weekStart))
     }
 }

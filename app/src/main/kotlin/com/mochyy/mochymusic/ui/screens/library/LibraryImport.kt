@@ -158,7 +158,7 @@ private fun ImportPromoBanner(onClick: () -> Unit) {
         ProviderMarquee()
         Spacer(Modifier.height(20.dp))
         Text(
-            text = "Import your music here!",
+            text = "Nhập nhạc của bạn tại đây!",
             color = SearchColors.Primary,
             fontSize = 21.sp,
             lineHeight = 25.sp,
@@ -248,11 +248,11 @@ private fun ImportProgressBanner(progress: ImportProgress, onClick: () -> Unit) 
         Spacer(Modifier.height(24.dp))
         Text(
             text = when {
-                progress.resync != null && total <= 0 -> "Checking \"${progress.resync.playlistName}\" for new songs…"
-                progress.resync != null -> "Adding $done of $total new songs to \"${progress.resync.playlistName}\""
-                total <= 0 -> "Getting your tracks ready…"
-                progress.source != null -> "Adding $done of $total tracks from ${progress.source.label}"
-                else -> "Adding $done of $total tracks"
+                progress.resync != null && total <= 0 -> "Đang kiểm tra bài hát mới trong \"${progress.resync.playlistName}\"…"
+                progress.resync != null -> "Đang thêm $done/$total bài mới vào \"${progress.resync.playlistName}\""
+                total <= 0 -> "Đang chuẩn bị danh sách bài hát…"
+                progress.source != null -> "Đang thêm $done/$total bài hát từ ${progress.source.label}"
+                else -> "Đang thêm $done/$total bài hát"
             },
             color = SearchColors.Primary,
             fontSize = 21.sp,

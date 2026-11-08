@@ -219,7 +219,7 @@ fun SectionDetailScreen(
     GeneratedPlaylistPage(
         title = title,
         coverUrl = coverUrl,
-        stats = if (songCount > 0) generatedStats(songCount, totalSeconds) else "${items.size} items",
+        stats = if (songCount > 0) generatedStats(songCount, totalSeconds) else "${items.size} mục",
         lazyListState = lazyListState,
         contentPadding = LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom)
             .union(WindowInsets.ime).asPaddingValues(),
@@ -349,7 +349,7 @@ private fun rowText(item: Any): Pair<String, String> = when (item) {
         item.artists.joinToString { it.name }.ifBlank { null },
         item.album.year?.toString(),
     ).joinToString(" • ")
-    is Playlist -> item.playlist.name to "${item.songCount} songs"
+    is Playlist -> item.playlist.name to "${item.songCount} bài hát"
     is Artist -> item.title to "Artist"
     is AlbumItem -> item.title to listOfNotNull(
         item.artists?.joinToString { it.name }?.ifBlank { null },

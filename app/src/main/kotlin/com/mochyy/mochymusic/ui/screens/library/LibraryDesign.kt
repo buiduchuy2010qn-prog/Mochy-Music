@@ -291,7 +291,7 @@ private fun LibraryCount(count: Int) {
 
 /** Centred placeholder for a screen or section with nothing in it. */
 @Composable
-fun LibraryEmptyState(modifier: Modifier = Modifier, text: String = "Nothing to show here") {
+fun LibraryEmptyState(modifier: Modifier = Modifier, text: String = "Chưa có nội dung nào ở đây") {
     Box(
         modifier = modifier.fillMaxWidth().padding(vertical = 56.dp, horizontal = SearchHorizontalPadding),
         contentAlignment = Alignment.Center,

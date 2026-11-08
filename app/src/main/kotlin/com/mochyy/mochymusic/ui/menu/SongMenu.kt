@@ -386,6 +386,24 @@ fun SongMenu(
                     },
                     modifier = Modifier.weight(1f),
                 )
+                SheetActionCard(
+                    icon = R.drawable.share,
+                    title = stringResource(R.string.share),
+                    onClick = {
+                        onDismiss()
+                        com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song.toMediaMetadata())
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                SheetActionCard(
+                    icon = R.drawable.share,
+                    title = stringResource(R.string.share),
+                    onClick = {
+                        onDismiss()
+                        com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song.toMediaMetadata())
+                    },
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
 
@@ -541,7 +559,7 @@ fun SongMenu(
                         Material3MenuItemData(
                             title = {
                                 Text(
-                                    text = if (isPinned) "Unpin from library" else "Pin to library"
+                                    text = if (isPinned) "Bỏ ghim khỏi thư viện" else "Ghim vào thư viện"
                                 )
                             },
                             icon = {
@@ -711,7 +729,7 @@ fun SongMenu(
                             title = { Text(text = stringResource(R.string.refetch)) },
                             description = {
                                 Text(
-                                    text = if (importMatch != null) "Search again for the right version of this song"
+                                    text = if (importMatch != null) "Tìm lại phiên bản đúng cho bài hát này"
                                     else stringResource(R.string.refetch_desc)
                                 )
                             },
@@ -775,10 +793,10 @@ private fun refetchImported(context: android.content.Context, database: com.moch
     ImportedVersions.scope.launch {
         val switched = ImportedVersions.refetch(context.applicationContext, database, match)
         if (switched != null) {
-            TopToaster.show(text = "Found a closer match: ${switched.title}", thumbnail = switched.thumbnail, iconRes = R.drawable.sync)
+            TopToaster.show(text = "Đã tìm thấy bản khớp hơn: ${switched.title}", thumbnail = switched.thumbnail, iconRes = R.drawable.sync)
         } else {
             TopToaster.show(
-                text = "This is already the closest match we can find. Try Choose different version.",
+                text = "Đây đã là bản khớp nhất. Hãy thử Chọn phiên bản khác.",
                 iconRes = R.drawable.sync,
                 durationMs = 4000L,
             )

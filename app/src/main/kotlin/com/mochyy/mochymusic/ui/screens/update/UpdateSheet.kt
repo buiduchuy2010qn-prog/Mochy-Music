@@ -95,7 +95,7 @@ import com.mochyy.mochymusic.ui.component.RemoteFocus
 @Composable
 fun rememberUpdateState(): androidx.compose.runtime.State<UpdateState> {
     val state = remember { mutableStateOf<UpdateState>(UpdateState.Checking) }
-    LaunchedEffect(Unit) { state.value = checkUpdate(force = false) }
+    LaunchedEffect(Unit) { state.value = checkUpdate(force = true) }
     return state
 }
 
@@ -109,7 +109,7 @@ private suspend fun checkUpdate(force: Boolean): UpdateState =
                 else -> UpdateState.UpToDate
             }
         },
-        onFailure = { UpdateState.Failed(it.message ?: "Couldn't reach GitHub") },
+        onFailure = { UpdateState.Failed(it.message ?: "Không thể kết nối GitHub") },
     )
 
 /** shows the app version sheet as a PopupSheet, see docs/popup-sheet.skill.md */
@@ -151,7 +151,7 @@ internal fun SheetPrimaryButton(text: String, onClick: () -> Unit) {
 }
 
 private val StableGreen = Color(0xFF9CF58A)
-private const val StableLabel = "STABLE"
+private const val StableLabel = "ỔN ĐỊNH"
 
 /** "8.1.0 build#1165" -> "8.1.0", "8.0.2 (1100)" -> "8.0.2" */
 internal fun shortVersion(version: String): String = version.substringBefore(' ')
@@ -618,7 +618,7 @@ private fun ColumnScope.UpdateDetailContent(
                             onLocked(false)
                             result.fold(
                                 onSuccess = { startInstall(it) },
-                                onFailure = { error = it.message ?: "Download failed" },
+                                onFailure = { error = it.message ?: "Tải xuống thất bại" },
                             )
                         }
                     }
@@ -659,7 +659,7 @@ private fun ColumnScope.UpdateDetailContent(
                 onClick = { context.openUrl(release.htmlUrl) },
             )
     ) {
-        Text(text = "Open the web", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(text = "Mở trang tải trên web", fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
     }
 }

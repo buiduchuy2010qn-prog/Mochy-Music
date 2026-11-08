@@ -178,10 +178,10 @@ fun PlayerActionMenu(
                         )
                         Text(
                             text = buildString {
-                                append("by ")
-                                append(trackInfo.artist.ifBlank { "unknown" })
+                                append("bởi ")
+                                append(trackInfo.artist.ifBlank { "Không rõ" })
                                 if (trackInfo.album.isNotBlank()) {
-                                    append(" on ")
+                                    append(" trong ")
                                     append(trackInfo.album)
                                 }
                             },
@@ -240,7 +240,7 @@ fun PlayerActionMenu(
 
                     MenuRow(
                         icon = R.drawable.translate,
-                        title = "dịch lời bài hát",
+                        title = "Dịch lời bài hát",
                         onClick = { showLyricsTranslation = true },
                     )
 
@@ -263,9 +263,33 @@ fun PlayerActionMenu(
                     )
                     SheetActionCard(
                         icon = R.drawable.playlist_add,
-                        title = "Thêm vào danh sách phát",
+                        title = "Thêm vào DS phát",
                         enabled = currentMetadata != null,
                         onClick = { showChoosePlaylistDialog = true },
+                        modifier = Modifier.weight(1f),
+                    )
+                    SheetActionCard(
+                        icon = R.drawable.share,
+                        title = "Chia sẻ",
+                        enabled = currentMetadata != null,
+                        onClick = {
+                            currentMetadata?.let { metadata ->
+                                onDismiss()
+                                com.mochyy.mochymusic.ui.player.share.song.SongShare.open(metadata)
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    SheetActionCard(
+                        icon = R.drawable.share,
+                        title = "Chia sẻ",
+                        enabled = currentMetadata != null,
+                        onClick = {
+                            currentMetadata?.let { metadata ->
+                                onDismiss()
+                                com.mochyy.mochymusic.ui.player.share.song.SongShare.open(metadata)
+                            }
+                        },
                         modifier = Modifier.weight(1f),
                     )
                     SheetDownloadCard(
@@ -345,14 +369,14 @@ fun PlayerActionMenu(
 
                 MenuRow(
                     icon = if (trackInfo.liked) R.drawable.ic_untitled_heart else R.drawable.ic_untitled_heart_unfill,
-                    title = if (trackInfo.liked) "remove from liked" else "add to liked",
+                    title = if (trackInfo.liked) "Xóa khỏi yêu thích" else "Thêm vào yêu thích",
                     onClick = { playerConnection.toggleLike() },
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 val inLibrary = librarySong?.song?.inLibrary != null
                 MenuRow(
                     icon = if (inLibrary) R.drawable.library_add_check else R.drawable.library_add,
-                    title = if (inLibrary) "remove from library" else "add to library",
+                    title = if (inLibrary) "Xóa khỏi thư viện" else "Thêm vào thư viện",
                     enabled = currentMetadata != null,
                     onClick = { playerConnection.toggleLibrary() },
                 )
@@ -385,7 +409,7 @@ fun PlayerActionMenu(
 
                 MenuRow(
                     icon = R.drawable.edit,
-                    title = "tùy chỉnh trình phát",
+                    title = "Tùy chỉnh trình phát",
                     onClick = {
                         onDismiss()
                         onEditPlayer()
@@ -501,7 +525,7 @@ private fun SleepTimerRow(onClick: () -> Unit) {
     LaunchedEffect(sleepTimer.triggerTime, sleepTimer.pauseWhenSongEnd) {
         while (true) {
             remainingLabel = when {
-                sleepTimer.pauseWhenSongEnd -> "ends with song"
+                sleepTimer.pauseWhenSongEnd -> "khi hết bài"
                 sleepTimer.triggerTime > 0L -> {
                     val left = sleepTimer.triggerTime - System.currentTimeMillis()
                     if (left <= 0L) "" else formatRemaining(left)
@@ -520,7 +544,7 @@ private fun SleepTimerRow(onClick: () -> Unit) {
         trailing = {
             if (remainingLabel.isNotEmpty()) {
                 Text(
-                    text = "$remainingLabel remaining",
+                    text = "Còn $remainingLabel",
                     color = Color(0xFF9A9A9A),
                     fontSize = 12.sp,
                 )
@@ -567,7 +591,7 @@ private fun DeviceVolumeRow() {
             SheetIcon(R.drawable.volume_up)
             Spacer(modifier = Modifier.width(14.dp))
             Text(
-                text = android.os.Build.MODEL ?: "this device",
+                text = android.os.Build.MODEL ?: "Thiết bị này",
                 color = Color.White,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,

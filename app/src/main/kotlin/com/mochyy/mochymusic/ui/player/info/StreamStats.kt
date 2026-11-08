@@ -76,16 +76,16 @@ private fun formatCard(input: StatsInput): StatCard {
     return StatCard(
         title = codec?.let(::formatTitle) ?: "Format",
         lines = listOfNotNull(
-            d.sourceBitDepth?.takeIf { lossless }?.let { "Bit depth" to "$it-bit" },
-            sampleRate?.let { "Sample rate" to kHz(it) },
-            statedBitrate?.let { "Bitrate" to kbps(it) } ?: averageBitrate?.let { "Bitrate" to "~${kbps(it)} average" },
-            d.channels?.let { "Channel type" to channelName(it) },
+            d.sourceBitDepth?.takeIf { lossless }?.let { "Độ sâu bit" to "$it-bit" },
+            sampleRate?.let { "Tần số lấy mẫu" to kHz(it) },
+            statedBitrate?.let { "Tốc độ bit" to kbps(it) } ?: averageBitrate?.let { "Tốc độ bit" to "~${kbps(it)} TB" },
+            d.channels?.let { "Kênh âm thanh" to channelName(it) },
             containerName(d.containerMime)?.let { "Container" to it },
             "Media id" to input.mediaId,
             input.from?.matchedId?.let { "Matched as" to "${input.from.name} #$it" },
-            "Volume" to "${(input.playerVolume * 100).roundToInt()}%",
+            "Âm lượng" to "${(input.playerVolume * 100).roundToInt()}%",
             input.youtubeFormat?.loudnessDb?.let { "Loudness" to String.format(Locale.US, "%+.1f dB", it) },
-            fileSize?.let { "File size" to megabytes(it) },
+            fileSize?.let { "Dung lượng tệp" to megabytes(it) },
         ),
     )
 }
@@ -95,12 +95,12 @@ private fun decoderCard(input: StatsInput): StatCard {
     return StatCard(
         title = "Decoder",
         lines = listOfNotNull(
-            d.decoderName?.let { "Decoder name" to it },
-            input.decoderHardware?.let { "Runs on" to if (it) "Hardware" else "Software" },
+            d.decoderName?.let { "Bộ giải mã" to it },
+            input.decoderHardware?.let { "Chạy trên" to if (it) "Phần cứng" else "Phần mềm" },
             d.sampleMime?.let { "Format" to it },
             d.codecs?.takeIf { it.isNotBlank() }?.let { "Codec" to it },
             d.decodedEncoding?.let { "Output" to pcmName(it) },
-            d.decodedSampleRate?.let { "Output rate" to kHz(it) },
+            d.decodedSampleRate?.let { "Tần số đầu ra" to kHz(it) },
             d.decodedChannels?.let { "Channels" to channelName(it) },
             d.decoderInitMs?.takeIf { it > 0 }?.let { "Started in" to "$it ms" },
         ),
@@ -170,8 +170,8 @@ private fun dspCard(input: StatsInput): StatCard {
         title = "DSP",
         lines = listOfNotNull(
             d.outputEncoding?.let { "PCM format" to pcmName(it) },
-            d.outputSampleRate?.let { "Sample rate" to kHz(it) },
-            "Effects" to chain.joinToString(", ").ifEmpty { "None, the sound is untouched" },
+            d.outputSampleRate?.let { "Tần số lấy mẫu" to kHz(it) },
+            "Hiệu ứng" to chain.joinToString(", ").ifEmpty { "Không có, âm thanh nguyên bản" },
             line("Dither", "TPDF, to 16-bit".takeIf { d.dithered }),
             line("Normalization", "On".takeIf { e.normalize }),
             when {

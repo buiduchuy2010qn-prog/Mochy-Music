@@ -56,7 +56,7 @@ class PlayerMenuExtras internal constructor(
         when (action) {
             PlayerMenuAction.KEEP_AWAKE -> {
                 setKeepScreenOn(!keepScreenOn)
-                toast(if (keepScreenOn) "The screen can sleep again" else "The screen stays on while Mochy is open")
+                toast(if (keepScreenOn) "Đã tắt giữ sáng màn hình" else "Màn hình sẽ luôn sáng khi mở Mochy")
             }
             PlayerMenuAction.TRANSLATE_LYRICS -> {
                 if (translating) {
@@ -69,6 +69,7 @@ class PlayerMenuExtras internal constructor(
             }
             PlayerMenuAction.DOWNLOAD -> toggleDownload()
             PlayerMenuAction.ADD_TO_PLAYLIST -> if (song != null) showAddToPlaylist()
+            PlayerMenuAction.SHARE -> if (song != null) com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song)
             else -> return false
         }
         return true
@@ -78,7 +79,7 @@ class PlayerMenuExtras internal constructor(
         val song = song ?: return
         if (isActive(PlayerMenuAction.DOWNLOAD)) {
             DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, song.id, false)
-            toast(if (downloadState == Download.STATE_COMPLETED) "Removed the download" else "Download stopped")
+            toast(if (downloadState == Download.STATE_COMPLETED) "Đã xóa bản tải xuống" else "Đã dừng tải xuống")
             return
         }
         // the song has to be in the database for its download to be listed and played from there
@@ -88,7 +89,7 @@ class PlayerMenuExtras internal constructor(
             .setData(song.title.toByteArray())
             .build()
         DownloadService.sendAddDownload(context, ExoDownloadService::class.java, request, false)
-        toast("Downloading \"${song.title}\"")
+        toast("Đang tải xuống \"${song.title}\"")
     }
 
     private fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()

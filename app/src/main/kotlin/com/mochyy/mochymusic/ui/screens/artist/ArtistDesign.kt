@@ -390,10 +390,10 @@ internal fun ArtistName(
 internal fun artistStats(subscribers: String?, monthly: String?): String =
     listOfNotNull(
         subscribers?.trim()?.takeIf { it.isNotEmpty() }?.let { text ->
-            if (text.any { it.isLetter() && it !in "KMBkmb" }) text else "$text subscribers"
+            if (text.any { it.isLetter() && it !in "KMBkmb" }) text else "$text người đăng ký"
         },
         monthly?.trim()?.takeIf { it.isNotEmpty() }?.let { text ->
-            if (text.count { it.isLetter() } > 2) text else "$text monthly listeners"
+            if (text.count { it.isLetter() } > 2) text else "$text người nghe hàng tháng"
         },
     ).joinToString(" · ")
 
@@ -470,7 +470,7 @@ private fun SubscribePill(subscribed: Boolean, onClick: () -> Unit) {
         )
         Spacer(Modifier.width(7.dp))
         Text(
-            text = if (subscribed) "Subscribed" else "Subscribe",
+            text = if (subscribed) "Đã đăng ký" else "Đăng ký",
             style = TrackTitleStyle.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
             color = content,
         )
@@ -614,7 +614,7 @@ private fun ReleaseCard(
                     Spacer(Modifier.width(4.dp))
                     CircleAction(
                         icon = if (saved) R.drawable.library_add_check else R.drawable.add,
-                        contentDescription = if (saved) "In your library" else "Add to library",
+                        contentDescription = if (saved) "Đã lưu trong thư viện" else "Thêm vào thư viện",
                         onClick = onSave,
                     )
                 }
@@ -628,7 +628,7 @@ private fun BioCard(name: String, bio: String, onClick: () -> Unit) {
     ArtistCard(onClick = onClick) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
-                text = "About $name",
+                text = "Giới thiệu về $name",
                 style = CardLabelStyle,
                 color = Color.White,
                 maxLines = 1,

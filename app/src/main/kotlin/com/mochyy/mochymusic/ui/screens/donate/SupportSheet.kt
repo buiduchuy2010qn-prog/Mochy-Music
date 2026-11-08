@@ -70,14 +70,14 @@ private fun SupportSheetContent() {
             DonateCharacter(width = characterWidth)
             Spacer(Modifier.height(14.dp))
             Text(
-                text = "Enjoying Mochy Music?",
+                text = "Bạn thích Mochy Music chứ?",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = DonateSoftText,
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "Support Mochy’s development!",
+                text = "Ủng hộ phát triển Mochy!",
                 fontSize = 32.sp,
                 lineHeight = 36.sp,
                 fontWeight = FontWeight.Bold,
@@ -87,9 +87,9 @@ private fun SupportSheetContent() {
             )
             Spacer(Modifier.height(14.dp))
             Text(
-                text = "thanks for trying it out! btw, Mochy Music will always be free, forever yours! <3\n\n" +
-                    "It would be very useful for us if you support the developer, no matter how small it is!! <3\n" +
-                    "giving a star to Mochy’s repo is already enough. and thanks again!",
+                text = "Cảm ơn bạn đã trải nghiệm! Mochy Music sẽ luôn miễn phí mãi mãi dành cho bạn! <3\n\n" +
+                    "Sự ủng hộ của bạn dành cho nhà phát triển dù nhỏ cũng vô cùng ý nghĩa!! <3\n" +
+                    "Chỉ cần tặng 1 sao (Star) trên GitHub cũng đã rất tuyệt vời rồi. Cảm ơn bạn nhiều!",
                 fontSize = 13.5.sp,
                 lineHeight = 18.sp,
                 fontWeight = FontWeight.Bold,
@@ -107,18 +107,18 @@ private fun SupportButtons(popup: PopupSheetState) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DonatePillButton(
-                text = "Donate Us!",
+                text = "Ủng hộ ngay!",
                 onClick = { popup.showDonateSheet() },
                 modifier = Modifier.weight(1f),
             )
             DonatePillButton(
-                text = "Star the repo!",
+                text = "Tặng sao trên GitHub!",
                 onClick = { context.openUrl(GithubRepoUrl) },
                 modifier = Modifier.weight(1f),
             )
         }
         DonatePillButton(
-            text = "get these beggar outta here, No!",
+            text = "Để lúc khác nhé, cảm ơn!",
             onClick = popup::dismiss,
             quiet = true,
         )

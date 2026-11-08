@@ -1688,9 +1688,20 @@ private fun PlayerSheet(
                 } else {
                     menuLayout.slots
                 }
+                val shareAction = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHARE
+                val withShare = if (shareAction !in set) {
+                    val otherIdx = set.indexOf(com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.OTHER_MENU)
+                    if (otherIdx >= 0) {
+                        set.toMutableList().apply { add(otherIdx + 1, shareAction) }
+                    } else {
+                        listOf(shareAction) + set
+                    }
+                } else {
+                    set
+                }
                 // with a youtube video on the cover, the full video mode goes on top unless it's already one of the four
                 val fullVideo = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.FULL_VIDEO
-                if (videoShowing && fullVideo !in set) listOf(fullVideo) + set else set
+                if (videoShowing && fullVideo !in withShare) listOf(fullVideo) + withShare else withShare
             },
             isActive = ::menuActionActive,
             onAction = onMenuAction,

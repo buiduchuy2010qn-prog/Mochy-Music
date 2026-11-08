@@ -1,101 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- usage at the top of the page -->
-    <string name="storage_overall">Overall</string>
+    <string name="storage_overall">Tổng quan</string>
     <string name="storage_legend_mochy">Mochy</string>
-    <string name="storage_legend_yours">Your storage</string>
-    <string name="storage_free">%1$s free</string>
-    <string name="storage_measuring">Working out how much room Mochy takes…</string>
-    <string name="storage_uses">Mochy uses %1$s of your storage (%2$s), which is split into</string>
-    <string name="storage_uses_drives">Mochy uses %1$s across %2$d drives, which is split into</string>
-    <string name="storage_breakdown_title">Mochy app data usage</string>
-    <string name="storage_legend_cache">Cache</string>
-    <string name="storage_legend_downloads">Downloaded music &amp; local</string>
-    <string name="storage_legend_database">Database</string>
-    <string name="storage_legend_app_data">App data</string>
+    <string name="storage_legend_yours">Bộ nhớ của bạn</string>
+    <string name="storage_free">Còn trống %1$s</string>
+    <string name="storage_measuring">Đang tính toán dung lượng Mochy sử dụng…</string>
+    <string name="storage_uses">Mochy đang dùng %1$s bộ nhớ của bạn (%2$s), bao gồm</string>
+    <string name="storage_uses_drives">Mochy đang dùng %1$s trên %2$d bộ nhớ, bao gồm</string>
+    <string name="storage_breakdown_title">Chi tiết dữ liệu ứng dụng Mochy</string>
+    <string name="storage_legend_cache">Bộ nhớ đệm</string>
+    <string name="storage_legend_downloads">Nhạc đã tải &amp; trên máy</string>
+    <string name="storage_legend_database">Cơ sở dữ liệu</string>
+    <string name="storage_legend_app_data">Dữ liệu ứng dụng</string>
 
     <!-- cutting the junk -->
-    <string name="storage_junk_title">So, here\'s a list of things you can do to cut the junk</string>
-    <string name="storage_hint_full">Your phone is nearly full.</string>
-    <string name="storage_hint_cache">The cache is the easy one. Clearing it frees %1$s and songs simply stream again.</string>
-    <string name="storage_hint_downloads">Downloads take the most room. Manage downloads shows the biggest ones and the ones you barely play.</string>
-    <string name="storage_cache_limit">Set music cache limit</string>
-    <string name="storage_cache_none">No cache</string>
-    <string name="storage_cache_unlimited">Unlimited</string>
-    <string name="storage_cache_off">Off</string>
+    <string name="storage_junk_title">Các cách giúp bạn dọn dẹp và giải phóng dung lượng</string>
+    <string name="storage_hint_full">Bộ nhớ điện thoại của bạn gần đầy.</string>
+    <string name="storage_hint_cache">Bộ nhớ đệm là thứ dễ dọn nhất. Xóa nó sẽ giải phóng %1$s và các bài hát chỉ cần phát trực tuyến lại khi nghe.</string>
+    <string name="storage_hint_downloads">Nhạc tải xuống chiếm nhiều dung lượng nhất. Mục Quản lý tải xuống sẽ chỉ ra những bài nặng nhất và những bài bạn hiếm khi nghe.</string>
+    <string name="storage_cache_limit">Giới hạn bộ nhớ đệm nhạc</string>
+    <string name="storage_cache_none">Không lưu đệm</string>
+    <string name="storage_cache_unlimited">Không giới hạn</string>
+    <string name="storage_cache_off">Tắt</string>
     <string name="storage_cache_mb">%1$d MB</string>
     <string name="storage_cache_gb">%1$d GB</string>
-    <string name="storage_cache_applies_later">The new limit starts next time you open Mochy.</string>
-    <string name="storage_remove_downloads">Remove all downloads</string>
-    <string name="storage_remove_downloads_title">Remove all downloads?</string>
-    <string name="storage_remove_downloads_message">Every downloaded song is deleted from this phone. They stay in your library and stream again when you play them, so they\'ll need a connection.</string>
-    <string name="storage_clear_cache">Remove all music &amp; cover cache</string>
-    <string name="storage_clear_cache_title">Clear the cache?</string>
-    <string name="storage_clear_cache_message">Songs kept from streaming and saved cover pictures are deleted. They come back as you play and browse. Your library and your downloads stay as they are.</string>
-    <string name="storage_clear_cache_action">Clear cache</string>
-    <string name="storage_manage_downloads">Manage downloads</string>
+    <string name="storage_cache_applies_later">Giới hạn mới sẽ có hiệu lực vào lần tiếp theo bạn mở Mochy.</string>
+    <string name="storage_remove_downloads">Xóa tất cả nhạc đã tải xuống</string>
+    <string name="storage_remove_downloads_title">Xóa tất cả nhạc đã tải xuống?</string>
+    <string name="storage_remove_downloads_message">Mọi bài hát đã tải xuống sẽ bị xóa khỏi điện thoại này. Chúng vẫn nằm trong thư viện và sẽ phát trực tuyến khi bạn nghe (cần có kết nối mạng).</string>
+    <string name="storage_clear_cache">Xóa toàn bộ bộ nhớ đệm nhạc &amp; ảnh bìa</string>
+    <string name="storage_clear_cache_title">Xóa bộ nhớ đệm?</string>
+    <string name="storage_clear_cache_message">Các bài hát lưu tạm khi nghe trực tuyến và ảnh bìa đã lưu sẽ bị xóa, và sẽ tự tải lại khi bạn nghe hoặc duyệt nhạc. Thư viện và nhạc đã tải xuống của bạn vẫn được giữ nguyên.</string>
+    <string name="storage_clear_cache_action">Xóa bộ nhớ đệm</string>
+    <string name="storage_manage_downloads">Quản lý nhạc đã tải</string>
 
     <!-- where things are saved, and exporting songs -->
-    <string name="storage_or">Or</string>
-    <string name="storage_downloads_place">Choose where downloads are saved</string>
-    <string name="storage_cache_place">Choose where the cache is saved</string>
-    <string name="storage_export_downloads">Export downloaded songs as a folder</string>
-    <string name="storage_moving">Moving… %1$d%%</string>
-    <string name="storage_move_failed">Couldn\'t move everything, so nothing was changed. Try again.</string>
-    <string name="storage_place_phone">This phone</string>
-    <string name="storage_place_card">Memory card</string>
-    <string name="storage_place_sheet_downloads">Where downloads are saved</string>
-    <string name="storage_place_sheet_cache">Where the cache is saved</string>
-    <string name="storage_place_note_downloads">Every downloaded song moves over, and its lyrics stay with it. Mochy restarts once to finish.</string>
-    <string name="storage_place_note_cache">The cache starts fresh in the new place. Mochy restarts once to finish.</string>
-    <string name="storage_place_card_note">On a memory card, Mochy saves into its own folder, which Android clears if Mochy is uninstalled.</string>
-    <string name="storage_place_only_phone">Put in a memory card or a drive to save somewhere other than this phone.</string>
-    <string name="storage_place_free">%1$s free of %2$s</string>
-    <string name="storage_place_here_now">Saved here now</string>
-    <string name="storage_place_no_room">Not enough room</string>
-    <string name="storage_place_move">Move here</string>
-    <string name="storage_place_move_downloads_title">Move downloads to %1$s?</string>
-    <string name="storage_place_move_cache_title">Move the cache to %1$s?</string>
-    <string name="storage_place_move_downloads_message">Downloads pause while %1$s is copied over. Mochy restarts once it\'s done, and the old copy is cleared.</string>
-    <string name="storage_place_move_cache_message">The cache you have now is cleared and Mochy restarts, then songs you play are kept in the new place.</string>
-    <string name="storage_place_move_action">Move and restart</string>
+    <string name="storage_or">Hoặc</string>
+    <string name="storage_downloads_place">Chọn nơi lưu nhạc tải xuống</string>
+    <string name="storage_cache_place">Chọn nơi lưu bộ nhớ đệm</string>
+    <string name="storage_export_downloads">Xuất nhạc đã tải ra thư mục riêng</string>
+    <string name="storage_moving">Đang di chuyển… %1$d%%</string>
+    <string name="storage_move_failed">Không thể di chuyển toàn bộ dữ liệu nên chưa có gì thay đổi. Vui lòng thử lại.</string>
+    <string name="storage_place_phone">Điện thoại này</string>
+    <string name="storage_place_card">Thẻ nhớ</string>
+    <string name="storage_place_sheet_downloads">Nơi lưu nhạc tải xuống</string>
+    <string name="storage_place_sheet_cache">Nơi lưu bộ nhớ đệm</string>
+    <string name="storage_place_note_downloads">Mọi bài hát đã tải sẽ được chuyển sang vị trí mới cùng với lời bài hát. Mochy sẽ khởi động lại một lần để hoàn tất.</string>
+    <string name="storage_place_note_cache">Bộ nhớ đệm sẽ bắt đầu mới tại vị trí bạn chọn. Mochy sẽ khởi động lại một lần để hoàn tất.</string>
+    <string name="storage_place_card_note">Trên thẻ nhớ, Mochy lưu vào thư mục riêng của ứng dụng (Android sẽ tự xóa thư mục này nếu bạn gỡ cài đặt Mochy).</string>
+    <string name="storage_place_only_phone">Hãy lắp thêm thẻ nhớ hoặc ổ lưu trữ ngoài nếu muốn lưu sang nơi khác ngoài bộ nhớ máy.</string>
+    <string name="storage_place_free">Trống %1$s / %2$s</string>
+    <string name="storage_place_here_now">Đang lưu tại đây</string>
+    <string name="storage_place_no_room">Không đủ dung lượng trống</string>
+    <string name="storage_place_move">Chuyển tới đây</string>
+    <string name="storage_place_move_downloads_title">Chuyển nhạc tải xuống sang %1$s?</string>
+    <string name="storage_place_move_cache_title">Chuyển bộ nhớ đệm sang %1$s?</string>
+    <string name="storage_place_move_downloads_message">Quá trình tải xuống sẽ tạm dừng trong lúc sao chép %1$s. Mochy sẽ khởi động lại khi hoàn tất và dọn bản sao cũ.</string>
+    <string name="storage_place_move_cache_message">Bộ nhớ đệm hiện tại sẽ được xóa và Mochy sẽ khởi động lại, sau đó các bài hát bạn nghe sẽ được lưu đệm vào vị trí mới.</string>
+    <string name="storage_place_move_action">Di chuyển và khởi động lại</string>
 
-    <string name="storage_export_sheet_title">Export downloaded songs</string>
-    <string name="storage_export_note">They\'re copied into a mochy-preserve folder wherever you pick. Your downloads stay where they are.</string>
-    <string name="storage_export_layout_playlists">Music and playlists</string>
-    <string name="storage_export_layout_playlists_detail">A folder for each playlist and your liked songs, the rest go in Music</string>
-    <string name="storage_export_layout_albums">Albums</string>
-    <string name="storage_export_layout_albums_detail">A folder for each album, songs from no album go in Music</string>
-    <string name="storage_export_covers">Cover pictures</string>
-    <string name="storage_export_lyrics">Lyrics</string>
-    <string name="storage_export_pick">Pick a folder</string>
-    <string name="storage_export_progress">Exporting… %1$d of %2$d</string>
-    <string name="storage_export_starting">Getting the songs ready…</string>
-    <string name="storage_export_failed">The export stopped partway. Check the folder you picked and try again.</string>
+    <string name="storage_export_sheet_title">Xuất các bài hát đã tải</string>
+    <string name="storage_export_note">Các bài hát sẽ được sao chép vào thư mục mochy-preserve tại nơi bạn chọn. Nhạc đã tải trong ứng dụng vẫn giữ nguyên.</string>
+    <string name="storage_export_layout_playlists">Nhạc và danh sách phát</string>
+    <string name="storage_export_layout_playlists_detail">Tạo thư mục riêng cho từng danh sách phát và bài hát đã thích, các bài còn lại nằm trong thư mục Music</string>
+    <string name="storage_export_layout_albums">Album</string>
+    <string name="storage_export_layout_albums_detail">Tạo thư mục riêng cho từng album, các bài lẻ không thuộc album sẽ nằm trong thư mục Music</string>
+    <string name="storage_export_covers">Ảnh bìa</string>
+    <string name="storage_export_lyrics">Lời bài hát</string>
+    <string name="storage_export_pick">Chọn thư mục</string>
+    <string name="storage_export_progress">Đang xuất… %1$d / %2$d</string>
+    <string name="storage_export_starting">Đang chuẩn bị bài hát…</string>
+    <string name="storage_export_failed">Quá trình xuất bị gián đoạn giữa chừng. Hãy kiểm tra lại thư mục đã chọn và thử lại.</string>
     <plurals name="storage_export_done">
-        <item quantity="one">Exported %d song</item>
-        <item quantity="other">Exported %d songs</item>
+        <item quantity="one">Đã xuất %d bài hát</item>
+        <item quantity="other">Đã xuất %d bài hát</item>
     </plurals>
     <plurals name="storage_export_skipped">
-        <item quantity="one">%d song wasn\'t fully downloaded, so it was skipped</item>
-        <item quantity="other">%d songs weren\'t fully downloaded, so they were skipped</item>
+        <item quantity="one">Đã bỏ qua %d bài hát do chưa tải xong hoàn toàn</item>
+        <item quantity="other">Đã bỏ qua %d bài hát do chưa tải xong hoàn toàn</item>
     </plurals>
-    <string name="storage_export_folder_music" translatable="false">Music</string>
-    <string name="storage_export_folder_playlists" translatable="false">Playlist</string>
-    <string name="storage_export_folder_albums" translatable="false">Albums</string>
-    <string name="storage_export_folder_liked" translatable="false">Liked songs</string>
 
     <!-- moving to a new phone -->
-    <string name="storage_transfer_title">Moving to a new phone? Take everything with you</string>
-    <string name="storage_export_user_data">Export user data</string>
-    <string name="storage_import_user_data">Import user data</string>
-    <string name="storage_transfer_exporting">Exporting…</string>
-    <string name="storage_transfer_exporting_percent">Exporting… %1$d%%</string>
-    <string name="storage_transfer_exported">Exported! Import the .zip in Mochy on the other phone</string>
-    <string name="storage_transfer_importing">Importing…</string>
-    <string name="storage_transfer_importing_percent">Importing… %1$d%%, Mochy restarts when it\'s done</string>
-    <string name="storage_transfer_restarting">Done, restarting…</string>
-    <string name="storage_import_title">Replace your library?</string>
-    <string name="storage_import_message">Everything in Mochy right now is replaced by what\'s in the export, including your library, history, downloads and settings. Your logins stay as they are. Mochy restarts once to finish.</string>
-    <string name="storage_import_action">Pick the .zip</string>
+    <string name="storage_transfer_title">Đổi sang điện thoại mới? Mang theo toàn bộ dữ liệu của bạn</string>
+    <string name="storage_export_user_data">Xuất dữ liệu người dùng</string>
+    <string name="storage_import_user_data">Nhập dữ liệu người dùng</string>
+    <string name="storage_transfer_exporting">Đang xuất…</string>
+    <string name="storage_transfer_exporting_percent">Đang xuất… %1$d%%</string>
+    <string name="storage_transfer_exported">Đã xuất xong! Hãy nhập tệp .zip này vào Mochy trên điện thoại kia</string>
+    <string name="storage_transfer_importing">Đang nhập…</string>
+    <string name="storage_transfer_importing_percent">Đang nhập… %1$d%%, Mochy sẽ tự khởi động lại khi hoàn tất</string>
+    <string name="storage_transfer_restarting">Hoàn tất, đang khởi động lại…</string>
+    <string name="storage_import_title">Thay thế thư viện hiện tại?</string>
+    <string name="storage_import_message">Mọi dữ liệu trong Mochy hiện tại sẽ được thay bằng dữ liệu từ bản sao lưu, bao gồm thư viện, lịch sử nghe, nhạc đã tải và cài đặt. Các tài khoản đã đăng nhập vẫn được giữ nguyên. Mochy sẽ khởi động lại một lần để hoàn tất.</string>
+    <string name="storage_import_action">Chọn tệp .zip</string>
 </resources>
