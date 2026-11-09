@@ -57,7 +57,7 @@ fun rememberStreamFailureLabel(progress: State<Float>): State<String?> {
             val f = failure
             val p = progress.value
             if (f == null || p < 0f) null
-            else "Error, timeout in ${ceil((1f - p) * f.timeoutMs / 1000f).toInt().coerceAtLeast(0)}s"
+            else "Lỗi luồng phát, thử lại sau ${ceil((1f - p) * f.timeoutMs / 1000f).toInt().coerceAtLeast(0)}s"
         }
     }
 }

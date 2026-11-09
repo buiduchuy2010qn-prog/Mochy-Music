@@ -213,8 +213,8 @@ private fun inline(text: String, strongColor: Color): AnnotatedString = buildAnn
         link = SpanStyle(
             fontFamily = InterFontFamily,
             fontWeight = FontWeight.Bold,
-            color = strongColor,
-            textDecoration = TextDecoration.Underline,
+            color = Color(0xFF9CF58A),
+            
         ),
     )
 }

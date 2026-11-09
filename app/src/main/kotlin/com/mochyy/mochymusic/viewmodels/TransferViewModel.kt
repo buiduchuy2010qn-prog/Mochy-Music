@@ -62,7 +62,7 @@ class TransferViewModel @Inject constructor(
                 .onSuccess { _export.value = TransferStep.Done }
                 .onFailure {
                     Timber.e(it, "Export failed")
-                    _export.value = TransferStep.Failed(it.message ?: "Couldn't export. Try again.")
+                    _export.value = TransferStep.Failed(it.message ?: "Không thể xuất dữ liệu. Vui lòng thử lại.")
                 }
         }
     }
@@ -89,7 +89,7 @@ class TransferViewModel @Inject constructor(
                 }
                 .onFailure {
                     Timber.e(it, "Import failed")
-                    _import.value = TransferStep.Failed(it.message ?: "Couldn't import that file. Try again.")
+                    _import.value = TransferStep.Failed(it.message ?: "Không thể nhập tệp đó. Vui lòng thử lại.")
                 }
         }
     }

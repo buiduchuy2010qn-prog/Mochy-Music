@@ -48,7 +48,7 @@ import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 import com.mochyy.mochymusic.viewmodels.isFlat
 import kotlin.math.roundToInt
 
-private val Tabs = listOf("Graph", "Bands", "AutoEQ")
+private val Tabs = listOf("Biểu đồ", "Dải tần", "AutoEQ")
 
 @Composable
 fun EqualizerScreen(
@@ -158,16 +158,16 @@ fun EqualizerScreen(
 }
 
 private fun statusLine(eq: EqSettings, presets: List<EqPreset>): String {
-    if (!eq.enabled) return "Off"
+    if (!eq.enabled) return "Đang tắt"
     val curve = eq.presetId?.let { id ->
         EqPresets.BuiltIn.firstOrNull { it.id == id }?.name ?: presets.firstOrNull { it.id == id }?.name
-    } ?: "Custom"
+    } ?: "Tùy chỉnh"
     val correction = eq.correction?.takeIf { eq.correctionEnabled }?.model
     return when {
-        eq.isFlat() -> "On · Flat"
-        correction != null && eq.presetId == EqPresets.FlatId -> "On · $correction"
-        correction != null -> "On · $curve + $correction"
-        else -> "On · $curve"
+        eq.isFlat() -> "Đang bật · Phẳng"
+        correction != null && eq.presetId == EqPresets.FlatId -> "Đang bật · $correction"
+        correction != null -> "Đang bật · $curve + $correction"
+        else -> "Đang bật · $curve"
     }
 }
 
@@ -180,12 +180,12 @@ private fun Presets(
     onSave: () -> Unit,
     onLongPress: (String) -> Unit,
 ) {
-    LabSectionLabel("Presets") {
-        LabTextAction("Reset", R.drawable.refresh, onClick = onReset)
-        LabTextAction("Save", R.drawable.add, onClick = onSave)
+    LabSectionLabel("Cấu hình có sẵn") {
+        LabTextAction("Đặt lại", R.drawable.refresh, onClick = onReset)
+        LabTextAction("Lưu", R.drawable.add, onClick = onSave)
     }
     val chips = buildList {
-        if (eq.presetId == null) add(LabChip("custom", "Custom"))
+        if (eq.presetId == null) add(LabChip("custom", "Tùy chỉnh"))
         presets.forEach { add(LabChip(it.id, it.name, dot = androidx.compose.ui.graphics.Color.White)) }
         EqPresets.BuiltIn.forEach { add(LabChip(it.id, it.name)) }
     }
@@ -199,7 +199,7 @@ private fun Presets(
 
 @Composable
 private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewModel) {
-    LabSectionLabel("Output")
+    LabSectionLabel("Đầu ra")
     LabCard(padding = 16.dp) {
         LabSlider(
             label = "Preamp",
@@ -212,9 +212,9 @@ private fun Output(eq: EqSettings, headroom: Double, viewModel: AudioLabViewMode
         LabToggleRow(
             title = "Tiền khuếch đại tự động (Auto preamp)",
             subtitle = if (eq.autoPreamp) {
-                if (headroom < -0.05) "Lowering by ${String.format("%.1f", -headroom)} dB, the limiter catches the rest"
-                else "Nothing to lower, the limiter catches any peaks"
-            } else "Off: louder, but big boosts get squashed on loud songs",
+                if (headroom < -0.05) "Tự giảm ${String.format("%.1f", -headroom)} dB để tránh vỡ tiếng, bộ giới hạn xử lý phần còn lại"
+                else "Không cần giảm mức âm, bộ giới hạn sẽ chặn các đỉnh vượt ngưỡng"
+            } else "Đã tắt: âm thanh to hơn nhưng khi tăng EQ cao có thể bị nén ở đoạn nhạc lớn",
             checked = eq.autoPreamp,
             onCheckedChange = viewModel::setAutoPreamp,
         )

@@ -132,8 +132,8 @@ private fun ShelfAlbumsScreen(
     LibraryGridScreen(
         title = "Album",
         subtitle = when (shelf) {
-            LibraryShelfKind.Local -> "Albums with music on this device."
-            LibraryShelfKind.Cached -> "Albums with songs in your cache."
+            LibraryShelfKind.Local -> "Các album có nhạc lưu trên thiết bị này."
+            LibraryShelfKind.Cached -> "Các album có bài hát trong bộ nhớ đệm."
         },
         searchPlaceholder = "Tìm album trong danh sách này",
         entries = entries,

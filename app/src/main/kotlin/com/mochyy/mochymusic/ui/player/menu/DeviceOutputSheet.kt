@@ -145,7 +145,7 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
             )
 
             Spacer(modifier = Modifier.height(22.dp))
-            SectionLabel("Play on")
+            SectionLabel("Phát trên")
 
             Column(modifier = Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DeviceRow(
@@ -173,7 +173,7 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
 
             if (castTargets.isNotEmpty() || isCasting) {
                 Spacer(modifier = Modifier.height(22.dp))
-                SectionLabel("Other devices on your network")
+                SectionLabel("Thiết bị khác trong mạng")
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (isCasting) {
                         DeviceRow(

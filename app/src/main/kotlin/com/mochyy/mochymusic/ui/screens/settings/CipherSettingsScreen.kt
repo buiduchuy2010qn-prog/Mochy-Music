@@ -120,9 +120,9 @@ fun CipherSettingsScreen(navController: NavController) {
     }
 
     val statusLabel = when {
-        !status.hasCache -> "Not loaded"
+        !status.hasCache -> "Chưa tải"
         status.isExpired -> "Stale — refreshes on next playback"
-        else -> "Ready"
+        else -> "Sẵn sàng"
     }
 
     SubSettingsScaffold(
@@ -151,8 +151,8 @@ fun CipherSettingsScreen(navController: NavController) {
                 Spacer(Modifier.height(4.dp))
 
                 Text(
-                    text = "YouTube signs its stream URLs with a player script that changes " +
-                        "periodically. mochy caches that script and re-downloads it automatically.",
+                    text = "YouTube ký các luồng phát nhạc bằng mã kịch bản trình phát thay đổi " +
+                        "định kỳ. Mochy tự động lưu đệm và tải lại kịch bản này khi cần.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -161,17 +161,17 @@ fun CipherSettingsScreen(navController: NavController) {
 
                 CipherInfoRow("Player ID", status.playerHash ?: "—")
                 CipherInfoRow(
-                    "Last updated",
+                    "Cập nhật lần cuối",
                     status.lastUpdatedMs?.let {
                         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
                     } ?: "—",
                 )
                 CipherInfoRow(
-                    "Script size",
+                    "Dung lượng kịch bản",
                     if (status.sizeBytes > 0) "${status.sizeBytes / 1024} KB" else "—",
                 )
                 CipherInfoRow(
-                    "Next refresh",
+                    "Lần làm mới tiếp theo",
                     if (!status.hasCache) "—" else if (remainingMs <= 0L) "Due now" else "in ${formatDuration(remainingMs)}",
                 )
 
@@ -197,11 +197,11 @@ fun CipherSettingsScreen(navController: NavController) {
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 SettingsItem(
-                    title = { Text(if (isRefreshing) "Refreshing…" else "Refresh now") },
+                    title = { Text(if (isRefreshing) "Đang làm mới…" else "Làm mới ngay") },
                     descriptionText = when {
-                        isRefreshing -> "Downloading the latest player script"
+                        isRefreshing -> "Đang tải kịch bản trình phát mới nhất"
                         cooldownMs > 0L -> "Rate limited — try again in ${formatDuration(cooldownMs)}"
-                        else -> "$remainingRefreshes manual refresh${if (remainingRefreshes == 1) "" else "es"} left"
+                        else -> "Còn $remainingRefreshes lượt làm mới thủ công"
                     },
                     icon = painterResource(R.drawable.refresh),
                     iconShape = CircleShape,
@@ -217,7 +217,7 @@ fun CipherSettingsScreen(navController: NavController) {
                             }
                             status = PlayerJsFetcher.readCacheStatus()
                             message = if (result != null) {
-                                "Updated to player ${result.second}"
+                                "Đã cập nhật lên trình phát ${result.second}"
                             } else {
                                 "Refresh failed — check your connection and try again"
                             }

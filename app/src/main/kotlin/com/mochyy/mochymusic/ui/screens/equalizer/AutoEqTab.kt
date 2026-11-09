@@ -103,16 +103,16 @@ fun AutoEqTab(viewModel: AudioLabViewModel, eq: EqSettings) {
     val error by viewModel.error.collectAsState()
     val correction = eq.correction
 
-    LabSectionLabel("Headphone correction")
+    LabSectionLabel("Hiệu chỉnh tai nghe")
     LabCard(padding = 12.dp) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("ĐÁP TUYẾN TẦN SỐ", fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp,
                 letterSpacing = 1.2.sp, color = LabColors.Secondary, modifier = Modifier.weight(1f))
-            Legend(OriginalColor, "Original")
+            Legend(OriginalColor, "Nguyên bản")
             Spacer(Modifier.width(10.dp))
-            Legend(TargetColor, "Target")
+            Legend(TargetColor, "Mục tiêu")
             Spacer(Modifier.width(10.dp))
-            Legend(CorrectedColor, "Corrected")
+            Legend(CorrectedColor, "Đã hiệu chỉnh")
         }
         Spacer(Modifier.height(8.dp))
         ResponseGraph(measurement = measurement.takeIf { correction != null && it?.entry?.path == correction.path }, correction = correction)
@@ -206,7 +206,7 @@ private fun ResponseGraph(measurement: AutoEqMeasurement?, correction: AutoEqCor
     }
     if (measurement == null) {
         Text(
-            if (correction == null) "Pick your headphones below" else "Loading ${correction.model}…",
+            if (correction == null) "Chọn mẫu tai nghe của bạn bên dưới" else "Đang tải ${correction.model}…",
             fontFamily = InterFontFamily, fontSize = 12.sp, color = LabColors.Faint,
             modifier = Modifier.padding(top = 10.dp, start = 6.dp),
         )
@@ -229,7 +229,7 @@ private fun SelectedHeadphone(
                 Text(correction.model, fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 17.sp,
                     color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    listOfNotNull("by ${correction.source}", correction.rig, "${correction.filters.size} filters").joinToString(" · "),
+                    listOfNotNull("bởi ${correction.source}", correction.rig, "${correction.filters.size} bộ lọc").joinToString(" · "),
                     fontFamily = InterFontFamily, fontSize = 12.sp, color = LabColors.Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -249,14 +249,14 @@ private fun SelectedHeadphone(
 
         val tuning = correction.tuning
         Column(Modifier.graphicsLayer { alpha = if (canTune) 1f else 0.4f }) {
-            LabSectionLabel("Filter bands")
+            LabSectionLabel("Số dải lọc")
             LabChips(
-                chips = AutoEqTuning.BandChoices.map { LabChip(it.toString(), "$it bands") },
+                chips = AutoEqTuning.BandChoices.map { LabChip(it.toString(), "$it dải") },
                 selectedKey = tuning.bands.toString(),
                 onSelect = { key -> if (canTune) viewModel.tune { it.copy(bands = key.toInt()) } },
             )
             Spacer(Modifier.height(12.dp))
-            LabSectionLabel("Correct up to")
+            LabSectionLabel("Hiệu chỉnh tới tần số")
             LabChips(
                 chips = AutoEqTuning.MaxHzChoices.map { LabChip(it.toString(), "${it / 1000} kHz") },
                 selectedKey = tuning.maxHz.toString(),
@@ -264,7 +264,7 @@ private fun SelectedHeadphone(
             )
             Spacer(Modifier.height(12.dp))
             LabSlider(
-                label = "Bass",
+                label = "Âm trầm (Bass)",
                 valueText = (if (tuning.bassDb > 0) "+" else "") + String.format("%.0f dB", tuning.bassDb),
                 value = tuning.bassDb.toFloat(),
                 onValueChange = { v -> if (canTune) viewModel.tune { it.copy(bassDb = Math.round(v).toDouble()) } },
@@ -273,7 +273,7 @@ private fun SelectedHeadphone(
             )
             Spacer(Modifier.height(6.dp))
             LabSlider(
-                label = "Tilt",
+                label = "Độ nghiêng âm (Tilt)",
                 valueText = (if (tuning.tiltDbPerOctave > 0) "+" else "") + String.format("%.1f dB/oct", tuning.tiltDbPerOctave),
                 value = tuning.tiltDbPerOctave.toFloat(),
                 onValueChange = { v -> if (canTune) viewModel.tune { it.copy(tiltDbPerOctave = Math.round(v * 10) / 10.0) } },
@@ -283,9 +283,9 @@ private fun SelectedHeadphone(
         }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!tuning.isDefault) LabTextAction("Use AutoEq's fit", R.drawable.refresh, enabled = canTune) { viewModel.tune { AutoEqTuning() } }
+            if (!tuning.isDefault) LabTextAction("Dùng chuẩn AutoEq", R.drawable.refresh, enabled = canTune) { viewModel.tune { AutoEqTuning() } }
             Spacer(Modifier.weight(1f))
-            LabTextAction("Remove", R.drawable.close) { viewModel.clearCorrection() }
+            LabTextAction("Gỡ bỏ", R.drawable.close) { viewModel.clearCorrection() }
         }
     }
 }
@@ -322,7 +322,7 @@ private fun Database(viewModel: AudioLabViewModel, selectedPath: String?, loadin
             val ready = index as? AutoEqIndex.Ready
             if (ready != null) {
                 Text(
-                    "${String.format("%,d", ready.models.size)} models",
+                    "${String.format("%,d", ready.models.size)} mẫu tai nghe",
                     fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = LabColors.Secondary,
                 )
             }
@@ -353,7 +353,7 @@ private fun Database(viewModel: AudioLabViewModel, selectedPath: String?, loadin
                 ) {
                     Text(state.message, fontFamily = InterFontFamily, fontSize = 14.sp, color = LabColors.Secondary)
                     Spacer(Modifier.height(12.dp))
-                    LabTextAction("Try again", R.drawable.refresh) { viewModel.loadIndex(refresh = true) }
+                    LabTextAction("Thử lại", R.drawable.refresh) { viewModel.loadIndex(refresh = true) }
                 }
                 is AutoEqIndex.Ready -> {
                     if (results.isEmpty()) {
@@ -450,7 +450,7 @@ private fun ModelRow(
                 Text(model.name, fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
                     color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    if (model.entries.size == 1) model.entries.first().sourceLabel else "${model.entries.size} profiles",
+                    if (model.entries.size == 1) model.entries.first().sourceLabel else "${model.entries.size} cấu hình",
                     fontFamily = InterFontFamily, fontSize = 12.sp, color = LabColors.Secondary, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }

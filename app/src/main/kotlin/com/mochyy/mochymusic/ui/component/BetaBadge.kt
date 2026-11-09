@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.R
@@ -26,7 +26,7 @@ fun BetaBadge(
         label,
         color = color,
         fontSize = 11.sp,
-        fontFamily = FontFamily.Monospace,
+        fontFamily = InterFontFamily,
         letterSpacing = 1.sp,
         modifier = modifier
             .border(1.dp, color.copy(alpha = 0.8f), CircleShape)

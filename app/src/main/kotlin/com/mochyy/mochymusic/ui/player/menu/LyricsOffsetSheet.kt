@@ -168,7 +168,7 @@ fun LyricsOffsetSheet(onDismiss: () -> Unit) {
                 label = when (autoHere) {
                     is LyricsAutoSync.State.Listening -> "listening… ${(autoHere.progress * 100).roundToInt()}%"
                     is LyricsAutoSync.State.Matching -> "matching…"
-                    else -> "auto offset"
+                    else -> "tự động căn lời"
                 },
                 enabled = timedLines != null && !autoRunning,
                 onClick = {
@@ -223,7 +223,7 @@ private fun AutoSyncStatus(state: LyricsAutoSync.State?, timed: Boolean, onUndo:
 private fun syncedText(state: LyricsAutoSync.State.Synced): String {
     val moved = state.offsetMs - state.previousOffsetMs
     val change = when {
-        abs(moved) < 20 -> "The lyrics were already in time with the singing."
+        abs(moved) < 20 -> "Lời bài hát đã khớp chuẩn với giọng hát."
         moved > 0 -> "Lyrics moved ${moved} ms earlier to meet the singing."
         else -> "Lyrics moved ${-moved} ms later to meet the singing."
     }

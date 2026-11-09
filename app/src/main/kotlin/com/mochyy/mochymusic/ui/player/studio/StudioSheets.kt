@@ -86,7 +86,7 @@ fun StudioSheets(
             androidx.compose.material3.LocalTextStyle provides studioText(StudioType.Body),
         ) {
         when (sheet) {
-            StudioSheet.CONTROLS -> if (transportLayout != null) OptionSheet("Controls") {
+            StudioSheet.CONTROLS -> if (transportLayout != null) OptionSheet("Nút điều khiển") {
                 FlagshipTransportLayout.entries.forEach { layout ->
                     OptionRow(selected = layout == transportLayout, onClick = { onTransportLayout(layout) }) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -98,7 +98,7 @@ fun StudioSheets(
                         }
                     }
                 }
-            } else OptionSheet("Controls") {
+            } else OptionSheet("Nút điều khiển") {
                 ButtonStyle.entries.forEach { style ->
                     OptionRow(selected = style == buttonStyle, onClick = { onButtonStyle(style) }, caption = style.displayName) {
                         if (style == ButtonStyle.DEFAULT) {
@@ -125,7 +125,7 @@ fun StudioSheets(
                 }
             }
 
-            StudioSheet.SEEKBAR -> OptionSheet("Seek bar") {
+            StudioSheet.SEEKBAR -> OptionSheet("Thanh tua nhạc") {
                 SeekBarStyle.entries.forEach { style ->
                     OptionRow(selected = style == seekBarStyle, onClick = { onSeekBarStyle(style) }, caption = style.displayName) {
                         Box(Modifier.fillMaxWidth().height(28.dp)) {
@@ -143,12 +143,12 @@ fun StudioSheets(
 
             StudioSheet.END_TIME -> {
                 var shown by rememberEnumPreference(PlayerEndTimestampKey, PlayerEndTimestamp.END_TIME)
-                OptionSheet("End timestamp") {
+                OptionSheet("Mốc thời gian cuối") {
                     OptionRow(selected = shown == PlayerEndTimestamp.TIME_LEFT, onClick = { shown = PlayerEndTimestamp.TIME_LEFT }) {
-                        TwoLines("Time left", "showing the time left for this song")
+                        TwoLines("Thời gian còn lại", "hiển thị thời gian còn lại của bài hát")
                     }
                     OptionRow(selected = shown == PlayerEndTimestamp.END_TIME, onClick = { shown = PlayerEndTimestamp.END_TIME }) {
-                        TwoLines("End time", "showing the end / total duration for this song")
+                        TwoLines("Tổng thời lượng", "hiển thị tổng thời lượng của bài hát")
                     }
                 }
             }
@@ -157,12 +157,12 @@ fun StudioSheets(
                 val slot = studio.sheetSlot
                 val current = menuLayout.actionAt(slot)
                 val used = (menuLayout.slots + menuLayout.side).toSet()
-                OptionSheet(if (slot == PlayerMenuLayout.SideSlot) "The button by the chevron" else "Menu button ${slot + 1}") {
+                OptionSheet(if (slot == PlayerMenuLayout.SideSlot) "Nút cạnh mũi tên" else "Nút menu ${slot + 1}") {
                     PlayerMenuAction.entries.forEach { action ->
                         OptionRow(
                             selected = action == current,
                             onClick = { menuLayout.assign(slot, action) },
-                            tag = if (action != current && action in used) "SWAPS" else null,
+                            tag = if (action != current && action in used) "ĐỔI CHỖ" else null,
                             compact = true,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -195,30 +195,30 @@ fun StudioSheets(
                 var content by rememberEnumPreference(DiscLabelContentKey, DiscLabelContent.CUSTOM)
                 val connection = LocalPlayerConnection.current
                 val track = connection?.uiState?.trackInfo?.collectAsState()?.value
-                OptionSheet("The disc label") {
+                OptionSheet("Nhãn tâm đĩa nhạc") {
                     OptionRow(selected = content == DiscLabelContent.CUSTOM, onClick = { content = DiscLabelContent.CUSTOM }) {
                         Column {
-                            TwoLines("Custom name", "whatever you type")
+                            TwoLines("Tên tùy chỉnh", "hiển thị nội dung bạn tự nhập")
                             if (content == DiscLabelContent.CUSTOM) {
                                 Spacer(Modifier.height(10.dp))
-                                LabelField(DiscNameKey, "Type the label")
+                                LabelField(DiscNameKey, "Nhập nhãn đĩa")
                             }
                         }
                     }
                     OptionRow(selected = content == DiscLabelContent.MUSIC_NAME, onClick = { content = DiscLabelContent.MUSIC_NAME }) {
-                        TwoLines("Music name", track?.title.orEmpty())
+                        TwoLines("Tên bài hát", track?.title.orEmpty())
                     }
                     OptionRow(selected = content == DiscLabelContent.ARTIST_NAME, onClick = { content = DiscLabelContent.ARTIST_NAME }) {
-                        TwoLines("Artist", track?.artist.orEmpty())
+                        TwoLines("Nghệ sĩ", track?.artist.orEmpty())
                     }
                     OptionRow(selected = content == DiscLabelContent.ALBUM_NAME, onClick = { content = DiscLabelContent.ALBUM_NAME }) {
                         TwoLines("Album", track?.album.orEmpty())
                     }
                     OptionRow(selected = content == DiscLabelContent.MUSIC_AND_ARTIST, onClick = { content = DiscLabelContent.MUSIC_AND_ARTIST }) {
-                        TwoLines("Music name and artist", listOfNotNull(track?.title, track?.artist).filter { it.isNotBlank() }.joinToString(" · "))
+                        TwoLines("Tên bài hát và nghệ sĩ", listOfNotNull(track?.title, track?.artist).filter { it.isNotBlank() }.joinToString(" · "))
                     }
                     OptionRow(selected = content == DiscLabelContent.NONE, onClick = { content = DiscLabelContent.NONE }) {
-                        TwoLines("Nothing", "a plain label")
+                        TwoLines("Để trống", "nhãn đĩa trơn")
                     }
                 }
             }
@@ -330,7 +330,7 @@ internal fun OptionRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(modifier = Modifier.weight(1f)) { content() }
-            val label = if (selected) "SELECTED" else tag
+            val label = if (selected) "ĐANG CHỌN" else tag
             if (label != null) {
                 Spacer(Modifier.width(12.dp))
                 Text(label, color = Color.White.copy(alpha = if (selected) 0.45f else 0.3f), style = studioText(StudioType.Label, FontWeight.Bold))

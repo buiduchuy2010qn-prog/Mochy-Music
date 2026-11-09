@@ -787,7 +787,7 @@ private fun PlaylistNormalBarRow(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.more_horiz),
-                    contentDescription = "Options",
+                    contentDescription = "Tùy chọn",
                     tint = Color.White,
                     modifier = Modifier.size(18.dp),
                 )
@@ -857,7 +857,7 @@ private fun BackPill(
         ) {
             Icon(
                 painter = painterResource(R.drawable.arrow_back_ios),
-                contentDescription = "Back",
+                contentDescription = "Quay lại",
                 tint = Color.White,
                 modifier = Modifier
                     .size(16.dp)
@@ -1003,7 +1003,7 @@ fun PlaylistHeader(
                 Spacer(Modifier.width(9.dp))
                 CircleAction(
                     icon = R.drawable.shuffle,
-                    contentDescription = "Shuffle",
+                    contentDescription = "Phát ngẫu nhiên",
                     onClick = onShuffleClick,
                     spinOnClick = true,
                 )
@@ -1011,7 +1011,7 @@ fun PlaylistHeader(
                     Spacer(Modifier.width(4.dp))
                     CircleAction(
                         icon = if (isSaved) R.drawable.library_add_check else R.drawable.library_add,
-                        contentDescription = if (isSaved) "In your library" else "Add to library",
+                        contentDescription = if (isSaved) "Trong thư viện" else "Thêm vào thư viện",
                         onClick = onSaveClick,
                     )
                 }
@@ -1133,7 +1133,7 @@ internal fun PlayPill(isPlaying: Boolean, onClick: () -> Unit) {
             label = "playPillLabel",
         ) { playing ->
             Text(
-                text = if (playing) "Pause" else "Play",
+                text = if (playing) "Tạm dừng" else "Phát",
                 style = PillLabelStyle,
                 color = PillContent,
             )
@@ -1231,7 +1231,7 @@ private fun CreatorRow(creators: List<CreatorUi>, onClick: ((CreatorUi) -> Unit)
             text = when (creators.size) {
                 1 -> creators[0].name
                 2 -> "${creators[0].name} & ${creators[1].name}"
-                else -> "${creators[0].name}, ${creators[1].name} & ${creators.size - 2} more"
+                else -> "${creators[0].name}, ${creators[1].name} & ${creators.size - 2} nghệ sĩ khác"
             },
             style = PlaylistCreatorStyle,
             color = Color.White.copy(alpha = 0.88f),
@@ -1277,7 +1277,7 @@ private fun CreatorAvatar(creator: CreatorUi, size: Dp, modifier: Modifier = Mod
 @Composable
 fun PlaylistSearchControl(onClick: () -> Unit) {
     Text(
-        text = "search",
+        text = "tìm kiếm",
         style = PlaylistStatsStyle.copy(fontSize = 12.sp),
         color = Color.White.copy(alpha = 0.72f),
         modifier = Modifier
@@ -1340,7 +1340,7 @@ fun <T : Enum<T>> PlaylistSortControl(
                         {
                             Icon(
                                 painter = painterResource(R.drawable.expand_more),
-                                contentDescription = if (descending) "Descending" else "Ascending",
+                                contentDescription = if (descending) "Giảm dần" else "Tăng dần",
                                 tint = Color.White,
                                 modifier = Modifier
                                     .size(18.dp)
@@ -1515,14 +1515,14 @@ fun PlaylistEndOfLine(
                 .height(25.dp)
         ) {
             Text(
-                text = "$songCount ${if (songCount == 1) "SONG" else "SONGS"}",
+                text = "$songCount BÀI HÁT",
                 style = ReceiptSmallStyle,
                 color = Color.White.copy(alpha = 0.6f),
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "END OF LINE",
+                text = "CUỐI DANH SÁCH",
                 style = ReceiptCenterStyle,
                 color = Color.White.copy(alpha = 0.78f),
                 maxLines = 1,
@@ -1530,7 +1530,7 @@ fun PlaylistEndOfLine(
             )
             val minutes = (totalSeconds + 30) / 60
             Text(
-                text = "$minutes ${if (minutes == 1) "MINUTE" else "MINUTES"}",
+                text = "$minutes PHÚT",
                 style = ReceiptSmallStyle,
                 color = Color.White.copy(alpha = 0.6f),
                 maxLines = 1,
@@ -1594,7 +1594,7 @@ fun FeaturedArtistsRow(
     artists: List<FeaturedArtistUi>,
     onArtistClick: (FeaturedArtistUi) -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "Featured Artist",
+    title: String = "Nghệ sĩ nổi bật",
     onTitleClick: (() -> Unit)? = null,
     showChevron: Boolean = true,
 ) {

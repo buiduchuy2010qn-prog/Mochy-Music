@@ -145,7 +145,7 @@ private fun PickedSummary(session: LyricsShareSession) {
                         when (count) {
                             0 -> "Pick some lines"
                             1 -> "1 line selected"
-                            else -> "$count lines selected"
+                            else -> "Đã chọn $count câu"
                         },
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold,

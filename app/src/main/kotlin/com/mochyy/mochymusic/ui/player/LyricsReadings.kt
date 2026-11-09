@@ -152,7 +152,7 @@ fun LyricsReadings(
     // English to Indonesian it went on translating into English; the "whole session" switch was
     // saved but never read; and "show original" only blanked the lines until the next database
     // emission put the stored translation back.
-    val (translateLanguage) = rememberPreference(TranslateLanguageKey, defaultValue = "en")
+    val (translateLanguage) = rememberPreference(TranslateLanguageKey, defaultValue = "vi")
     val (translateSourceLanguage) = rememberPreference(TranslateSourceLanguageKey, defaultValue = "auto")
     val (translateMode) = rememberPreference(TranslateModeKey, defaultValue = "line")
     val (translateSessionWide) = rememberPreference(TranslateLyricsKey, defaultValue = false)
@@ -187,7 +187,7 @@ fun LyricsReadings(
             lines.forEach { it.translatedTextFlow.value = null }
             return@LaunchedEffect
         }
-        val target = translateLanguage.ifBlank { "en" }
+        val target = translateLanguage.ifBlank { "vi" }
 
         // a translation someone uploaded to the video beats any machine one, so it's tried first
         val metadata = playerConnection?.mediaMetadata?.value?.takeIf { it.id == songId }

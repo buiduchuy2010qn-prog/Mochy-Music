@@ -136,8 +136,8 @@ fun CrossmixSettingsScreen(navController: NavController) {
             }
             Spacer(Modifier.height(10.dp))
             LabToggleRow(
-                title = "Auto Crossfade",
-                subtitle = "A smooth ${AutoCrossfadeDurationSeconds.toInt()}-second blend from every song into the next",
+                title = "Tự động trộn bài (Auto Crossfade)",
+                subtitle = "Chuyển mượt ${AutoCrossfadeDurationSeconds.toInt()} giây từ bài đang phát sang bài tiếp theo",
                 checked = selectedMode == CrossmixMode.AUTO_CROSSFADE,
                 onCheckedChange = { toggle(CrossmixMode.AUTO_CROSSFADE, it) },
             )
@@ -154,8 +154,8 @@ fun CrossmixSettingsScreen(navController: NavController) {
             }
             Spacer(Modifier.height(10.dp))
             LabToggleRow(
-                title = "Manual Crossfade",
-                subtitle = "Set custom crossfade",
+                title = "Trộn bài thủ công",
+                subtitle = "Tự chỉnh thời gian chuyển mượt giữa hai bài",
                 checked = selectedMode == CrossmixMode.MANUAL_CROSSFADE,
                 onCheckedChange = { toggle(CrossmixMode.MANUAL_CROSSFADE, it) },
             )
@@ -196,9 +196,9 @@ fun CrossmixSettingsScreen(navController: NavController) {
             LabToggleRow(
                 title = "CrossMix",
                 subtitle = if (CrossmixAvailable) {
-                    "DJ-style: reads each song's tempo, beats, key, energy and where its voice is, then picks the one of 27 transitions that fits, so two voices never sing over each other"
+                    "Phong cách DJ: phân tích nhịp độ, phách, tông nhạc, năng lượng và giọng hát để chọn 1 trong 27 kiểu chuyển bài mượt mà, tránh hai giọng hát đè lên nhau"
                 } else {
-                    "Still being tuned, so it can't be turned on yet. DJ-style mixes that read each song's tempo, beats, key and voice"
+                    "Đang trong quá trình tinh chỉnh. Chuyển bài phong cách DJ tự động phân tích nhịp độ, phách, tông nhạc và giọng hát"
                 },
                 checked = selectedMode == CrossmixMode.CROSSMIX,
                 onCheckedChange = { toggle(CrossmixMode.CROSSMIX, it) },
@@ -335,7 +335,7 @@ private fun DrawScope.drawPlayhead(x: Float, cy: Float, reach: Float, alpha: Flo
 @Composable
 private fun InProgressTag(modifier: Modifier = Modifier) {
     Text(
-        "In progress",
+        "Đang phát triển",
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 11.sp,

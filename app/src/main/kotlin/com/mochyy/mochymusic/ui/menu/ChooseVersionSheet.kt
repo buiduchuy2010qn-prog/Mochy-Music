@@ -87,7 +87,7 @@ private fun ColumnScope.ChooseVersionContent(match: TrackMatch, onDone: () -> Un
             append("${match.title} · ${match.artist}")
             val label = ImportSource.fromKey(match.source)?.takeIf { it.isListed }?.label
             if (sourceSeconds != null && label != null) {
-                append(" · ${makeTimeString(match.durationMs)} on $label")
+                append(" · ${makeTimeString(match.durationMs)} trên $label")
             }
         },
         color = SearchColors.Secondary,
@@ -99,8 +99,8 @@ private fun ColumnScope.ChooseVersionContent(match: TrackMatch, onDone: () -> Un
 
     val list = candidates
     val message = when {
-        list == null -> "Looking for other versions…"
-        list.isEmpty() -> "Couldn't find any versions. Check your connection and try again."
+        list == null -> "Đang tìm các phiên bản khác…"
+        list.isEmpty() -> "Không tìm thấy phiên bản nào. Hãy kiểm tra kết nối mạng và thử lại."
         else -> null
     }
     if (message != null || list == null) {
@@ -189,9 +189,9 @@ private fun VersionRow(song: SongItem, sourceSeconds: Double?, isCurrent: Boolea
 
 /** Where a result comes from, in the words people know: the artist's own audio, a video, someone's upload. */
 private fun uploadKind(song: SongItem): String = when (song.musicVideoType) {
-    MUSIC_VIDEO_TYPE_ATV, null -> "Song"
-    MUSIC_VIDEO_TYPE_OMV -> "Music video"
-    else -> "Upload"
+    MUSIC_VIDEO_TYPE_ATV, null -> "Bản âm thanh"
+    MUSIC_VIDEO_TYPE_OMV -> "Video âm nhạc"
+    else -> "Bản tải lên"
 }
 
 /** How far a result's length is from the track's: a live or sped-up take shows up here at a glance. */
@@ -199,8 +199,8 @@ private fun lengthHint(seconds: Int?, sourceSeconds: Double?): String? {
     if (seconds == null || sourceSeconds == null) return null
     val diff = (seconds - sourceSeconds).roundToInt()
     return when {
-        abs(diff) <= TrackMatcher.CLOSE_SECONDS -> "Same length"
-        diff > 0 -> "${diff}s longer"
-        else -> "${-diff}s shorter"
+        abs(diff) <= TrackMatcher.CLOSE_SECONDS -> "Cùng thời lượng"
+        diff > 0 -> "Dài hơn ${diff}s"
+        else -> "Ngắn hơn ${-diff}s"
     }
 }

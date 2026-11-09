@@ -133,7 +133,7 @@ fun PopupSheetState.showRemoveLocalSheet(localFiles: List<Song>, viewModel: Libr
         songs = localFiles,
         title = "Xóa khỏi danh sách",
         emptyText = "Chưa có tệp nhạc nào từ điện thoại trong thư viện của bạn.",
-        hint = "The files stay on your phone.",
+        hint = "Tệp nhạc gốc trên điện thoại vẫn được giữ nguyên.",
         onRemove = { viewModel.removeLocalSongs(it) },
     )
 
@@ -143,7 +143,7 @@ fun PopupSheetState.showRemoveCachedSheet(cachedSongs: List<Song>, onRemove: (Se
         songs = cachedSongs,
         title = "Xóa khỏi bộ nhớ đệm",
         emptyText = "Chưa có bài hát nào trong bộ nhớ đệm.",
-        hint = "They'll stream again the next time you play them.",
+        hint = "Bài hát sẽ phát trực tuyến lại khi bạn nghe lần sau.",
         onRemove = onRemove,
     )
 
@@ -181,7 +181,7 @@ private fun PopupSheetState.showRemoveSongsSheet(
     }
 }
 
-private fun songCount(count: Int) = if (count == 1) "1 song" else "$count songs"
+private fun songCount(count: Int) = "$count bài hát"
 
 /** Title, search, then the songs with their checkboxes. A null [songs] is still loading. */
 @Composable
@@ -236,7 +236,7 @@ private fun ColumnScope.SongPickerContent(
     val message = when {
         songs == null -> loadingText
         songs.isEmpty() -> emptyText
-        shown.isEmpty() -> "Nothing matches \"${query.trim()}\""
+        shown.isEmpty() -> "Không có kết quả khớp với \"${query.trim()}\""
         else -> null
     }
     if (message != null) {

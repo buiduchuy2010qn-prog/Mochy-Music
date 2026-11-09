@@ -19,14 +19,14 @@ import kotlinx.coroutines.launch
 @Immutable
 sealed class IpodPage(val title: String) {
     data object Main : IpodPage("Mochy")
-    data object Music : IpodPage("Music")
-    data object NowPlaying : IpodPage("Now Playing")
+    data object Music : IpodPage("Âm nhạc")
+    data object NowPlaying : IpodPage("Đang phát")
     data object CoverFlow : IpodPage("Cover Flow")
-    data object Playlists : IpodPage("Playlists")
-    data object Artists : IpodPage("Artists")
-    data object Albums : IpodPage("Albums")
-    data object Songs : IpodPage("Songs")
-    data object LikedSongs : IpodPage("Liked Songs")
+    data object Playlists : IpodPage("Danh sách phát")
+    data object Artists : IpodPage("Nghệ sĩ")
+    data object Albums : IpodPage("Album")
+    data object Songs : IpodPage("Bài hát")
+    data object LikedSongs : IpodPage("Bài hát yêu thích")
     data class Playlist(val id: String, val name: String) : IpodPage(name)
     data class Artist(val id: String, val name: String) : IpodPage(name)
     data class Album(val id: String, val name: String) : IpodPage(name)
@@ -64,26 +64,26 @@ class IpodList(val rows: List<IpodRow>, val songs: List<Song> = emptyList(), val
 }
 
 // shown for the moment a list takes longer than the slide to read
-val IpodLoadingList = IpodList(listOf(IpodRow("loading", "Loading…", null)))
+val IpodLoadingList = IpodList(listOf(IpodRow("loading", "Đang tải…", null)))
 
 // the home sidebar: cover flow, the music menu and now playing
 val IpodMainList = IpodList(
     listOf(
         IpodRow("coverflow", "Cover Flow", IpodPick.Open(IpodPage.CoverFlow)),
-        IpodRow("music", "Music", IpodPick.Open(IpodPage.Music)),
-        IpodRow("now", "Now Playing", IpodPick.Open(IpodPage.NowPlaying)),
+        IpodRow("music", "Âm nhạc", IpodPick.Open(IpodPage.Music)),
+        IpodRow("now", "Đang phát", IpodPick.Open(IpodPage.NowPlaying)),
     )
 )
 
 // the music submenu, also shown in the left half of the screen beside the covers
 val IpodMusicList = IpodList(
     listOf(
-        IpodRow("playlists", "Playlists", IpodPick.Open(IpodPage.Playlists)),
-        IpodRow("artists", "Artists", IpodPick.Open(IpodPage.Artists)),
-        IpodRow("albums", "Albums", IpodPick.Open(IpodPage.Albums)),
-        IpodRow("songs", "Songs", IpodPick.Open(IpodPage.Songs)),
-        IpodRow("liked", "Liked Songs", IpodPick.Open(IpodPage.LikedSongs)),
-        IpodRow("shuffle", "Shuffle Songs", IpodPick.Shuffle),
+        IpodRow("playlists", "Danh sách phát", IpodPick.Open(IpodPage.Playlists)),
+        IpodRow("artists", "Nghệ sĩ", IpodPick.Open(IpodPage.Artists)),
+        IpodRow("albums", "Album", IpodPick.Open(IpodPage.Albums)),
+        IpodRow("songs", "Bài hát", IpodPick.Open(IpodPage.Songs)),
+        IpodRow("liked", "Bài hát yêu thích", IpodPick.Open(IpodPage.LikedSongs)),
+        IpodRow("shuffle", "Phát ngẫu nhiên", IpodPick.Shuffle),
         IpodRow("coverflow", "Cover Flow", IpodPick.Open(IpodPage.CoverFlow)),
     )
 )

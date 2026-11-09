@@ -139,9 +139,9 @@ fun AudioLabScreen(
             SmallHubCard(
                 title = "Chuyển bài",
                 status = when (mode.playable()) {
-                    CrossmixMode.OFF -> "Off"
-                    CrossmixMode.AUTO_CROSSFADE -> "Auto"
-                    CrossmixMode.MANUAL_CROSSFADE -> "Manual"
+                    CrossmixMode.OFF -> "Tắt"
+                    CrossmixMode.AUTO_CROSSFADE -> "Tự động"
+                    CrossmixMode.MANUAL_CROSSFADE -> "Thủ công"
                     CrossmixMode.CROSSMIX -> "CrossMix"
                 },
                 onClick = { navController.navigate("crossmix_settings") },
@@ -196,15 +196,15 @@ fun AudioLabScreen(
 private fun effectsStatus(effects: List<ActiveEffect>): String {
     val names = effects.map { it.label.uppercase() }
     return when {
-        names.isEmpty() -> "ALL OFF"
+        names.isEmpty() -> "ĐÃ TẮT"
         names.size <= 2 -> names.joinToString(", ")
-        else -> names.take(2).joinToString(", ") + " and ${names.size - 2} more"
+        else -> names.take(2).joinToString(", ") + " và ${names.size - 2} hiệu ứng khác"
     }
 }
 
 private fun equalizerStatus(eq: EqSettings, userPresets: Map<String, String>): String {
-    if (!eq.enabled) return "OFF"
-    val curve = eq.presetId?.let { id -> EqPresets.BuiltIn.firstOrNull { it.id == id }?.name ?: userPresets[id] } ?: "Custom"
+    if (!eq.enabled) return "TẮT"
+    val curve = eq.presetId?.let { id -> EqPresets.BuiltIn.firstOrNull { it.id == id }?.name ?: userPresets[id] } ?: "Tùy chỉnh"
     val correction = eq.correction?.takeIf { eq.correctionEnabled }?.model
     return (if (correction != null) "$curve · $correction" else curve).uppercase()
 }
@@ -213,10 +213,10 @@ private fun qualityName(q: AudioQuality, firstProvider: String?): String = when 
     com.mochyy.mochymusic.module.monochrome.MonochromeModule.Id -> "Monochrome · Lossless"
     com.mochyy.mochymusic.module.applemusic.AppleMusicModule.Id -> "Apple Music · AAC"
     else -> "YouTube · " + when (q) {
-        AudioQuality.LOW -> "Low"
-        AudioQuality.MEDIUM -> "Medium"
-        AudioQuality.HIGH -> "High"
-        else -> "Auto"
+        AudioQuality.LOW -> "Thấp"
+        AudioQuality.MEDIUM -> "Trung bình"
+        AudioQuality.HIGH -> "Cao"
+        else -> "Tự động"
     }
 }
 

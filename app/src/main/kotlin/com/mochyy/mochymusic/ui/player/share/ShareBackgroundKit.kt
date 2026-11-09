@@ -98,7 +98,7 @@ internal fun PictureBackgroundControls(
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
         )
         Text(
-            "Change picture",
+            "Đổi ảnh nền",
             fontFamily = InterFontFamily,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp,
@@ -135,7 +135,7 @@ internal fun ColourBackgroundControls(colour: Color, palette: List<Color>, onPic
         LabCard(padding = 10.dp) {
             Row(Modifier.padding(start = 6.dp, end = 6.dp, top = 2.dp, bottom = 10.dp)) {
                 Text(
-                    "Your own colour",
+                    "Màu tùy chỉnh",
                     fontFamily = InterFontFamily,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,

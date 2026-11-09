@@ -306,9 +306,9 @@ class ArtistViewModel @Inject constructor(
                 ?.items?.firstOrNull() as? SongItem
                 ?: return null
             return ArtistRelease(
-                label = "Highlight",
+                label = "Nổi bật",
                 title = top.title,
-                subtitle = top.album?.name ?: "Top song",
+                subtitle = top.album?.name ?: "Bài hát hàng đầu",
                 thumbnailUrl = top.thumbnail,
                 dateLabel = null,
                 song = top,
@@ -322,13 +322,13 @@ class ArtistViewModel @Inject constructor(
             date != null -> ChronoUnit.DAYS.between(date, LocalDate.now()) in 0..120
             else -> album.year != null && album.year!! >= LocalDate.now().year
         }
-        val kind = if (isSingle) "Single" else "Album"
+        val kind = if (isSingle) "Đĩa đơn" else "Album"
         return ArtistRelease(
-            label = if (recent) "New release" else "Latest release",
+            label = if (recent) "Mới phát hành" else "Phát hành gần nhất",
             title = album.title,
             subtitle = listOfNotNull(
                 kind,
-                latest?.trackCount?.takeIf { matched != null && it > 1 }?.let { "$it songs" },
+                latest?.trackCount?.takeIf { matched != null && it > 1 }?.let { "$it bài hát" },
             ).joinToString(" · "),
             thumbnailUrl = album.thumbnail,
             dateLabel = date?.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))

@@ -553,14 +553,14 @@ private fun QueueSectionHeader(
 ) {
     val title = when (section) {
         QueueSection.HISTORY -> stringResource(R.string.history)
-        QueueSection.NOW_PLAYING -> "Now Playing"
-        QueueSection.CONTINUE -> "Continue Playing"
-        QueueSection.AUTOPLAY -> "Autoplay"
+        QueueSection.NOW_PLAYING -> "Đang phát"
+        QueueSection.CONTINUE -> "Phát tiếp theo"
+        QueueSection.AUTOPLAY -> "Tự động phát"
     }
     val subtitle = when (section) {
         QueueSection.HISTORY, QueueSection.NOW_PLAYING -> null
-        QueueSection.CONTINUE -> queueTitle?.takeIf { it.isNotBlank() }?.let { "Queue from $it" }
-        QueueSection.AUTOPLAY -> "Similar music"
+        QueueSection.CONTINUE -> queueTitle?.takeIf { it.isNotBlank() }?.let { "Danh sách từ $it" }
+        QueueSection.AUTOPLAY -> "Nhạc tương tự"
     }
 
     Row(

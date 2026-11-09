@@ -257,8 +257,8 @@ class HomeViewModel @Inject constructor(
                             is com.mochyy.mochymusic.db.entities.Playlist -> com.music.innertube.models.PlaylistItem(
                                 id = item.id,
                                 title = item.title,
-                                author = Artist(name = "Local Playlist", id = null),
-                                songCountText = item.songCount.toString() + " songs",
+                                author = Artist(name = "Danh sách trên máy", id = null),
+                                songCountText = item.songCount.toString() + " bài hát",
                                 thumbnail = item.thumbnails.firstOrNull() ?: "",
                                 playEndpoint = null,
                                 shuffleEndpoint = null,
@@ -289,8 +289,8 @@ class HomeViewModel @Inject constructor(
                             is com.mochyy.mochymusic.db.entities.Playlist -> com.music.innertube.models.PlaylistItem(
                                 id = item.id,
                                 title = item.title,
-                                author = Artist(name = "Local Playlist", id = null),
-                                songCountText = item.songCount.toString() + " songs",
+                                author = Artist(name = "Danh sách trên máy", id = null),
+                                songCountText = item.songCount.toString() + " bài hát",
                                 thumbnail = item.thumbnails.firstOrNull() ?: "",
                                 playEndpoint = null,
                                 shuffleEndpoint = null,
@@ -328,8 +328,8 @@ class HomeViewModel @Inject constructor(
                         is com.mochyy.mochymusic.db.entities.Playlist -> otherSources.add(com.music.innertube.models.PlaylistItem(
                             id = item.id,
                             title = item.title,
-                            author = Artist(name = "Local Playlist", id = null),
-                            songCountText = item.songCount.toString() + " songs",
+                            author = Artist(name = "Danh sách trên máy", id = null),
+                            songCountText = item.songCount.toString() + " bài hát",
                             thumbnail = item.thumbnails.firstOrNull() ?: "",
                             playEndpoint = null,
                             shuffleEndpoint = null,
@@ -377,7 +377,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    val accountName = MutableStateFlow("Guest")
+    val accountName = MutableStateFlow("Khách")
     val accountImageUrl = MutableStateFlow<String?>(null)
 
     fun togglePin(item: YTItem) {
@@ -1311,7 +1311,7 @@ class HomeViewModel @Inject constructor(
                         // the first load() fetches these itself, a later sign-in has to do it here
                         if (signedInLater) loadAccountPlaylists()
                     } else {
-                        accountName.value = "Guest"
+                        accountName.value = "Khách"
                         accountImageUrl.value = null
                         accountPlaylists.value = null
                     }

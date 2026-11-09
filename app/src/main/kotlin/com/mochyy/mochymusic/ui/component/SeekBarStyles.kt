@@ -32,10 +32,10 @@ import kotlin.math.sin
  * they animate identically on every supported Android version.
  */
 enum class SeekBarStyle(val displayName: String) {
-    DEFAULT("Default"),
+    DEFAULT("Mặc định"),
     M3_EXPRESSIVE("Material 3 Expressive 1"),
-    M3_EXPRESSIVE_LINE("Material 3 Expressive slider 2"),
-    PLAIN("plain"),
+    M3_EXPRESSIVE_LINE("Material 3 Expressive kiểu 2"),
+    PLAIN("Đơn giản"),
 }
 
 private const val WaveSpeedMillis = 1400

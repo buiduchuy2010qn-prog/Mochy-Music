@@ -99,14 +99,14 @@ internal fun PlaylistModeBarRow(
                 Spacer(Modifier.width(8.dp))
                 ModeCircleButton(
                     icon = R.drawable.more_horiz,
-                    contentDescription = "Actions for the picked songs",
+                    contentDescription = "Thao tác với bài đã chọn",
                     enabled = mode.count > 0,
                     onClick = mode.onMore,
                 )
                 Spacer(Modifier.width(8.dp))
                 ModeCircleButton(
                     icon = R.drawable.close,
-                    contentDescription = "Stop selecting",
+                    contentDescription = "Hủy chọn",
                     onClick = mode.onClose,
                 )
             }
@@ -117,14 +117,14 @@ internal fun PlaylistModeBarRow(
                 if (mode.onMore != null) {
                     ModeCircleButton(
                         icon = R.drawable.more_horiz,
-                        contentDescription = "Options",
+                        contentDescription = "Tùy chọn",
                         onClick = mode.onMore,
                     )
                     Spacer(Modifier.width(8.dp))
                 }
                 ModeCircleButton(
                     icon = R.drawable.check,
-                    contentDescription = "Done",
+                    contentDescription = "Xong",
                     filled = true,
                     onClick = mode.onDone,
                 )
@@ -316,7 +316,7 @@ fun PlaylistSelectTick(checked: Boolean, modifier: Modifier = Modifier) {
         ) {
             Icon(
                 painter = painterResource(R.drawable.check),
-                contentDescription = if (checked) "Selected" else "Not selected",
+                contentDescription = if (checked) "Đã chọn" else "Chưa chọn",
                 tint = PillContent,
                 modifier = Modifier
                     .size(14.dp)

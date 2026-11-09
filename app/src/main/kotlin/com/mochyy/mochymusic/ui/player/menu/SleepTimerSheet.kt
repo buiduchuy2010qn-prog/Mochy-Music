@@ -116,7 +116,7 @@ fun SleepTimerSheet(onDismiss: () -> Unit) {
                     Spacer(modifier = Modifier.width(14.dp))
                     Icon(
                         painter = painterResource(R.drawable.arrow_forward),
-                        contentDescription = "Edit duration",
+                        contentDescription = "Chỉnh thời lượng",
                         tint = Color.White.copy(alpha = 0.8f),
                         modifier = Modifier.size(20.dp),
                     )

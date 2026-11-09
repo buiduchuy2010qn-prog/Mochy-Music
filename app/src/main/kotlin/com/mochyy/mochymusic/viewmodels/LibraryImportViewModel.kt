@@ -97,7 +97,7 @@ class LibraryImportViewModel @Inject constructor(
             LocalFolders.newAudioFiles(context, tree, knownLocalUris(withMediaStore = false))
         }
         if (files == null) {
-            TopToaster.show("Couldn't keep access to that folder. Try picking it again.", iconRes = R.drawable.library_music)
+            TopToaster.show("Không thể giữ quyền truy cập thư mục đó. Hãy thử chọn lại.", iconRes = R.drawable.library_music)
             return false
         }
         return startFolderImport(files, emptyMessage = "Mọi bài hát trong thư mục đó đều đã có trong thư viện của bạn")
@@ -114,7 +114,7 @@ class LibraryImportViewModel @Inject constructor(
             fixed to LocalFolders.read(context).flatMap { LocalFolders.newAudioFiles(context, it, known) }.distinct()
         }
         if (fixedCovers > 0) {
-            TopToaster.show(if (fixedCovers == 1) "Brought back 1 cover" else "Brought back $fixedCovers covers", iconRes = R.drawable.library_music)
+            TopToaster.show("Đã khôi phục $fixedCovers ảnh bìa", iconRes = R.drawable.library_music)
         }
         if (files.isEmpty()) return false
         return startFolderImport(files, emptyMessage = null)
@@ -129,7 +129,7 @@ class LibraryImportViewModel @Inject constructor(
             return false
         }
         if (!localImport.importFolderFiles(files)) {
-            TopToaster.show("An import is still running. Try again once it's done.", iconRes = R.drawable.library_music)
+            TopToaster.show("Đang có tiến trình nhập nhạc chạy. Vui lòng thử lại khi hoàn tất.", iconRes = R.drawable.library_music)
             return false
         }
         return true
@@ -148,33 +148,33 @@ class LibraryImportViewModel @Inject constructor(
             DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, item.key, false)
         }
         TopToaster.show(
-            if (running.size == 1) "Cancelled 1 download" else "Cancelled ${running.size} downloads",
+            "Đã hủy ${running.size} lượt tải xuống",
             iconRes = R.drawable.library_music,
         )
     }
 
     // ---- Manage imports ----
 
-    fun deleteAllImports() = report { "Removed ${songs(history.deleteAllImports())} you imported" }
+    fun deleteAllImports() = report { "Đã gỡ ${songs(history.deleteAllImports())} đã nhập" }
 
     fun undoLatestImport() = report {
-        history.undoLatestImport()?.let { "Undid your last import: ${songs(it)} removed" } ?: "There's no import to undo"
+        history.undoLatestImport()?.let { "Đã hoàn tác lần nhập gần nhất: gỡ ${songs(it)}" } ?: "Không có lần nhập nào để hoàn tác"
     }
 
     fun deleteImportsFrom(source: ImportSource) = report {
-        "Removed ${songs(history.deleteImportsFrom(source))} imported from ${source.label}"
+        "Đã gỡ ${songs(history.deleteImportsFrom(source))} nhập từ ${source.label}"
     }
 
     // ---- Manage local ----
 
     fun undoLatestLocalImport() = report {
-        history.undoLatestLocalImport()?.let { "Undid your last local import: ${songs(it)} removed" }
-            ?: "There's no local import to undo"
+        history.undoLatestLocalImport()?.let { "Đã hoàn tác lần nhập nhạc trên máy: gỡ ${songs(it)}" }
+            ?: "Không có lần nhập nhạc trên máy nào để hoàn tác"
     }
 
     fun removeLocalSongs(songIds: Collection<String>) = report {
         history.removeLocalSongs(songIds)
-        "Removed ${songs(songIds.size)}. The files are still on your phone."
+        "Đã gỡ ${songs(songIds.size)} khỏi thư viện. Tệp gốc vẫn còn trên điện thoại."
     }
 
     /**
@@ -196,5 +196,5 @@ class LibraryImportViewModel @Inject constructor(
         }
     }
 
-    private fun songs(count: Int) = if (count == 1) "1 song" else "$count songs"
+    private fun songs(count: Int) = "$count bài hát"
 }

@@ -101,7 +101,7 @@ internal fun NerdsDivider() {
             text = "THÔNG SỐ KỸ THUẬT",
             color = InfoMuted,
             fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = InterFontFamily,
             letterSpacing = 0.55.em,
             modifier = Modifier.padding(horizontal = 14.dp),
         )

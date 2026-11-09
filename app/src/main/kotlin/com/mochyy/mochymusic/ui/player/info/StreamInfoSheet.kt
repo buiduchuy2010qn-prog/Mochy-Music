@@ -90,7 +90,7 @@ fun StreamInfoSheet(onDismiss: () -> Unit) {
                     Spacer(Modifier.height(16.dp))
                     SongHeader(song)
                     InfoDivider()
-                    InfoSectionTitle("Provider")
+                    InfoSectionTitle("Nguồn phát")
                     Spacer(Modifier.height(12.dp))
                     ProviderRow(service, from, onForce = { showForce = true })
                     NerdsDivider()

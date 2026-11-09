@@ -17,7 +17,7 @@ object DownloadNotificationManager {
     private lateinit var appContext: Context
 
     const val CHANNEL_ID = "download_progress_channel"
-    private const val CHANNEL_NAME = "Download Progress"
+    private const val CHANNEL_NAME = "Tiến trình tải xuống"
     private const val NOTIFICATION_ID = 5678
 
     fun initialize(context: Context) {

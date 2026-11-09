@@ -100,11 +100,11 @@ import com.mochyy.mochymusic.ui.utils.stableStatusBarsPadding
 
 internal val PlayerBackgroundStyle.studioName: String
     get() = when (this) {
-        PlayerBackgroundStyle.COVER_GRADIENT -> "Cover gradient"
-        PlayerBackgroundStyle.SOLID -> "Solid"
-        PlayerBackgroundStyle.DARK_GRADIENT -> "Dark gradient"
+        PlayerBackgroundStyle.COVER_GRADIENT -> "Chuyển sắc ảnh bìa"
+        PlayerBackgroundStyle.SOLID -> "Màu đơn sắc"
+        PlayerBackgroundStyle.DARK_GRADIENT -> "Chuyển sắc tối"
         PlayerBackgroundStyle.APPLE_MUSIC -> "Apple Music"
-        PlayerBackgroundStyle.AMBIENT -> "Ambient"
+        PlayerBackgroundStyle.AMBIENT -> "Ánh sáng lan tỏa"
     }
 
 private fun inter(size: TextUnit, weight: FontWeight = FontWeight.Bold) = studioText(size, weight)
@@ -194,10 +194,10 @@ private fun StudioTopBar(studio: PlayerStudioState, glassState: GlassState) {
     val title by remember(studio) {
         derivedStateOf {
             when (studio.stage) {
-                StudioStage.COVER -> if (studio.backdrop.value > 0.5f) "Edit Background" else "Edit Cover"
-                StudioStage.MIDDLE -> "Edit Middle part"
-                StudioStage.MENU -> "Edit Menu"
-                else -> "Edit Player"
+                StudioStage.COVER -> if (studio.backdrop.value > 0.5f) "Sửa phông nền" else "Sửa ảnh bìa"
+                StudioStage.MIDDLE -> "Sửa phần giữa"
+                StudioStage.MENU -> "Sửa thanh menu"
+                else -> "Sửa trình phát"
             }
         }
     }
@@ -520,7 +520,7 @@ private fun CoverEditor(
                 .graphicsLayer { translationY = (1f - studio.cover.value) * 320.dp.toPx() },
         ) {
             AnimatedContent(
-                targetState = (if (inBackdrop) "BACKGROUND - %03d" else "STYLE - %03d").format(shownIndex + 1),
+                targetState = (if (inBackdrop) "PHÔNG NỀN - %03d" else "KIỂU BÌA - %03d").format(shownIndex + 1),
                 transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
                 label = "studioStyleNumber",
             ) { label ->
@@ -561,7 +561,7 @@ private fun CoverEditor(
         val nudge by bounce.animateFloat(0f, 1f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "studioChevronNudge")
         Icon(
             painter = painterResource(R.drawable.expand_more),
-            contentDescription = if (inBackdrop) "Back to covers" else "Backgrounds",
+            contentDescription = if (inBackdrop) "Quay lại ảnh bìa" else "Phông nền",
             tint = Color.White.copy(alpha = 0.7f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)

@@ -3,104 +3,49 @@
 package com.mochyy.mochymusic.ui.screens.search
 
 private val Descriptions: Map<String, String> = mapOf(
+    "chill" to "Giai điệu nhẹ nhàng, thư thái — nhạc điện tử tiết tấu chậm, indie dịu êm, soul lắng đọng và lo-fi beats. Không gian âm nhạc hoàn hảo để thả lỏng tâm trí sau những giờ làm việc căng thẳng.",
+    "thư giãn" to "Giai điệu nhẹ nhàng, thư thái — nhạc điện tử tiết tấu chậm, indie dịu êm, soul lắng đọng và lo-fi beats. Không gian âm nhạc hoàn hảo để thả lỏng tâm trí.",
+    "commute" to "Âm nhạc đồng hành trên mọi cung đường: nhịp điệu ổn định, giai điệu bắt tai từ pop, hip-hop đến những bản hit quen thuộc giúp chuyến đi của bạn thêm thú vị.",
+    "đi đường" to "Âm nhạc đồng hành trên mọi cung đường: nhịp điệu ổn định, giai điệu bắt tai giúp chuyến đi của bạn thêm thú vị.",
+    "energize" to "Nạp đầy năng lượng với những bản nhạc tiết tấu nhanh, sôi động — dance, pop-punk, EDM và hip-hop giúp vực dậy tinh thần ngay tức thì.",
+    "nạp năng lượng" to "Nạp đầy năng lượng với những bản nhạc tiết tấu nhanh, sôi động — dance, pop-punk, EDM và hip-hop giúp vực dậy tinh thần ngay tức thì.",
+    "feel good" to "Những giai điệu tươi sáng, ấm áp và tràn ngập niềm vui từ soul, funk, disco đến pop hiện đại — mang lại tâm trạng tích cực suốt cả ngày.",
+    "vui vẻ" to "Những giai điệu tươi sáng, ấm áp và tràn ngập niềm vui từ soul, funk, disco đến pop hiện đại — mang lại tâm trạng tích cực suốt cả ngày.",
+    "focus" to "Âm nhạc giúp tập trung tối đa: ambient, cổ điển hiện đại, hip-hop hòa tấu và điện tử tối giản. Hầu hết không lời để bạn đọc sách, học tập và làm việc hiệu quả nhất.",
+    "tập trung" to "Âm nhạc giúp tập trung tối đa: ambient, cổ điển hiện đại, hip-hop hòa tấu và điện tử tối giản để học tập và làm việc hiệu quả nhất.",
+    "gaming" to "Nhạc nền chiến game cực cuốn — electronic, synthwave, metal, phonk và nhạc nền game hoành tráng, giữ vững nhịp độ hào hứng suốt nhiều giờ liền.",
+    "party" to "Bùng nổ không khí tiệc tùng: house, hip-hop, Latin, Afrobeats và những bản pop sôi động mà ai cũng thuộc lòng.",
+    "tiệc tùng" to "Bùng nổ không khí tiệc tùng: house, hip-hop, Latin, Afrobeats và những bản pop sôi động mà ai cũng thuộc lòng.",
+    "romance" to "Những bản tình ca ngọt ngào, sâu lắng từ soul cổ điển, R&B đương đại đến pop ballad lãng mạn dành cho những khoảnh khắc yêu thương.",
+    "lãng mạn" to "Những bản tình ca ngọt ngào, sâu lắng từ soul cổ điển, R&B đương đại đến pop ballad lãng mạn dành cho những khoảnh khắc yêu thương.",
+    "sad" to "Không gian cho những nỗi niềm lắng đọng — ballad buồn, nhạc chia tay, slowcore và indie trầm mặc với giai điệu chạm tới cảm xúc sâu kín.",
+    "buồn" to "Không gian cho những nỗi niềm lắng đọng — ballad buồn, nhạc chia tay, slowcore và indie trầm mặc với giai điệu chạm tới cảm xúc sâu kín.",
+    "sleep" to "Êm dịu, chậm rãi và tĩnh lặng: âm thanh ambient, tiếng dương cầm nhẹ nhàng, đàn dây mềm mại và âm hưởng thiên nhiên đưa bạn vào giấc ngủ sâu.",
+    "ngủ" to "Êm dịu, chậm rãi và tĩnh lặng: âm thanh ambient, tiếng dương cầm nhẹ nhàng và âm hưởng thiên nhiên đưa bạn vào giấc ngủ sâu.",
+    "workout" to "Nhạc tập luyện tràn đầy sức mạnh — nhịp độ 120–150 BPM lý tưởng cho chạy bộ và gym, kết hợp hip-hop, EDM, hard rock thúc đẩy giới hạn bản thân.",
+    "tập luyện" to "Nhạc tập luyện tràn đầy sức mạnh — nhịp độ 120–150 BPM lý tưởng cho chạy bộ và gym, kết hợp hip-hop, EDM, hard rock thúc đẩy giới hạn bản thân.",
 
-    "chill" to "Low-tempo, low-pressure listening — downtempo electronica, soft indie, quiet " +
-        "soul and lo-fi beats. The idea grew out of 90s club chill-out rooms, where DJs kept a " +
-        "second, slower room running beside the dancefloor, and it has been shorthand for " +
-        "unhurried music ever since.",
-    "commute" to "Music built for the trip in between: steady tempos, strong hooks and songs " +
-        "that survive traffic noise and a pair of cheap earbuds. Leans on pop, hip-hop and " +
-        "familiar catalogue rather than anything that needs close attention.",
-    "energize" to "High-tempo, high-drive tracks for when you need lifting — dance, pop-punk, " +
-        "big-room electronic and up-tempo hip-hop. Chosen for momentum: fast tempos, bright " +
-        "production and choruses that arrive early.",
-    "feel good" to "Warm, major-key, unironically happy music, drawn from soul, funk, disco and " +
-        "bright pop across every decade. Less about a genre than about a guarantee — nothing " +
-        "here is going to bring the mood down.",
-    "focus" to "Music engineered to stay in the background: ambient, modern classical, " +
-        "instrumental hip-hop and minimal electronica. Largely wordless on purpose, since " +
-        "lyrics compete with reading and writing for the same part of your attention.",
-    "gaming" to "Long-session listening for play — electronic, synthwave, metal, phonk and " +
-        "orchestral game scores. Built to hold up over hours without either dropping the " +
-        "intensity or demanding you follow it.",
-    "party" to "Dancefloor music: house, hip-hop, Latin, Afrobeats and pop that everyone " +
-        "already knows the words to. Sequenced for a room rather than for headphones — " +
-        "familiar, loud and relentless.",
-    "romance" to "Slow songs about wanting someone, from classic soul and quiet storm through " +
-        "to contemporary R&B and singer-songwriter ballads. The lineage runs from 50s doo-wop " +
-        "and Motown straight into modern bedroom pop.",
-    "sad" to "Music for sitting with it rather than shaking it off — ballads, breakup songs, " +
-        "slowcore, torch songs and melancholy indie. Minor keys, slow tempos and lyrics that " +
-        "do not resolve.",
-    "sleep" to "Quiet, slow and mostly beatless: ambient drones, piano, soft strings and " +
-        "nature-adjacent textures. Descends from Brian Eno's Music for Airports (1978) and the " +
-        "idea that music can be as ignorable as it is interesting.",
-    "workout" to "Tempo-driven music for training — typically 120–150 BPM, where most people's " +
-        "running cadence sits. Hip-hop, EDM, hard rock and drill, picked for a steady pulse and " +
-        "a constant push.",
-
-    "african" to "The music of a continent, not a single sound: Afrobeats from Lagos and Accra, " +
-        "amapiano from South Africa, highlife, soukous, and Afrobeat proper — the horn-driven, " +
-        "politically charged style Fela Kuti built in 1970s Nigeria.",
-    "arabic" to "From the orchestral tarab of Umm Kulthum and Abdel Halim Hafez to modern " +
-        "Khaleeji pop and Egyptian mahraganat. Built on maqam — a modal system with intervals " +
-        "smaller than the Western semitone, which is why it can sound unplaceable at first.",
-    "blues" to "Born in the Mississippi Delta around 1900 out of work songs, field hollers and " +
-        "spirituals. Its twelve-bar form, blue notes and call-and-response are the direct " +
-        "foundation of jazz, R&B, rock and roll and almost everything after.",
-    "bollywood & indian" to "Film music as the mainstream: playback singers, huge arrangements " +
-        "and songs written for the screen, alongside classical Hindustani and Carnatic " +
-        "traditions, bhangra, and independent Indian pop.",
-    "country" to "American vernacular music out of the rural South, tracing to 1920s string " +
-        "bands and the 1927 Bristol sessions that recorded Jimmie Rodgers and the Carter " +
-        "Family. Narrative lyrics, plain language, and a straight line from honky-tonk to " +
-        "today's stadium country.",
-    "dance & electronic" to "Music made from machines for rooms full of people — Chicago house " +
-        "and Detroit techno in the 80s, then rave, trance, garage, dubstep and everything the " +
-        "festival circuit has produced since.",
-    "decades" to "The catalogue by era. Each decade collects what actually charted and what " +
-        "outlasted it — useful both as nostalgia and as a way of hearing how quickly the " +
-        "mainstream moves.",
-    "family" to "Music for listening together with children in the room: soundtracks, sing-" +
-        "alongs and pop chosen for being genuinely all-ages rather than merely inoffensive.",
-    "folk & acoustic" to "Songs carried by voice and unamplified instruments, from traditional " +
-        "ballads through the 60s revival — Dylan, Baez, Nick Drake — to contemporary " +
-        "singer-songwriters. Words first, arrangement second.",
-    "hip hop" to "From block parties in the 1970s Bronx, where DJ Kool Herc looped the breaks " +
-        "off funk records, into the dominant popular music on earth. Four elements — MCing, " +
-        "DJing, breaking and graffiti — of which the first two became the record industry.",
-    "indie & alternative" to "What sat outside the majors, then became its own mainstream: " +
-        "post-punk, college rock, 90s alternative, and the 2000s indie wave. Defined originally " +
-        "by who released it, and later by a sound.",
-    "j-pop" to "Japanese popular music as a self-contained ecosystem — idol groups, anime and " +
-        "drama tie-ins, city pop's 80s revival, and a domestic market big enough that it has " +
-        "never needed to sound like anywhere else.",
-    "jazz" to "New Orleans, early 1900s: blues and ragtime meeting brass-band instrumentation. " +
-        "Improvisation is the point, and the tradition runs through swing, bebop, modal, free " +
-        "and fusion without ever settling.",
-    "k-pop" to "South Korean pop built on an intensive training and A&R system, fusing " +
-        "Western pop, hip-hop and R&B with heavy choreography and visual production. A global " +
-        "export industry since roughly 2010.",
-    "latin" to "Reggaeton, salsa, bachata, cumbia, regional Mexican and Latin pop — Caribbean, " +
-        "South American and Mexican traditions that now sit permanently in the global charts.",
-    "metal" to "Heavier, louder and faster than the blues rock it came from: Black Sabbath in " +
-        "1970 downtuning into something genuinely menacing, then splintering into thrash, " +
-        "death, black, doom and metalcore.",
-    "pop" to "Whatever the mainstream currently is. Defined by intent rather than instruments — " +
-        "written for maximum reach, built on hooks, and constantly absorbing whatever is " +
-        "working in other genres.",
-    "r&b & soul" to "Rhythm and blues out of the 1940s, then soul as gospel technique applied " +
-        "to secular songs — Motown, Stax, Philadelphia. Contemporary R&B keeps the vocal " +
-        "tradition over slower, more electronic production.",
-    "reggae" to "Jamaica, late 1960s: ska and rocksteady slowed down, the emphasis moved to the " +
-        "offbeat, the bass pushed to the front. Also the birthplace of dub, and through it, of " +
-        "remix culture itself.",
-    "rock" to "The electric guitar as the centre of popular music, from 50s rock and roll " +
-        "through the British Invasion, hard rock, punk, and alternative. Broad enough to be " +
-        "almost meaningless and specific enough to be unmistakable.",
-    "soundtracks & musicals" to "Music written to serve something else — film scores, stage " +
-        "musicals and game soundtracks. Composed to picture and to plot, which is why it works " +
-        "differently on its own.",
+    "african" to "Âm nhạc đa sắc màu của lục địa châu Phi: từ Afrobeats sôi động tại Lagos và Accra, amapiano Nam Phi đến highlife và soukous đầy cuốn hút.",
+    "arabic" to "Từ nhạc giao hưởng tarab kinh điển đến Khaleeji pop hiện đại và mahraganat Ai Cập, xây dựng trên hệ thống thang âm maqam đặc trưng đầy mê hoặc.",
+    "blues" to "Ra đời từ vùng châu thổ Mississippi đầu thế kỷ 20, đặt nền móng trực tiếp cho jazz, R&B, rock and roll và hầu hết âm nhạc đại chúng hiện đại.",
+    "bollywood & indian" to "Sự giao thoa rực rỡ giữa nhạc phim Bollywood hoành tráng, âm nhạc cổ điển Hindustani, Carnatic, bhangra và pop Ấn Độ độc lập.",
+    "country" to "Âm nhạc đồng quê mộc mạc với tiếng đàn guitar thùng, lời ca kể chuyện chân phương từ những bản thu thập niên 1920 đến country hiện đại.",
+    "dance & electronic" to "Âm nhạc điện tử sôi động dành cho sàn nhảy — từ Chicago house, Detroit techno thập niên 80 đến trance, dubstep và EDM lễ hội ngày nay.",
+    "decades" to "Hành trình âm nhạc qua từng thập kỷ — tập hợp những ca khúc thống trị bảng xếp hạng và những giai điệu vượt thời gian của mỗi thời kỳ.",
+    "family" to "Âm nhạc cho cả gia đình cùng thưởng thức: nhạc phim hoạt hình, những bài hát thiếu nhi vui nhộn và pop trong sáng cho mọi lứa tuổi.",
+    "folk & acoustic" to "Những ca khúc mộc mạc được dẫn dắt bởi giọng hát và nhạc cụ acoustic, nơi ca từ và cảm xúc chân thật được đặt lên hàng đầu.",
+    "hip hop" to "Từ những bữa tiệc đường phố Bronx thập niên 1970 với nhịp beat funk lặp lại, vươn lên trở thành dòng nhạc đại chúng có sức ảnh hưởng lớn nhất thế giới.",
+    "indie & alternative" to "Không gian sáng tạo tự do ngoài dòng chảy thương mại: post-punk, alternative thập niên 90 đến làn sóng indie hiện đại đầy cá tính.",
+    "j-pop" to "Hệ sinh thái âm nhạc đại chúng Nhật Bản độc đáo — từ các nhóm nhạc thần tượng, nhạc phim anime, drama đến làn sóng hồi sinh city pop thập niên 80.",
+    "jazz" to "Khởi nguồn từ New Orleans đầu thế kỷ 20: nơi ngẫu hứng là linh hồn, trải dài qua swing, bebop, modal jazz đến jazz fusion đầy tinh tế.",
+    "k-pop" to "Âm nhạc đại chúng Hàn Quốc kết hợp hoàn hảo giữa pop, hip-hop, R&B cùng vũ đạo đỉnh cao và hình ảnh được đầu tư công phu.",
+    "latin" to "Reggaeton, salsa, bachata, cumbia và Latin pop — những giai điệu nồng nhiệt từ vùng Caribe và Mỹ Latinh luôn khuấy đảo các bảng xếp hạng toàn cầu.",
+    "metal" to "Mạnh mẽ, dồn dập và đầy nội lực với tiếng guitar điện trầm nặng — từ heavy metal cổ điển đến thrash, symphonic metal và metalcore.",
+    "pop" to "Dòng chảy âm nhạc đại chúng đương đại — được viết nên với những giai điệu bắt tai nhất, không ngừng giao thoa và đón đầu xu hướng mới.",
+    "r&b & soul" to "Sự kết hợp tinh tế giữa nhịp điệu R&B và kỹ thuật thanh nhạc giàu cảm xúc của dòng nhạc soul từ Motown kinh điển đến R&B hiện đại.",
+    "reggae" to "Khởi nguồn từ Jamaica cuối thập niên 1960 với nhịp phách nghịch đặc trưng, tiếng bass sâu dày và là cái nôi của văn hóa phối lại (remix).",
+    "rock" to "Cây đàn guitar điện làm trung tâm của âm nhạc đại chúng, từ rock and roll thập niên 50 qua hard rock, punk đến alternative rock bất hủ.",
+    "soundtracks & musicals" to "Âm nhạc được sáng tác cho điện ảnh, sân khấu nhạc kịch và trò chơi — những giai điệu kể chuyện bằng âm thanh đầy cảm xúc.",
 )
 
 fun genreDescription(title: String): String {
@@ -117,5 +62,5 @@ fun genreDescription(title: String): String {
         .firstOrNull { (candidate, _) -> key.startsWith(candidate) || candidate.startsWith(key) }
         ?.let { return it.value }
 
-    return "Featured playlists, albums and artists in $title."
+    return "Danh sách phát, album và nghệ sĩ nổi bật thuộc chủ đề $title."
 }

@@ -36,10 +36,29 @@ data class GithubRelease(
     val body: String,
     val htmlUrl: String,
     val apkUrl: String?,
+    val apkApiUrl: String? = null,
     val apkName: String?,
     val apkSizeBytes: Long,
     val publishedAt: String,
 )
+
+private fun cleanAndroidReleaseBody(raw: String): String {
+    if (raw.isBlank()) return raw
+    return raw.lines()
+        .filterNot { line ->
+            val l = line.trim()
+            l.contains("Windows", ignoreCase = true) && l.contains(".exe", ignoreCase = true) ||
+                l.contains("Linux", ignoreCase = true) && (l.contains(".AppImage", ignoreCase = true) || l.contains(".deb", ignoreCase = true)) ||
+                l.contains("Ubuntu", ignoreCase = true) && l.contains(".deb", ignoreCase = true)
+        }
+        .map { line ->
+            line.replace(Regex("""^\s*5\.\s+"""), "• ")
+                .replace("(Android • Windows • Linux)", "(Android APK)")
+                .replace("trên cả **Android, Windows và Linux**", "trực tiếp trên **Android (OTA)**")
+                .replace("trên cả Android, Windows và Linux", "trực tiếp trên Android (OTA)")
+        }
+        .joinToString("\n")
+}
 
 sealed interface UpdateState {
     data object Checking : UpdateState
@@ -151,21 +170,25 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                 if (release.optBoolean("draft", false)) continue
 
                 val tag = release.optString("tag_name").orEmpty()
-                val title = release.optString("name").orEmpty().ifBlank { tag }
-                val tagVer = parseFullVersion("$title $tag")
+                val rawTitle = release.optString("name").orEmpty().ifBlank { tag }
+                val title = rawTitle.replace("(Android • Windows • Linux)", "(Android APK)")
+                val tagVer = parseFullVersion("$rawTitle $tag")
 
                 if (tagVer.major == 0 && tagVer.minor == 0 && tagVer.patch == 0) continue
 
                 val assets = release.optJSONArray("assets")
                 var selectedUrl: String? = null
+                var selectedApiUrl: String? = null
                 var selectedName: String? = null
                 var selectedSize = 0L
 
                 var universalUrl: String? = null
+                var universalApiUrl: String? = null
                 var universalName: String? = null
                 var universalSize = 0L
 
                 var fallbackUrl: String? = null
+                var fallbackApiUrl: String? = null
                 var fallbackName: String? = null
                 var fallbackSize = 0L
 
@@ -175,18 +198,22 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                         val name = asset.optString("name").orEmpty()
                         if (!name.endsWith(".apk", ignoreCase = true) || name.contains("debug", ignoreCase = true)) continue
                         val url = asset.optString("browser_download_url").orEmpty()
+                        val apiUrl = asset.optString("url").orEmpty().takeIf { it.isNotBlank() }
                         val size = asset.optLong("size", 0L)
 
                         if (appArch.isNotBlank() && appArch != "universal" && name.contains(appArch, ignoreCase = true)) {
                             selectedUrl = url
+                            selectedApiUrl = apiUrl
                             selectedName = name
                             selectedSize = size
                         } else if (name.contains("universal", ignoreCase = true)) {
                             universalUrl = url
+                            universalApiUrl = apiUrl
                             universalName = name
                             universalSize = size
                         } else if (fallbackUrl == null) {
                             fallbackUrl = url
+                            fallbackApiUrl = apiUrl
                             fallbackName = name
                             fallbackSize = size
                         }
@@ -194,6 +221,11 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                 }
 
                 val apkUrl = selectedUrl ?: universalUrl ?: fallbackUrl
+                val apkApiUrl = when {
+                    selectedUrl != null -> selectedApiUrl
+                    universalUrl != null -> universalApiUrl
+                    else -> fallbackApiUrl
+                }
                 val apkName = selectedName ?: universalName ?: fallbackName
                 val apkSize = when {
                     selectedUrl != null -> selectedSize
@@ -204,7 +236,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                 // Skip PC-only releases that do not contain an Android APK asset
                 if (apkUrl == null || apkName == null) continue
 
-                // If the APK filename encodes its own version (e.g. Mochy-Music-v8.7.0-vi-arm64.apk),
+                // If the APK filename encodes its own version (e.g. Mochy-Music-v9.4.0-vi-arm64.apk),
                 // prefer the APK's actual version over a PC-only release tag.
                 val apkVer = parseFullVersion(apkName)
                 val fullVer = if (
@@ -234,9 +266,10 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                             title = title,
                             tag = tag,
                             version = displayVersion,
-                            body = release.optString("body").orEmpty(),
+                            body = cleanAndroidReleaseBody(release.optString("body").orEmpty()),
                             htmlUrl = release.optString("html_url").orEmpty().ifBlank { "$GithubRepoUrl/releases" },
                             apkUrl = apkUrl,
+                            apkApiUrl = apkApiUrl,
                             apkName = apkName,
                             apkSizeBytes = apkSize,
                             publishedAt = release.optString("published_at").orEmpty(),
@@ -260,7 +293,7 @@ suspend fun downloadApk(
     onProgress: (Float) -> Unit,
 ): Result<File> = withContext(Dispatchers.IO) {
     runCatching {
-        val url = release.apkUrl ?: error("Bản phát hành này chưa có tệp APK")
+        val primaryUrl = release.apkUrl ?: error("Bản phát hành này chưa có tệp APK")
         val target = apkFileFor(context, release)
 
         if (isDownloaded(context, release)) {
@@ -269,31 +302,75 @@ suspend fun downloadApk(
         }
         if (target.exists()) target.delete()
 
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 15_000
-            readTimeout = 30_000
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "mochy-android")
+        val candidates = buildList {
+            add(primaryUrl to false)
+            release.apkApiUrl?.takeIf { it.isNotBlank() }?.let { add(it to true) }
         }
-        val total = release.apkSizeBytes.takeIf { it > 0 }
-            ?: connection.contentLengthLong.takeIf { it > 0 }
-            ?: -1L
 
-        connection.inputStream.use { input ->
-            target.outputStream().use { output ->
-                val buffer = ByteArray(64 * 1024)
-                var written = 0L
+        var lastError: Throwable? = null
+        for ((candidateUrl, isApiEndpoint) in candidates) {
+            try {
+                if (target.exists()) target.delete()
+                var currentUrl = candidateUrl
+                var redirects = 0
+                var connection: HttpURLConnection
                 while (true) {
-                    val read = input.read(buffer)
-                    if (read == -1) break
-                    output.write(buffer, 0, read)
-                    written += read
-                    if (total > 0) onProgress((written.toFloat() / total).coerceIn(0f, 1f))
+                    connection = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 20_000
+                        readTimeout = 45_000
+                        instanceFollowRedirects = false
+                        setRequestProperty("User-Agent", "mochy-android")
+                        if (isApiEndpoint && redirects == 0) {
+                            setRequestProperty("Accept", "application/octet-stream")
+                        }
+                    }
+                    val code = connection.responseCode
+                    if (code in 300..399) {
+                        val location = connection.getHeaderField("Location")
+                        connection.disconnect()
+                        if (location.isNullOrBlank() || ++redirects > 6) {
+                            error("Quá nhiều lần chuyển hướng khi tải tệp APK (HTTP $code)")
+                        }
+                        currentUrl = URL(URL(currentUrl), location).toString()
+                        continue
+                    }
+                    if (code !in 200..299) {
+                        connection.disconnect()
+                        error("Máy chủ trả về mã lỗi HTTP $code")
+                    }
+                    break
                 }
+
+                val total = release.apkSizeBytes.takeIf { it > 0 }
+                    ?: connection.contentLengthLong.takeIf { it > 0 }
+                    ?: -1L
+
+                connection.inputStream.use { input ->
+                    target.outputStream().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var written = 0L
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read == -1) break
+                            output.write(buffer, 0, read)
+                            written += read
+                            if (total > 0) onProgress((written.toFloat() / total).coerceIn(0f, 1f))
+                        }
+                    }
+                }
+                if (target.length() < 5_000_000L) {
+                    val badLen = target.length()
+                    target.delete()
+                    error("Tệp tải về không hợp lệ ($badLen bytes)")
+                }
+                onProgress(1f)
+                return@runCatching target
+            } catch (t: Throwable) {
+                lastError = t
+                if (target.exists()) target.delete()
             }
         }
-        onProgress(1f)
-        target
+        throw (lastError ?: IllegalStateException("Không thể tải tệp APK"))
     }
 }
 
@@ -302,7 +379,7 @@ fun apkFileFor(context: Context, release: GithubRelease): File =
 
 fun isDownloaded(context: Context, release: GithubRelease): Boolean {
     val f = apkFileFor(context, release)
-    if (!f.exists() || f.length() <= 0L) return false
+    if (!f.exists() || f.length() < 5_000_000L) return false
     return release.apkSizeBytes <= 0L || f.length() == release.apkSizeBytes
 }
 
@@ -336,7 +413,7 @@ fun installApk(context: Context, apk: File): Boolean {
 }
 
 fun formatBytes(bytes: Long): String = when {
-    bytes <= 0 -> "unknown size"
+    bytes <= 0 -> "không rõ dung lượng"
     bytes >= 1_000_000 -> String.format("%.1f MB", bytes / 1_000_000f)
     else -> String.format("%.0f KB", bytes / 1000f)
 }

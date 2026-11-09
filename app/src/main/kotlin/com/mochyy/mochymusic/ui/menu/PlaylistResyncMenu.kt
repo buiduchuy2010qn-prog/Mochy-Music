@@ -73,7 +73,7 @@ class PlaylistResyncState internal constructor(
     }
 
     /** "Re-sync with Spotify"; null for a playlist made here. */
-    val title: String? get() = source?.let { "Re-sync with ${it.label}" }
+    val title: String? get() = source?.let { "Đồng bộ lại với ${it.label}" }
 
     /** The menu row; null for a playlist made here. */
     fun menuItem(): Material3MenuItemData? {
@@ -89,13 +89,13 @@ class PlaylistResyncState internal constructor(
     private fun handle(start: ResyncStart) {
         when (start) {
             ResyncStart.Started -> {
-                toast("Looking for new songs on ${source?.label ?: "the service"}…")
+                toast("Đang tìm bài hát mới trên ${source?.label ?: "dịch vụ"}…")
                 onDismiss()
             }
             is ResyncStart.ThroughAccount -> {
                 onDismiss()
                 navController?.navigate(accountResyncRoute(start.service, playlistId))
-                    ?: toast("Open the playlist and re-sync it from its menu there.")
+                    ?: toast("Hãy mở danh sách phát và đồng bộ lại từ menu bên trong.")
             }
             ResyncStart.NeedsLink -> askingForLink = true
             is ResyncStart.Failed -> toast(start.message)
@@ -124,7 +124,7 @@ fun rememberPlaylistResync(
     }
     state.source = resyncSourceOf(imported, browseId)
     if (state.askingForLink) {
-        ResyncLinkDialog(sourceLabel = state.source?.label ?: "music service", onDismiss = state::cancelLink, onDone = state::startFromLink)
+        ResyncLinkDialog(sourceLabel = state.source?.label ?: "dịch vụ nhạc", onDismiss = state::cancelLink, onDone = state::startFromLink)
     }
     return state
 }
@@ -154,19 +154,19 @@ fun rememberResyncAll(navController: NavController): () -> Unit {
 }
 
 private fun resyncAllMessage(start: ResyncAllStart): String? {
-    if (start.busy) return "An import is still running. Try again once it's done."
+    if (start.busy) return "Đang có tiến trình nhập nhạc chạy. Vui lòng thử lại khi hoàn tất."
     if (start.started == 0 && start.throughAccount.isEmpty() && start.needLink == 0) {
-        return "None of your playlists came from a music service, so there's nothing to re-sync."
+        return "Chưa có danh sách phát nào được nhập từ dịch vụ nhạc để đồng bộ lại."
     }
     val started = when (start.started) {
         0 -> null
-        1 -> "Looking for new songs in 1 playlist…"
-        else -> "Looking for new songs in ${start.started} playlists…"
+        1 -> "Đang tìm bài hát mới trong 1 danh sách phát…"
+        else -> "Đang tìm bài hát mới trong ${start.started} danh sách phát…"
     }
     val needLink = when (start.needLink) {
         0 -> null
-        1 -> "1 older import needs its link, so re-sync it from its own menu."
-        else -> "${start.needLink} older imports need their link, so re-sync them from their own menus."
+        1 -> "1 danh sách phát cũ cần liên kết gốc, hãy đồng bộ từ menu của danh sách đó."
+        else -> "${start.needLink} danh sách phát cũ cần liên kết gốc, hãy đồng bộ từ menu riêng."
     }
     return listOfNotNull(started, needLink).joinToString(" ").ifEmpty { null }
 }
@@ -183,7 +183,7 @@ fun ResyncLinkDialog(sourceLabel: String, onDismiss: () -> Unit, onDone: (String
         onDismiss = onDismiss,
         extraContent = {
             Text(
-                "This playlist was imported before Mochy saved where it came from. Its link is how Re-sync finds it again.",
+                "Danh sách phát này được nhập trước khi Mochy lưu nguồn gốc. Hãy dán liên kết để tính năng Đồng bộ lại tìm thấy nó.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 12.dp),

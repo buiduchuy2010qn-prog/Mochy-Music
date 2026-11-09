@@ -509,8 +509,8 @@ fun PlayerSelectorOverlay(
                 ) {
                     // edit stays in its place, only dimmed where there's nothing to edit, so set never moves under the finger
                     val editable = style?.editable == true
-                    CardButton("Edit", enabled = active && editable, dimmed = !editable, onClick = { onEdit(focused) }, modifier = Modifier.weight(1f))
-                    CardButton("Set", enabled = active, onClick = { currentOnSet(focused, 0f) }, modifier = Modifier.weight(1f))
+                    CardButton("Tùy chỉnh", enabled = active && editable, dimmed = !editable, onClick = { onEdit(focused) }, modifier = Modifier.weight(1f))
+                    CardButton("Áp dụng", enabled = active, onClick = { currentOnSet(focused, 0f) }, modifier = Modifier.weight(1f))
                 }
             }
         }

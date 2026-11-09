@@ -41,7 +41,7 @@ internal fun ColumnScope.IpodOptions() {
             OptionRow(
                 selected = theme == option,
                 onClick = { theme = option },
-                caption = if (index == 0) "Body" else null,
+                caption = if (index == 0) "Thân máy" else null,
                 compact = true,
             ) {
                 Swatch(lookOf(option, wheel, shadow = true, tall = false), option.title, option.description)
@@ -51,17 +51,17 @@ internal fun ColumnScope.IpodOptions() {
             OptionRow(
                 selected = wheel == option,
                 onClick = { wheel = option },
-                caption = if (index == 0) "Click wheel" else null,
+                caption = if (index == 0) "Vòng xoay" else null,
                 compact = true,
             ) {
                 Swatch(lookOf(theme, option, shadow = true, tall = false), option.title, option.description)
             }
         }
-        OptionRow(selected = !tall, onClick = { tall = false }, caption = "Screen", compact = true) {
-            TwoLines("Classic", "the original shape, wheel in the middle")
+        OptionRow(selected = !tall, onClick = { tall = false }, caption = "Màn hình", compact = true) {
+            TwoLines("Cổ điển", "tỷ lệ nguyên bản, vòng xoay ở giữa")
         }
         OptionRow(selected = tall, onClick = { tall = true }, compact = true) {
-            TwoLines("Tall", "the screen stretches down to the wheel")
+            TwoLines("Màn hình dài", "màn hình kéo dài xuống sát vòng xoay")
         }
         SwitchRow(IpodShadowOption)
     }
@@ -88,34 +88,34 @@ private fun Swatch(look: IpodLook, title: String, description: String) {
 
 private val IpodTheme.title: String
     get() = when (this) {
-        IpodTheme.SILVER -> "Silver"
-        IpodTheme.BLACK -> "Black"
-        IpodTheme.U2 -> "U2 edition"
-        IpodTheme.TRUE_DARK -> "True dark"
+        IpodTheme.SILVER -> "Bạc (Silver)"
+        IpodTheme.BLACK -> "Đen (Black)"
+        IpodTheme.U2 -> "Phiên bản U2"
+        IpodTheme.TRUE_DARK -> "Đen tuyền (OLED)"
     }
 
 private val IpodTheme.description: String
     get() = when (this) {
-        IpodTheme.SILVER -> "the classic white and grey"
-        IpodTheme.BLACK -> "grey fading down to black"
-        IpodTheme.U2 -> "black with a red wheel"
-        IpodTheme.TRUE_DARK -> "pitch black, the screen too"
+        IpodTheme.SILVER -> "trắng và xám cổ điển"
+        IpodTheme.BLACK -> "xám chuyển sắc xuống đen"
+        IpodTheme.U2 -> "thân đen với vòng xoay đỏ"
+        IpodTheme.TRUE_DARK -> "đen hoàn toàn cả màn hình"
     }
 
 private val IpodWheelColor.title: String
     get() = when (this) {
-        IpodWheelColor.THEME -> "Match the body"
-        IpodWheelColor.WHITE -> "White"
-        IpodWheelColor.BLACK -> "Black"
-        IpodWheelColor.RED -> "Red"
+        IpodWheelColor.THEME -> "Theo màu thân máy"
+        IpodWheelColor.WHITE -> "Trắng"
+        IpodWheelColor.BLACK -> "Đen"
+        IpodWheelColor.RED -> "Đỏ"
     }
 
 private val IpodWheelColor.description: String
     get() = when (this) {
-        IpodWheelColor.THEME -> "whichever wheel the body comes with"
-        IpodWheelColor.WHITE -> "white with grey buttons"
-        IpodWheelColor.BLACK -> "dark grey with white buttons"
-        IpodWheelColor.RED -> "red with white buttons"
+        IpodWheelColor.THEME -> "dùng màu vòng xoay mặc định của thân máy"
+        IpodWheelColor.WHITE -> "vòng trắng với ký hiệu xám"
+        IpodWheelColor.BLACK -> "xám đậm với ký hiệu trắng"
+        IpodWheelColor.RED -> "vòng đỏ với ký hiệu trắng"
     }
 
 private val IpodShadowOption = CoverOption.Switch(

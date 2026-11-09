@@ -320,7 +320,7 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
         } else {
             SettingsIndex.filter {
                 it.title.contains(q, ignoreCase = true) ||
-                    (it.titleRes ?: LocalizedSettingsTitles[it.title])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
+                    (it.titleRes ?: LocalizedSettingsTitles[it.title])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true || LocalizedSettingsStrings[it.title]?.contains(q, ignoreCase = true) == true ||
                     (it.pageRes ?: LocalizedSettingsPages[it.page])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
                     it.keywords.contains(q, ignoreCase = true) ||
                     it.page.contains(q, ignoreCase = true)
@@ -410,14 +410,14 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                                     Spacer(modifier = Modifier.width(11.dp))
                                     Column {
                                         Text(
-                                            text = (entry.titleRes ?: LocalizedSettingsTitles[entry.title])?.let { stringResource(it) } ?: entry.title,
+                                            text = (entry.titleRes ?: LocalizedSettingsTitles[entry.title])?.let { stringResource(it) } ?: LocalizedSettingsStrings[entry.title] ?: entry.title,
                                             fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 16.sp,
                                             color = Color.White
                                         )
                                         Text(
-                                            text = (entry.pageRes ?: LocalizedSettingsPages[entry.page])?.let { stringResource(it) } ?: entry.page,
+                                            text = (entry.pageRes ?: LocalizedSettingsPages[entry.page])?.let { stringResource(it) } ?: LocalizedSettingsPageStrings[entry.page] ?: entry.page,
                                             fontFamily = InterFontFamily,
                                             fontSize = 12.sp,
                                             color = Color.White.copy(alpha = 0.55f)

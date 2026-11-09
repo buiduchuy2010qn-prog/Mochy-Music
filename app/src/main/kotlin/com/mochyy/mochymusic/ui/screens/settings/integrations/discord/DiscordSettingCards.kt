@@ -218,7 +218,7 @@ internal fun DiscordTextCard(
     title: String,
     value: String,
     onValueChange: (String) -> Unit,
-    hint: String = "Hidden",
+    hint: String = "Đã ẩn",
 ) {
     DiscordCard {
         DiscordCardTitle(title)
@@ -262,7 +262,7 @@ internal fun <T> DiscordDropdown(
         ) {
             Icon(
                 painter = painterResource(R.drawable.expand_more),
-                contentDescription = if (open) "Close" else "Open",
+                contentDescription = if (open) "Đóng" else "Mở",
                 tint = Color.White,
                 modifier = Modifier
                     .size(22.dp)
@@ -353,14 +353,14 @@ internal fun DiscordImageSourceCard(
         Spacer(Modifier.height(10.dp))
         DiscordDropdown(selected = selected, options = options, label = { it.label }, onSelect = onSelect)
         if (selected.isRotating && spin != null) {
-            FieldLabel("One full turn")
+            FieldLabel("Một vòng xoay")
             DiscordStepSlider(
                 value = spin.secondsPerTurn,
                 values = (PresenceSettings.MinSpinSeconds..PresenceSettings.MaxSpinSeconds).toList(),
                 label = { "${it}s" },
                 onValueChange = { onSpinChange(spin.copy(secondsPerTurn = it)) },
             )
-            FieldLabel("Smoothness")
+            FieldLabel("Độ mượt")
             DiscordStepSlider(
                 value = spin.fps,
                 values = PresenceSettings.SpinFpsSteps,
@@ -368,10 +368,10 @@ internal fun DiscordImageSourceCard(
                 onValueChange = { onSpinChange(spin.copy(fps = it)) },
             )
             Text(
-                text = "Turns forever. Discord can only show pictures from the web, so Mochy makes a GIF of " +
-                    "the artwork and puts it on a free file host (uguu.se, which deletes it after three hours). " +
-                    "Slower, smoother turns make a bigger GIF that takes a little longer to show up; the still " +
-                    "artwork stands in meanwhile. 50 fps is as smooth as a GIF can play.",
+                text = "Xoay liên tục. Discord chỉ hiển thị ảnh từ web nên Mochy sẽ tạo ảnh động GIF từ " +
+                    "ảnh bìa và tải lên máy chủ tạm (uguu.se, tự xóa sau 3 giờ). " +
+                    "Vòng xoay chậm và mượt hơn sẽ tạo tệp GIF lớn hơn một chút; ảnh bìa tĩnh sẽ hiển thị " +
+                    "trong lúc chờ tải. 50 fps là mức mượt tối đa của ảnh GIF.",
                 color = DiscordColors.Secondary,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
@@ -389,13 +389,13 @@ internal fun DiscordButtonCard(
 ) {
     DiscordCard {
         DiscordCardTitle(title)
-        FieldLabel("Label")
+        FieldLabel("Nhãn nút")
         DiscordTextField(
             value = button.text,
             onValueChange = { onChange(button.copy(text = it)) },
-            hint = "No button",
+            hint = "Không có nút",
         )
-        FieldLabel("Opens")
+        FieldLabel("Liên kết mở ra")
         DiscordDropdown(
             selected = button.target,
             options = PresenceButtonTarget.entries,

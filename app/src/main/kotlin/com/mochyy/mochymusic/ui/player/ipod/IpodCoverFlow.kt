@@ -135,7 +135,7 @@ fun IpodCoverFlow(
     ) {
         if (albums.isEmpty()) {
             Text(
-                text = "No albums yet",
+                text = "Chưa có album nào",
                 color = look.quietInk,
                 fontSize = scale.sp(18f),
                 fontWeight = FontWeight.Bold,

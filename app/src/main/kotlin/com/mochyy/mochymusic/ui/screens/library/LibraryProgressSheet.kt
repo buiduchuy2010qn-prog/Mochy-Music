@@ -47,8 +47,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 /** Which job a progress card or sheet follows. */
 enum class TransferKind(val title: String, val idleText: String) {
-    Downloads("Download progress", "Nothing is downloading right now."),
-    LocalImport("Import progress", "Nothing is being imported right now."),
+    Downloads("Tiến trình tải xuống", "Hiện không có bài hát nào đang tải xuống."),
+    LocalImport("Tiến trình nhập nhạc", "Hiện không có bài hát nào đang được nhập."),
 }
 
 internal fun LibraryImportViewModel.batchOf(kind: TransferKind): StateFlow<TransferBatch> = when (kind) {

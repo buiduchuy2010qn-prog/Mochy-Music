@@ -158,9 +158,9 @@ internal fun SimilarPage(
     groups: SimilarGroups?,
     deepLoading: Boolean,
     artistsTitle: String,
-    playlistsTitle: String = "Featured Playlist",
-    songsTitle: String = "Featured songs",
-    albumsTitle: String = "New from them",
+    playlistsTitle: String = "Danh sách phát nổi bật",
+    songsTitle: String = "Bài hát nổi bật",
+    albumsTitle: String = "Mới phát hành",
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val menuState = LocalMenuState.current

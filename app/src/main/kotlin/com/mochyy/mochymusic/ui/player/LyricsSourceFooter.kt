@@ -102,8 +102,8 @@ internal fun LyricsSourceFooter(
 
 /** The name to show for a saved provider, including the two that aren't online sources. */
 private fun sourceName(provider: String): String = when (provider) {
-    EmbeddedLyrics.Provider -> "Song file"
-    LyricsMenuViewModel.USER_EDITED -> "Your edit"
+    EmbeddedLyrics.Provider -> "Tệp nhạc"
+    LyricsMenuViewModel.USER_EDITED -> "Bản bạn sửa"
     else -> LyricsProviderRegistry.getDisplayName(provider)
 }
 

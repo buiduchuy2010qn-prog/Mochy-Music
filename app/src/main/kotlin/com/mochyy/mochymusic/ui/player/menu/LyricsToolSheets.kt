@@ -297,7 +297,7 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
                     } + if (available.candidate.hasDuet) " · duet" else ""
                     state == LyricsMenuViewModel.SourceState.Unavailable -> "Not found"
                     state == LyricsMenuViewModel.SourceState.Off -> "Off"
-                    else -> "Checking…"
+                    else -> "Đang kiểm tra…"
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -371,7 +371,8 @@ private val TranslationTargets = listOf(
     "bn" to "Bengali", "bs" to "Bosnian", "bg" to "Bulgarian", "ca" to "Catalan",
     "ceb" to "Cebuano", "ny" to "Chichewa", "zh-CN" to "Chinese (Simplified)",
     "zh-TW" to "Chinese (Traditional)", "co" to "Corsican", "hr" to "Croatian",
-    "cs" to "Czech", "da" to "Danish", "nl" to "Dutch", "en" to "English",
+    "cs" to "Czech", "da" to "Danish", "nl" to "Dutch", "vi" to "Tiếng Việt",
+    "en" to "Tiếng Anh (English)",
     "eo" to "Esperanto", "et" to "Estonian", "tl" to "Filipino", "fi" to "Finnish",
     "fr" to "French", "fy" to "Frisian", "gl" to "Galician", "ka" to "Georgian",
     "de" to "German", "el" to "Greek", "gu" to "Gujarati", "ht" to "Haitian Creole",
@@ -391,7 +392,7 @@ private val TranslationTargets = listOf(
     "es" to "Spanish", "su" to "Sundanese", "sw" to "Swahili", "sv" to "Swedish",
     "tg" to "Tajik", "ta" to "Tamil", "te" to "Telugu", "th" to "Thai",
     "tr" to "Turkish", "uk" to "Ukrainian", "ur" to "Urdu", "uz" to "Uzbek",
-    "vi" to "Vietnamese", "cy" to "Welsh", "xh" to "Xhosa", "yi" to "Yiddish",
+     "cy" to "Welsh", "xh" to "Xhosa", "yi" to "Yiddish",
     "yo" to "Yoruba", "zu" to "Zulu",
 )
 
@@ -519,10 +520,10 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             ) {
                 Text(
                     text = when {
-                        isTranslating -> "Translating… (tap to stop)"
+                        isTranslating -> "Đang dịch… (chạm để dừng)"
                         translationOn -> "Show original"
                         target.isBlank() -> "Pick a language first"
-                        else -> "Translate!"
+                        else -> "Dịch lời bài hát!"
                     },
                     color = Color.White.copy(alpha = if (target.isBlank() || isTranslating) 0.45f else 1f),
                     fontSize = 15.sp,

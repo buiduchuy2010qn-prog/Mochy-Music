@@ -120,7 +120,7 @@ fun DiscordScreen(
             title = "Discord",
             onBack = { navController.navigateUp() },
         ) {
-            IntegrationPageSubtitle("Rich presence on your profile")
+            IntegrationPageSubtitle("Hiển thị trạng thái nghe nhạc trên hồ sơ Discord")
             DiscordToggleCard(
                 checked = settings.enabled,
                 onCheckedChange = { on -> viewModel.edit { copy(enabled = on) } },
@@ -166,14 +166,14 @@ private fun statusLine(
     connection: PresenceConnection,
     login: DiscordLogin,
 ): String = when {
-    !configured -> "Not set up in this build of Mochy"
-    login == DiscordLogin.Finishing -> "Signing in…"
-    !signedIn -> "Log in below to turn it on"
-    !enabled -> "Off, so your profile shows nothing from Mochy"
-    connection == PresenceConnection.Live -> "On your profile now"
-    connection == PresenceConnection.Connecting -> "Connecting to Discord…"
-    connection == PresenceConnection.Retrying -> "Can't reach Discord. Trying again…"
-    else -> "Shows up when you play something"
+    !configured -> "Chưa cấu hình trong bản dựng này"
+    login == DiscordLogin.Finishing -> "Đang đăng nhập…"
+    !signedIn -> "Đăng nhập bên dưới để bật"
+    !enabled -> "Đang tắt, hồ sơ của bạn không hiển thị trạng thái từ Mochy"
+    connection == PresenceConnection.Live -> "Đang hiển thị trên hồ sơ của bạn"
+    connection == PresenceConnection.Connecting -> "Đang kết nối tới Discord…"
+    connection == PresenceConnection.Retrying -> "Không thể kết nối Discord. Đang thử lại…"
+    else -> "Sẽ hiển thị khi bạn phát nhạc"
 }
 
 @Composable
@@ -185,11 +185,11 @@ private fun AccountButton(
     onLogOut: () -> Unit,
 ) {
     val (text, action) = when {
-        !configured -> "Discord isn't set up in this build" to null
-        signedIn -> "Log out from Discord" to onLogOut
-        login == DiscordLogin.Finishing -> "Signing in…" to null
-        login == DiscordLogin.InBrowser -> "Waiting for Discord… Tap to open it again" to onLogin
-        else -> "Log in with Discord" to onLogin
+        !configured -> "Discord chưa được cấu hình" to null
+        signedIn -> "Đăng xuất khỏi Discord" to onLogOut
+        login == DiscordLogin.Finishing -> "Đang đăng nhập…" to null
+        login == DiscordLogin.InBrowser -> "Đang chờ Discord… Chạm để mở lại" to onLogin
+        else -> "Đăng nhập bằng Discord" to onLogin
     }
     val inviting = configured && !signedIn
     Box(
@@ -210,7 +210,7 @@ private fun AccountButton(
     }
     if (inviting) {
         Text(
-            text = "Opens Discord's own login page in your browser. Your password stays with Discord.",
+            text = "Mở trang đăng nhập chính thức của Discord trong trình duyệt. Mật khẩu của bạn được bảo mật bởi Discord.",
             color = DiscordColors.Secondary,
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
@@ -228,12 +228,12 @@ private fun CustomizeSection(
 ) {
     val gap = Modifier.height(12.dp)
 
-    DiscordSectionTitle("CUSTOMIZE")
+    DiscordSectionTitle("TÙY CHỈNH")
     DiscordPlaceholderCard()
 
-    DiscordSectionTitle("Options")
+    DiscordSectionTitle("Tùy chọn")
     DiscordCard {
-        DiscordCardTitle("Refresh interval")
+        DiscordCardTitle("Chu kỳ làm mới")
         Spacer(Modifier.height(4.dp))
         DiscordStepSlider(
             value = settings.refreshSeconds,
@@ -251,9 +251,9 @@ private fun CustomizeSection(
         onCheckedChange = { on -> edit { copy(clearOnPause = on) } },
     )
 
-    DiscordSectionTitle("Activity")
+    DiscordSectionTitle("Hoạt động")
     DiscordCard {
-        DiscordCardTitle("Select the activity type")
+        DiscordCardTitle("Chọn loại hoạt động")
         Spacer(Modifier.height(10.dp))
         DiscordSegmented(
             options = PresenceKind.entries,
@@ -263,20 +263,20 @@ private fun CustomizeSection(
         )
     }
     Spacer(gap)
-    DiscordTextCard("Activity name", settings.name, { text -> edit { copy(name = text) } }, hint = "Mochy")
+    DiscordTextCard("Tên hoạt động", settings.name, { text -> edit { copy(name = text) } }, hint = "Mochy")
 
-    DiscordSectionTitle("Strings customisation")
-    DiscordNoticeCard("Empty a box to hide that line")
+    DiscordSectionTitle("Tùy chỉnh văn bản")
+    DiscordNoticeCard("Để trống ô bất kỳ nếu muốn ẩn dòng đó")
     Spacer(gap)
-    DiscordTextCard("Details string", settings.details, { text -> edit { copy(details = text) } })
+    DiscordTextCard("Dòng chi tiết (Details)", settings.details, { text -> edit { copy(details = text) } })
     Spacer(gap)
-    DiscordTextCard("State string", settings.state, { text -> edit { copy(state = text) } })
+    DiscordTextCard("Dòng trạng thái (State)", settings.state, { text -> edit { copy(state = text) } })
     Spacer(gap)
-    DiscordTextCard("Large image hover text", settings.largeText, { text -> edit { copy(largeText = text) } })
+    DiscordTextCard("Chú thích ảnh lớn", settings.largeText, { text -> edit { copy(largeText = text) } })
     Spacer(gap)
-    DiscordTextCard("Small image hover text", settings.smallText, { text -> edit { copy(smallText = text) } })
+    DiscordTextCard("Chú thích ảnh nhỏ", settings.smallText, { text -> edit { copy(smallText = text) } })
 
-    DiscordSectionTitle("Image customisation")
+    DiscordSectionTitle("Tùy chỉnh hình ảnh")
     DiscordImageSourceCard(
         title = "Nguồn ảnh nhỏ",
         selected = settings.smallImage,
@@ -293,12 +293,12 @@ private fun CustomizeSection(
         onSelect = { image -> edit { copy(largeImage = image) } },
     )
 
-    DiscordSectionTitle("Buttons")
-    DiscordButtonCard("1st button", settings.button1) { button -> edit { copy(button1 = button) } }
+    DiscordSectionTitle("Nút bấm")
+    DiscordButtonCard("Nút thứ 1", settings.button1) { button -> edit { copy(button1 = button) } }
     Spacer(gap)
-    DiscordButtonCard("2nd button", settings.button2) { button -> edit { copy(button2 = button) } }
+    DiscordButtonCard("Nút thứ 2", settings.button2) { button -> edit { copy(button2 = button) } }
     Text(
-        text = "Discord only shows the buttons to other people, never on your own profile.",
+        text = "Discord chỉ hiển thị các nút bấm này cho người khác xem hồ sơ của bạn.",
         color = DiscordColors.Secondary,
         fontSize = 12.sp,
         modifier = Modifier.padding(start = 4.dp, top = 10.dp),

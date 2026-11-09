@@ -54,7 +54,7 @@ fun PopupSheetState.showEditPlaylistSheet(
         buttonBar = {
             val scope = rememberCoroutineScope()
             SheetPillButton(
-                text = if (form.busy) "Saving…" else "Done",
+                text = if (form.busy) "Đang lưu…" else "Xong",
                 enabled = form.name.isNotBlank() && !form.busy,
                 onClick = {
                     form.busy = true

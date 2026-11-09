@@ -90,7 +90,7 @@ fun ForceProviderSheet(currentProviderId: String?, onDismiss: () -> Unit) {
             modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
         ) {
             InfoColumn(modifier = Modifier.widthIn(max = 600.dp)) {
-                InfoSheetTitle("Play from")
+                InfoSheetTitle("Phát nhạc từ")
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Bài hát sẽ tạm dừng trong lúc tải lại từ nguồn bạn chọn.",
@@ -156,7 +156,7 @@ private fun SwitchStatus(state: ProviderSwitchState, nameOf: (String) -> String)
                 is ProviderSwitchState.Failed -> {
                     Text("Nguồn phát không khả dụng", color = Color(0xFFFF7A7A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "${nameOf(state.providerId)} didn't answer after ${ProviderSwitch.MaxTries} tries, so the song kept playing where it was. Try another one.",
+                        "${nameOf(state.providerId)} không phản hồi sau ${ProviderSwitch.MaxTries} lần thử, nên bài hát tiếp tục phát ở nguồn hiện tại. Hãy thử nguồn khác.",
                         color = InfoMuted,
                         fontSize = 12.sp,
                     )

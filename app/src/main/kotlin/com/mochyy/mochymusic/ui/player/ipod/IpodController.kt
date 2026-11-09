@@ -126,7 +126,7 @@ internal class IpodController(
             IpodPick.Shuffle -> scope.launch {
                 val items = library?.shuffledLibrary().orEmpty()
                 if (items.isEmpty()) return@launch
-                connection?.playQueue(ListQueue(title = "Shuffle Songs", items = items))
+                connection?.playQueue(ListQueue(title = "Phát ngẫu nhiên", items = items))
                 nav.showNowPlaying()
             }
             null -> Unit

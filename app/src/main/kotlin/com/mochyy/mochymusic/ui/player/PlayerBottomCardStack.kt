@@ -583,7 +583,7 @@ private fun NextSongRow(
                     listOfNotNull(nextTitle, nextArtist?.takeIf { it.isNotBlank() })
                         .joinToString(" - ")
                 } else {
-                    "End of queue"
+                    "Cuối danh sách phát"
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 15.sp),
                 fontWeight = FontWeight.SemiBold,

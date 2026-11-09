@@ -186,7 +186,7 @@ private fun SourceChip(source: AboutSource, onClick: () -> Unit) {
     ) {
         Text(text = source.label, color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.width(6.dp))
-        Icon(Icons.Rounded.SwapVert, contentDescription = "Change source", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
+        Icon(Icons.Rounded.SwapVert, contentDescription = "Đổi nguồn", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
     }
 }
 

@@ -82,7 +82,7 @@ fun TransportFadeSection() {
     val seconds = storedSeconds.coerceIn(TransportFadeMinSeconds, TransportFadeMaxSeconds)
 
     Text(
-        text = "Pause, play, forward and backward transition",
+        text = "Chuyển âm khi tạm dừng, phát tiếp và chuyển bài",
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 26.sp,
@@ -128,7 +128,7 @@ fun TransportFadeSection() {
             Column(Modifier.padding(horizontal = 6.dp)) {
                 Text("Hiệu ứng lớp âm thanh", fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LabColors.Primary)
                 Text(
-                    "A CrossMix effect over the fade, like an echo trail or the record spinning back",
+                    "Hiệu ứng CrossMix phủ lên đoạn chuyển âm, như tiếng vang ngân dài hoặc tua đĩa than",
                     fontFamily = InterFontFamily,
                     fontSize = 12.sp,
                     lineHeight = 15.sp,
@@ -173,7 +173,7 @@ private fun EffectPicker(selected: TransportEffect, onSelect: (TransportEffect) 
             )
             Icon(
                 painter = painterResource(R.drawable.expand_more),
-                contentDescription = "Choose an effect",
+                contentDescription = "Chọn hiệu ứng",
                 tint = Color.White,
                 modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = chevron },
             )

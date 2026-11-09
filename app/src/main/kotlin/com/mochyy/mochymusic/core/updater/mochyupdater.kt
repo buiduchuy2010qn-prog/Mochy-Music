@@ -1,4 +1,4 @@
-﻿package com.mochyy.mochymusic.core.updater
+package com.mochyy.mochymusic.core.updater
 
 import android.content.Context
 import android.content.Intent
@@ -324,7 +324,7 @@ fun UpdateScreen(navController: NavHostController) {
                                                 ContextCompat.startActivity(context, installIntent, null)
                                             }
                                         } else {
-                                            val urlToDownload = currentStatus.apkUrl ?: "https://github.com/realidkroo/Mochy-Music/releases/download/${currentStatus.version}/mochy.apk"
+                                            val urlToDownload = currentStatus.apkUrl ?: "https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/download/${currentStatus.version}/mochy.apk"
                                             val downloadRequest = OneTimeWorkRequestBuilder<UpdateDownloadWorker>()
                                                 .setInputData(workDataOf("apk_url" to urlToDownload, "version" to currentStatus.version, "file_size" to currentStatus.size))
                                                 .addTag("update_download")
@@ -682,7 +682,7 @@ suspend fun checkForUpdate(
 
                 val changelogList = mutableListOf<ChangelogSection>()
                 val headCommit = nightlyRunObject.optJSONObject("head_commit")
-                val commitMessage = headCommit?.optString("message") ?: "New features and bug fixes"
+                val commitMessage = headCommit?.optString("message") ?: "Tính năng mới và sửa lỗi"
 
                 val subjectLine = commitMessage.lineSequence().firstOrNull { it.isNotBlank() } ?: commitMessage
                 changelogList.add(ChangelogSection(context.getString(R.string.changelog), listOf(subjectLine)))
@@ -691,7 +691,7 @@ suspend fun checkForUpdate(
                 val apkDownloadUrl = "https://nightly.link/realidkroo/Mochy-Music/workflows/nightly.yml/main/mochy-gms-nightly.zip"
 
                 withContext(Dispatchers.Main) {
-                    onSuccess(displayTag, true, changelogList, "~30", formattedReleaseDate, "Bleeding-edge nightly build from main branch.", null, apkDownloadUrl)
+                    onSuccess(displayTag, true, changelogList, "~30", formattedReleaseDate, "Bản dựng thử nghiệm mới nhất từ nhánh chính.", null, apkDownloadUrl)
                 }
                 return@withContext
             }
@@ -745,7 +745,7 @@ suspend fun checkForUpdate(
                     var imageUrl: String? = null
                     try {
                         val changelogUrl =
-                            URL("https://github.com/realidkroo/Mochy-Music/releases/download/$tagWithPrefix/changelog.json")
+                            URL("https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/download/$tagWithPrefix/changelog.json")
                         val changelogJson = changelogUrl.openStream().bufferedReader().use { it.readText() }
                         val changelogData = JSONObject(changelogJson)
 

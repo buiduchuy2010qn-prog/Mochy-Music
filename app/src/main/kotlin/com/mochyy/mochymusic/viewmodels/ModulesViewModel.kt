@@ -309,7 +309,7 @@ class ModulesViewModel @Inject constructor(
             val result = withContext(Dispatchers.IO) {
                 runCatching { module.diagnose(track, modules.playbackPicks(id, module)) { report(it) } }
                     .getOrElse { e ->
-                        report(DiagnosticStep("Error", false, e.message ?: e.javaClass.simpleName))
+                        report(DiagnosticStep("Lỗi", false, e.message ?: e.javaClass.simpleName))
                         null
                     }
             }
@@ -317,25 +317,25 @@ class ModulesViewModel @Inject constructor(
             val drm = stream?.drm as? StreamDrm.Widevine
             var licensed = stream != null && drm == null
             if (drm != null) {
-                report(DiagnosticStep("License", null, "Asking for a license on this phone…"))
+                report(DiagnosticStep("Bản quyền", null, "Đang kiểm tra giấy phép DRM trên điện thoại này…"))
                 val outcome = withContext(Dispatchers.IO) { runCatching { checkWidevine(drm) } }
                 licensed = outcome.isSuccess
                 report(
                     outcome.fold(
-                        onSuccess = { DiagnosticStep("License", true, it) },
-                        onFailure = { DiagnosticStep("License", false, it.message ?: it.javaClass.simpleName) },
+                        onSuccess = { DiagnosticStep("Bản quyền", true, it) },
+                        onFailure = { DiagnosticStep("Bản quyền", false, it.message ?: it.javaClass.simpleName) },
                     )
                 )
             }
             // a license alone isn't proof: Apple's enhanced streams licensed fine and then
             // decrypted nothing, so the test ends by really decoding the start of the song
             if (stream != null && licensed) {
-                report(DiagnosticStep("Play", null, "Decoding the start of the song, muted…"))
+                report(DiagnosticStep("Phát thử", null, "Đang giải mã thử đoạn đầu bài hát (tắt tiếng)…"))
                 val outcome = runCatching { checkPlayback(stream) }
                 report(
                     outcome.fold(
-                        onSuccess = { DiagnosticStep("Play", true, it) },
-                        onFailure = { DiagnosticStep("Play", false, it.message ?: it.javaClass.simpleName) },
+                        onSuccess = { DiagnosticStep("Phát thử", true, it) },
+                        onFailure = { DiagnosticStep("Phát thử", false, it.message ?: it.javaClass.simpleName) },
                     )
                 )
             }
@@ -345,7 +345,7 @@ class ModulesViewModel @Inject constructor(
     }
 
     private suspend fun testLyrics(module: LyricsModule, track: TrackQuery) {
-        report(DiagnosticStep(StepLyrics, null, "Asking ${module.info.name} for the lyrics…"))
+        report(DiagnosticStep(StepLyrics, null, "Đang tải lời bài hát từ ${module.info.name}…"))
         val lyrics = withContext(Dispatchers.IO) { runCatching { module.lyrics(track) } }
         report(
             lyrics.fold(
@@ -361,7 +361,7 @@ class ModulesViewModel @Inject constructor(
     }
 
     private suspend fun testMetadata(module: MetadataModule, track: TrackQuery) {
-        report(DiagnosticStep(StepInfo, null, "Asking ${module.info.name} about the song…"))
+        report(DiagnosticStep(StepInfo, null, "Đang tải thông tin bài hát từ ${module.info.name}…"))
         val found = withContext(Dispatchers.IO) { runCatching { module.metadata(track) } }
         report(
             found.fold(
@@ -468,8 +468,8 @@ class ModulesViewModel @Inject constructor(
 
     private companion object {
         const val AppleApi = "https://amp-api.music.apple.com/"
-        const val StepLyrics = "Lyrics"
-        const val StepInfo = "Song info"
+        const val StepLyrics = "Lời bài hát"
+        const val StepInfo = "Thông tin bài"
         val LrcTime = Regex("""\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?]""")
         // a zip for a module's list is read no further than this, the same ceiling the js modules put on one
         const val MaxItemsZipBytes = 25 * 1024 * 1024

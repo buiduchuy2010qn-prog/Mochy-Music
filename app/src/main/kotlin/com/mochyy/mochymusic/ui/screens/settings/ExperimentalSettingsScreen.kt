@@ -201,9 +201,9 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                             description = {
                                 Text(
                                     when (musicHapticsSensitivity) {
-                                        HapticSensitivity.LOW -> "Low"
-                                        HapticSensitivity.MEDIUM -> "Medium"
-                                        HapticSensitivity.HIGH -> "High"
+                                        HapticSensitivity.LOW -> "Thấp"
+                                        HapticSensitivity.MEDIUM -> "Trung bình"
+                                        HapticSensitivity.HIGH -> "Cao"
                                     }
                                 )
                             },
@@ -227,10 +227,10 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                             description = {
                                 Text(
                                     when (hapticFocus) {
-                                        HapticFocus.BALANCE -> "Balance"
-                                        HapticFocus.VOCAL -> "Focus on vocal"
-                                        HapticFocus.VIBE -> "Focus on vibe"
-                                        HapticFocus.BASS -> "Focus on bass"
+                                        HapticFocus.BALANCE -> "Cân bằng"
+                                        HapticFocus.VOCAL -> "Tập trung giọng hát"
+                                        HapticFocus.VIBE -> "Tập trung giai điệu"
+                                        HapticFocus.BASS -> "Tập trung âm trầm"
                                     }
                                 )
                             },

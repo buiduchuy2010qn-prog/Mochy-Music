@@ -53,12 +53,12 @@ fun EqBandsSection(
     nodes: List<ParametricEQBand>,
     onGain: (index: Int, gain: Double) -> Unit,
 ) {
-    LabSectionLabel("Bands")
+    LabSectionLabel("Các dải tần")
     LabCard(padding = 12.dp) {
         BandSliders(nodes, onGain)
         Spacer(Modifier.height(10.dp))
         Text(
-            "Sweep across the sliders to draw a curve",
+            "Vuốt ngang qua các thanh trượt để vẽ đường cong âm thanh",
             fontFamily = InterFontFamily, fontSize = 12.sp, color = LabColors.Faint,
             modifier = Modifier.padding(horizontal = 6.dp),
         )

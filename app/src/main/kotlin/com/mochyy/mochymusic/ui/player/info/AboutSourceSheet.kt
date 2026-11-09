@@ -57,7 +57,7 @@ fun AboutSourceSheet(
             modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
         ) {
             InfoColumn(modifier = Modifier.widthIn(max = 600.dp)) {
-                InfoSheetTitle("About from")
+                InfoSheetTitle("Nguồn thông tin")
                 Spacer(Modifier.height(16.dp))
                 AboutSource.entries.filter { it != AboutSource.Modules || com.mochyy.mochymusic.modules.ModuleMetadata.sources.isNotEmpty() }.forEach { source ->
                     SourceRow(
@@ -78,8 +78,8 @@ fun AboutSourceSheet(
 }
 
 private fun previewOf(about: SongAbout, source: AboutSource): String = when {
-    !doneFor(about, source) -> "Looking…"
-    else -> textFor(about, source)?.lineSequence()?.firstOrNull { it.isNotBlank() }?.trim() ?: "Nothing about this song yet"
+    !doneFor(about, source) -> "Đang tìm…"
+    else -> textFor(about, source)?.lineSequence()?.firstOrNull { it.isNotBlank() }?.trim() ?: "Chưa có thông tin về bài hát này"
 }
 
 @Composable

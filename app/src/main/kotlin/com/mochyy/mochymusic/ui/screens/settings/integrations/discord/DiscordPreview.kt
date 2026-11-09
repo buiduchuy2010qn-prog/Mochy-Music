@@ -133,7 +133,7 @@ internal fun DiscordProfileCard(
         }
         Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 10.dp)) {
             Text(
-                text = profile?.displayName ?: "Not connected",
+                text = profile?.displayName ?: "Chưa kết nối",
                 color = DiscordColors.Primary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -142,7 +142,7 @@ internal fun DiscordProfileCard(
             )
             Text(
                 text = profile?.let { listOfNotNull(it.username, it.pronouns).joinToString(" · ") }
-                    ?: "Log in to show your profile here",
+                    ?: "Đăng nhập để hiển thị hồ sơ Discord tại đây",
                 color = DiscordColors.Secondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
@@ -197,7 +197,7 @@ private fun Avatar(url: String?, modifier: Modifier) {
             .background(Color(0xFFD9D9D9)),
     ) {
         if (url != null) {
-            AsyncImage(model = url, contentDescription = "Your Discord picture", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            AsyncImage(model = url, contentDescription = "Ảnh đại diện Discord", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
     }
 }
@@ -226,7 +226,7 @@ internal fun DiscordActivityPreview(
             .padding(14.dp),
     ) {
         Text(
-            text = (if (activity.kind == PresenceKind.LISTENING) "Listening to " else "Playing ") + activity.name,
+            text = (if (activity.kind == PresenceKind.LISTENING) "Đang nghe " else "Đang phát ") + activity.name,
             color = DiscordColors.Primary,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,

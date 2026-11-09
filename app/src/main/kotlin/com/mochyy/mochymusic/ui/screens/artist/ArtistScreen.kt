@@ -600,8 +600,8 @@ private fun LazyListScope.artistShelves(
         coverShelf(
             key = "albums_$index",
             title = when (index) {
-                0 -> "Albums"
-                1 -> "Singles & EPs"
+                0 -> "Album"
+                1 -> "Đĩa đơn & EP"
                 else -> section.title
             },
             items = section.items,

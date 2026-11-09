@@ -62,7 +62,7 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = if (hasPoToken) "PoToken ready" else "No PoToken",
+                    text = if (hasPoToken) "Đã có PoToken" else "Chưa có PoToken",
                     style = MaterialTheme.typography.titleMedium,
                     color = if (hasPoToken) {
                         MaterialTheme.colorScheme.primary
@@ -102,7 +102,7 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
 
         if (recent.isEmpty()) {
             Text(
-                text = "Nothing captured yet. Play a track and come back.",
+                text = "Chưa có dữ liệu. Hãy phát một bài hát rồi quay lại đây.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),

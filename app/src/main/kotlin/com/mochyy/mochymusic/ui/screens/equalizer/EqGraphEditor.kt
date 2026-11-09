@@ -118,12 +118,12 @@ fun EqGraphSection(
     canAdd: Boolean,
 ) {
     val index = selected.coerceIn(0, (nodes.size - 1).coerceAtLeast(0))
-    LabSectionLabel("Graph editor")
+    LabSectionLabel("Biểu đồ tần số")
     LabCard(padding = 12.dp) {
         val node = nodes.getOrNull(index)
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "FREQUENCY RESPONSE",
+                "ĐÁP TUYẾN TẦN SỐ",
                 fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.2.sp,
                 color = LabColors.Secondary, modifier = Modifier.weight(1f),
             )
@@ -139,7 +139,7 @@ fun EqGraphSection(
         EqGraph(nodes = nodes, selected = index, onSelect = onSelect, onMove = onMove, onAdd = onAdd)
         Spacer(Modifier.height(10.dp))
         Text(
-            "Drag a node to shape the sound · double-tap to add one",
+            "Kéo điểm nút để tạo hình âm thanh · chạm đúp để thêm điểm mới",
             fontFamily = InterFontFamily, fontSize = 12.sp, color = LabColors.Faint,
             modifier = Modifier.padding(horizontal = 6.dp),
         )
@@ -162,7 +162,7 @@ fun EqGraphSection(
                         .clickable { onAdd(freeFrequency(nodes), 0.0) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(painterResource(R.drawable.add), "Add a band", tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(painterResource(R.drawable.add), "Thêm dải tần", tint = Color.White, modifier = Modifier.size(18.dp))
                 }
             }
         },
@@ -430,7 +430,7 @@ private fun NodeDetail(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "${frequencyLabel(node.frequency)} node",
+                    "Điểm ${frequencyLabel(node.frequency)}",
                     fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White,
                 )
                 Text(
@@ -443,7 +443,7 @@ private fun NodeDetail(
         }
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            listOf(FilterType.LSC to "Low shelf", FilterType.PK to "Peak", FilterType.HSC to "High shelf").forEach { (type, label) ->
+            listOf(FilterType.LSC to "Thềm trầm", FilterType.PK to "Đỉnh (Peak)", FilterType.HSC to "Thềm cao").forEach { (type, label) ->
                 val picked = node.filterType == type
                 val bg by animateColorAsState(if (picked) Color(0xFFD1D1D6) else Color.Black, tween(160), label = "type")
                 val fg by animateColorAsState(if (picked) Color.Black else Color.White, tween(160), label = "typeText")

@@ -52,11 +52,11 @@ import com.mochyy.mochymusic.R
  * device theme.
  */
 enum class ButtonStyle(val displayName: String) {
-    DEFAULT("Default"),
+    DEFAULT("Mặc định"),
     M3_EXPRESSIVE("Material 3 Expressive"),
-    M3_EXPRESSIVE_PLAIN("Material 3 Expressive - no label"),
+    M3_EXPRESSIVE_PLAIN("Material 3 Expressive - ẩn nhãn"),
     M3_TONAL("Material 3 tonal"),
-    LEGACY("Android legacy"),
+    LEGACY("Android cổ điển"),
 }
 
 /**
@@ -241,14 +241,14 @@ private fun M3Transport(
         ) {
             Icon(
                 painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
-                contentDescription = if (isPlaying) "Pause" else "Play",
+                contentDescription = if (isPlaying) "Tạm dừng" else "Phát",
                 tint = if (tonal) colors.onContainer else colors.onAccent,
                 modifier = Modifier.size(22.dp),
             )
             if (showLabel) {
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = if (isPlaying) "Pause" else "Play",
+                    text = if (isPlaying) "Tạm dừng" else "Phát",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Medium,
                     color = if (tonal) colors.onContainer else colors.onAccent,

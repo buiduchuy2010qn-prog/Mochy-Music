@@ -108,7 +108,7 @@ class UpdateDownloadWorker(private val context: Context, workerParams: WorkerPar
                     if (downloadFile.exists()) downloadFile.delete()
                     DownloadNotificationManager.showDownloadFailed(
                         version,
-                        e.message ?: "Failed to extract zip file"
+                        e.message ?: "Không thể giải nén tệp cập nhật"
                     )
                     return@withContext Result.failure()
                 } finally {
@@ -119,7 +119,7 @@ class UpdateDownloadWorker(private val context: Context, workerParams: WorkerPar
                 if (!extracted) {
                     DownloadNotificationManager.showDownloadFailed(
                         version,
-                        "Could not find APK in zip"
+                        "Không tìm thấy tệp APK trong gói cập nhật"
                     )
                     return@withContext Result.failure()
                 }

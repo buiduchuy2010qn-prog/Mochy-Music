@@ -74,17 +74,17 @@ private fun formatCard(input: StatsInput): StatCard {
         (fileSize * 8_000 / input.durationMs).toInt()
     } else null
     return StatCard(
-        title = codec?.let(::formatTitle) ?: "Format",
+        title = codec?.let(::formatTitle) ?: "Định dạng",
         lines = listOfNotNull(
             d.sourceBitDepth?.takeIf { lossless }?.let { "Độ sâu bit" to "$it-bit" },
             sampleRate?.let { "Tần số lấy mẫu" to kHz(it) },
             statedBitrate?.let { "Tốc độ bit" to kbps(it) } ?: averageBitrate?.let { "Tốc độ bit" to "~${kbps(it)} TB" },
             d.channels?.let { "Kênh âm thanh" to channelName(it) },
             containerName(d.containerMime)?.let { "Container" to it },
-            "Media id" to input.mediaId,
-            input.from?.matchedId?.let { "Matched as" to "${input.from.name} #$it" },
+            "Mã phương tiện" to input.mediaId,
+            input.from?.matchedId?.let { "Khớp với" to "${input.from.name} #$it" },
             "Âm lượng" to "${(input.playerVolume * 100).roundToInt()}%",
-            input.youtubeFormat?.loudnessDb?.let { "Loudness" to String.format(Locale.US, "%+.1f dB", it) },
+            input.youtubeFormat?.loudnessDb?.let { "Độ lớn âm" to String.format(Locale.US, "%+.1f dB", it) },
             fileSize?.let { "Dung lượng tệp" to megabytes(it) },
         ),
     )
@@ -93,16 +93,16 @@ private fun formatCard(input: StatsInput): StatCard {
 private fun decoderCard(input: StatsInput): StatCard {
     val d = input.details
     return StatCard(
-        title = "Decoder",
+        title = "Bộ giải mã",
         lines = listOfNotNull(
             d.decoderName?.let { "Bộ giải mã" to it },
             input.decoderHardware?.let { "Chạy trên" to if (it) "Phần cứng" else "Phần mềm" },
-            d.sampleMime?.let { "Format" to it },
+            d.sampleMime?.let { "Định dạng" to it },
             d.codecs?.takeIf { it.isNotBlank() }?.let { "Codec" to it },
-            d.decodedEncoding?.let { "Output" to pcmName(it) },
+            d.decodedEncoding?.let { "Đầu ra" to pcmName(it) },
             d.decodedSampleRate?.let { "Tần số đầu ra" to kHz(it) },
-            d.decodedChannels?.let { "Channels" to channelName(it) },
-            d.decoderInitMs?.takeIf { it > 0 }?.let { "Started in" to "$it ms" },
+            d.decodedChannels?.let { "Kênh âm thanh" to channelName(it) },
+            d.decoderInitMs?.takeIf { it > 0 }?.let { "Khởi chạy" to "$it ms" },
         ),
     )
 }
@@ -111,42 +111,42 @@ private fun resamplerCard(input: StatsInput): StatCard {
     val d = input.details
     val effects = input.effects
     if (d.resampledFrom != null && d.resampledTo != null) return mochyResamplerCard(d, effects)
-    val inRate = d.decodedSampleRate ?: d.sampleRate ?: return StatCard("Resampler", emptyList())
+    val inRate = d.decodedSampleRate ?: d.sampleRate ?: return StatCard("Bộ lấy mẫu lại", emptyList())
     val outRate = input.mixer?.sampleRate ?: input.systemMixerRate?.takeIf { input.device?.kind in FixedRateKinds && input.castingTo == null }
     val timeStretch = effects.speed != 1f || effects.pitch != 1f
     val resampling = outRate != null && outRate != inRate
     val type = when {
-        input.castingTo != null -> "The cast device's own"
-        timeStretch -> "Sonic time-stretch, then Android's mixer"
-        outRate == null -> "Android's mixer, as needed"
-        resampling -> "Android's mixer"
-        else -> "None, it plays at its own rate"
+        input.castingTo != null -> "Bộ xử lý của thiết bị nhận"
+        timeStretch -> "Sonic co giãn thời gian, qua bộ trộn Android"
+        outRate == null -> "Bộ trộn Android (khi cần)"
+        resampling -> "Bộ trộn của Android"
+        else -> "Không, phát ở tần số nguyên bản"
     }
     return StatCard(
-        title = "Resampler",
+        title = "Bộ lấy mẫu lại",
         lines = listOfNotNull(
-            "Type" to type,
-            outRate?.let { "I/O rate" to if (resampling) "${kHz(inRate)} → ${kHz(it)}" else "${kHz(inRate)} in and out" },
+            "Kiểu xử lý" to type,
+            outRate?.let { "Tần số vào/ra" to if (resampling) "${kHz(inRate)} → ${kHz(it)}" else "${kHz(inRate)} giữ nguyên" },
             // the filter has to stop at the lower rate's nyquist, half of it
-            outRate?.takeIf { resampling }?.let { "Cutoff" to "~${kHz(minOf(inRate, it) / 2)}" },
-            line("Quality", "Untouched".takeIf { !resampling && outRate != null && !timeStretch }),
+            outRate?.takeIf { resampling }?.let { "Tần số cắt" to "~${kHz(minOf(inRate, it) / 2)}" },
+            line("Chất lượng", "Nguyên bản".takeIf { !resampling && outRate != null && !timeStretch }),
             effects.speed.takeIf { it != 1f }?.let { "Speed" to String.format(Locale.US, "%.2f×", it) },
-            effects.pitch.takeIf { it != 1f }?.let { "Pitch" to String.format(Locale.US, "%+.1f semitones", 12 * log2(it)) },
+            effects.pitch.takeIf { it != 1f }?.let { "Cao độ" to String.format(Locale.US, "%+.1f bán cung", 12 * log2(it)) },
         ),
     )
 }
 
 // mochy's own filter did the work, so android's mixer is handed the rate it already runs at
 private fun mochyResamplerCard(d: StreamDetails, effects: EffectsSnapshot): StatCard = StatCard(
-    title = "Resampler",
+    title = "Bộ lấy mẫu lại",
     lines = listOfNotNull(
-        "Type" to "Mochy hi-fi, windowed sinc (Kaiser)",
-        "I/O rate" to "${kHz(d.resampledFrom!!)} → ${kHz(d.resampledTo!!)}",
-        d.resamplerPassbandHz?.let { "Passband" to "flat to ${kHz(it.toInt())}" },
-        "Cutoff" to kHz(minOf(d.resampledFrom, d.resampledTo) / 2),
+        "Kiểu xử lý" to "Mochy Hi-Fi, sinc cửa sổ (Kaiser)",
+        "Tần số vào/ra" to "${kHz(d.resampledFrom!!)} → ${kHz(d.resampledTo!!)}",
+        d.resamplerPassbandHz?.let { "Dải thông" to "phẳng tới ${kHz(it.toInt())}" },
+        "Tần số cắt" to kHz(minOf(d.resampledFrom, d.resampledTo) / 2),
         "Quality" to "−${SincResampler.StopbandDb.toInt()} dB stopband, 32-bit float",
-        d.resamplerTaps?.let { "Taps" to "$it per sample" },
-        "Android's mixer" to "Not resampling, the rates match",
+        d.resamplerTaps?.let { "Số bậc lọc" to "$it mỗi mẫu" },
+        "Bộ trộn Android" to "Không lấy mẫu lại, khớp tần số",
         effects.speed.takeIf { it != 1f }?.let { "Speed" to String.format(Locale.US, "%.2f×", it) },
     ),
 )
@@ -155,28 +155,28 @@ private fun dspCard(input: StatsInput): StatCard {
     val d = input.details
     val e = input.effects
     val chain = listOfNotNull(
-        e.equalizerBands?.let { "Equalizer ($it bands)" },
-        "Spatial".takeIf { e.spatial },
+        e.equalizerBands?.let { "Bộ chỉnh âm ($it dải)" },
+        "Âm thanh không gian".takeIf { e.spatial },
         "Mono".takeIf { e.mono },
-        "Reverb".takeIf { e.reverb },
-        "Loudness".takeIf { e.loudness },
-        "Volume curve".takeIf { e.volumeCurve },
+        "Tiếng vang".takeIf { e.reverb },
+        "Tăng âm lượng".takeIf { e.loudness },
+        "Đường cong âm lượng".takeIf { e.volumeCurve },
         e.transitions,
-        "Skip silence".takeIf { e.skipSilence },
-        "Haptics".takeIf { e.haptics },
+        "Bỏ qua khoảng lặng".takeIf { e.skipSilence },
+        "Rung theo nhạc".takeIf { e.haptics },
     )
     val floatPath = d.outputEncoding == C.ENCODING_PCM_FLOAT
     return StatCard(
         title = "DSP",
         lines = listOfNotNull(
-            d.outputEncoding?.let { "PCM format" to pcmName(it) },
+            d.outputEncoding?.let { "Định dạng PCM" to pcmName(it) },
             d.outputSampleRate?.let { "Tần số lấy mẫu" to kHz(it) },
             "Hiệu ứng" to chain.joinToString(", ").ifEmpty { "Không có, âm thanh nguyên bản" },
-            line("Dither", "TPDF, to 16-bit".takeIf { d.dithered }),
-            line("Normalization", "On".takeIf { e.normalize }),
+            line("Nhiễu nền (Dither)", "TPDF về 16-bit".takeIf { d.dithered }),
+            line("Chuẩn hóa âm lượng", "Đang bật".takeIf { e.normalize }),
             when {
-                floatPath -> "Hi-res path" to "32-bit float, straight through"
-                e.hiResWanted && !e.floatAllowed -> "Hi-res path" to "Paused while an effect is on"
+                floatPath -> "Đường truyền Hi-Res" to "32-bit float xuyên suốt"
+                e.hiResWanted && !e.floatAllowed -> "Đường truyền Hi-Res" to "Tạm dừng khi bật hiệu ứng"
                 else -> null
             },
         ),
@@ -190,26 +190,26 @@ private fun outputCard(input: StatsInput): StatCard {
     val bufferMs = d.outputBufferBytes?.let { bytes -> d.outputSampleRate?.takeIf { it > 0 }?.let { rate -> bytes * 1000L / (rate.toLong() * frameBytes) } }
     val mixer = input.mixer
     return StatCard(
-        title = "Output",
+        title = "Đầu ra âm thanh",
         lines = listOfNotNull(
-            input.castingTo?.let { "Casting to" to it },
-            device?.let { "Device" to deviceName(it) },
-            device?.let { "Route" to routeName(it.kind) },
+            input.castingTo?.let { "Đang truyền tới" to it },
+            device?.let { "Thiết bị" to deviceName(it) },
+            device?.let { "Đường truyền" to routeName(it.kind) },
             device?.takeIf { it.kind == AudioOutputs.Kind.USB || it.kind == AudioOutputs.Kind.HDMI }?.let { dev ->
                 listOfNotNull(dev.maxSampleRate?.let(::kHz), dev.bitDepths.maxOrNull()?.let { "$it-bit" })
-                    .takeIf { it.isNotEmpty() }?.let { "Takes up to" to it.joinToString(" · ") }
+                    .takeIf { it.isNotEmpty() }?.let { "Hỗ trợ tối đa" to it.joinToString(" · ") }
             },
             mixer?.let {
-                "DAC mixer" to (if (it.bitPerfect) "Bit-perfect, " else "Locked to the song, ") +
+                "Bộ trộn DAC" to (if (it.bitPerfect) "Bit-perfect, " else "Khóa theo bài hát, ") +
                     listOfNotNull(kHz(it.sampleRate), StreamInspector.bitDepthOf(it.encoding)?.let { b -> "$b-bit" }).joinToString(" ")
             },
             d.outputEncoding?.let { enc ->
-                "Audio track" to listOfNotNull(pcmShort(enc), d.outputSampleRate?.let(::kHz), channelCountOf(d.outputChannelConfig)?.let(::channelName)).joinToString(" · ")
+                "Luồng âm thanh" to listOfNotNull(pcmShort(enc), d.outputSampleRate?.let(::kHz), channelCountOf(d.outputChannelConfig)?.let(::channelName)).joinToString(" · ")
             },
-            bufferMs?.takeIf { it > 0 }?.let { "Buffer" to "~$it ms" },
-            line("Offload", "On".takeIf { d.offload }),
-            line("Tunneling", "On".takeIf { d.tunneling }),
-            d.underruns.takeIf { it > 0 }?.let { "Underruns" to "$it" },
+            bufferMs?.takeIf { it > 0 }?.let { "Bộ đệm" to "~$it ms" },
+            line("Giải mã phần cứng", "Đang bật".takeIf { d.offload }),
+            line("Đường hầm (Tunneling)", "Đang bật".takeIf { d.tunneling }),
+            d.underruns.takeIf { it > 0 }?.let { "Tràn bộ đệm" to "$it" },
         ),
     )
 }
@@ -278,19 +278,19 @@ private fun bytesPerSample(encoding: Int?): Int? = when (encoding) {
 private fun channelCountOf(channelConfig: Int?): Int? = channelConfig?.let { Integer.bitCount(it).takeIf { n -> n > 0 } }
 
 private fun routeName(kind: AudioOutputs.Kind): String = when (kind) {
-    AudioOutputs.Kind.PHONE -> "Built-in speaker"
-    AudioOutputs.Kind.WIRED -> "Wired"
-    AudioOutputs.Kind.USB -> "USB audio"
+    AudioOutputs.Kind.PHONE -> "Loa trong máy"
+    AudioOutputs.Kind.WIRED -> "Có dây"
+    AudioOutputs.Kind.USB -> "Âm thanh USB"
     AudioOutputs.Kind.BLUETOOTH -> "Bluetooth"
     AudioOutputs.Kind.HDMI -> "HDMI"
 }
 
 internal fun deviceName(device: AudioOutputs.Device): String = device.name.ifBlank {
     when (device.kind) {
-        AudioOutputs.Kind.PHONE -> "This phone"
-        AudioOutputs.Kind.WIRED -> "Wired headphones"
+        AudioOutputs.Kind.PHONE -> "Điện thoại này"
+        AudioOutputs.Kind.WIRED -> "Tai nghe có dây"
         AudioOutputs.Kind.USB -> "USB DAC"
-        AudioOutputs.Kind.BLUETOOTH -> "Bluetooth device"
+        AudioOutputs.Kind.BLUETOOTH -> "Thiết bị Bluetooth"
         AudioOutputs.Kind.HDMI -> "HDMI"
     }
 }
