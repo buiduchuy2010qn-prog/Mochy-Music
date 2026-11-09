@@ -23,7 +23,7 @@ fun crossmixTestItems(isVisible: Boolean = true): List<SettingsItem> {
     return listOf(
         SettingsItem(
             title = { Text("Trạng thái Crossmix") },
-            descriptionText = status.ifBlank { "Nothing yet. Play a song with another queued after it" },
+            descriptionText = status.ifBlank { "Chưa có dữ liệu. Hãy phát một bài hát có bài tiếp theo trong hàng đợi" },
             icon = painterResource(R.drawable.info),
             iconShape = androidx.compose.foundation.shape.CircleShape,
             isVisible = isVisible,

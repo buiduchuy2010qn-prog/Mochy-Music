@@ -95,7 +95,7 @@ internal object TvText {
 
     // the album page's "120 songs · end of line · 21 minutes" strip
     val Ledger: TextStyle
-        get() = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 7.sp, letterSpacing = 0.05.em, color = TvColors.Muted)
+        get() = TextStyle(fontFamily = InterFontFamily, fontSize = 7.sp, letterSpacing = 0.05.em, color = TvColors.Muted)
 }
 
 // how a focused thing shows it: covers and cards get a ring with a gap, rows and tabs a soft fill, buttons turn white (they read the focus themselves)

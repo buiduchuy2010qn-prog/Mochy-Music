@@ -97,7 +97,7 @@ object DownloadNotificationManager {
                                 if (i % 2 == 0) {
                                     "#4285F4".toColorInt()
                                 } else {
-                                    "#8E24AA".toColorInt()
+                                    "#1C1C1E".toColorInt()
                                 }
                             )
                     )
@@ -133,7 +133,7 @@ object DownloadNotificationManager {
                                 if (i % 2 == 0) {
                                     "#4285F4".toColorInt()
                                 } else {
-                                    "#8E24AA".toColorInt()
+                                    "#1C1C1E".toColorInt()
                                 }
                             )
                     )
@@ -189,7 +189,7 @@ object DownloadNotificationManager {
                                 if (i % 2 == 0) {
                                     "#4285F4".toColorInt()
                                 } else {
-                                    "#8E24AA".toColorInt()
+                                    "#1C1C1E".toColorInt()
                                 }
                             )
                     )

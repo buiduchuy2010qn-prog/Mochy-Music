@@ -474,7 +474,7 @@ internal fun DiscordStepSlider(
             return values[(fraction * lastIndex).roundToInt().coerceIn(0, values.lastIndex)]
         }
         val fraction = values.indexOf(value).coerceAtLeast(0).toFloat() / lastIndex
-        val mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = DiscordColors.Secondary)
+        val mono = TextStyle(fontFamily = InterFontFamily, fontSize = 12.sp, color = DiscordColors.Secondary)
 
         Box(
             Modifier

@@ -2,6 +2,8 @@
 
 package com.mochyy.mochymusic.ui.player.menu
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -167,7 +169,7 @@ fun LyricsOffsetSheet(onDismiss: () -> Unit) {
             PillButton(
                 label = when (autoHere) {
                     is LyricsAutoSync.State.Listening -> "listening… ${(autoHere.progress * 100).roundToInt()}%"
-                    is LyricsAutoSync.State.Matching -> "matching…"
+                    is LyricsAutoSync.State.Matching -> "đang khớp lời…"
                     else -> "tự động căn lời"
                 },
                 enabled = timedLines != null && !autoRunning,
@@ -190,12 +192,12 @@ fun LyricsOffsetSheet(onDismiss: () -> Unit) {
 @Composable
 private fun AutoSyncStatus(state: LyricsAutoSync.State?, timed: Boolean, onUndo: (Int) -> Unit) {
     val text = when {
-        !timed -> "Auto offset needs lyrics timed by line or by word. Plain lyrics have no timing to move."
-        state is LyricsAutoSync.State.Listening -> "Listening for where the singing starts and stops…"
-        state is LyricsAutoSync.State.Matching -> "Lining each line up with its singing…"
+        !timed -> "Tự động căn lời cần lời bài hát có mốc thời gian theo câu hoặc từng từ. Lời văn bản thuần không có mốc thời gian để dịch chuyển."
+        state is LyricsAutoSync.State.Listening -> "Đang lắng nghe vị trí giọng hát bắt đầu và kết thúc…"
+        state is LyricsAutoSync.State.Matching -> "Đang căn chỉnh từng câu khớp với giọng hát…"
         state is LyricsAutoSync.State.Synced -> syncedText(state)
         state is LyricsAutoSync.State.Failed -> state.message
-        else -> "Listens to the song and lines the lyrics up with the singing."
+        else -> "Lắng nghe bài hát và tự động căn chỉnh lời khớp với giọng hát."
     }
     Text(
         text = text,
@@ -224,12 +226,12 @@ private fun syncedText(state: LyricsAutoSync.State.Synced): String {
     val moved = state.offsetMs - state.previousOffsetMs
     val change = when {
         abs(moved) < 20 -> "Lời bài hát đã khớp chuẩn với giọng hát."
-        moved > 0 -> "Lyrics moved ${moved} ms earlier to meet the singing."
-        else -> "Lyrics moved ${-moved} ms later to meet the singing."
+        moved > 0 -> "Đã đẩy lời bài hát sớm hơn ${moved} ms để khớp với giọng hát."
+        else -> "Đã lùi lời bài hát trễ hơn ${-moved} ms để khớp với giọng hát."
     }
-    val guess = if (state.sure) "" else " It's a best guess, so check it by ear."
+    val guess = if (state.sure) "" else " Đây là mức ước lượng tốt nhất, bạn hãy nghe thử để kiểm tra lại."
     val drift = state.driftMs?.let {
-        " The timing also drifts by ${"%.1f".format(abs(it) / 1_000f)} s over the song, so it's set to fit the middle best."
+        " Nhịp bài hát cũng lệch khoảng ${"%.1f".format(abs(it) / 1_000f)} giây suốt bài, nên đã được căn khớp nhất ở đoạn giữa."
     }.orEmpty()
     return change + guess + drift
 }
@@ -254,6 +256,7 @@ private fun OffsetValueBox(
             singleLine = true,
             textStyle = TextStyle(
                 color = Color.White,
+                fontFamily = InterFontFamily,
                 fontSize = 44.sp,
                 fontWeight = FontWeight.Bold,
             ),

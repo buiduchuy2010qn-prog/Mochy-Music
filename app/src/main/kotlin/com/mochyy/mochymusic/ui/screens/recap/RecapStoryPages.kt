@@ -87,7 +87,7 @@ internal fun recapBold(size: Float, lineHeight: Float = size * 1.1f, tracking: F
         color = Color.White,
     )
 
-private val MonoHint = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 20.sp, color = Color.White)
+private val MonoHint = TextStyle(fontFamily = InterFontFamily, fontSize = 20.sp, color = Color.White)
 
 private fun Modifier.at(x: Float, y: Float): Modifier = offset { IntOffset(x.roundToInt(), y.roundToInt()) }
 
@@ -763,7 +763,7 @@ private fun SongReveal(s: StoryState, hero: RecapSong, anim: PageAnim, coverCx: 
 
 private val Paper = Color(0xFFEEECE6)
 private val Ink = Color(0xFF1B1B1B)
-private val ReceiptMono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp, lineHeight = 17.sp, color = Ink, textAlign = TextAlign.Center)
+private val ReceiptMono = TextStyle(fontFamily = InterFontFamily, fontSize = 13.sp, lineHeight = 17.sp, color = Ink, textAlign = TextAlign.Center)
 
 /** Paper torn in a zigzag at the top and the bottom. */
 private object ZigzagShape : Shape {

@@ -209,13 +209,13 @@ internal val SectionTitleStyle = TextStyle(
     letterSpacing = PlaylistTracking,
 )
 internal val ReceiptSmallStyle = TextStyle(
-    fontFamily = FontFamily.Monospace,
+    fontFamily = InterFontFamily,
     fontWeight = FontWeight.Medium,
     fontSize = 8.5.sp,
     letterSpacing = 0.04.em,
 )
 internal val ReceiptCenterStyle = TextStyle(
-    fontFamily = FontFamily.Monospace,
+    fontFamily = InterFontFamily,
     fontWeight = FontWeight.Medium,
     fontSize = 10.sp,
     letterSpacing = 0.42.em,

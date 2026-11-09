@@ -2,6 +2,8 @@
 
 package com.mochyy.mochymusic.ui.player.menu
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import android.media.AudioManager
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -116,7 +118,7 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
                 .padding(horizontal = 20.dp)
                 .padding(top = 10.dp, bottom = 28.dp)
         ) {
-            SectionLabel("Change playback")
+            SectionLabel("Đầu ra âm thanh")
 
             VolumeCard(
                 icon = R.drawable.volume_up,
@@ -219,10 +221,10 @@ fun DeviceOutputSheet(onDismiss: () -> Unit) {
 
 private fun deviceLabel(device: AudioOutputs.Device): String = device.name.ifBlank {
     when (device.kind) {
-        AudioOutputs.Kind.PHONE -> "This phone"
-        AudioOutputs.Kind.WIRED -> "Wired headphones"
-        AudioOutputs.Kind.USB -> "USB audio"
-        AudioOutputs.Kind.BLUETOOTH -> "Bluetooth device"
+        AudioOutputs.Kind.PHONE -> "Điện thoại này"
+        AudioOutputs.Kind.WIRED -> "Tai nghe có dây"
+        AudioOutputs.Kind.USB -> "Âm thanh USB"
+        AudioOutputs.Kind.BLUETOOTH -> "Thiết bị Bluetooth"
         AudioOutputs.Kind.HDMI -> "HDMI"
     }
 }
@@ -230,20 +232,20 @@ private fun deviceLabel(device: AudioOutputs.Device): String = device.name.ifBla
 // a dac says what it takes, so that's shown; the rest just say what they are
 private fun deviceDetail(device: AudioOutputs.Device, passthrough: Boolean): String {
     val kind = when (device.kind) {
-        AudioOutputs.Kind.PHONE -> "Speaker"
-        AudioOutputs.Kind.WIRED -> "Headphone jack"
+        AudioOutputs.Kind.PHONE -> "Loa ngoài"
+        AudioOutputs.Kind.WIRED -> "Cổng tai nghe"
         AudioOutputs.Kind.USB -> "USB DAC"
         AudioOutputs.Kind.BLUETOOTH -> "Bluetooth"
         AudioOutputs.Kind.HDMI -> "HDMI"
     }
     val takes = listOfNotNull(
-        device.maxSampleRate?.let { "up to ${it / 1000} kHz" },
+        device.maxSampleRate?.let { "tối đa ${it / 1000} kHz" },
         device.bitDepths.maxOrNull()?.let { "$it-bit" },
     ).takeIf { device.kind == AudioOutputs.Kind.USB }.orEmpty()
-    val bypass = "passthrough on".takeIf {
+    val bypass = "đã bật truyền thẳng".takeIf {
         passthrough && device.kind == AudioOutputs.Kind.USB && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE
     }
-    return (listOf(kind) + takes + listOfNotNull(bypass) + listOfNotNull("playing".takeIf { device.isActive })).joinToString(" · ")
+    return (listOf(kind) + takes + listOfNotNull(bypass) + listOfNotNull("đang phát".takeIf { device.isActive })).joinToString(" · ")
 }
 
 private fun AudioOutputs.Kind.icon(): ImageVector = when (this) {

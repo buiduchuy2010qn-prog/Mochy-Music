@@ -2,6 +2,8 @@
 
 package com.mochyy.mochymusic.ui.screens.update
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -390,6 +392,7 @@ private fun ColumnScope.AboutSheetContent(
                 }
                 Spacer(Modifier.height(14.dp))
                 Text(
+                    fontFamily = InterFontFamily,
                     text = "Giới thiệu",
                     fontSize = 36.sp,
                     lineHeight = 38.sp,
@@ -398,6 +401,7 @@ private fun ColumnScope.AboutSheetContent(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
+                    fontFamily = InterFontFamily,
                     text = "Mochy Music | $installed",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
@@ -415,6 +419,7 @@ private fun ColumnScope.AboutSheetContent(
                     .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Text(
+                    fontFamily = InterFontFamily,
                     text = "Mochy Music — Ứng dụng nghe nhạc mã nguồn mở hiện đại (GPL-3.0).",
                     fontSize = 15.sp,
                     lineHeight = 19.sp,
@@ -549,6 +554,7 @@ private fun ColumnScope.CreditsSheetContent() {
     ) {
         Spacer(Modifier.height(8.dp))
         Text(
+            fontFamily = InterFontFamily,
             text = "Tác giả & Đóng góp",
             fontSize = 36.sp,
             lineHeight = 38.sp,
@@ -587,6 +593,7 @@ private fun ColumnScope.LicenseSheetContent() {
     ) {
         Spacer(Modifier.height(8.dp))
         Text(
+            fontFamily = InterFontFamily,
             text = "Giấy phép",
             fontSize = 36.sp,
             lineHeight = 38.sp,
@@ -609,6 +616,7 @@ private fun ColumnScope.LicenseSheetContent() {
 @Composable
 private fun SectionHeader(title: String) {
     Text(
+        fontFamily = InterFontFamily,
         text = title,
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
@@ -632,6 +640,7 @@ private fun AboutPillRow(text: String, onClick: () -> Unit) {
             .padding(horizontal = 18.dp),
     ) {
         Text(
+            fontFamily = InterFontFamily,
             text = text,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
@@ -657,6 +666,7 @@ private fun AboutCardButton(text: String, onClick: () -> Unit) {
             .padding(horizontal = 18.dp),
     ) {
         Text(
+            fontFamily = InterFontFamily,
             text = text,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
@@ -693,6 +703,7 @@ private fun PersonRow(
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
+                fontFamily = InterFontFamily,
                 text = name,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -702,6 +713,7 @@ private fun PersonRow(
             )
             if (subtitle != null) {
                 Text(
+                    fontFamily = InterFontFamily,
                     text = subtitle,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
@@ -755,6 +767,7 @@ private fun AndMoreRow(
         }
         Spacer(Modifier.width(12.dp))
         Text(
+            fontFamily = InterFontFamily,
             text = "Xem tất cả tác giả đóng góp \u2192",
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
@@ -781,6 +794,7 @@ private fun LicenseCard(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
+                fontFamily = InterFontFamily,
                 text = entry.tag,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -789,6 +803,7 @@ private fun LicenseCard(
             )
             Spacer(Modifier.height(2.dp))
             Text(
+                fontFamily = InterFontFamily,
                 text = entry.title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -796,6 +811,7 @@ private fun LicenseCard(
             )
             Spacer(Modifier.height(2.dp))
             Text(
+                fontFamily = InterFontFamily,
                 text = entry.subtitle,
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.Medium,

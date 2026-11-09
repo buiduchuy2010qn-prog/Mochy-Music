@@ -68,7 +68,7 @@ private val YouTubeOptions = listOf(
     QualityOption(AudioQuality.AUTO, "Tự động", "Cao khi dùng Wi-Fi, Trung bình khi dùng dữ liệu di động", "Thích ứng"),
     QualityOption(AudioQuality.HIGH, "Cao", "Chất lượng cao nhất từ nguồn phát: ít nén hơn, rõ nét hơn", "~160 kbps · Opus"),
     QualityOption(AudioQuality.MEDIUM, "Trung bình", "Khoảng 128 kbps, cân bằng và tiết kiệm dung lượng", "~128 kbps · AAC"),
-    QualityOption(AudioQuality.LOW, "Low", "The smallest streams, for slow connections", "~50–70 kbps · Opus"),
+    QualityOption(AudioQuality.LOW, "Thấp", "Luồng âm thanh nhỏ nhất cho kết nối mạng chậm", "~50–70 kbps · Opus"),
 )
 
 /** what the picture shows: the quality of whichever provider plays first */

@@ -143,8 +143,8 @@ private fun PickedSummary(session: LyricsShareSession) {
                 ) { count ->
                     Text(
                         when (count) {
-                            0 -> "Pick some lines"
-                            1 -> "1 line selected"
+                            0 -> "Chọn câu hát"
+                            1 -> "Đã chọn 1 câu"
                             else -> "Đã chọn $count câu"
                         },
                         fontFamily = InterFontFamily,
@@ -172,10 +172,10 @@ private fun limitText(session: LyricsShareSession): String {
     val words = session.wordCount
     val card = ShareStyle.Card.maxWords
     return when {
-        words == 0 -> "Tap the lines you want to share"
-        session.atLimit -> "$words words · that's as much as fits"
-        words <= card -> "$words of $card words · fits every style"
-        else -> "$words of $ShareWordLimit words · Cinematic only"
+        words == 0 -> "Chạm vào những câu lời bạn muốn chia sẻ"
+        session.atLimit -> "$words từ · đã đạt giới hạn tối đa"
+        words <= card -> "$words / $card từ · vừa với mọi kiểu thẻ"
+        else -> "$words / $ShareWordLimit từ · chỉ hỗ trợ kiểu Điện ảnh"
     }
 }
 

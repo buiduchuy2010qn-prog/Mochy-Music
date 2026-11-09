@@ -8,6 +8,8 @@
 
 package com.mochyy.mochymusic.ui.player.menu
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -122,7 +124,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
                 Text(
                     text = "Chỉnh sửa lời bài hát",
                     color = Color.White,
-                    fontSize = 15.sp,
+                    fontFamily = InterFontFamily, fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
@@ -181,7 +183,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
                                 onValueChange = { if (index < drafts.size) drafts[index] = it },
                                 textStyle = TextStyle(
                                     color = Color.White,
-                                    fontSize = 15.sp,
+                                    fontFamily = InterFontFamily, fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
                                 ),
                                 cursorBrush = SolidColor(Color.White),
@@ -276,7 +278,7 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
             Text(
                 text = "Nguồn lời bài hát",
                 color = Color.White,
-                fontSize = 15.sp,
+                fontFamily = InterFontFamily, fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -289,14 +291,14 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
                 val available = state as? LyricsMenuViewModel.SourceState.Available
                 val isActive = name == active
                 val status = when {
-                    isActive -> "In use"
+                    isActive -> "Đang dùng"
                     available != null -> when (available.candidate.sync) {
-                        LyricsUtils.SyncKind.WORD -> "Word synced"
-                        LyricsUtils.SyncKind.LINE -> "Line synced"
-                        else -> "Plain"
-                    } + if (available.candidate.hasDuet) " · duet" else ""
-                    state == LyricsMenuViewModel.SourceState.Unavailable -> "Not found"
-                    state == LyricsMenuViewModel.SourceState.Off -> "Off"
+                        LyricsUtils.SyncKind.WORD -> "Đồng bộ từng từ"
+                        LyricsUtils.SyncKind.LINE -> "Đồng bộ từng câu"
+                        else -> "Văn bản thường"
+                    } + if (available.candidate.hasDuet) " · song ca" else ""
+                    state == LyricsMenuViewModel.SourceState.Unavailable -> "Không tìm thấy"
+                    state == LyricsMenuViewModel.SourceState.Off -> "Đã tắt"
                     else -> "Đang kiểm tra…"
                 }
                 Row(
@@ -366,12 +368,13 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
  * workaround. Presented in its own overlay because a list this long cannot sit inline.
  */
 private val TranslationTargets = listOf(
+    "vi" to "Tiếng Việt",
     "af" to "Afrikaans", "sq" to "Albanian", "am" to "Amharic", "ar" to "Arabic",
     "hy" to "Armenian", "az" to "Azerbaijani", "eu" to "Basque", "be" to "Belarusian",
     "bn" to "Bengali", "bs" to "Bosnian", "bg" to "Bulgarian", "ca" to "Catalan",
     "ceb" to "Cebuano", "ny" to "Chichewa", "zh-CN" to "Chinese (Simplified)",
     "zh-TW" to "Chinese (Traditional)", "co" to "Corsican", "hr" to "Croatian",
-    "cs" to "Czech", "da" to "Danish", "nl" to "Dutch", "vi" to "Tiếng Việt",
+    "cs" to "Czech", "da" to "Danish", "nl" to "Dutch",
     "en" to "Tiếng Anh (English)",
     "eo" to "Esperanto", "et" to "Estonian", "tl" to "Filipino", "fi" to "Finnish",
     "fr" to "French", "fy" to "Frisian", "gl" to "Galician", "ka" to "Georgian",
@@ -400,7 +403,7 @@ private val TranslationTargets = listOf(
 fun LyricsTranslationSheet(onDismiss: () -> Unit) {
     // Same default as the lyrics screen. The sheet used to default to "" while the screen
     // defaulted to "en", so the two disagreed about what language was selected.
-    val (target, setTarget) = rememberPreference(TranslateLanguageKey, defaultValue = "en")
+    val (target, setTarget) = rememberPreference(TranslateLanguageKey, defaultValue = "vi")
     val (source, setSource) = rememberPreference(TranslateSourceLanguageKey, defaultValue = "auto")
     val (sessionWide, setSessionWide) = rememberPreference(TranslateLyricsKey, defaultValue = false)
     var picking by remember { mutableStateOf(false) }
@@ -433,7 +436,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             // then nothing could be done about it, so the source can be set by hand too.
             PillButton(
                 label = if (source.isBlank() || source == "auto") {
-                    "Detect automatically"
+                    "Tự động nhận diện"
                 } else {
                     TranslationTargets.firstOrNull { it.first == source }?.second ?: source
                 },
@@ -450,8 +453,8 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             )
             AnimatedVisibility(visible = youtubeLanguages.isNotEmpty(), enter = fadeIn() + expandVertically()) {
                 Text(
-                    text = "A green tick means the video has its own captions in that language, so they're used as " +
-                        "the translation. You can turn this off in Settings > General.",
+                    text = "Dấu tích xanh có nghĩa là video có sẵn phụ đề chính gốc ở ngôn ngữ đó và sẽ được ưu tiên sử dụng làm " +
+                        "bản dịch. Bạn có thể tắt tùy chọn này trong Cài đặt > Hành vi ứng dụng.",
                     color = Color(0xFF9A9A9A),
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
@@ -521,12 +524,12 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
                 Text(
                     text = when {
                         isTranslating -> "Đang dịch… (chạm để dừng)"
-                        translationOn -> "Show original"
-                        target.isBlank() -> "Pick a language first"
+                        translationOn -> "Hiện lời gốc"
+                        target.isBlank() -> "Chọn ngôn ngữ trước"
                         else -> "Dịch lời bài hát!"
                     },
                     color = Color.White.copy(alpha = if (target.isBlank() || isTranslating) 0.45f else 1f),
-                    fontSize = 15.sp,
+                    fontFamily = InterFontFamily, fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -558,7 +561,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
         LanguagePickerSheet(
             title = "Dịch từ",
             selected = source.ifBlank { "auto" },
-            options = listOf("auto" to "Detect automatically") + TranslationTargets,
+            options = listOf("auto" to "Tự động nhận diện") + TranslationTargets,
             onPick = { setSource(it) },
             onDismiss = { pickingSource = false },
         )
@@ -602,7 +605,7 @@ private fun YouTubeTick() {
     ) {
         Icon(
             painter = painterResource(R.drawable.check),
-            contentDescription = "Captions on YouTube",
+            contentDescription = "Phụ đề trên YouTube",
             tint = Color.White,
             modifier = Modifier.size(18.dp),
         )
@@ -646,7 +649,7 @@ private fun LanguagePickerSheet(
             Text(
                 text = title,
                 color = Color.White,
-                fontSize = 15.sp,
+                fontFamily = InterFontFamily, fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -667,7 +670,7 @@ private fun LanguagePickerSheet(
                     value = query,
                     onValueChange = { query = it },
                     singleLine = true,
-                    textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+                    textStyle = TextStyle(fontFamily = InterFontFamily, color = Color.White, fontSize = 13.sp),
                     cursorBrush = SolidColor(Color.White),
                     modifier = Modifier.fillMaxWidth(),
                 )

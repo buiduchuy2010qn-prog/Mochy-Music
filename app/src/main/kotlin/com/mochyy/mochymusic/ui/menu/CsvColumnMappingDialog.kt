@@ -2,6 +2,8 @@
 
 package com.mochyy.mochymusic.ui.menu
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -120,7 +122,7 @@ fun CsvColumnMappingDialog(
                                             color = MaterialTheme.colorScheme.onSurface,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis,
-                                            fontFamily = FontFamily.Monospace,
+                                            fontFamily = InterFontFamily,
                                         )
                                     }
                                 }

@@ -2,6 +2,8 @@
 
 package com.mochyy.mochymusic.ui.screens.audiolab
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -111,8 +113,8 @@ fun BoxScope.FxCardStack(effects: List<ActiveEffect>, hidden: State<Boolean>) {
     ) {
         if (count > ShownCards) {
             Text(
-                "and ${count - ShownCards} other",
-                fontFamily = FontFamily.Monospace,
+                "và ${count - ShownCards} hiệu ứng khác",
+                fontFamily = InterFontFamily,
                 fontSize = 10.sp,
                 color = LabCardInk,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = 26.dp, bottom = LabCardHeight + 46.dp),
@@ -177,8 +179,8 @@ private fun BoxScope.StackedCard(
         LabCardFace(
             // the front card shows everything; further back it fades to its name down the edge
             modifier = Modifier.graphicsLayer { alpha = 1f - place.coerceIn(0f, 1f) },
-            topStart = label?.let { "ON" },
-            topEnd = label?.let { "$position of $count" },
+            topStart = label?.let { "BẬT" },
+            topEnd = label?.let { "$position / $count" },
             label = label,
         ) { barsModifier ->
             LabBars(spectrum = spectrum, hidden = hidden, modifier = barsModifier, color = LabCardBars, fill = 0.42f)
@@ -186,7 +188,7 @@ private fun BoxScope.StackedCard(
         if (label != null) {
             Text(
                 label.uppercase(),
-                fontFamily = FontFamily.Monospace,
+                fontFamily = InterFontFamily,
                 fontSize = 9.sp,
                 letterSpacing = 0.08.em,
                 color = LabCardInk,

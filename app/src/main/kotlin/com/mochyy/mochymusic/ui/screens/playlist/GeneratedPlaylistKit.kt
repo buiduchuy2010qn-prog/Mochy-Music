@@ -8,6 +8,8 @@
 
 package com.mochyy.mochymusic.ui.screens.playlist
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -153,7 +155,7 @@ fun GeneratedSearchCapsule(
             if (query.text.isEmpty()) {
                 Text(
                     text = placeholder,
-                    style = TextStyle(fontSize = 15.sp),
+                    style = TextStyle(fontFamily = InterFontFamily, fontSize = 15.sp),
                     color = Color.White.copy(alpha = 0.5f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -163,7 +165,7 @@ fun GeneratedSearchCapsule(
                 value = query,
                 onValueChange = onQueryChange,
                 singleLine = true,
-                textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
+                textStyle = TextStyle(fontFamily = InterFontFamily, color = Color.White, fontSize = 15.sp),
                 cursorBrush = SolidColor(Color.White),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),

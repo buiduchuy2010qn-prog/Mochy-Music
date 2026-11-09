@@ -159,7 +159,7 @@ fun CipherSettingsScreen(navController: NavController) {
 
                 Spacer(Modifier.height(16.dp))
 
-                CipherInfoRow("Player ID", status.playerHash ?: "—")
+                CipherInfoRow("Mã trình phát (Player ID)", status.playerHash ?: "—")
                 CipherInfoRow(
                     "Cập nhật lần cuối",
                     status.lastUpdatedMs?.let {
@@ -172,7 +172,7 @@ fun CipherSettingsScreen(navController: NavController) {
                 )
                 CipherInfoRow(
                     "Lần làm mới tiếp theo",
-                    if (!status.hasCache) "—" else if (remainingMs <= 0L) "Due now" else "in ${formatDuration(remainingMs)}",
+                    if (!status.hasCache) "—" else if (remainingMs <= 0L) "Ngay bây giờ" else "sau ${formatDuration(remainingMs)}",
                 )
 
                 Spacer(Modifier.height(12.dp))

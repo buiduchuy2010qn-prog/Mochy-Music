@@ -21,7 +21,7 @@ internal object ImportNotices {
             ?: return
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             notificationManager.createNotificationChannel(
-                NotificationChannel(channelId, "Music import", NotificationManager.IMPORTANCE_DEFAULT)
+                NotificationChannel(channelId, "Nhập nhạc", NotificationManager.IMPORTANCE_DEFAULT)
             )
         }
         if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
@@ -32,7 +32,7 @@ internal object ImportNotices {
         }
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.mochy_notification)
-            .setContentTitle("Import finished")
+            .setContentTitle("Đã nhập nhạc xong")
             .setContentText("Đã khớp $matched / $total bài hát")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
@@ -47,14 +47,14 @@ internal object ImportNotices {
     }
 
     private fun oneResynced(done: ImportProgress, resync: ResyncSummary): String {
-        if (resync.failed.isNotEmpty()) return "Couldn't re-sync \"${resync.playlistName}\". ${done.error.orEmpty()}".trim()
+        if (resync.failed.isNotEmpty()) return "Không thể đồng bộ lại \"${resync.playlistName}\". ${done.error.orEmpty()}".trim()
         val missing = done.unmatched.size
         val result = when {
             resync.added > 0 && missing > 0 ->
-                "Added ${newSongs(resync.added)} to \"${resync.playlistName}\". $missing more couldn't be found on YouTube Music"
-            resync.added > 0 -> "Added ${newSongs(resync.added)} to \"${resync.playlistName}\""
-            missing > 0 -> "Couldn't find the ${newSongs(missing)} on YouTube Music"
-            else -> "\"${resync.playlistName}\" is up to date"
+                "Đã thêm ${newSongs(resync.added)} vào \"${resync.playlistName}\". Còn $missing bài không tìm thấy trên YouTube Music"
+            resync.added > 0 -> "Đã thêm ${newSongs(resync.added)} vào \"${resync.playlistName}\""
+            missing > 0 -> "Không tìm thấy ${newSongs(missing)} trên YouTube Music"
+            else -> "\"${resync.playlistName}\" đã được cập nhật mới nhất"
         }
         return listOfNotNull(result, resync.note).joinToString(". ")
     }
@@ -62,12 +62,12 @@ internal object ImportNotices {
     private fun manyResynced(done: ImportProgress, resync: ResyncSummary): String {
         val read = resync.playlists - resync.failed.size
         val result = when {
-            resync.added > 0 -> "Added ${newSongs(resync.added)} to ${playlists(resync.playlistsChanged)}"
-            done.unmatched.isNotEmpty() -> "Couldn't find the ${newSongs(done.unmatched.size)} on YouTube Music"
-            read > 0 -> if (read == 1) "Your imported playlist is up to date" else "Your $read imported playlists are up to date"
+            resync.added > 0 -> "Đã thêm ${newSongs(resync.added)} vào ${playlists(resync.playlistsChanged)}"
+            done.unmatched.isNotEmpty() -> "Không tìm thấy ${newSongs(done.unmatched.size)} trên YouTube Music"
+            read > 0 -> if (read == 1) "Danh sách phát đã nhập của bạn đã ở bản mới nhất" else "Cả $read danh sách phát đã nhập đều đã ở bản mới nhất"
             else -> null
         }
-        val failed = resync.failed.takeIf { it.isNotEmpty() }?.let { "Couldn't re-sync ${it.joinToString(", ")}" }
+        val failed = resync.failed.takeIf { it.isNotEmpty() }?.let { "Không thể đồng bộ lại ${it.joinToString(", ")}" }
         return listOfNotNull(result, failed).joinToString(". ")
     }
 
@@ -76,7 +76,7 @@ internal object ImportNotices {
         Handler(Looper.getMainLooper()).post { Toast.makeText(context, text, Toast.LENGTH_LONG).show() }
     }
 
-    private fun newSongs(count: Int) = if (count == 1) "1 new song" else "$count new songs"
+    private fun newSongs(count: Int) = "$count bài hát mới"
 
-    private fun playlists(count: Int) = if (count == 1) "1 playlist" else "$count playlists"
+    private fun playlists(count: Int) = "$count danh sách phát"
 }

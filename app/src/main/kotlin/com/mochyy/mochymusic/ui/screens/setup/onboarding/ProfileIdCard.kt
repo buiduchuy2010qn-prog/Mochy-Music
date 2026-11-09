@@ -135,7 +135,7 @@ internal fun ProfileIdCard(
                     Text(
                         text = "HỒ SƠ USR#$cardNumber",
                         color = mutedText,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = InterFontFamily,
                         fontSize = (unit.value * 11f).sp,
                         maxLines = 1,
                         onTextLayout = { anchors?.numberLayout = it },
@@ -176,7 +176,7 @@ internal fun ProfileIdCard(
                             Text(
                                 "THẺ THÀNH VIÊN CỦA",
                                 color = mutedText,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = InterFontFamily,
                                 fontSize = (unit.value * 10f).sp,
                             )
                         }

@@ -67,9 +67,9 @@ internal fun LabCardFace(
     Column(modifier.fillMaxSize().padding(12.dp)) {
         if (topStart != null || topEnd != null) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                topStart?.let { Text(it, fontFamily = FontFamily.Monospace, fontSize = 9.sp, color = LabCardInk, maxLines = 1) }
+                topStart?.let { Text(it, fontFamily = InterFontFamily, fontSize = 9.sp, color = LabCardInk, maxLines = 1) }
                 Spacer(Modifier.weight(1f))
-                topEnd?.let { Text(it, fontFamily = FontFamily.Monospace, fontSize = 9.sp, color = LabCardInk, maxLines = 1) }
+                topEnd?.let { Text(it, fontFamily = InterFontFamily, fontSize = 9.sp, color = LabCardInk, maxLines = 1) }
             }
         }
         if (label != null) {

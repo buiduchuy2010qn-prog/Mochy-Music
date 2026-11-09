@@ -61,7 +61,7 @@ object BlurCapability {
     fun decide(context: Context, probe: Probe?): Result {
         // below Android 12 the app draws its glass without a blur at all, so there's nothing to turn off
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            return Result(Verdict.NotApplicable, "Blur needs Android 12")
+            return Result(Verdict.NotApplicable, "Hiệu ứng làm mờ cần Android 12+")
         }
         val soc = socName()
         val socLabel = displaySoc()
@@ -69,7 +69,7 @@ object BlurCapability {
         val timing = probe?.let { "${(it.slowRatio * 100).toInt()}% slow frames at ${hz.toInt()} Hz" } ?: "${hz.toInt()} Hz"
 
         val lowRam = (context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)?.isLowRamDevice == true
-        if (lowRam) return Result(Verdict.Laggy, "$socLabel · low-memory device")
+        if (lowRam) return Result(Verdict.Laggy, "$socLabel · thiết bị ít bộ nhớ")
         if (knownLaggy.any { it in soc }) return Result(Verdict.Laggy, "$socLabel · $timing")
 
         val probeSaysLaggy = probe != null && probe.frames >= 20 && (

@@ -693,7 +693,7 @@ private fun ColumnScope.UpdateDetailContent(
                     .align(Alignment.CenterStart)
                     .fillMaxHeight()
                     .fillMaxWidth(fraction = animatedProgress)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                    .background(Color.White.copy(alpha = 0.22f))
             )
             Text(
                 text = when {

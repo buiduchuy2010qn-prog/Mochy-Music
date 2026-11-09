@@ -1,5 +1,7 @@
 package com.mochyy.mochymusic.ui.screens.settings
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -73,7 +75,7 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
 
                 Spacer(Modifier.height(8.dp))
 
-                DiagnosticsRow("Last stream", lastValidated?.details ?: "—")
+                DiagnosticsRow("Luồng phát gần nhất", lastValidated?.details ?: "—")
             }
         }
 
@@ -118,14 +120,14 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
                 Text(
                     text = "${entry.timestamp}  ${entry.message}",
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = InterFontFamily,
                     color = entry.level.tint(),
                 )
                 entry.details?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = InterFontFamily,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -156,7 +158,7 @@ private fun DiagnosticsRow(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = InterFontFamily,
         )
     }
 }

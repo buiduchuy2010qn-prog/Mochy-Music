@@ -281,7 +281,7 @@ private fun SmallHubCard(
             Text(title, fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
             Text(
                 status.uppercase(),
-                fontFamily = FontFamily.Monospace, fontSize = 9.sp, color = Color(0xFF8A8A8E),
+                fontFamily = InterFontFamily, fontSize = 9.sp, color = Color(0xFF8A8A8E),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
@@ -298,7 +298,7 @@ private fun StatusLine(status: String, on: Boolean, modifier: Modifier = Modifie
         Spacer(Modifier.width(8.dp))
         Text(
             status,
-            fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = Color(0xFF8A8A8E),
+            fontFamily = InterFontFamily, fontSize = 10.sp, color = Color(0xFF8A8A8E),
             maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
     }

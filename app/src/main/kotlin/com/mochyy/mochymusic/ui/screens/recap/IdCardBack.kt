@@ -5,6 +5,8 @@
 
 package com.mochyy.mochymusic.ui.screens.recap
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -190,10 +192,10 @@ internal fun IdCardBack(
         Row(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 val captionStyle = remember(unit) {
-                    TextStyle(color = Color(0xFFD9D9D9), fontFamily = FontFamily.Monospace, fontSize = (unit.value * 8.6f).sp)
+                    TextStyle(color = Color(0xFFD9D9D9), fontFamily = InterFontFamily, fontSize = (unit.value * 8.6f).sp)
                 }
                 val stampStyle = remember(unit) {
-                    TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = (unit.value * 22f).sp, letterSpacing = (unit.value * 3f).sp)
+                    TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = (unit.value * 22f).sp, letterSpacing = (unit.value * 3f).sp)
                 }
                 // bars + caption + the scanner on top of them
                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -257,7 +259,7 @@ private fun ScratchCoating(
     onTick: () -> Unit,
 ) {
     val measurer = rememberTextMeasurer()
-    val microStyle = remember { TextStyle(color = Color(0xFF8E9096), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 2.sp) }
+    val microStyle = remember { TextStyle(color = Color(0xFF8E9096), fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 2.sp) }
     Canvas(
         modifier = Modifier
             .fillMaxSize()

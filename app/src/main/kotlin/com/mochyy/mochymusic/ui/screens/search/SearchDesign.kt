@@ -2,6 +2,8 @@
 
 package com.mochyy.mochymusic.ui.screens.search
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -526,7 +528,7 @@ fun SearchField(
                     onValueChange = onValueChange,
                     singleLine = true,
                     textStyle = LocalTextStyle.current.merge(
-                        TextStyle(color = SearchColors.Primary, fontSize = 15.sp)
+                        TextStyle(fontFamily = InterFontFamily, color = SearchColors.Primary, fontSize = 15.sp)
                     ),
                     cursorBrush = SolidColor(SearchColors.Primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),

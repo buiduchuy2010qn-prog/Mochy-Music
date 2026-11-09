@@ -900,7 +900,7 @@ private val PageTitle = TextStyle(
     color = Color.White,
 )
 
-private val MonoSmall = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+private val MonoSmall = TextStyle(fontFamily = InterFontFamily, fontSize = 13.sp)
 
 /** A big figure's size in dp: it follows the card's width, not the font-size setting, so it never overflows. */
 @Composable
@@ -937,7 +937,7 @@ private fun ListeningTimeCard(totalMs: Long, onViewStats: () -> Unit) {
                 Spacer(Modifier.width(10.dp))
                 Text(
                     "Tổng thời gian\nnghe nhạc",
-                    style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 18.sp, color = Color(0xFF8A8A8A), textAlign = TextAlign.End),
+                    style = TextStyle(fontFamily = InterFontFamily, fontSize = 14.sp, lineHeight = 18.sp, color = Color(0xFF8A8A8A), textAlign = TextAlign.End),
                     modifier = Modifier.weight(1f),
                 )
             }

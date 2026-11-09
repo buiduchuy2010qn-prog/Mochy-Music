@@ -256,7 +256,7 @@ internal fun RankList(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${i + 1}".padStart(2, '0'),
-                    style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp, color = StatsInkMuted),
+                    style = TextStyle(fontFamily = InterFontFamily, fontSize = 13.sp, color = StatsInkMuted),
                     modifier = Modifier.width(28.dp),
                 )
                 if (row.image != null || !row.noImage) {

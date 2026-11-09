@@ -335,7 +335,7 @@ fun StatsScreen(navController: NavController) {
                 ) {
                     Text("Thống kê", style = statsText(28f, tracking = -1f))
                     Spacer(Modifier.width(6.dp))
-                    Text("$year Re'cap", style = statsText(15f, color = StatsInkMuted, tracking = -0.3f), modifier = Modifier.padding(bottom = 4.dp))
+                    Text("Tổng kết $year", style = statsText(15f, color = StatsInkMuted, tracking = -0.3f), modifier = Modifier.padding(bottom = 4.dp))
                 }
             }
             Spacer(Modifier.weight(1f))

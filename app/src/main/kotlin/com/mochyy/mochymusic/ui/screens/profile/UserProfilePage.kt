@@ -104,7 +104,7 @@ internal val ProfileNameStyle = TextStyle(
 )
 
 internal val ProfileTagStyle = TextStyle(
-    fontFamily = FontFamily.Monospace,
+    fontFamily = InterFontFamily,
     fontWeight = FontWeight.SemiBold,
     fontSize = 11.sp,
     letterSpacing = (-0.05).em,
@@ -325,7 +325,7 @@ private fun ListensCard(total: ListenTotal, width: Dp, onClick: () -> Unit, modi
             Spacer(Modifier.width(6.dp))
             Text(
                 text = total.label,
-                style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.5.sp, color = Color(0xFF8A8A8A)),
+                style = TextStyle(fontFamily = InterFontFamily, fontSize = 9.5.sp, color = Color(0xFF8A8A8A)),
                 modifier = Modifier.alignByBaseline(),
             )
         }

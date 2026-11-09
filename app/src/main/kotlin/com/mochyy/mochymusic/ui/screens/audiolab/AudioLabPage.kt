@@ -302,7 +302,7 @@ private fun LabHeader(
             Spacer(Modifier.height(8.dp))
             Text(
                 subtitle.uppercase(),
-                fontFamily = FontFamily.Monospace,
+                fontFamily = InterFontFamily,
                 fontSize = 10.sp,
                 letterSpacing = 0.06.em,
                 color = Color(0xFF8A8A8E),

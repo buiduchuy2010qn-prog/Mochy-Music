@@ -354,10 +354,10 @@ private fun InfoRows(rows: List<Pair<String, String>>) {
             Row {
                 Text(
                     key.uppercase(),
-                    fontFamily = FontFamily.Monospace, fontSize = 10.sp, lineHeight = 15.sp, letterSpacing = 0.04.em,
+                    fontFamily = InterFontFamily, fontSize = 10.sp, lineHeight = 15.sp, letterSpacing = 0.04.em,
                     color = LabColors.Faint, modifier = Modifier.width(104.dp),
                 )
-                Text(value, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp, color = Color(0xFFD1D1D6))
+                Text(value, fontFamily = InterFontFamily, fontSize = 11.sp, lineHeight = 15.sp, color = Color(0xFFD1D1D6))
             }
         }
     }

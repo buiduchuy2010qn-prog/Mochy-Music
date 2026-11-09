@@ -1,5 +1,7 @@
 package com.mochyy.mochymusic.ui.player
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -35,7 +37,7 @@ import kotlin.math.exp
 import kotlin.math.min
 
 /** the note's own text style, shared with the like note so the two sit in the same spot the same size */
-internal val NoteTextStyle = TextStyle(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium)
+internal val NoteTextStyle = TextStyle(fontFamily = InterFontFamily, fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium)
 
 /** quieter than the artist line (white at 0.7) */
 internal val NoteColor = Color.White.copy(alpha = 0.45f)
