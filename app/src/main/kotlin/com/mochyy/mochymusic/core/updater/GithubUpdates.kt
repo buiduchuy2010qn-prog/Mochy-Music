@@ -154,6 +154,8 @@ suspend fun getPreviousRelease(force: Boolean = false): Result<GithubRelease?> {
 }
 
 private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(Dispatchers.IO) {
+    // api.github.com allows only 60 unauthenticated calls an hour per IP (shared by every device on
+    // the same Wi-Fi). When it refuses, the public releases.atom feed on github.com answers instead.
     val apiResult = fetchReleasesFromApi()
     if (apiResult.isSuccess && apiResult.getOrNull().orEmpty().isNotEmpty()) {
         return@withContext apiResult
@@ -165,19 +167,20 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
     apiResult
 }
 
-private fun unescapeXmlAndHtml(input: String): String =
-    input
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&amp;", "&")
+private fun unescapeXmlAndHtml(input: String): String {
+    // the atom feed escapes the release's html once more, so this runs twice
+    var out = input
+    repeat(2) {
+        out = out
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("&apos;", "'")
+            .replace("&amp;", "&")
+    }
+    return out
+}
 
 private fun atomHtmlToMarkdown(rawContent: String): String {
     val html = unescapeXmlAndHtml(rawContent)
@@ -195,70 +198,148 @@ private fun atomHtmlToMarkdown(rawContent: String): String {
         .trim()
 }
 
-private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
-    val connection = (URL(ReleasesAtomUrl).openConnection() as HttpURLConnection).apply {
-        connectTimeout = 12_000
-        readTimeout = 12_000
-        setRequestProperty("Accept", "application/atom+xml,application/xml,text/xml,*/*")
+private fun httpGetText(url: String, accept: String? = null, timeoutMs: Int = 12_000): String {
+    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+        connectTimeout = timeoutMs
+        readTimeout = timeoutMs
         setRequestProperty("User-Agent", "mochy-android")
+        if (accept != null) setRequestProperty("Accept", accept)
     }
-    val xml = connection.inputStream.bufferedReader().use { it.readText() }
+    try {
+        val code = connection.responseCode
+        if (code !in 200..299) error("HTTP $code")
+        return connection.inputStream.bufferedReader().use { it.readText() }
+    } finally {
+        connection.disconnect()
+    }
+}
+
+/**
+ * The exact size of a release file, asked for with a one-byte ranged request on its download link
+ * (github.com and its asset host, not the rate-limited API). 0 when it can't be told.
+ */
+private fun remoteFileSize(url: String): Long = runCatching {
+    var current = url
+    for (hop in 0 until 6) {
+        val connection = (URL(current).openConnection() as HttpURLConnection).apply {
+            instanceFollowRedirects = false
+            connectTimeout = 8_000
+            readTimeout = 8_000
+            setRequestProperty("User-Agent", "mochy-android")
+            setRequestProperty("Range", "bytes=0-0")
+        }
+        try {
+            val code = connection.responseCode
+            when {
+                code in 300..399 -> {
+                    val location = connection.getHeaderField("Location") ?: return@runCatching 0L
+                    current = URL(URL(current), location).toString()
+                }
+                code == 206 -> {
+                    // "bytes 0-0/34067828"
+                    val total = connection.getHeaderField("Content-Range")
+                        ?.substringAfterLast('/')?.trim()?.toLongOrNull()
+                    return@runCatching total ?: 0L
+                }
+                code in 200..299 -> return@runCatching connection.contentLengthLong.coerceAtLeast(0L)
+                else -> return@runCatching 0L
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+    0L
+}.getOrDefault(0L)
+
+/** The APK's file name in a release's expanded asset list on github.com, or null. */
+private fun apkNameFromExpandedAssets(tag: String): String? = runCatching {
+    val html = httpGetText(
+        "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/expanded_assets/$tag",
+        timeoutMs = 8_000,
+    )
+    Regex("releases/download/[^/\"]+/([^\"<>\\s/]+?\\.apk)\"", RegexOption.IGNORE_CASE)
+        .findAll(html)
+        .map { it.groupValues[1] }
+        .firstOrNull { !it.contains("debug", ignoreCase = true) }
+}.getOrNull()
+
+private class AtomEntry(
+    val tag: String,
+    val title: String,
+    val body: String,
+    val publishedAt: String,
+    val apkName: String?,
+    val version: FullVersion,
+)
+
+private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
+    val xml = httpGetText(ReleasesAtomUrl, accept = "application/atom+xml,application/xml,text/xml,*/*")
     val entryRegex = Regex("(?s)<entry>(.*?)</entry>")
     val tagRegex = Regex("releases/tag/([^\"&<>\\s]+)")
     val titleRegex = Regex("(?s)<title[^>]*>(.*?)</title>")
     val updatedRegex = Regex("(?s)<updated[^>]*>(.*?)</updated>")
     val contentRegex = Regex("(?s)<content[^>]*>(.*?)</content>")
     val apkNameRegex = Regex("(Mochy-Music-[^\"<>\\s*`]*?\\.apk)", RegexOption.IGNORE_CASE)
+
+    // read every entry first, without touching the network again
+    val entries = entryRegex.findAll(xml).mapNotNull { match ->
+        val entry = match.groupValues[1]
+        val tag = tagRegex.find(entry)?.groupValues?.get(1).orEmpty()
+        if (tag.isBlank()) return@mapNotNull null
+        val rawTitle = unescapeXmlAndHtml(titleRegex.find(entry)?.groupValues?.get(1).orEmpty()).ifBlank { tag }
+        val rawContent = contentRegex.find(entry)?.groupValues?.get(1).orEmpty()
+        // the apk is named in the notes the release workflow writes; read it before the notes are trimmed for android
+        val fullBody = atomHtmlToMarkdown(rawContent)
+        val apkName = apkNameRegex.find(fullBody)?.groupValues?.get(1)
+            ?.takeIf { !it.contains("debug", ignoreCase = true) }
+        val tagVer = parseFullVersion("$rawTitle $tag")
+        val apkVer = apkName?.let(::parseFullVersion)
+        val version = if (
+            apkVer != null && apkVer.major > 0 &&
+            (apkVer.major != tagVer.major || apkVer.minor != tagVer.minor || apkVer.patch != tagVer.patch)
+        ) {
+            apkVer
+        } else {
+            tagVer
+        }
+        AtomEntry(
+            tag = tag,
+            title = rawTitle.replace("(Android • Windows • Linux)", "(Android APK)"),
+            body = cleanAndroidReleaseBody(fullBody),
+            publishedAt = updatedRegex.find(entry)?.groupValues?.get(1).orEmpty().trim(),
+            apkName = apkName,
+            version = version,
+        )
+    }
+        .filter { !(it.version.major == 0 && it.version.minor == 0 && it.version.patch == 0) }
+        .filter { it.version.copy(buildNumber = 0) >= FirstReleaseWithThisId }
+        .sortedByDescending { it.version }
+        .toList()
+
     val seenSemvers = mutableSetOf<Triple<Int, Int, Int>>()
-
     buildList {
-        for (match in entryRegex.findAll(xml)) {
-            val entry = match.groupValues[1]
-            val tag = tagRegex.find(entry)?.groupValues?.get(1).orEmpty()
-            if (tag.isBlank()) continue
-            val rawTitle = unescapeXmlAndHtml(titleRegex.find(entry)?.groupValues?.get(1).orEmpty()).ifBlank { tag }
-            val title = rawTitle.replace("(Android • Windows • Linux)", "(Android APK)")
-            val publishedAt = updatedRegex.find(entry)?.groupValues?.get(1).orEmpty().trim()
-            val rawContent = contentRegex.find(entry)?.groupValues?.get(1).orEmpty()
-            val markdownBody = cleanAndroidReleaseBody(atomHtmlToMarkdown(rawContent))
+        entries.forEachIndexed { index, entry ->
+            // only the newest release is worth extra requests: its apk name if the notes lack it,
+            // and its exact size for the sheet and the download check. Older ones get theirs on download.
+            val newest = index == 0
+            val apkName = entry.apkName ?: if (newest) apkNameFromExpandedAssets(entry.tag) else null
+            if (apkName.isNullOrBlank()) return@forEachIndexed
 
-            var apkName = apkNameRegex.find(markdownBody)?.groupValues?.get(1)
-                ?: apkNameRegex.find(rawContent)?.groupValues?.get(1)
-
-            if (apkName.isNullOrBlank()) {
-                // Fallback to expanded_assets fragment on github.com (also not rate-limited by api.github.com)
-                val assetsUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/expanded_assets/$tag"
-                val assetsHtml = runCatching {
-                    val c = (URL(assetsUrl).openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 8_000
-                        readTimeout = 8_000
-                        setRequestProperty("User-Agent", "mochy-android")
-                    }
-                    c.inputStream.bufferedReader().use { it.readText() }
-                }.getOrDefault("")
-                apkName = Regex("releases/download/[^/]+/([^\"<>\\s]+?\\.apk)", RegexOption.IGNORE_CASE)
-                    .find(assetsHtml)?.groupValues?.get(1)
-            }
-
-            if (apkName.isNullOrBlank() || apkName.contains("debug", ignoreCase = true)) continue
-            val apkUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/download/$tag/$apkName"
-
-            val tagVer = parseFullVersion("$rawTitle $tag")
-            val apkVer = parseFullVersion(apkName)
+            // the apk inside may be older than the release (a PC-only release carries the last apk forward)
+            val fileVer = parseFullVersion(apkName)
             val fullVer = if (
-                apkVer.major > 0 &&
-                (apkVer.major != tagVer.major || apkVer.minor != tagVer.minor || apkVer.patch != tagVer.patch)
+                fileVer.major > 0 &&
+                (fileVer.major != entry.version.major || fileVer.minor != entry.version.minor || fileVer.patch != entry.version.patch)
             ) {
-                apkVer
+                fileVer
             } else {
-                tagVer
+                entry.version
             }
-            if (fullVer.major == 0 && fullVer.minor == 0 && fullVer.patch == 0) continue
-            if (fullVer.copy(buildNumber = 0) < FirstReleaseWithThisId) continue
-
             val semverKey = Triple(fullVer.major, fullVer.minor, fullVer.patch)
-            if (!seenSemvers.add(semverKey)) continue
+            if (!seenSemvers.add(semverKey)) return@forEachIndexed
 
+            val apkUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/download/${entry.tag}/$apkName"
+            val size = if (newest) remoteFileSize(apkUrl) else 0L
             val displayVersion = if (fullVer.buildNumber > 0) {
                 "${fullVer.major}.${fullVer.minor}.${fullVer.patch} (${fullVer.buildNumber})"
             } else {
@@ -269,16 +350,16 @@ private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
                 ParsedRelease(
                     version = fullVer,
                     release = GithubRelease(
-                        title = title,
-                        tag = tag,
+                        title = entry.title,
+                        tag = entry.tag,
                         version = displayVersion,
-                        body = markdownBody,
-                        htmlUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/tag/$tag",
+                        body = entry.body,
+                        htmlUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/tag/${entry.tag}",
                         apkUrl = apkUrl,
                         apkApiUrl = null,
                         apkName = apkName,
-                        apkSizeBytes = 0L,
-                        publishedAt = publishedAt,
+                        apkSizeBytes = size,
+                        publishedAt = entry.publishedAt,
                     ),
                 ),
             )
@@ -303,6 +384,7 @@ private suspend fun fetchReleasesFromApi(): Result<List<ParsedRelease>> = withCo
             for (i in 0 until releases.length()) {
                 val release = releases.getJSONObject(i)
                 if (release.optBoolean("draft", false)) continue
+                if (release.optBoolean("prerelease", false)) continue
 
                 val tag = release.optString("tag_name").orEmpty()
                 val rawTitle = release.optString("name").orEmpty().ifBlank { tag }
@@ -436,6 +518,9 @@ suspend fun downloadApk(
             return@runCatching target
         }
         if (target.exists()) target.delete()
+        // written here first and only moved to target once complete, so a cut-off download
+        // never looks finished to isDownloaded
+        val part = File(target.path + ".part")
 
         val candidates = buildList {
             add(primaryUrl to false)
@@ -445,7 +530,7 @@ suspend fun downloadApk(
         var lastError: Throwable? = null
         for ((candidateUrl, isApiEndpoint) in candidates) {
             try {
-                if (target.exists()) target.delete()
+                if (part.exists()) part.delete()
                 var currentUrl = candidateUrl
                 var redirects = 0
                 var connection: HttpURLConnection
@@ -476,12 +561,13 @@ suspend fun downloadApk(
                     break
                 }
 
-                val total = release.apkSizeBytes.takeIf { it > 0 }
-                    ?: connection.contentLengthLong.takeIf { it > 0 }
+                // the server's own length is exact; the release's size can be unknown (0) when it came from the atom feed
+                val total = connection.contentLengthLong.takeIf { it > 0 }
+                    ?: release.apkSizeBytes.takeIf { it > 0 }
                     ?: -1L
 
                 connection.inputStream.use { input ->
-                    target.outputStream().use { output ->
+                    part.outputStream().use { output ->
                         val buffer = ByteArray(64 * 1024)
                         var written = 0L
                         while (true) {
@@ -493,16 +579,25 @@ suspend fun downloadApk(
                         }
                     }
                 }
-                if (target.length() < 5_000_000L) {
-                    val badLen = target.length()
-                    target.delete()
-                    error("Tệp tải về không hợp lệ ($badLen bytes)")
+                val got = part.length()
+                if (got < 5_000_000L) {
+                    part.delete()
+                    error("Tệp tải về không hợp lệ ($got bytes)")
+                }
+                if (total > 0 && got != total) {
+                    part.delete()
+                    error("Tệp tải về bị thiếu ($got/$total bytes), hãy thử lại")
+                }
+                if (target.exists()) target.delete()
+                if (!part.renameTo(target)) {
+                    part.copyTo(target, overwrite = true)
+                    part.delete()
                 }
                 onProgress(1f)
                 return@runCatching target
             } catch (t: Throwable) {
                 lastError = t
-                if (target.exists()) target.delete()
+                if (part.exists()) part.delete()
             }
         }
         throw (lastError ?: IllegalStateException("Không thể tải tệp APK"))
@@ -548,7 +643,7 @@ fun installApk(context: Context, apk: File): Boolean {
 }
 
 fun formatBytes(bytes: Long): String = when {
-    bytes <= 0 -> "~34,1 MB"
+    bytes <= 0 -> "không rõ dung lượng"
     bytes >= 1_000_000 -> String.format("%.1f MB", bytes / 1_000_000f)
     else -> String.format("%.0f KB", bytes / 1000f)
 }
