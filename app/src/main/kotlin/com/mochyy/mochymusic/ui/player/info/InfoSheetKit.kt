@@ -2,6 +2,8 @@
 
 package com.mochyy.mochymusic.ui.player.info
 
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable

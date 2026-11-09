@@ -141,6 +141,39 @@ private val LocalizedSettingsPages = mapOf(
     "Modules" to R.string.settings_modules_category,
     "Integrations" to R.string.integrations,
 )
+private val LocalizedSettingsStrings = mapOf(
+    "Studio version for music videos" to "Phiên bản phòng thu cho video nhạc",
+    "Crossfade" to "Chuyển bài mượt (Crossfade)",
+    "Blend skips" to "Chuyển âm khi qua bài",
+    "Equalizer" to "Bộ chỉnh âm (EQ)",
+    "AutoEQ" to "Cân chỉnh tai nghe (AutoEQ)",
+    "Audio Quality" to "Chất lượng âm thanh",
+    "Reverb" to "Tiếng vang (Reverb)",
+    "Loudness" to "Tăng cường âm lượng",
+    "Audio Normalization" to "Cân bằng âm lượng bài hát",
+    "Spatial audio" to "Âm thanh không gian",
+    "Dolby Atmos" to "Dolby Atmos & Âm thanh vòm",
+    "Playback speed" to "Tốc độ phát & Cao độ",
+    "Exponential volume" to "Đường cong âm lượng",
+    "Provider order" to "Thứ tự ưu tiên nguồn phát",
+    "Now Playing" to "Trạng thái Đang phát",
+    "Send likes" to "Đồng bộ lượt thích",
+    "Music cache limit" to "Giới hạn bộ nhớ đệm nhạc",
+    "Manage downloads" to "Quản lý nhạc đã tải",
+    "Remove all downloads" to "Xóa tất cả nhạc đã tải",
+    "Mochy on your TV" to "Mochy trên TV của bạn",
+    "Import & sync" to "Nhập & đồng bộ",
+    "Big disc cover styles" to "Kiểu bìa đĩa nhạc cỡ lớn",
+    "Music haptics" to "Rung phản hồi theo nhạc",
+    "Playback diagnostics" to "Chẩn đoán phát nhạc",
+    "Repeat initial setup" to "Chạy lại thiết lập ban đầu",
+    "Show where songs play from" to "Hiển thị nguồn phát bài hát",
+    "Force playback" to "Buộc phát nhạc",
+)
+private val LocalizedSettingsPageStrings = mapOf(
+    "Import & sync" to "Nhập & đồng bộ",
+    "Experimental" to "Thử nghiệm",
+)
 
 private val SettingsIndex = listOf(
     // Customisation
