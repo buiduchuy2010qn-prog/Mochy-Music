@@ -134,13 +134,10 @@ jobs:
 
           Push-Location desktop
           $env:ELECTRON_SKIP_BINARY_DOWNLOAD = "1"
+          $env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
+          $env:ELECTRON_BUILDER_BINARIES_MIRROR = "https://npmmirror.com/mirrors/electron-builder-binaries/"
           npm install --no-audit --no-fund --ignore-scripts
           npx electron-builder --win nsis portable --x64 --publish never
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Retrying Windows build with ELECTRON_MIRROR..."
-            $env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
-            npx electron-builder --win nsis portable --x64 --publish never
-          }
           Pop-Location
 
       - name: Upload Windows EXE Artifacts
@@ -187,8 +184,9 @@ jobs:
 
           cd desktop
           ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install --no-audit --no-fund --ignore-scripts
-          npx electron-builder --linux AppImage deb --x64 --publish never || \
-            ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" npx electron-builder --linux AppImage deb --x64 --publish never
+          ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" \
+          ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/" \
+          npx electron-builder --linux AppImage deb --x64 --publish never
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
