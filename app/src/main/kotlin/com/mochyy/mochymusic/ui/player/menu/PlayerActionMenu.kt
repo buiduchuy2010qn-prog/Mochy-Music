@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.DownloadRequest
@@ -204,7 +205,7 @@ fun PlayerActionMenu(
                     SheetActionCardRow {
                         SheetActionCard(
                             icon = R.drawable.translate,
-                            title = "Dịch bằng AI",
+                            title = stringResource(R.string.pam_ai_translate),
                             // Greyed out until the AI translation settings are filled in — an
                             // enabled button that silently does nothing is worse than a disabled
                             // one that says so.
@@ -214,7 +215,7 @@ fun PlayerActionMenu(
                         )
                         SheetActionCard(
                             icon = R.drawable.edit,
-                            title = "Sửa lời bài hát",
+                            title = stringResource(R.string.pam_edit_lyrics),
                             onClick = { showLyricsEditor = true },
                             modifier = Modifier.weight(1f),
                         )
@@ -227,7 +228,7 @@ fun PlayerActionMenu(
                     // outcome.
                     MenuRow(
                         icon = R.drawable.lyrics,
-                        title = "Nguồn lời bài hát",
+                        title = stringResource(R.string.pam_lyrics_source),
                         onClick = { showLyricsProvider = true },
                     )
 
@@ -235,7 +236,7 @@ fun PlayerActionMenu(
 
                     MenuRow(
                         icon = R.drawable.fast_forward,
-                        title = "Độ trễ lời bài hát",
+                        title = stringResource(R.string.pam_lyrics_offset),
                         onClick = { showLyricsOffset = true },
                     )
 
@@ -243,7 +244,7 @@ fun PlayerActionMenu(
 
                     MenuRow(
                         icon = R.drawable.translate,
-                        title = "Dịch lời bài hát",
+                        title = stringResource(R.string.pam_translate_lyrics),
                         onClick = { showLyricsTranslation = true },
                     )
 
@@ -254,7 +255,7 @@ fun PlayerActionMenu(
                 SheetActionCardRow {
                     SheetActionCard(
                         icon = R.drawable.radio,
-                        title = "Bắt đầu đài phát",
+                        title = stringResource(R.string.pam_start_radio),
                         enabled = currentMetadata != null,
                         onClick = {
                             currentMetadata?.let { metadata ->
@@ -266,7 +267,7 @@ fun PlayerActionMenu(
                     )
                     SheetActionCard(
                         icon = R.drawable.playlist_add,
-                        title = "Thêm vào DS",
+                        title = stringResource(R.string.pam_add_to_playlist),
                         enabled = currentMetadata != null,
                         onClick = { showChoosePlaylistDialog = true },
                         modifier = Modifier.weight(1f),
@@ -276,7 +277,7 @@ fun PlayerActionMenu(
                 SheetActionCardRow {
                     SheetActionCard(
                         icon = R.drawable.share,
-                        title = "Chia sẻ nhạc",
+                        title = stringResource(R.string.pam_share_music),
                         enabled = currentMetadata != null,
                         onClick = {
                             currentMetadata?.let { metadata ->
@@ -332,7 +333,7 @@ fun PlayerActionMenu(
                 Spacer(modifier = Modifier.height(8.dp))
                 MenuRow(
                     icon = R.drawable.cast,
-                    title = "Đổi thiết bị phát âm thanh",
+                    title = stringResource(R.string.pam_change_output),
                     onClick = { showAudioDevices = true },
                 )
                 // a linked tv with mochy open: play there, line it up there, or work it as a remote
@@ -346,7 +347,7 @@ fun PlayerActionMenu(
                 Spacer(modifier = Modifier.height(8.dp))
                 MenuRow(
                     icon = R.drawable.speed,
-                    title = "Tốc độ phát và nhịp độ",
+                    title = stringResource(R.string.pam_speed_pitch),
                     onClick = { showPlaybackSpeed = true },
                 )
                 if (onEqualizer != null) {
@@ -365,14 +366,14 @@ fun PlayerActionMenu(
 
                 MenuRow(
                     icon = if (trackInfo.liked) R.drawable.ic_untitled_heart else R.drawable.ic_untitled_heart_unfill,
-                    title = if (trackInfo.liked) "Xóa khỏi yêu thích" else "Thêm vào yêu thích",
+                    title = if (trackInfo.liked) stringResource(R.string.pam_unlike) else stringResource(R.string.pam_like),
                     onClick = { playerConnection.toggleLike() },
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 val inLibrary = librarySong?.song?.inLibrary != null
                 MenuRow(
                     icon = if (inLibrary) R.drawable.library_add_check else R.drawable.library_add,
-                    title = if (inLibrary) "Xóa khỏi thư viện" else "Thêm vào thư viện",
+                    title = if (inLibrary) stringResource(R.string.pam_remove_library) else stringResource(R.string.pam_add_library),
                     enabled = currentMetadata != null,
                     onClick = { playerConnection.toggleLibrary() },
                 )
@@ -405,7 +406,7 @@ fun PlayerActionMenu(
 
                 MenuRow(
                     icon = R.drawable.edit,
-                    title = "Tùy chỉnh trình phát",
+                    title = stringResource(R.string.pam_customise_player),
                     onClick = {
                         onDismiss()
                         onEditPlayer()
@@ -508,7 +509,7 @@ private fun CanvasArtworkRow() {
     val isAnyActive = canvasEnabled || videoBgEnabled || !disableAutoplay
     MenuRow(
         icon = R.drawable.sparks,
-        title = "Ảnh bìa động (Canvas) & Video nền",
+        title = stringResource(R.string.pam_canvas_video),
         onClick = {
             val next = !isAnyActive
             setCanvasEnabled(next)
@@ -534,7 +535,7 @@ private fun KeepScreenOnRow() {
     val (keepScreenOn, setKeepScreenOn) = rememberPreference(KeepScreenOn, defaultValue = false)
     MenuRow(
         icon = R.drawable.lock_open,
-        title = "Giữ màn hình luôn sáng",
+        title = stringResource(R.string.pam_keep_screen_on),
         onClick = { setKeepScreenOn(!keepScreenOn) },
         trailing = { AppSwitch(checked = keepScreenOn, onCheckedChange = setKeepScreenOn) },
     )
@@ -563,12 +564,12 @@ private fun SleepTimerRow(onClick: () -> Unit) {
 
     MenuRow(
         icon = R.drawable.sleep_timer,
-        title = "Hẹn giờ tắt nhạc",
+        title = stringResource(R.string.pam_sleep_timer),
         onClick = onClick,
         trailing = {
             if (remainingLabel.isNotEmpty()) {
                 Text(
-                    text = "Còn $remainingLabel",
+                    text = stringResource(R.string.pam_time_left, remainingLabel),
                     color = Color(0xFF9A9A9A),
                     fontSize = 12.sp,
                 )

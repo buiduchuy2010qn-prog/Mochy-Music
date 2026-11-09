@@ -2140,7 +2140,7 @@ private fun ExpandMenuOverlay(
                                 action == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.DOWNLOAD && isToggled ->
                                     stringResource(R.string.player_menu_delete_download)
                                 action == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO ->
-                                    if (isToggled) "Tắt video / ảnh động" else "Bật video / ảnh động"
+                                    if (isToggled) stringResource(R.string.bsp_video_off) else stringResource(R.string.bsp_video_on)
                                 else -> item.first
                             }
                             val label: @Composable () -> Unit = {

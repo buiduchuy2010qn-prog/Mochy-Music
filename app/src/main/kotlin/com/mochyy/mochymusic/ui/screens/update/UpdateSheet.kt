@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -115,7 +116,7 @@ private suspend fun checkUpdate(force: Boolean): UpdateState =
 /** shows the app version sheet as a PopupSheet, see docs/popup-sheet.skill.md */
 fun PopupSheetState.showUpdateSheet(updateState: UpdateState, onOpenDevSpace: (Int) -> Unit = {}) {
     val popup = this
-    show(buttonBar = { SheetPrimaryButton(text = "Xong", onClick = popup::dismiss) }) {
+    show(buttonBar = { SheetPrimaryButton(text = stringResource(R.string.upd_done), onClick = popup::dismiss) }) {
         UpdateSheetContent(initialState = updateState, popup = popup, onOpenDevSpace = onOpenDevSpace)
     }
 }
@@ -251,7 +252,7 @@ private fun ColumnScope.UpdateSheetContent(
 
             Spacer(Modifier.height(22.dp))
             Text(
-                text = "Thao tác",
+                text = stringResource(R.string.upd_actions),
                 fontFamily = InterFontFamily,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
@@ -261,7 +262,7 @@ private fun ColumnScope.UpdateSheetContent(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ActionRow(
                     icon = R.drawable.refresh,
-                    label = if (state is UpdateState.Checking) "Đang kiểm tra…" else "Kiểm tra cập nhật",
+                    label = if (state is UpdateState.Checking) stringResource(R.string.upd_checking) else stringResource(R.string.upd_check),
                     spinning = state is UpdateState.Checking,
                     onClick = checkAgain,
                 )
@@ -273,26 +274,26 @@ private fun ColumnScope.UpdateSheetContent(
                     previous?.let { older ->
                         ActionRow(
                             icon = R.drawable.history,
-                            label = "Hạ cấp về ${shortVersion(older.version)}",
+                            label = stringResource(R.string.upd_downgrade_to, shortVersion(older.version)),
                             onClick = { popup.showUpdateDetailSheet(older) },
                         )
                     }
                 }
                 ActionRow(
                     icon = R.drawable.bedtime,
-                    label = "Chuyển sang bản Nightly",
-                    hint = "Chưa phát hành",
+                    label = stringResource(R.string.upd_switch_nightly),
+                    hint = stringResource(R.string.upd_not_released),
                     enabled = false,
                     onClick = {},
                 )
                 ActionRow(
                     icon = R.drawable.info,
-                    label = "Giới thiệu ứng dụng",
+                    label = stringResource(R.string.upd_about_app),
                     onClick = { popup.showAboutSheet(onOpenDevSpace = onOpenDevSpace) },
                 )
                 ActionRow(
                     icon = R.drawable.favorite,
-                    label = "Ủng hộ tác giả gốc!",
+                    label = stringResource(R.string.upd_support_author),
                     onClick = { popup.showSupportSheet() },
                 )
             }
@@ -350,17 +351,17 @@ private fun UpdateStatusCard(
         ) { shown ->
             when (shown) {
                 is UpdateState.Available -> StatusRow(
-                    title = "Có bản cập nhật mới!",
+                    title = stringResource(R.string.upd_available),
                     big = shortVersion(shown.release.version),
-                    action = "CẬP NHẬT NGAY",
+                    action = stringResource(R.string.upd_update_now),
                     onAction = { onUpdate(shown.release) },
                 )
-                UpdateState.Checking -> StatusRow(title = "Đang tìm bản cập nhật", big = "…", pulsing = true)
-                UpdateState.UpToDate -> StatusRow(title = "Bạn đang ở bản mới nhất", big = "Tuyệt vời")
+                UpdateState.Checking -> StatusRow(title = stringResource(R.string.upd_searching), big = "…", pulsing = true)
+                UpdateState.UpToDate -> StatusRow(title = stringResource(R.string.upd_up_to_date), big = stringResource(R.string.upd_up_to_date_big))
                 is UpdateState.Failed -> StatusRow(
-                    title = "Không thể kiểm tra cập nhật",
-                    big = "Mất mạng?",
-                    action = "THỬ LẠI",
+                    title = stringResource(R.string.upd_check_failed),
+                    big = stringResource(R.string.upd_check_failed_big),
+                    action = stringResource(R.string.upd_retry),
                     onAction = onRetry,
                 )
             }
@@ -519,7 +520,7 @@ private fun ColumnScope.UpdateDetailContent(
 
     val startInstall: (java.io.File) -> Unit = { file ->
         if (!installApk(context, file)) {
-            error = "Hãy cấp quyền \"Cài đặt ứng dụng không xác định\" cho Mochy, sau đó chạm Cài đặt ngay lại lần nữa."
+            error = context.getString(R.string.upd_install_permission)
         }
     }
 
@@ -538,7 +539,7 @@ private fun ColumnScope.UpdateDetailContent(
         ) {
             Icon(
                 painter = painterResource(R.drawable.arrow_back),
-                contentDescription = "Quay lại",
+                contentDescription = stringResource(R.string.upd_back),
                 tint = Color.White,
                 modifier = Modifier.size(20.dp),
             )
@@ -574,7 +575,7 @@ private fun ColumnScope.UpdateDetailContent(
                 .animateContentSize()
         ) {
             Text(
-                text = "Nhật ký thay đổi",
+                text = stringResource(R.string.upd_changelog),
                 fontFamily = InterFontFamily,
                 color = Color.White,
                 fontSize = 20.sp,
@@ -594,7 +595,7 @@ private fun ColumnScope.UpdateDetailContent(
         Spacer(modifier = Modifier.height(18.dp))
 
         Text(
-            text = "Tệp sẽ cài đặt -",
+            text = stringResource(R.string.upd_file_to_install),
             fontFamily = InterFontFamily,
             color = Color.White.copy(alpha = 0.78f),
             fontSize = 14.sp,
@@ -681,7 +682,7 @@ private fun ColumnScope.UpdateDetailContent(
                                 onLocked(false)
                                 result.fold(
                                     onSuccess = { startInstall(it) },
-                                    onFailure = { error = it.message ?: "Tải xuống thất bại" },
+                                    onFailure = { error = it.message ?: context.getString(R.string.upd_download_failed) },
                                 )
                             }
                         }
@@ -697,9 +698,9 @@ private fun ColumnScope.UpdateDetailContent(
             )
             Text(
                 text = when {
-                    downloading -> "Đang tải xuống… ${(animatedProgress * 100).toInt()}%"
-                    release.apkUrl == null -> "Bản phát hành này chưa có APK"
-                    else -> "Tải và cài đặt ngay"
+                    downloading -> stringResource(R.string.upd_downloading, (animatedProgress * 100).toInt())
+                    release.apkUrl == null -> stringResource(R.string.upd_no_apk)
+                    else -> stringResource(R.string.upd_download_install)
                 },
                 fontFamily = InterFontFamily,
                 color = Color.White,
@@ -726,7 +727,7 @@ private fun ColumnScope.UpdateDetailContent(
                 )
         ) {
             Text(
-                text = "Mở trang tải trên web",
+                text = stringResource(R.string.upd_open_web),
                 fontFamily = InterFontFamily,
                 color = Color.White,
                 fontSize = 15.sp,
