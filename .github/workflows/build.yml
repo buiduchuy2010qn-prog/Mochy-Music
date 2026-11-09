@@ -1,5 +1,14 @@
 name: Build & Release APK + Windows + Linux (OTA)
 
+# How releases work now:
+# - Every push to main builds the platforms it touched, as a compile check. Nothing is published,
+#   so phones and PCs are not asked to update after every commit.
+# - A release is published when the version in the VERSION file (e.g. 9.9.0) differs from the
+#   newest v* tag, or when the workflow is started by hand (workflow_dispatch).
+# - A release rebuilds only the platforms changed since the last release; the other platform keeps
+#   its previous installer (with its own version in the file name), so it is not asked to update.
+# - The release notes list the commits since the last release, grouped by type.
+
 on:
   push:
     branches: [ "main" ]
@@ -8,35 +17,73 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   detect-changes:
-    name: Detect Platform Changes (Android vs PC)
+    name: Detect Release & Platform Changes
     runs-on: ubuntu-latest
     outputs:
       android_changed: ${{ steps.diff.outputs.android_changed }}
       desktop_changed: ${{ steps.diff.outputs.desktop_changed }}
+      release: ${{ steps.diff.outputs.release }}
+      app_ver: ${{ steps.diff.outputs.app_ver }}
+      build_num: ${{ steps.diff.outputs.build_num }}
+      last_tag: ${{ steps.diff.outputs.last_tag }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: Check Changed Files
+      - name: Decide Release & Changed Platforms
         id: diff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
-          echo "Changed files:"
+          git fetch --tags --force >/dev/null 2>&1 || true
+          LAST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n 1)
+          LAST_VER=$(echo "$LAST_TAG" | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          APP_VER=$(tr -d ' \r\n' < VERSION)
+          BUILD_NUM=$(( 1228 + GITHUB_RUN_NUMBER ))
+          if ! echo "$APP_VER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "VERSION must look like 9.9.0, got '$APP_VER'"; exit 1
+          fi
+
+          RELEASE=false
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$APP_VER" != "$LAST_VER" ]; then
+            RELEASE=true
+          fi
+
+          # a release compares with the last release; a plain push only with what it pushed
+          if [ "$RELEASE" = "true" ]; then BASE="$LAST_TAG"; else BASE="$BEFORE_SHA"; fi
+          if [ -n "$BASE" ] && git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            CHANGED=$(git diff --name-only "$BASE" HEAD)
+          else
+            CHANGED="all"
+          fi
+          echo "Last tag: ${LAST_TAG:-none} ($LAST_VER) | VERSION: $APP_VER | release: $RELEASE"
+          echo "Changed files since ${BASE:-start}:"
           echo "$CHANGED"
-          if echo "$CHANGED" | grep -qE '^(app/|gradle/|build\.gradle|settings\.gradle|all)'; then
+
+          if echo "$CHANGED" | grep -qE '^(app/|gradle/|build\.gradle|settings\.gradle|all$)'; then
             echo "android_changed=true" >> $GITHUB_OUTPUT
           else
             echo "android_changed=false" >> $GITHUB_OUTPUT
           fi
-          if echo "$CHANGED" | grep -qE '^(desktop/|all)'; then
+          if echo "$CHANGED" | grep -qE '^(desktop/|all$)'; then
             echo "desktop_changed=true" >> $GITHUB_OUTPUT
           else
             echo "desktop_changed=false" >> $GITHUB_OUTPUT
           fi
+          echo "release=$RELEASE" >> $GITHUB_OUTPUT
+          echo "app_ver=$APP_VER" >> $GITHUB_OUTPUT
+          echo "build_num=$BUILD_NUM" >> $GITHUB_OUTPUT
+          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
 
   build-android:
     name: Build Android APK (Tiếng Việt + OTA)
@@ -76,13 +123,9 @@ jobs:
 
       - name: Build Arm64 Release APK & Versioned Artifact
         env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          APP_VER: ${{ needs.detect-changes.outputs.app_ver }}
+          BUILD_NUM: ${{ needs.detect-changes.outputs.build_num }}
         run: |
-          RUN_NUM=${GITHUB_RUN_NUMBER:-17}
-          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 7 ))
-          TENTHS=$(( 83 + STEP ))
-          APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
-          BUILD_NUM=$(( 1228 + RUN_NUM ))
           export MOCHY_APP_VERSION="$APP_VER"
           ./gradlew assembleArm64GmsRelease -PmochyAppVersion="$APP_VER" -PmochyBuildNumber="$BUILD_NUM" --no-configuration-cache --no-daemon
           mkdir -p dist-android
@@ -94,6 +137,7 @@ jobs:
         with:
           name: android-apk
           path: dist-android/*.apk
+          retention-days: 14
 
   build-windows:
     name: Build Windows EXE (Setup & Portable + OTA)
@@ -112,13 +156,11 @@ jobs:
       - name: Prepare Version, Icon & Build Windows EXE
         shell: pwsh
         env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          APP_VER: ${{ needs.detect-changes.outputs.app_ver }}
+          BUILD_NUM: ${{ needs.detect-changes.outputs.build_num }}
         run: |
-          $runNum = [int]$env:GITHUB_RUN_NUMBER
-          $step = [Math]::Max(2, $runNum - 10)
-          $tenths = 83 + $step
-          $appVer = "$([Math]::Floor($tenths / 10)).$($tenths % 10).0"
-          $buildNum = 1228 + $runNum
+          $appVer = $env:APP_VER
+          $buildNum = $env:BUILD_NUM
 
           New-Item -ItemType Directory -Force -Path desktop/build | Out-Null
           Copy-Item app/src/main/ic_launcher-playstore.png desktop/build/icon.png -Force
@@ -145,6 +187,7 @@ jobs:
         with:
           name: windows-exe
           path: desktop/dist/*.exe
+          retention-days: 14
 
   build-linux:
     name: Build Linux (AppImage & DEB + OTA)
@@ -162,14 +205,9 @@ jobs:
 
       - name: Prepare Version, Icon & Build Linux Packages
         env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          APP_VER: ${{ needs.detect-changes.outputs.app_ver }}
+          BUILD_NUM: ${{ needs.detect-changes.outputs.build_num }}
         run: |
-          RUN_NUM=${GITHUB_RUN_NUMBER:-10}
-          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 2 ))
-          TENTHS=$(( 83 + STEP ))
-          APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
-          BUILD_NUM=$(( 1228 + RUN_NUM ))
-
           mkdir -p desktop/build
           cp app/src/main/ic_launcher-playstore.png desktop/build/icon.png
 
@@ -195,13 +233,23 @@ jobs:
           path: |
             desktop/dist/*.AppImage
             desktop/dist/*.deb
+          retention-days: 14
 
   publish-release:
     name: Publish Unified OTA Release (Android, Windows, Linux)
     runs-on: ubuntu-latest
-    needs: [build-android, build-windows, build-linux]
-    if: always() && (needs.build-android.result == 'success' || needs.build-windows.result == 'success' || needs.build-linux.result == 'success')
+    needs: [detect-changes, build-android, build-windows, build-linux]
+    if: >-
+      always() &&
+      needs.detect-changes.outputs.release == 'true' &&
+      needs.build-android.result != 'failure' && needs.build-windows.result != 'failure' && needs.build-linux.result != 'failure' &&
+      (needs.build-android.result == 'success' || needs.build-windows.result == 'success' || needs.build-linux.result == 'success')
     steps:
+      - name: Checkout Repository (for the changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download All Built Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -211,17 +259,16 @@ jobs:
       - name: Create GitHub Release (OTA + Multi-Platform)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          APP_VER: ${{ needs.detect-changes.outputs.app_ver }}
+          BUILD_NUM: ${{ needs.detect-changes.outputs.build_num }}
+          LAST_TAG: ${{ needs.detect-changes.outputs.last_tag }}
+          ANDROID_BUILT: ${{ needs.build-android.result == 'success' }}
+          DESKTOP_BUILT: ${{ needs.build-windows.result == 'success' }}
         run: |
-          RUN_NUM=${GITHUB_RUN_NUMBER:-17}
-          STEP=$(( RUN_NUM > 10 ? RUN_NUM - 10 : 7 ))
-          TENTHS=$(( 83 + STEP ))
-          APP_VER="$(( TENTHS / 10 )).$(( TENTHS % 10 )).0"
-          BUILD_NUM=$(( 1228 + RUN_NUM ))
           TAG="v${APP_VER}-b${BUILD_NUM}"
           TITLE="Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa Toàn Diện (Android • Windows • Linux)"
 
-          # If Android was not built in this run (PC-only commit), keep the previous APK with its ORIGINAL filename
+          # If Android was not built in this run (PC-only release), keep the previous APK with its ORIGINAL filename
           if ! ls release-assets/*.apk >/dev/null 2>&1; then
             mkdir -p tmp-prev-apk
             if gh release download --repo "${{ github.repository }}" --pattern "*.apk" --dir tmp-prev-apk >/dev/null 2>&1; then
@@ -230,7 +277,7 @@ jobs:
             fi
           fi
 
-          # If Desktop was not built in this run (Android-only commit), keep the previous PC installers with their ORIGINAL filenames
+          # If Desktop was not built in this run (Android-only release), keep the previous PC installers with their ORIGINAL filenames
           if ! ls release-assets/*.exe >/dev/null 2>&1; then
             mkdir -p tmp-prev-pc
             if gh release download --repo "${{ github.repository }}" --pattern "*.exe" --pattern "*.AppImage" --pattern "*.deb" --dir tmp-prev-pc >/dev/null 2>&1; then
@@ -251,31 +298,45 @@ jobs:
           LIN_DEB_FILE=$(ls release-assets/*.deb 2>/dev/null | xargs -n 1 basename | head -n 1)
           LIN_DEB_FILE=${LIN_DEB_FILE:-Mochy-Music-v${APP_VER}-Linux-amd64.deb}
 
-          cat <<EOF > release_notes.md
-          ### 🎵 Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa 100%
+          # ---- changelog: the commits since the last release, grouped by their conventional-commit type ----
+          if [ -n "$LAST_TAG" ] && git cat-file -e "${LAST_TAG}^{commit}" 2>/dev/null; then
+            git log --no-merges --pretty='%s' "${LAST_TAG}..HEAD" > commits.txt
+          else
+            git log --no-merges --pretty='%s' -n 30 > commits.txt
+          fi
+          STRIP='s/^[A-Za-z]+(\([^)]*\))?!?:[[:space:]]*//'
+          FEAT=$(grep -E '^feat(\([^)]*\))?!?:' commits.txt | sed -E "$STRIP" | sed 's/^/- /' || true)
+          FIX=$(grep -E '^fix(\([^)]*\))?!?:' commits.txt | sed -E "$STRIP" | sed 's/^/- /' || true)
+          OTHER=$(grep -vE '^(feat|fix|chore|ci|docs|build|style|test)(\([^)]*\))?!?:' commits.txt | grep -vE '^Merge ' | sed -E "$STRIP" | sed 's/^/- /' || true)
 
-          - **Phiên bản mới:** **v${APP_VER} (build#${BUILD_NUM})**
-          - **Người chỉnh sửa & Việt hóa:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog))**
-          - **Đồng bộ 100% Font chữ Inter & Giao diện gốc:** Toàn bộ mô tả bản cập nhật, hộp thoại thông báo OTA, thẻ thông tin và trình phát nhạc đều đồng bộ font chữ **Inter** rõ nét, cỡ chữ lớn dễ đọc và hiệu ứng kính mờ chuẩn của ứng dụng.
-          - **Nút tắt/bật nhanh Ảnh bìa động (Canvas) & Video nền:** Tích hợp công tắc bật/tắt nhanh ngay trong **menu 3 chấm (⋯)** của màn hình phát nhạc và trong **Cài đặt**.
-          - **Sửa lỗi nhận diện phiên bản OTA độc lập từng nền tảng:** Kiểm tra phiên bản trực tiếp theo tệp cài đặt riêng của từng hệ điều hành (.apk trên Android, .exe trên Windows, .AppImage/.deb trên Linux), đảm bảo khi cập nhật riêng một bản thì bản kia không báo cập nhật nhầm.
+          if [ "$ANDROID_BUILT" = "true" ]; then ANDROID_LINE="cập nhật lên **v${APP_VER}**"; else ANDROID_LINE="không đổi trong bản này"; fi
+          if [ "$DESKTOP_BUILT" = "true" ]; then DESKTOP_LINE="cập nhật lên **v${APP_VER}**"; else DESKTOP_LINE="không đổi trong bản này"; fi
 
-          #### 📥 Danh sách tệp cài đặt chính thức:
-          1. 📱 **Android (APK arm64 — Hỗ trợ cài đè OTA):** **${APK_FILE}**
-          2. 🪟 **Windows Bộ cài đặt (.exe — Hỗ trợ cài đè OTA):** **${WIN_SETUP_FILE}**
-          3. 🪟 **Windows Bản chạy ngay (Portable .exe):** **${WIN_PORT_FILE}**
-          4. 🐧 **Linux Mọi bản phân phối (.AppImage):** **${LIN_APPIMAGE_FILE}**
-          5. 🐧 **Ubuntu / Debian / Linux Mint (.deb):** **${LIN_DEB_FILE}**
-
-          ---
-          #### 📜 Bản quyền & Tác giả (GPL-3.0)
-          - **Người chỉnh sửa, Việt hóa & Phát triển OTA:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog/Mochy-Music))**
-          - **Tác giả gốc (Original Authors):** [@realidkroo (mochyDH P ASHOKAN)](https://github.com/realidkroo), [@realkeichi (key)](https://github.com/realkeichi)
-          - **Dự án nền tảng (Upstream):** ViviMusic (@vivizzz007) & Metrolist (@mostafaalagamy)
-          - **Giấy phép:** [GNU General Public License v3.0 (GPL-3.0)](https://github.com/buiduchuy2010qn-prog/Mochy-Music/blob/main/LICENSE)
-          EOF
-
-          sed -i 's/^          //' release_notes.md
+          {
+            echo "### 🎵 Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa 100%"
+            echo ""
+            echo "- **Phiên bản mới:** **v${APP_VER} (build#${BUILD_NUM})**"
+            echo "- 📱 **Android:** ${ANDROID_LINE}"
+            echo "- 💻 **Máy tính (Windows / Linux):** ${DESKTOP_LINE}"
+            echo ""
+            if [ -n "$FEAT" ]; then echo "#### ✨ Tính năng mới"; echo "$FEAT"; echo ""; fi
+            if [ -n "$FIX" ]; then echo "#### 🐞 Sửa lỗi"; echo "$FIX"; echo ""; fi
+            if [ -n "$OTHER" ]; then echo "#### 🔧 Cải thiện khác"; echo "$OTHER"; echo ""; fi
+            echo "#### 📥 Danh sách tệp cài đặt chính thức:"
+            echo "1. 📱 **Android (APK arm64 — Hỗ trợ cài đè OTA):** **${APK_FILE}**"
+            echo "2. 🪟 **Windows Bộ cài đặt (.exe — Hỗ trợ cài đè OTA):** **${WIN_SETUP_FILE}**"
+            echo "3. 🪟 **Windows Bản chạy ngay (Portable .exe):** **${WIN_PORT_FILE}**"
+            echo "4. 🐧 **Linux Mọi bản phân phối (.AppImage):** **${LIN_APPIMAGE_FILE}**"
+            echo "5. 🐧 **Ubuntu / Debian / Linux Mint (.deb):** **${LIN_DEB_FILE}**"
+            echo ""
+            echo "---"
+            echo "#### 📜 Bản quyền & Tác giả (GPL-3.0)"
+            echo "- **Người chỉnh sửa, Việt hóa & Phát triển OTA:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog/Mochy-Music))**"
+            echo "- **Tác giả gốc (Original Authors):** [@realidkroo (mochyDH P ASHOKAN)](https://github.com/realidkroo), [@realkeichi (key)](https://github.com/realkeichi)"
+            echo "- **Dự án nền tảng (Upstream):** ViviMusic (@vivizzz007) & Metrolist (@mostafaalagamy)"
+            echo "- **Giấy phép:** [GNU General Public License v3.0 (GPL-3.0)](https://github.com/buiduchuy2010qn-prog/Mochy-Music/blob/main/LICENSE)"
+          } > release_notes.md
+          cat release_notes.md
 
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload "$TAG" release-assets/* \
@@ -289,6 +350,7 @@ jobs:
           else
             gh release create "$TAG" release-assets/* \
               --repo "${{ github.repository }}" \
+              --target "${{ github.sha }}" \
               --title "$TITLE" \
               --notes-file release_notes.md \
               --latest
