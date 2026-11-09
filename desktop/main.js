@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, ipcMain, session, shell, dialog, Tray, Menu, globalShortcut, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell, dialog, Tray, Menu, globalShortcut, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');

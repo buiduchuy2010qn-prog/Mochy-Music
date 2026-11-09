@@ -123,11 +123,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path desktop/build | Out-Null
           Copy-Item app/src/main/ic_launcher-playstore.png desktop/build/icon.png -Force
 
-          $pkgPath = "desktop/package.json"
-          $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
-          $pkg.version = $appVer
-          $pkg.buildNumber = "$buildNum"
-          $pkg | ConvertTo-Json -Depth 10 | Set-Content $pkgPath -Encoding UTF8
+          node -e "
+            const fs = require('fs');
+            const raw = fs.readFileSync('desktop/package.json', 'utf8').replace(/^\uFEFF/, '');
+            const p = JSON.parse(raw);
+            p.version = '$appVer';
+            p.buildNumber = '$buildNum';
+            fs.writeFileSync('desktop/package.json', JSON.stringify(p, null, 2), 'utf8');
+          "
 
           Push-Location desktop
           $env:ELECTRON_SKIP_BINARY_DOWNLOAD = "1"
@@ -175,10 +178,11 @@ jobs:
 
           node -e "
             const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('desktop/package.json', 'utf8'));
+            const raw = fs.readFileSync('desktop/package.json', 'utf8').replace(/^\uFEFF/, '');
+            const p = JSON.parse(raw);
             p.version = '$APP_VER';
             p.buildNumber = '$BUILD_NUM';
-            fs.writeFileSync('desktop/package.json', JSON.stringify(p, null, 2));
+            fs.writeFileSync('desktop/package.json', JSON.stringify(p, null, 2), 'utf8');
           "
 
           cd desktop
@@ -240,6 +244,14 @@ jobs:
 
           APK_FILE=$(ls release-assets/*.apk 2>/dev/null | xargs -n 1 basename | head -n 1)
           APK_FILE=${APK_FILE:-Mochy-Music-v${APP_VER}-vi-arm64.apk}
+          WIN_SETUP_FILE=$(ls release-assets/*Setup*.exe 2>/dev/null | xargs -n 1 basename | head -n 1)
+          WIN_SETUP_FILE=${WIN_SETUP_FILE:-Mochy-Music-v${APP_VER}-Windows-x64-Setup.exe}
+          WIN_PORT_FILE=$(ls release-assets/*Portable*.exe 2>/dev/null | xargs -n 1 basename | head -n 1)
+          WIN_PORT_FILE=${WIN_PORT_FILE:-Mochy-Music-v${APP_VER}-Windows-x64-Portable.exe}
+          LIN_APPIMAGE_FILE=$(ls release-assets/*.AppImage 2>/dev/null | xargs -n 1 basename | head -n 1)
+          LIN_APPIMAGE_FILE=${LIN_APPIMAGE_FILE:-Mochy-Music-v${APP_VER}-Linux-x86_64.AppImage}
+          LIN_DEB_FILE=$(ls release-assets/*.deb 2>/dev/null | xargs -n 1 basename | head -n 1)
+          LIN_DEB_FILE=${LIN_DEB_FILE:-Mochy-Music-v${APP_VER}-Linux-amd64.deb}
 
           cat <<EOF > release_notes.md
           ### 🎵 Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa 100%
@@ -248,14 +260,14 @@ jobs:
           - **Người chỉnh sửa & Việt hóa:** **Đức Huy ([@buiduchuy2010qn-prog](https://github.com/buiduchuy2010qn-prog))**
           - **Đồng bộ 100% Font chữ Inter & Giao diện gốc:** Toàn bộ mô tả bản cập nhật, hộp thoại thông báo OTA, thẻ thông tin và trình phát nhạc đều đồng bộ font chữ **Inter** rõ nét, cỡ chữ lớn dễ đọc và hiệu ứng kính mờ chuẩn của ứng dụng.
           - **Nút tắt/bật nhanh Ảnh bìa động (Canvas) & Video nền:** Tích hợp công tắc bật/tắt nhanh ngay trong **menu 3 chấm (⋯)** của màn hình phát nhạc và trong **Cài đặt**.
-          - **Sửa lỗi nhận diện phiên bản OTA:** Đồng bộ chính xác mã phiên bản cài đặt thực tế giúp ứng dụng không còn báo cập nhật lặp lại sau khi đã nâng cấp.
+          - **Sửa lỗi nhận diện phiên bản OTA độc lập từng nền tảng:** Kiểm tra phiên bản trực tiếp theo tệp cài đặt riêng của từng hệ điều hành (.apk trên Android, .exe trên Windows, .AppImage/.deb trên Linux), đảm bảo khi cập nhật riêng một bản thì bản kia không báo cập nhật nhầm.
 
           #### 📥 Danh sách tệp cài đặt chính thức:
           1. 📱 **Android (APK arm64 — Hỗ trợ cài đè OTA):** **${APK_FILE}**
-          2. 🪟 **Windows Bộ cài đặt (.exe — Hỗ trợ cài đè OTA):** **Mochy-Music-v${APP_VER}-Windows-x64-Setup.exe**
-          3. 🪟 **Windows Bản chạy ngay (Portable .exe):** **Mochy-Music-v${APP_VER}-Windows-x64-Portable.exe**
-          4. 🐧 **Linux Mọi bản phân phối (.AppImage):** **Mochy-Music-v${APP_VER}-Linux-x86_64.AppImage**
-          5. 🐧 **Ubuntu / Debian / Linux Mint (.deb):** **Mochy-Music-v${APP_VER}-Linux-amd64.deb**
+          2. 🪟 **Windows Bộ cài đặt (.exe — Hỗ trợ cài đè OTA):** **${WIN_SETUP_FILE}**
+          3. 🪟 **Windows Bản chạy ngay (Portable .exe):** **${WIN_PORT_FILE}**
+          4. 🐧 **Linux Mọi bản phân phối (.AppImage):** **${LIN_APPIMAGE_FILE}**
+          5. 🐧 **Ubuntu / Debian / Linux Mint (.deb):** **${LIN_DEB_FILE}**
 
           ---
           #### 📜 Bản quyền & Tác giả (GPL-3.0)

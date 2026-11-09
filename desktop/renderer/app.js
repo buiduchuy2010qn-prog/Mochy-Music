@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   const api = window.mochyAPI;
   const localAudio = document.getElementById('local-audio-player');
 
