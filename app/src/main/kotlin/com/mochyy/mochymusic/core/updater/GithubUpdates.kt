@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -98,7 +99,8 @@ fun parseFullVersion(text: String): FullVersion {
     return FullVersion(major, minor, patch, buildNumber)
 }
 
-private const val CacheTtlMillis = 15L * 60L * 1000L
+// automatic background checks reuse the last answer for 6 hours; tapping "Kiểm tra cập nhật" passes force = true
+private const val CacheTtlMillis = 6L * 60L * 60L * 1000L
 
 // older releases in this repo are the app under its old id, so "downgrade" to one would add a second app instead
 private val FirstReleaseWithThisId = FullVersion(major = 8, minor = 2, patch = 3)
@@ -115,13 +117,78 @@ private val updateScope = kotlinx.coroutines.CoroutineScope(
     kotlinx.coroutines.SupervisorJob() + Dispatchers.IO
 )
 
-/** Every published release, asked for once and shared for [CacheTtlMillis] unless [force]d. */
+private fun diskCacheFile(): File? = runCatching {
+    val dir = System.getProperty("java.io.tmpdir")?.takeIf { it.isNotBlank() } ?: return@runCatching null
+    File(dir, "mochy_releases_cache_v2.json")
+}.getOrNull()
+
+private fun readDiskCache(): Pair<Long, List<ParsedRelease>>? = runCatching {
+    val file = diskCacheFile() ?: return@runCatching null
+    if (!file.exists()) return@runCatching null
+    val root = JSONObject(file.readText())
+    val savedAt = root.optLong("savedAt", 0L)
+    if (savedAt <= 0L || System.currentTimeMillis() - savedAt >= CacheTtlMillis) return@runCatching null
+    val arr = root.optJSONArray("items") ?: return@runCatching null
+    val list = buildList {
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            val rel = GithubRelease(
+                title = o.optString("title"),
+                tag = o.optString("tag"),
+                version = o.optString("version"),
+                body = o.optString("body"),
+                htmlUrl = o.optString("htmlUrl"),
+                apkUrl = o.optString("apkUrl").takeIf { it.isNotBlank() },
+                apkApiUrl = o.optString("apkApiUrl").takeIf { it.isNotBlank() },
+                apkName = o.optString("apkName").takeIf { it.isNotBlank() },
+                apkSizeBytes = o.optLong("apkSizeBytes", 0L),
+                publishedAt = o.optString("publishedAt"),
+            )
+            add(ParsedRelease(parseFullVersion(rel.version), rel))
+        }
+    }
+    if (list.isEmpty()) null else (savedAt to list)
+}.getOrNull()
+
+private fun writeDiskCache(savedAt: Long, list: List<ParsedRelease>) {
+    runCatching {
+        val file = diskCacheFile() ?: return
+        val arr = JSONArray()
+        for (item in list) {
+            val r = item.release
+            arr.put(
+                JSONObject()
+                    .put("title", r.title)
+                    .put("tag", r.tag)
+                    .put("version", r.version)
+                    .put("body", r.body)
+                    .put("htmlUrl", r.htmlUrl)
+                    .put("apkUrl", r.apkUrl.orEmpty())
+                    .put("apkApiUrl", r.apkApiUrl.orEmpty())
+                    .put("apkName", r.apkName.orEmpty())
+                    .put("apkSizeBytes", r.apkSizeBytes)
+                    .put("publishedAt", r.publishedAt)
+            )
+        }
+        val root = JSONObject().put("savedAt", savedAt).put("items", arr)
+        file.writeText(root.toString())
+    }
+}
+
+/** Every published release, asked for once and shared for [CacheTtlMillis] (including across cold starts) unless [force]d. */
 private suspend fun getReleases(force: Boolean): Result<List<ParsedRelease>> {
     val deferred = synchronized(cacheLock) {
         if (!force) {
             val cached = cachedResult
             if (cached != null && System.currentTimeMillis() - cachedAt < CacheTtlMillis) {
                 return cached
+            }
+            val disk = readDiskCache()
+            if (disk != null) {
+                val res = Result.success(disk.second)
+                cachedAt = disk.first
+                cachedResult = res
+                return res
             }
         }
         inFlight ?: updateScope.async { fetchReleases() }.also { inFlight = it }
@@ -131,8 +198,10 @@ private suspend fun getReleases(force: Boolean): Result<List<ParsedRelease>> {
     synchronized(cacheLock) {
         if (inFlight === deferred) inFlight = null
         if (result.isSuccess) {
+            val now = System.currentTimeMillis()
             cachedResult = result
-            cachedAt = System.currentTimeMillis()
+            cachedAt = now
+            writeDiskCache(now, result.getOrThrow())
         }
     }
     return result

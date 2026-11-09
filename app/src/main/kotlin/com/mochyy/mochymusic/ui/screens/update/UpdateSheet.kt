@@ -96,7 +96,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun rememberUpdateState(): androidx.compose.runtime.State<UpdateState> {
     val state = remember { mutableStateOf<UpdateState>(UpdateState.Checking) }
-    LaunchedEffect(Unit) { state.value = checkUpdate(force = true) }
+    LaunchedEffect(Unit) { state.value = checkUpdate(force = false) }
     return state
 }
 
@@ -279,13 +279,15 @@ private fun ColumnScope.UpdateSheetContent(
                         )
                     }
                 }
-                ActionRow(
-                    icon = R.drawable.bedtime,
-                    label = stringResource(R.string.upd_switch_nightly),
-                    hint = stringResource(R.string.upd_not_released),
-                    enabled = false,
-                    onClick = {},
-                )
+                if (BuildConfig.IS_NIGHTLY) {
+                    ActionRow(
+                        icon = R.drawable.bedtime,
+                        label = stringResource(R.string.upd_switch_nightly),
+                        hint = stringResource(R.string.upd_not_released),
+                        enabled = false,
+                        onClick = {},
+                    )
+                }
                 ActionRow(
                     icon = R.drawable.info,
                     label = stringResource(R.string.upd_about_app),
