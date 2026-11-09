@@ -859,7 +859,7 @@
     if (menuSub) menuSub.textContent = statusText;
     if (setSub) setSub.textContent = statusText;
     if (quickBtn) {
-      quickBtn.textContent = pc.animatedCanvas ? 'Ảnh bìa động: BẬT' : 'Chỉ hiện logo tĩnh';
+      quickBtn.textContent = pc.animatedCanvas ? 'Tắt video / ảnh động' : 'Bật video / ảnh động';
       quickBtn.style.background = pc.animatedCanvas ? '#FFFFFF' : '#4D4D4D';
       quickBtn.style.color = pc.animatedCanvas ? '#000000' : '#FFFFFF';
     }
@@ -1534,6 +1534,8 @@
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
       document.getElementById('ota-sheet-notes').textContent = rawBody;
       document.getElementById('sheet-ota-update').style.display = 'flex';
+    } else if (res && res.status === 'error') {
+      if (showIfUpToDate) showToast('Không thể kiểm tra cập nhật — kiểm tra kết nối mạng rồi thử lại');
     } else if (showIfUpToDate) {
       showToast(`Bạn đang dùng phiên bản mới nhất (${state.appInfo.version})`);
     }
@@ -1551,7 +1553,12 @@
     if (!state.latestOtaRelease) return;
     document.getElementById('ota-progress-box').style.display = 'block';
     document.getElementById('btn-ota-install-now').disabled = true;
-    await api.downloadAndInstallUpdate(state.latestOtaRelease);
+    const result = await api.downloadAndInstallUpdate(state.latestOtaRelease);
+    if (result && result.ok === false) {
+      document.getElementById('btn-ota-install-now').disabled = false;
+      document.getElementById('ota-progress-box').style.display = 'none';
+      showToast(result.message || 'Tải bản cập nhật thất bại, hãy thử lại');
+    }
   });
 
   api.onOtaProgress((data) => {

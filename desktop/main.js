@@ -9,6 +9,7 @@ const pkg = require('./package.json');
 const OTA_OWNER = 'buiduchuy2010qn-prog';
 const OTA_REPO = 'Mochy-Music';
 const RELEASES_API = `https://api.github.com/repos/${OTA_OWNER}/${OTA_REPO}/releases?per_page=15`;
+const RELEASES_ATOM = `https://github.com/${OTA_OWNER}/${OTA_REPO}/releases.atom`;
 
 let mainWindow = null;
 let audioWindow = null;
@@ -785,11 +786,115 @@ ipcMain.handle('local:pick-files', async () => {
   });
 });
 
+// api.github.com allows only 60 unauthenticated calls an hour per IP, shared by every device on the
+// same Wi-Fi. When it refuses, the public releases.atom feed on github.com (not rate-limited) answers.
+function httpsGetText(url, timeoutMs = 15000, hops = 0) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, {
+      headers: { 'User-Agent': 'MochyMusic-Desktop-OTA', 'Accept': '*/*' },
+      timeout: timeoutMs
+    }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && hops < 6) {
+        res.resume();
+        return httpsGetText(new URL(res.headers.location, url).toString(), timeoutMs, hops + 1).then(resolve, reject);
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        res.resume();
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(new Error('Request timeout')); });
+  });
+}
+
+function unescapeXmlHtml(input) {
+  // the feed escapes the release html once more, so this runs twice
+  let out = input || '';
+  for (let i = 0; i < 2; i++) {
+    out = out
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+  return out;
+}
+
+function atomHtmlToMarkdown(raw) {
+  return unescapeXmlHtml(raw)
+    .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/g, '### $1')
+    .replace(/<h4[^>]*>([\s\S]*?)<\/h4>/g, '#### $1')
+    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/g, '**$1**')
+    .replace(/<b[^>]*>([\s\S]*?)<\/b>/g, '**$1**')
+    .replace(/<code[^>]*>([\s\S]*?)<\/code>/g, '`$1`')
+    .replace(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g, '[$2]($1)')
+    .replace(/<li[^>]*>([\s\S]*?)<\/li>/g, '- $1')
+    .replace(/<hr\s*\/?>/g, '---')
+    .replace(/<\/?(ul|ol|p|div|span|br)[^>]*>/g, '')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
+// Shapes the feed like the API's release list, so ota:check reads either the same way.
+async function fetchReleasesViaAtom() {
+  const xml = await httpsGetText(RELEASES_ATOM);
+  const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map((m) => m[1]);
+  const releases = [];
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const tag = (e.match(/releases\/tag\/([^"&<>\s]+)/) || [])[1];
+    if (!tag) continue;
+    const title = unescapeXmlHtml((e.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1] || tag);
+    const body = atomHtmlToMarkdown((e.match(/<content[^>]*>([\s\S]*?)<\/content>/) || [])[1] || '');
+    const publishedAt = ((e.match(/<updated[^>]*>([\s\S]*?)<\/updated>/) || [])[1] || '').trim();
+    // the release workflow names every installer in its notes
+    let names = [...new Set([...body.matchAll(/Mochy-Music-[^\s*`"<>()]+?\.(?:exe|AppImage|deb|apk)/gi)].map((m) => m[0]))];
+    // notes without them: ask the release's asset list, only for the newest few
+    if (!names.some((n) => /\.(exe|AppImage|deb)$/i.test(n)) && i < 3) {
+      try {
+        const html = await httpsGetText(`https://github.com/${OTA_OWNER}/${OTA_REPO}/releases/expanded_assets/${tag}`, 8000);
+        names = [...new Set([...html.matchAll(/releases\/download\/[^/"]+\/([^"<>\s/]+?\.(?:exe|AppImage|deb|apk))"/gi)]
+          .map((m) => decodeURIComponent(m[1])))];
+      } catch (_) {}
+    }
+    releases.push({
+      draft: false,
+      prerelease: false,
+      name: title,
+      tag_name: tag,
+      body,
+      html_url: `https://github.com/${OTA_OWNER}/${OTA_REPO}/releases/tag/${tag}`,
+      published_at: publishedAt,
+      assets: names.map((n) => ({
+        name: n,
+        size: 0,
+        browser_download_url: `https://github.com/${OTA_OWNER}/${OTA_REPO}/releases/download/${tag}/${n}`
+      }))
+    });
+  }
+  return releases;
+}
+
 ipcMain.handle('ota:check', async () => {
   try {
-    const releases = await httpsRequestJson(RELEASES_API);
+    let releases = null;
+    try {
+      releases = await httpsRequestJson(RELEASES_API);
+    } catch (_) {
+      releases = null;
+    }
+    // a rate-limited API answers {"message":"API rate limit exceeded ..."} instead of a list
     if (!Array.isArray(releases) || releases.length === 0) {
-      return { status: 'upToDate' };
+      releases = await fetchReleasesViaAtom();
+    }
+    if (!Array.isArray(releases) || releases.length === 0) {
+      return { status: 'error', message: 'Không đọc được danh sách bản phát hành trên GitHub' };
     }
     const rawInstalled = parseFullVersion(pkg.version || '9.1.0');
     const installedVer = {
@@ -803,7 +908,7 @@ ipcMain.handle('ota:check', async () => {
     let matchedAsset = null;
 
     for (const rel of releases) {
-      if (rel.draft) continue;
+      if (rel.draft || rel.prerelease) continue;
       const assets = Array.isArray(rel.assets) ? rel.assets : [];
       let candidateAsset = null;
       if (process.platform === 'win32') {
@@ -867,16 +972,31 @@ ipcMain.handle('ota:install', async (_e, releaseInfo) => {
   }
   const destDir = app.getPath('temp');
   const destFile = path.join(destDir, releaseInfo.assetName || (process.platform === 'win32' ? 'Mochy-Update-Setup.exe' : 'Mochy-Update.AppImage'));
+  // written here first and only moved into place once complete, so a cut-off download is never run
+  const partFile = destFile + '.part';
 
   return new Promise((resolve) => {
-    function download(url) {
+    let settled = false;
+    function fail(message) {
+      if (settled) return;
+      settled = true;
+      try { fs.rmSync(partFile, { force: true }); } catch (_) {}
+      resolve({ ok: false, message });
+    }
+    function download(url, hops = 0) {
       https.get(url, { headers: { 'User-Agent': 'MochyMusic-Desktop-OTA' } }, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return download(res.headers.location);
+          res.resume();
+          if (hops >= 6) return fail('Quá nhiều lần chuyển hướng khi tải bản cập nhật');
+          return download(new URL(res.headers.location, url).toString(), hops + 1);
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return fail(`Máy chủ trả về mã lỗi HTTP ${res.statusCode}`);
         }
         const total = parseInt(res.headers['content-length'] || '0', 10) || releaseInfo.assetSize || 0;
         let downloaded = 0;
-        const fileStream = fs.createWriteStream(destFile);
+        const fileStream = fs.createWriteStream(partFile);
 
         res.on('data', (chunk) => {
           downloaded += chunk.length;
@@ -888,10 +1008,22 @@ ipcMain.handle('ota:install', async (_e, releaseInfo) => {
             });
           }
         });
+        res.on('error', (err) => { fileStream.destroy(); fail(err.message); });
+        fileStream.on('error', (err) => fail(err.message));
 
         res.pipe(fileStream);
         fileStream.on('finish', () => {
           fileStream.close(() => {
+            if (total > 0 && downloaded !== total) {
+              return fail(`Tệp tải về bị thiếu (${downloaded}/${total} bytes), hãy thử lại`);
+            }
+            try {
+              fs.rmSync(destFile, { force: true });
+              fs.renameSync(partFile, destFile);
+            } catch (err) {
+              return fail(err.message);
+            }
+            settled = true;
             if (process.platform === 'win32') {
               spawn(destFile, [], { detached: true, stdio: 'ignore' }).unref();
               isQuitting = true;
@@ -904,9 +1036,7 @@ ipcMain.handle('ota:install', async (_e, releaseInfo) => {
             }
           });
         });
-      }).on('error', (err) => {
-        resolve({ ok: false, message: err.message });
-      });
+      }).on('error', (err) => fail(err.message));
     }
     download(releaseInfo.downloadUrl);
   });
