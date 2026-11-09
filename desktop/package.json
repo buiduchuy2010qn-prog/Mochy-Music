@@ -1,72 +1,92 @@
-{
-  "name": "mochy-music-desktop",
-  "version": "8.9.0",
-  "buildNumber": "1244",
-  "description": "Mochy Music (Bản Việt Hóa) — Ứng dụng nghe nhạc mã nguồn mở cho Windows & Linux (GPL-3.0)",
-  "homepage": "https://github.com/buiduchuy2010qn-prog/Mochy-Music",
-  "main": "main.js",
-  "author": "Đức Huy <buiduchuy2010qn-prog@users.noreply.github.com>",
-  "license": "GPL-3.0-only",
-  "scripts": {
-    "start": "electron .",
-    "dist:win": "electron-builder --win nsis portable --x64",
-    "dist:linux": "electron-builder --linux AppImage deb --x64"
-  },
-  "devDependencies": {
-    "electron": "33.2.0",
-    "electron-builder": "25.1.8"
-  },
-  "build": {
-    "electronVersion": "33.2.0",
-    "appId": "com.mochyy.mochymusic.desktop",
-    "productName": "Mochy Music",
-    "copyright": "Copyright (C) 2026 Đức Huy (@buiduchuy2010qn-prog) & @realidkroo — Licensed under GNU GPL v3.0",
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*",
-      "build/icon.png",
-      "package.json"
-    ],
-    "win": {
-      "icon": "build/icon.png",
-      "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Mochy Music",
-      "artifactName": "Mochy-Music-v${version}-Windows-x64-Setup.exe"
-    },
-    "portable": {
-      "artifactName": "Mochy-Music-v${version}-Windows-x64-Portable.exe"
-    },
-    "linux": {
-      "icon": "build/icon.png",
-      "category": "AudioVideo;Audio;Player;",
-      "maintainer": "Duc Huy <buiduchuy2010qn-prog@users.noreply.github.com>",
-      "synopsis": "Ung dung nghe nhac ma nguon mo Mochy Music (Ban Viet Hoa - GPL-3.0)",
-      "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb", "arch": ["x64"] }
-      ]
-    },
-    "appImage": {
-      "artifactName": "Mochy-Music-v${version}-Linux-x86_64.AppImage"
-    },
-    "deb": {
-      "artifactName": "Mochy-Music-v${version}-Linux-amd64.deb"
-    }
-  }
+﻿{
+    "name":  "mochy-music-desktop",
+    "version":  "9.1.0",
+    "buildNumber":  "1246",
+    "description":  "Mochy Music (Bản Việt Hóa) — Ứng dụng nghe nhạc mã nguồn mở cho Windows \u0026 Linux (GPL-3.0)",
+    "homepage":  "https://github.com/buiduchuy2010qn-prog/Mochy-Music",
+    "main":  "main.js",
+    "author":  "Đức Huy \u003cbuiduchuy2010qn-prog@users.noreply.github.com\u003e",
+    "license":  "GPL-3.0-only",
+    "scripts":  {
+                    "start":  "electron .",
+                    "dist:win":  "electron-builder --win nsis portable --x64",
+                    "dist:linux":  "electron-builder --linux AppImage deb --x64"
+                },
+    "devDependencies":  {
+                            "electron":  "33.2.0",
+                            "electron-builder":  "25.1.8"
+                        },
+    "build":  {
+                  "electronVersion":  "33.2.0",
+                  "appId":  "com.mochyy.mochymusic.desktop",
+                  "productName":  "Mochy Music",
+                  "copyright":  "Copyright (C) 2026 Đức Huy (@buiduchuy2010qn-prog) \u0026 @realidkroo — Licensed under GNU GPL v3.0",
+                  "directories":  {
+                                      "output":  "dist",
+                                      "buildResources":  "build"
+                                  },
+                  "files":  [
+                                "main.js",
+                                "preload.js",
+                                "renderer/**/*",
+                                "build/icon.png",
+                                "package.json"
+                            ],
+                  "win":  {
+                              "icon":  "build/icon.png",
+                              "target":  [
+                                             {
+                                                 "target":  "nsis",
+                                                 "arch":  [
+                                                              "x64"
+                                                          ]
+                                             },
+                                             {
+                                                 "target":  "portable",
+                                                 "arch":  [
+                                                              "x64"
+                                                          ]
+                                             }
+                                         ]
+                          },
+                  "nsis":  {
+                               "oneClick":  false,
+                               "perMachine":  false,
+                               "allowElevation":  true,
+                               "allowToChangeInstallationDirectory":  true,
+                               "createDesktopShortcut":  true,
+                               "createStartMenuShortcut":  true,
+                               "shortcutName":  "Mochy Music",
+                               "artifactName":  "Mochy-Music-v${version}-Windows-x64-Setup.exe"
+                           },
+                  "portable":  {
+                                   "artifactName":  "Mochy-Music-v${version}-Windows-x64-Portable.exe"
+                               },
+                  "linux":  {
+                                "icon":  "build/icon.png",
+                                "category":  "AudioVideo;Audio;Player;",
+                                "maintainer":  "Duc Huy \u003cbuiduchuy2010qn-prog@users.noreply.github.com\u003e",
+                                "synopsis":  "Ung dung nghe nhac ma nguon mo Mochy Music (Ban Viet Hoa - GPL-3.0)",
+                                "target":  [
+                                               {
+                                                   "target":  "AppImage",
+                                                   "arch":  [
+                                                                "x64"
+                                                            ]
+                                               },
+                                               {
+                                                   "target":  "deb",
+                                                   "arch":  [
+                                                                "x64"
+                                                            ]
+                                               }
+                                           ]
+                            },
+                  "appImage":  {
+                                   "artifactName":  "Mochy-Music-v${version}-Linux-x86_64.AppImage"
+                               },
+                  "deb":  {
+                              "artifactName":  "Mochy-Music-v${version}-Linux-amd64.deb"
+                          }
+              }
 }

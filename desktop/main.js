@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, shell, dialog, Tray, Menu, globalShortcut, nativeImage } = require('electron');
+﻿const { app, BrowserWindow, ipcMain, session, shell, dialog, Tray, Menu, globalShortcut, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -791,50 +791,69 @@ ipcMain.handle('ota:check', async () => {
     if (!Array.isArray(releases) || releases.length === 0) {
       return { status: 'upToDate' };
     }
-    const installedVer = parseFullVersion(`${pkg.version} build#${pkg.buildNumber || '1231'}`);
+    const rawInstalled = parseFullVersion(pkg.version || '9.1.0');
+    const installedVer = {
+      major: rawInstalled.major,
+      minor: rawInstalled.minor,
+      patch: rawInstalled.patch,
+      buildNumber: 0
+    };
     let newest = null;
     let newestVer = installedVer;
+    let matchedAsset = null;
 
     for (const rel of releases) {
       if (rel.draft) continue;
-      const v = parseFullVersion(`${rel.name || ''} ${rel.tag_name || ''}`);
-      if (compareVersions(v, newestVer) > 0) {
-        newestVer = v;
+      const assets = Array.isArray(rel.assets) ? rel.assets : [];
+      let candidateAsset = null;
+      if (process.platform === 'win32') {
+        candidateAsset =
+          assets.find(a => /setup.*\.exe$/i.test(a.name)) ||
+          assets.find(a => /\.exe$/i.test(a.name));
+      } else if (process.platform === 'linux') {
+        candidateAsset =
+          assets.find(a => /\.AppImage$/i.test(a.name)) ||
+          assets.find(a => /\.deb$/i.test(a.name));
+      }
+      if (!candidateAsset) continue;
+
+      // Parse version directly from the PC installer filename (e.g. Mochy-Music-v9.1.0-Windows-x64-Setup.exe)
+      // so Android-only releases that carry forward the existing PC installer NEVER trigger a PC update prompt.
+      const assetVer = parseFullVersion(candidateAsset.name || '');
+      const tagVer = parseFullVersion(`${rel.name || ''} ${rel.tag_name || ''}`);
+      const effectiveVer = {
+        major: assetVer.major > 0 ? assetVer.major : tagVer.major,
+        minor: assetVer.major > 0 ? assetVer.minor : tagVer.minor,
+        patch: assetVer.major > 0 ? assetVer.patch : tagVer.patch,
+        buildNumber: 0
+      };
+
+      if (compareVersions(effectiveVer, newestVer) > 0) {
+        newestVer = effectiveVer;
         newest = rel;
+        matchedAsset = candidateAsset;
       }
     }
 
-    if (!newest) {
+    if (!newest || !matchedAsset) {
       return {
         status: 'upToDate',
-        currentVersion: `${pkg.version} (build#${pkg.buildNumber || '1231'})`
+        currentVersion: `${pkg.version} (build#${pkg.buildNumber || '1246'})`
       };
-    }
-
-    const assets = Array.isArray(newest.assets) ? newest.assets : [];
-    let matchedAsset = null;
-    if (process.platform === 'win32') {
-      matchedAsset =
-        assets.find(a => /setup.*\.exe$/i.test(a.name)) ||
-        assets.find(a => /\.exe$/i.test(a.name));
-    } else if (process.platform === 'linux') {
-      matchedAsset =
-        assets.find(a => /\.AppImage$/i.test(a.name)) ||
-        assets.find(a => /\.deb$/i.test(a.name));
     }
 
     return {
       status: 'available',
-      currentVersion: `${pkg.version} (build#${pkg.buildNumber || '1231'})`,
-      latestVersion: `${newestVer.major}.${newestVer.minor}.${newestVer.patch} (build#${newestVer.buildNumber})`,
+      currentVersion: `${pkg.version} (build#${pkg.buildNumber || '1246'})`,
+      latestVersion: `${newestVer.major}.${newestVer.minor}.${newestVer.patch}`,
       title: newest.name || newest.tag_name,
       tag: newest.tag_name,
       body: newest.body || '',
       htmlUrl: newest.html_url,
       publishedAt: newest.published_at,
-      downloadUrl: matchedAsset ? matchedAsset.browser_download_url : null,
-      assetName: matchedAsset ? matchedAsset.name : null,
-      assetSize: matchedAsset ? matchedAsset.size : 0
+      downloadUrl: matchedAsset.browser_download_url,
+      assetName: matchedAsset.name,
+      assetSize: matchedAsset.size || 0
     };
   } catch (err) {
     return { status: 'error', message: err.message };

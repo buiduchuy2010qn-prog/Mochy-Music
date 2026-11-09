@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const api = window.mochyAPI;
   const localAudio = document.getElementById('local-audio-player');
 
@@ -1527,7 +1527,12 @@
       state.latestOtaRelease = res;
       document.getElementById('ota-sheet-title').textContent = res.title || `Mochy Music v${res.latestVersion}`;
       document.getElementById('ota-sheet-sub').textContent = `Phiên bản mới: ${res.latestVersion} • Hiện tại: ${res.currentVersion}`;
-      document.getElementById('ota-sheet-notes').textContent = res.body || 'Bản cập nhật mới cải thiện hiệu năng và giao diện.';
+      const rawBody = (res.body || 'Bản cập nhật mới cải thiện hiệu năng và giao diện.')
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+      document.getElementById('ota-sheet-notes').textContent = rawBody;
       document.getElementById('sheet-ota-update').style.display = 'flex';
     } else if (showIfUpToDate) {
       showToast(`Bạn đang dùng phiên bản mới nhất (${state.appInfo.version})`);
@@ -1594,3 +1599,4 @@
 
   init();
 })();
+
