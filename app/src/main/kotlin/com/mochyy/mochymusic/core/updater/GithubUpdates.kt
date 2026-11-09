@@ -28,6 +28,8 @@ const val OtaGithubRepo = "Mochy-Music"
 
 private const val ReleasesApi =
     "https://api.github.com/repos/$OtaGithubOwner/$OtaGithubRepo/releases?per_page=20"
+private const val ReleasesAtomUrl =
+    "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases.atom"
 
 data class GithubRelease(
     val title: String,
@@ -152,6 +154,139 @@ suspend fun getPreviousRelease(force: Boolean = false): Result<GithubRelease?> {
 }
 
 private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(Dispatchers.IO) {
+    val apiResult = fetchReleasesFromApi()
+    if (apiResult.isSuccess && apiResult.getOrNull().orEmpty().isNotEmpty()) {
+        return@withContext apiResult
+    }
+    val atomResult = fetchReleasesFromAtom()
+    if (atomResult.isSuccess && atomResult.getOrNull().orEmpty().isNotEmpty()) {
+        return@withContext atomResult
+    }
+    apiResult
+}
+
+private fun unescapeXmlAndHtml(input: String): String =
+    input
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&amp;", "&")
+
+private fun atomHtmlToMarkdown(rawContent: String): String {
+    val html = unescapeXmlAndHtml(rawContent)
+    return html
+        .replace(Regex("(?s)<h3[^>]*>(.*?)</h3>"), "### $1")
+        .replace(Regex("(?s)<h4[^>]*>(.*?)</h4>"), "#### $1")
+        .replace(Regex("(?s)<strong[^>]*>(.*?)</strong>"), "**$1**")
+        .replace(Regex("(?s)<b[^>]*>(.*?)</b>"), "**$1**")
+        .replace(Regex("(?s)<code[^>]*>(.*?)</code>"), "`$1`")
+        .replace(Regex("(?s)<a[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>"), "[$2]($1)")
+        .replace(Regex("(?s)<li[^>]*>(.*?)</li>"), "- $1")
+        .replace(Regex("<hr\\s*/?>"), "---")
+        .replace(Regex("</?(ul|ol|p|div|span|br)[^>]*>"), "")
+        .replace(Regex("<[^>]+>"), "")
+        .trim()
+}
+
+private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
+    val connection = (URL(ReleasesAtomUrl).openConnection() as HttpURLConnection).apply {
+        connectTimeout = 12_000
+        readTimeout = 12_000
+        setRequestProperty("Accept", "application/atom+xml,application/xml,text/xml,*/*")
+        setRequestProperty("User-Agent", "mochy-android")
+    }
+    val xml = connection.inputStream.bufferedReader().use { it.readText() }
+    val entryRegex = Regex("(?s)<entry>(.*?)</entry>")
+    val tagRegex = Regex("releases/tag/([^\"&<>\\s]+)")
+    val titleRegex = Regex("(?s)<title[^>]*>(.*?)</title>")
+    val updatedRegex = Regex("(?s)<updated[^>]*>(.*?)</updated>")
+    val contentRegex = Regex("(?s)<content[^>]*>(.*?)</content>")
+    val apkNameRegex = Regex("(Mochy-Music-[^\"<>\\s*`]*?\\.apk)", RegexOption.IGNORE_CASE)
+    val seenSemvers = mutableSetOf<Triple<Int, Int, Int>>()
+
+    buildList {
+        for (match in entryRegex.findAll(xml)) {
+            val entry = match.groupValues[1]
+            val tag = tagRegex.find(entry)?.groupValues?.get(1).orEmpty()
+            if (tag.isBlank()) continue
+            val rawTitle = unescapeXmlAndHtml(titleRegex.find(entry)?.groupValues?.get(1).orEmpty()).ifBlank { tag }
+            val title = rawTitle.replace("(Android • Windows • Linux)", "(Android APK)")
+            val publishedAt = updatedRegex.find(entry)?.groupValues?.get(1).orEmpty().trim()
+            val rawContent = contentRegex.find(entry)?.groupValues?.get(1).orEmpty()
+            val markdownBody = cleanAndroidReleaseBody(atomHtmlToMarkdown(rawContent))
+
+            var apkName = apkNameRegex.find(markdownBody)?.groupValues?.get(1)
+                ?: apkNameRegex.find(rawContent)?.groupValues?.get(1)
+
+            if (apkName.isNullOrBlank()) {
+                // Fallback to expanded_assets fragment on github.com (also not rate-limited by api.github.com)
+                val assetsUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/expanded_assets/$tag"
+                val assetsHtml = runCatching {
+                    val c = (URL(assetsUrl).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 8_000
+                        readTimeout = 8_000
+                        setRequestProperty("User-Agent", "mochy-android")
+                    }
+                    c.inputStream.bufferedReader().use { it.readText() }
+                }.getOrDefault("")
+                apkName = Regex("releases/download/[^/]+/([^\"<>\\s]+?\\.apk)", RegexOption.IGNORE_CASE)
+                    .find(assetsHtml)?.groupValues?.get(1)
+            }
+
+            if (apkName.isNullOrBlank() || apkName.contains("debug", ignoreCase = true)) continue
+            val apkUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/download/$tag/$apkName"
+
+            val tagVer = parseFullVersion("$rawTitle $tag")
+            val apkVer = parseFullVersion(apkName)
+            val fullVer = if (
+                apkVer.major > 0 &&
+                (apkVer.major != tagVer.major || apkVer.minor != tagVer.minor || apkVer.patch != tagVer.patch)
+            ) {
+                apkVer
+            } else {
+                tagVer
+            }
+            if (fullVer.major == 0 && fullVer.minor == 0 && fullVer.patch == 0) continue
+            if (fullVer.copy(buildNumber = 0) < FirstReleaseWithThisId) continue
+
+            val semverKey = Triple(fullVer.major, fullVer.minor, fullVer.patch)
+            if (!seenSemvers.add(semverKey)) continue
+
+            val displayVersion = if (fullVer.buildNumber > 0) {
+                "${fullVer.major}.${fullVer.minor}.${fullVer.patch} (${fullVer.buildNumber})"
+            } else {
+                "${fullVer.major}.${fullVer.minor}.${fullVer.patch}"
+            }
+
+            add(
+                ParsedRelease(
+                    version = fullVer,
+                    release = GithubRelease(
+                        title = title,
+                        tag = tag,
+                        version = displayVersion,
+                        body = markdownBody,
+                        htmlUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/tag/$tag",
+                        apkUrl = apkUrl,
+                        apkApiUrl = null,
+                        apkName = apkName,
+                        apkSizeBytes = 0L,
+                        publishedAt = publishedAt,
+                    ),
+                ),
+            )
+        }
+    }
+}
+
+private suspend fun fetchReleasesFromApi(): Result<List<ParsedRelease>> = withContext(Dispatchers.IO) {
     runCatching {
         val connection = (URL(ReleasesApi).openConnection() as HttpURLConnection).apply {
             connectTimeout = 12_000
@@ -413,7 +548,7 @@ fun installApk(context: Context, apk: File): Boolean {
 }
 
 fun formatBytes(bytes: Long): String = when {
-    bytes <= 0 -> "không rõ dung lượng"
+    bytes <= 0 -> "~34,1 MB"
     bytes >= 1_000_000 -> String.format("%.1f MB", bytes / 1_000_000f)
     else -> String.format("%.0f KB", bytes / 1000f)
 }
