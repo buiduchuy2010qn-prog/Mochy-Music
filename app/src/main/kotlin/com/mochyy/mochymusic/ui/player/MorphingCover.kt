@@ -458,7 +458,7 @@ fun MorphingCover(
     // data saver turns video backgrounds and auto-playing videos off; the full video mode still plays when asked for
     val dataSaving = com.mochyy.mochymusic.utils.rememberDataSaverActive()
     val playVideoPref = rememberPreference(PlayVideoBackgroundKey, defaultValue = false).value && !dataSaving
-    val disableVideoAutoplay = rememberPreference(DisableVideoAutoplayKey, defaultValue = false).value || dataSaving
+    val disableVideoAutoplay = rememberPreference(DisableVideoAutoplayKey, defaultValue = true).value || dataSaving
     val currentMetadata by (playerConnection?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) })
         .collectAsState()
     // a track that is a video itself (a music video or live row, the Videos search tab) plays that
@@ -2002,7 +2002,7 @@ private fun CoverCanvasLayer(
     val context = LocalContext.current
     val playerConnection = LocalPlayerConnection.current
     var canvasArtwork by remember(trackInfo.mediaId) { mutableStateOf<CanvasArtwork?>(null) }
-    val canvasEnabled = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true).value && !alternateStyle
+    val canvasEnabled = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = false).value && !alternateStyle
     val canvasWifiOnly by rememberPreference(CanvasWifiOnlyKey, defaultValue = true)
     LaunchedEffect(trackInfo.mediaId, trackInfo.title, trackInfo.artist, canvasEnabled, canvasWifiOnly) {
         val mediaId = trackInfo.mediaId

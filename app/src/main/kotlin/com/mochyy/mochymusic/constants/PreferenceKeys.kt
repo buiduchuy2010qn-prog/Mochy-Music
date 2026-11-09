@@ -414,9 +414,9 @@ val ShowUploadedPlaylistKey = booleanPreferencesKey("show_uploaded_playlist")
 val ShowAudioQualityBadgeKey = booleanPreferencesKey("show_audio_quality_badge")
 val ShowCommentButtonKey = booleanPreferencesKey("show_comment_button")
 val ShowPlayerBottomCardKey = booleanPreferencesKey("showPlayerBottomCard")
-val PlayVideoBackgroundKey = booleanPreferencesKey("playVideoBackground")
+val PlayVideoBackgroundKey = booleanPreferencesKey("playVideoBackground_v2")
 // a track that is a YouTube video (from a video row or the Videos search tab) shows that video in the player
-val DisableVideoAutoplayKey = booleanPreferencesKey("disableVideoAutoplay")
+val DisableVideoAutoplayKey = booleanPreferencesKey("disableVideoAutoplay_v2")
 
 // how sharp youtube videos play; auto drops to a lower picture when the connection slows down instead of freezing
 enum class VideoQuality(val shortSide: Int) {
@@ -940,7 +940,7 @@ val RepeatModeKey = intPreferencesKey("repeatMode")
 val SearchSourceKey = stringPreferencesKey("searchSource")
 val SwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
 val RotatingThumbnailKey = booleanPreferencesKey("rotatingThumbnail")
-val CanvasThumbnailAnimationKey = booleanPreferencesKey("canvasThumbnailAnimation")
+val CanvasThumbnailAnimationKey = booleanPreferencesKey("canvasThumbnailAnimation_v2")
 val CanvasWifiOnlyKey = booleanPreferencesKey("canvasWifiOnly")
 /** The player's format badge beside the title (OPUS, AAC, FLAC...) */
 val ShowFormatBadgeKey = booleanPreferencesKey("showFormatBadge")

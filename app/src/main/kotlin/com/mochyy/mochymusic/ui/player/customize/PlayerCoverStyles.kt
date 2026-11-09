@@ -1,4 +1,4 @@
-﻿// PlayerCoverStyles.kt
+// PlayerCoverStyles.kt
 
 package com.mochyy.mochymusic.ui.player.customize
 
@@ -76,7 +76,7 @@ private val AnimatedCanvasOption = CoverOption.Switch(
     description = "Ảnh bìa chuyển động (không lấy từ YouTube)",
     icon = R.drawable.sparks,
     key = CanvasThumbnailAnimationKey,
-    default = true,
+    default = false,
 )
 
 private val YtVideoOption = CoverOption.Switch(

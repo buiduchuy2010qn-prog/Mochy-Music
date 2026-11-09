@@ -842,10 +842,14 @@ private fun PlayerSheet(
             playerConnection = playerConnection,
             openLyrics = { if (transition.page != PlayerPage.LYRICS) transition.open(PlayerPage.LYRICS) },
         )
+        val (canvasEnabledPref, setCanvasEnabledPref) = rememberPreference(com.mochyy.mochymusic.constants.CanvasThumbnailAnimationKey, defaultValue = false)
+        val (playVideoBgPref, setPlayVideoBgPref) = rememberPreference(com.mochyy.mochymusic.constants.PlayVideoBackgroundKey, defaultValue = false)
+        val (disableAutoVideoPref, setDisableAutoVideoPref) = rememberPreference(com.mochyy.mochymusic.constants.DisableVideoAutoplayKey, defaultValue = true)
+        val anyVideoOrCanvasActive = seeVideo || canvasEnabledPref || playVideoBgPref || !disableAutoVideoPref
         fun menuActionActive(action: com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction): Boolean = when (action) {
             com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.LIKE -> trackInfo.liked
             com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SLEEP_TIMER -> playerConnection.service.sleepTimer.isActive
-            com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO -> seeVideo
+            com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO -> anyVideoOrCanvasActive
             com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.REPEAT -> transportState.repeatMode != Player.REPEAT_MODE_OFF
             com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHUFFLE -> transportState.shuffleModeEnabled
             else -> menuExtras.isActive(action)
@@ -860,7 +864,13 @@ private fun PlayerSheet(
                     showActionMenu = true
                 }
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SLEEP_TIMER -> showSleepTimer = true
-                com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO -> seeVideo = !seeVideo
+                com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO -> {
+                    val next = !anyVideoOrCanvasActive
+                    seeVideo = next
+                    setCanvasEnabledPref(next)
+                    setPlayVideoBgPref(next)
+                    setDisableAutoVideoPref(!next)
+                }
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.REPEAT -> playerConnection.player.toggleRepeatMode()
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHUFFLE ->
                     playerConnection.player.shuffleModeEnabled = !playerConnection.player.shuffleModeEnabled
@@ -2126,10 +2136,12 @@ private fun ExpandMenuOverlay(
                             val action = slots[index]
                             val isToggled = isActive(action)
                             // a downloaded song's button deletes it, so the words say that instead of download
-                            val labelText = if (action == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.DOWNLOAD && isToggled) {
-                                stringResource(R.string.player_menu_delete_download)
-                            } else {
-                                item.first
+                            val labelText = when {
+                                action == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.DOWNLOAD && isToggled ->
+                                    stringResource(R.string.player_menu_delete_download)
+                                action == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO ->
+                                    if (isToggled) "Tắt video / ảnh động" else "Bật video / ảnh động"
+                                else -> item.first
                             }
                             val label: @Composable () -> Unit = {
                             androidx.compose.material3.Text(

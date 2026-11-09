@@ -1,4 +1,4 @@
-﻿// PlayerActionMenu.kt
+// PlayerActionMenu.kt
 
 package com.mochyy.mochymusic.ui.player.menu
 
@@ -63,6 +63,7 @@ import com.mochyy.mochymusic.LocalDownloadUtil
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.CanvasThumbnailAnimationKey
+import com.mochyy.mochymusic.constants.DisableVideoAutoplayKey
 import com.mochyy.mochymusic.constants.KeepScreenOn
 import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
 import com.mochyy.mochymusic.playback.ExoDownloadService
@@ -501,22 +502,26 @@ internal fun MenuRow(
 
 @Composable
 private fun CanvasArtworkRow() {
-    val (canvasEnabled, setCanvasEnabled) = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true)
-    val (_, setVideoBg) = rememberPreference(PlayVideoBackgroundKey, defaultValue = false)
+    val (canvasEnabled, setCanvasEnabled) = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = false)
+    val (videoBgEnabled, setVideoBg) = rememberPreference(PlayVideoBackgroundKey, defaultValue = false)
+    val (disableAutoplay, setDisableAutoplay) = rememberPreference(DisableVideoAutoplayKey, defaultValue = true)
+    val isAnyActive = canvasEnabled || videoBgEnabled || !disableAutoplay
     MenuRow(
         icon = R.drawable.sparks,
         title = "Ảnh bìa động (Canvas) & Video nền",
         onClick = {
-            val next = !canvasEnabled
+            val next = !isAnyActive
             setCanvasEnabled(next)
-            if (!next) setVideoBg(false)
+            setVideoBg(next)
+            setDisableAutoplay(!next)
         },
         trailing = {
             AppSwitch(
-                checked = canvasEnabled,
+                checked = isAnyActive,
                 onCheckedChange = { next ->
                     setCanvasEnabled(next)
-                    if (!next) setVideoBg(false)
+                    setVideoBg(next)
+                    setDisableAutoplay(!next)
                 },
             )
         },

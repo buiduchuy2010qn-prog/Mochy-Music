@@ -919,7 +919,7 @@ private fun HeroMedia(
     heroScrollProgressProvider: () -> Float,
 ) {
     val context = LocalContext.current
-    val canvasEnabled by rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true)
+    val canvasEnabled by rememberPreference(CanvasThumbnailAnimationKey, defaultValue = false)
     val canvasWifiOnly by rememberPreference(CanvasWifiOnlyKey, defaultValue = true)
     var canvasArtwork by remember(item.mediaId) { mutableStateOf<CanvasArtwork?>(null) }
 
