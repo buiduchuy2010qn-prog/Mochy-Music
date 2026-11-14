@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -87,6 +88,7 @@ import com.mochyy.mochymusic.ui.component.BetaBadge
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.pressBounce
+import com.mochyy.mochymusic.utils.CustomAppBranding
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuSurface
 import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
@@ -205,26 +207,40 @@ private fun ColumnScope.UpdateSheetContent(
                 },
         )
 
+        val branding = CustomAppBranding.rememberBranding()
+        val customLogo = CustomAppBranding.rememberCustomLogoBitmap()
+
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(6.dp))
-            Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(MenuRowSurface),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_mochy_mark),
+            if (customLogo != null) {
+                Image(
+                    bitmap = customLogo,
                     contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(38.dp),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(76.dp)
+                        .clip(RoundedCornerShape(22.dp)),
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(MenuRowSurface),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_mochy_mark),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(38.dp),
+                    )
+                }
             }
 
             Spacer(Modifier.height(14.dp))
             Text(
-                text = "Mochy",
+                text = branding.displayName(stringResource(R.string.app_name)),
                 fontFamily = InterFontFamily,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
@@ -752,6 +768,16 @@ internal fun android.content.Context.openUrl(url: String) {
 @Composable
 internal fun AppIconImage(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val customLogo = CustomAppBranding.rememberCustomLogoBitmap()
+    if (customLogo != null) {
+        Image(
+            bitmap = customLogo,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier,
+        )
+        return
+    }
     val icon = remember(context) {
         runCatching {
             context.packageManager

@@ -138,6 +138,7 @@ object AppIcons {
             pm.setComponentEnabledSetting(componentOf(context, it), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
         }
         prefs(context).edit { putString(Key, icon.name) }
+        CustomAppBranding.updatePinnedShortcutIfPresent(context)
     }
 
     // the aliases are named after the code's package, which a debug build's app id doesn't share

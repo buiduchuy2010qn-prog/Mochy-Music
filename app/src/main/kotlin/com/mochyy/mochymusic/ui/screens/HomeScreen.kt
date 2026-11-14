@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import com.mochyy.mochymusic.ui.component.GlassState
 import com.mochyy.mochymusic.ui.component.glassRoot
@@ -98,8 +100,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mochyy.mochymusic.utils.CustomAppBranding
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavController
@@ -528,14 +532,7 @@ private fun HomeShell() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_mochy_mark),
-                contentDescription = "Mochy",
-                tint = Color.White,
-                modifier = Modifier
-                    .launchMarkTarget()
-                    .size(HomeMarkWidth, HomeMarkHeight)
-            )
+            HomeBrandMark(modifier = Modifier.launchMarkTarget())
             Box(
                 modifier = Modifier
                     .launchRise(order = 0, distance = HomeTopBarRise)
@@ -1804,13 +1801,9 @@ fun HomeScreen(
                     // the brand mark over the hero, swapped for a bold "Home" once the hero scrolls away.
                     // it's also where the launch intro lands the splash mark
                     Box(contentAlignment = Alignment.CenterStart) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_mochy_mark),
-                            contentDescription = "Mochy",
-                            tint = Color.White,
+                        HomeBrandMark(
                             modifier = Modifier
                                 .launchMarkTarget()
-                                .size(HomeMarkWidth, HomeMarkHeight)
                                 .graphicsLayer {
                                     alpha = 1f - topBarProgress
                                     val scale = 1f - topBarProgress * 0.25f
@@ -1893,5 +1886,56 @@ fun HomeScreen(
 
         }
     }
+    }
+}
+
+@Composable
+private fun HomeBrandMark(modifier: Modifier = Modifier) {
+    val branding = CustomAppBranding.rememberBranding()
+    val customLogo = CustomAppBranding.rememberCustomLogoBitmap()
+    if (!branding.isCustomized) {
+        Icon(
+            painter = painterResource(R.drawable.ic_mochy_mark),
+            contentDescription = "Mochy",
+            tint = Color.White,
+            modifier = modifier.size(HomeMarkWidth, HomeMarkHeight),
+        )
+    } else {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier,
+        ) {
+            if (customLogo != null) {
+                Image(
+                    bitmap = customLogo,
+                    contentDescription = branding.displayName(),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp)),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_mochy_mark),
+                    contentDescription = branding.displayName(),
+                    tint = Color.White,
+                    modifier = Modifier.size(HomeMarkWidth, HomeMarkHeight),
+                )
+            }
+            if (branding.hasCustomName) {
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = branding.displayName(),
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    letterSpacing = (-0.04).em,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 190.dp),
+                )
+            }
+        }
     }
 }

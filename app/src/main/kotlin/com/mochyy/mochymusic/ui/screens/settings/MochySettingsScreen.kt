@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -67,6 +69,7 @@ import com.mochyy.mochymusic.ui.screens.search.SearchGlassTopBar
 import com.mochyy.mochymusic.ui.screens.search.rememberScrollCollapseProgress
 import com.mochyy.mochymusic.ui.screens.search.searchTopBarHeight
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.CustomAppBranding
 import com.mochyy.mochymusic.utils.rememberPreference
 
 private data class SettingsEntry(
@@ -169,6 +172,7 @@ private val LocalizedSettingsStrings = mapOf(
     "Repeat initial setup" to "Chạy lại thiết lập ban đầu",
     "Show where songs play from" to "Hiển thị nguồn phát bài hát",
     "Force playback" to "Buộc phát nhạc",
+    "App icon & name" to "Đổi tên & Logo ứng dụng",
 )
 private val LocalizedSettingsPageStrings = mapOf(
     "Import & sync" to "Nhập & đồng bộ",
@@ -178,6 +182,7 @@ private val LocalizedSettingsPageStrings = mapOf(
 private val SettingsIndex = listOf(
     // Customisation
     SettingsEntry("Customisation", "Customisation", "customisation_settings", "customize cover rounding playlist player home styles gesture swipe blur animation lyrics"),
+    SettingsEntry("App icon & name", "Customisation", "customisation_settings", "icon icons logo rename app name doi ten bieu tuong anh rieng home screen launcher"),
     SettingsEntry("Cover rounding", "Customisation", "customisation_settings", "square rounded corner radius px thumbnail art"),
     SettingsEntry("Playlist styles", "Customisation", "customisation_settings", "flow classic minimal header layout"),
     SettingsEntry("Player styles", "Customisation", "customisation_settings", "flagship turntable ipod poster timeline lyrics studio customize player cover"),
@@ -626,13 +631,25 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
             title = stringResource(R.string.settings),
             titleBlockHeight = SettingsTitleBlockHeight,
             titleContent = {
+                val customLogo = CustomAppBranding.rememberCustomLogoBitmap()
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_mochy_mark),
-                        contentDescription = "Mochy",
-                        tint = Color.White,
-                        modifier = Modifier.size(SettingsMarkSize),
-                    )
+                    if (customLogo != null) {
+                        Image(
+                            bitmap = customLogo,
+                            contentDescription = CustomAppBranding.rememberBranding().displayName(),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(SettingsMarkSize)
+                                .clip(RoundedCornerShape(8.dp)),
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_mochy_mark),
+                            contentDescription = "Mochy",
+                            tint = Color.White,
+                            modifier = Modifier.size(SettingsMarkSize),
+                        )
+                    }
                     Text(
                         text = stringResource(R.string.settings),
                         fontFamily = InterFontFamily,

@@ -176,7 +176,7 @@ extensions.configure<ApplicationExtension> {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            isCrunchPngs = false
+            isCrunchPngs = true
             isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -274,7 +274,7 @@ extensions.configure<ApplicationExtension> {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
             keepDebugSymbols += listOf(
                 "**/libandroidx.graphics.path.so",
                 "**/libdatastore_shared_counter.so"
@@ -287,6 +287,8 @@ extensions.configure<ApplicationExtension> {
             excludes += "META-INF/LICENSE.md"
             excludes += "META-INF/INDEX.LIST"
             excludes += "META-INF/io.netty.versions.properties"
+            excludes += "DebugProbesKt.bin"
+            excludes += "META-INF/*.version"
         }
     }
 }

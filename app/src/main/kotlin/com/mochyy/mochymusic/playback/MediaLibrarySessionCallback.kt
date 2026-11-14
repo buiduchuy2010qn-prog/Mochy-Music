@@ -590,7 +590,7 @@ constructor(
         .setMediaMetadata(
             MediaMetadata
                 .Builder()
-                .setTitle(context.getString(R.string.app_name))
+                .setTitle(com.mochyy.mochymusic.utils.CustomAppBranding.appName(context))
                 .setIsPlayable(false)
                 .setIsBrowsable(true)
                 .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)

@@ -408,6 +408,13 @@ class MainActivity : ComponentActivity() {
         if (introRequested) LaunchGate.begin() else LaunchGate.skip()
         // kept in step with the icon in use, in case it was switched some way other than customisation
         com.mochyy.mochymusic.utils.AppIcons.syncSplash(this)
+        com.mochyy.mochymusic.utils.CustomAppBranding.ensureInit(applicationContext)
+        com.mochyy.mochymusic.utils.CustomAppBranding.syncTaskDescription(this)
+        lifecycleScope.launch {
+            com.mochyy.mochymusic.utils.CustomAppBranding.state.collectLatest {
+                com.mochyy.mochymusic.utils.CustomAppBranding.syncTaskDescription(this@MainActivity)
+            }
+        }
         // the first start after an import says so once the intro is out of the way
         com.mochyy.mochymusic.importer.transfer.TransferRestore.takeRestoredNote(this)?.let { note ->
             lifecycleScope.launch {

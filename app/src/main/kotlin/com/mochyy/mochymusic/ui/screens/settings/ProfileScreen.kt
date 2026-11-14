@@ -126,6 +126,7 @@ import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.LocalAppContentObscured
 import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.utils.CustomAppBranding
 import com.mochyy.mochymusic.constants.InnerTubeCookieKey
 import com.mochyy.mochymusic.constants.ProfileCardNumberKey
 import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
@@ -784,20 +785,40 @@ fun ProfileScreen(navController: NavController) {
             }
 
             // ---- logo, and the greeting sliding into the bar beside it ----
-            Icon(
-                painter = painterResource(R.drawable.ic_mochy_mark),
-                contentDescription = "Mochy",
-                tint = Color.White,
-                modifier = Modifier
-                    .padding(start = HomeContentInset, top = statusBarTop + TopBarLogoTop)
-                    .size(width = 31.dp, height = 34.dp)
-                    .graphicsLayer {
-                        val k = 1f - collapseProgress * 0.18f
-                        scaleX = k
-                        scaleY = k
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                    },
-            )
+            val customProfileLogo = CustomAppBranding.rememberCustomLogoBitmap()
+            val profileBrandName = CustomAppBranding.rememberBranding().displayName()
+            if (customProfileLogo != null) {
+                Image(
+                    bitmap = customProfileLogo,
+                    contentDescription = profileBrandName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .padding(start = HomeContentInset, top = statusBarTop + TopBarLogoTop)
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .graphicsLayer {
+                            val k = 1f - collapseProgress * 0.18f
+                            scaleX = k
+                            scaleY = k
+                            transformOrigin = TransformOrigin(0f, 0.5f)
+                        },
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_mochy_mark),
+                    contentDescription = profileBrandName,
+                    tint = Color.White,
+                    modifier = Modifier
+                        .padding(start = HomeContentInset, top = statusBarTop + TopBarLogoTop)
+                        .size(width = 31.dp, height = 34.dp)
+                        .graphicsLayer {
+                            val k = 1f - collapseProgress * 0.18f
+                            scaleX = k
+                            scaleY = k
+                            transformOrigin = TransformOrigin(0f, 0.5f)
+                        },
+                )
+            }
             if (collapseProgress > 0.01f) {
                 Text(
                     text = "${MochyGreeting.current}, ${accountName.ifBlank { "bạn" }}!",
