@@ -2,6 +2,7 @@
 import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 import java.security.MessageDigest
+import java.security.SecureRandom
 import java.net.URL
 
 val localProperties = Properties()
@@ -85,7 +86,7 @@ extensions.configure<ApplicationExtension> {
 
         val mochyUrl = System.getenv("MOCHY_SUPABASE_URL").orEmpty().trim()
         val mochyKey = System.getenv("MOCHY_SUPABASE_PUBLISHABLE_KEY").orEmpty().trim()
-        val mochyMask = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+        val mochyMask = ByteArray(32).also { SecureRandom().nextBytes(it) }
         fun encodeXorBytes(raw: String, mask: ByteArray): String {
             if (raw.isEmpty()) return "new int[]{}"
             val src = raw.toByteArray(Charsets.UTF_8)
