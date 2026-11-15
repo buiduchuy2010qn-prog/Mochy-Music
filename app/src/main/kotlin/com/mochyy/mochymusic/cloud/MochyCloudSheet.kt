@@ -545,7 +545,7 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                                         .weight(1f)
                                         .clip(CircleShape)
                                         .background(Onb.ButtonSecondary)
-                                        .border(1.dp, Onb.Hairline, CircleShape)
+                                        .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
                                         .clickable(enabled = !busy) {
                                             showPasswordEditor = !showPasswordEditor
                                             confirmWipeCloud = false
