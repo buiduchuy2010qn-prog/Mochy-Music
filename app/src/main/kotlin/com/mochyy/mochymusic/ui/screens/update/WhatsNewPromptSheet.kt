@@ -52,7 +52,6 @@ import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.core.updater.getInstalledLocketInfo
 import com.mochyy.mochymusic.core.updater.openDuchiLocketApp
-import com.mochyy.mochymusic.ui.player.menu.CardSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuSurface
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
@@ -156,7 +155,7 @@ fun WhatsNewPromptSheet(
                         modifier = Modifier
                             .size(52.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(CardSurface)
+                            .background(MenuRowSurface)
                             .border(1.dp, WhatsNewAccentGreen.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
                     ) {
                         Icon(
