@@ -33,13 +33,14 @@ class TurntableWidgetReceiver : AppWidgetProvider() {
         super.onReceive(context, intent)
 
         when (intent.action) {
-            ACTION_TURNTABLE_PLAY_PAUSE, ACTION_TURNTABLE_NEXT, ACTION_TURNTABLE_PREVIOUS -> {
+            ACTION_TURNTABLE_PLAY_PAUSE, ACTION_TURNTABLE_NEXT, ACTION_TURNTABLE_PREVIOUS, ACTION_TURNTABLE_LIKE -> {
 
                 val serviceIntent = Intent(context, MusicService::class.java).apply {
                     action = when (intent.action) {
                         ACTION_TURNTABLE_PLAY_PAUSE -> MusicWidgetReceiver.ACTION_PLAY_PAUSE
                         ACTION_TURNTABLE_NEXT -> MusicWidgetReceiver.ACTION_NEXT
                         ACTION_TURNTABLE_PREVIOUS -> MusicWidgetReceiver.ACTION_PREVIOUS
+                        ACTION_TURNTABLE_LIKE -> MusicWidgetReceiver.ACTION_LIKE
                         else -> intent.action
                     }
                     putExtras(intent)
@@ -57,6 +58,7 @@ class TurntableWidgetReceiver : AppWidgetProvider() {
         const val ACTION_TURNTABLE_PLAY_PAUSE = "com.mochyy.mochymusic.widget.TURNTABLE_PLAY_PAUSE"
         const val ACTION_TURNTABLE_NEXT = "com.mochyy.mochymusic.widget.TURNTABLE_NEXT"
         const val ACTION_TURNTABLE_PREVIOUS = "com.mochyy.mochymusic.widget.TURNTABLE_PREVIOUS"
+        const val ACTION_TURNTABLE_LIKE = "com.mochyy.mochymusic.widget.TURNTABLE_LIKE"
         const val ACTION_UPDATE_TURNTABLE_WIDGET = "com.mochyy.mochymusic.widget.UPDATE_TURNTABLE_WIDGET"
     }
 }

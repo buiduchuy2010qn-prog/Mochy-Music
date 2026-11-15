@@ -336,10 +336,14 @@ class MochyWidgetManager @Inject constructor(
         val playPauseIcon = if (isPlaying) R.drawable.ic_widget_pause_secondary else R.drawable.ic_widget_play_secondary
         views.setImageViewResource(R.id.widget_turntable_play_pause, playPauseIcon)
 
+        val likeIcon = if (isLiked) R.drawable.ic_widget_heart_nav else R.drawable.ic_widget_heart_outline_nav
+        views.setImageViewResource(R.id.widget_turntable_like_button, likeIcon)
+
         views.setOnClickPendingIntent(R.id.widget_turntable_album_art, getOpenAppIntent())
         views.setOnClickPendingIntent(R.id.widget_turntable_play_container, getTurntablePlayPauseIntent())
         views.setOnClickPendingIntent(R.id.widget_turntable_prev_button, getTurntablePreviousIntent())
         views.setOnClickPendingIntent(R.id.widget_turntable_next_button, getTurntableNextIntent())
+        views.setOnClickPendingIntent(R.id.widget_turntable_like_container, getTurntableLikeIntent())
 
         return views
     }
@@ -431,6 +435,18 @@ class MochyWidgetManager @Inject constructor(
         return PendingIntent.getBroadcast(
             context,
             5,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun getTurntableLikeIntent(): PendingIntent {
+        val intent = Intent(context, TurntableWidgetReceiver::class.java).apply {
+            action = TurntableWidgetReceiver.ACTION_TURNTABLE_LIKE
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            6,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

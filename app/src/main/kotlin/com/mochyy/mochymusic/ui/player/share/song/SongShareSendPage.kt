@@ -178,7 +178,7 @@ private fun SendContent(send: SendState, live: Boolean) {
         send.songSource = songSource
     }
     // the sharpest the phone can make: 4k pictures always, 4k video when its encoder takes it
-    val canUltraHd = remember(video) { !video || ShareEncoders.canEncode(ShareQuality.UltraHd, 30) }
+    val canUltraHd = remember(video, session.aspect) { !video || ShareEncoders.canEncode(ShareQuality.UltraHd, 30, session.aspect) }
     LaunchedEffect(canUltraHd) {
         if (send.quality == null || (!canUltraHd && send.quality == ShareQuality.UltraHd)) {
             send.quality = if (canUltraHd) ShareQuality.UltraHd else ShareQuality.FullHd

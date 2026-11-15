@@ -93,12 +93,23 @@ private fun cardText(size: Float, weight: FontWeight, color: Color, tracking: Fl
 
 // the tall card: the cover on top, the song under it, and a line that fills as the clip plays
 @Composable
-internal fun MusicOnlyCard(session: SongShareSession, positionMs: () -> Long, moving: Boolean) {
+internal fun MusicOnlyCard(
+    session: SongShareSession,
+    positionMs: () -> Long,
+    moving: Boolean,
+    aspect: ShareAspect = session.aspect,
+) {
     val ink = session.cardInk
-    Column(Modifier.width(MusicCardWidth).padding(14.dp)) {
+    val isLocket = aspect == ShareAspect.Locket
+    Column(Modifier.width(if (isLocket) 164.dp else MusicCardWidth).padding(if (isLocket) 12.dp else 14.dp)) {
         CardCover(session.art.cover, ink, corner = 14.dp, modifier = Modifier.fillMaxWidth().aspectRatio(1f))
-        Spacer(Modifier.height(12.dp))
-        Text(session.share.title, style = cardText(15f, FontWeight.Bold, ink), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(if (isLocket) 8.dp else 12.dp))
+        Text(
+            session.share.title,
+            style = cardText(15f, FontWeight.Bold, ink),
+            maxLines = if (isLocket) 1 else 2,
+            overflow = TextOverflow.Ellipsis,
+        )
         Spacer(Modifier.height(2.dp))
         Text(
             session.share.artist,
@@ -107,23 +118,30 @@ internal fun MusicOnlyCard(session: SongShareSession, positionMs: () -> Long, mo
             overflow = TextOverflow.Ellipsis,
         )
         if (moving) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(if (isLocket) 8.dp else 10.dp))
             ClipProgress(session, positionMs, ink)
         }
-        Spacer(Modifier.height(12.dp))
-        MochyMark(ink, size = 12f)
+        Spacer(Modifier.height(if (isLocket) 10.dp else 12.dp))
+        MochyMark(ink, size = if (isLocket) 11f else 12f)
     }
 }
 
 // the wide card: the song on top, then its lyrics, each line sung as the song plays in a video
 @Composable
-internal fun LyricsCard(session: SongShareSession, positionMs: () -> Long, moving: Boolean) {
+internal fun LyricsCard(
+    session: SongShareSession,
+    positionMs: () -> Long,
+    moving: Boolean,
+    aspect: ShareAspect = session.aspect,
+) {
     val ink = session.cardInk
+    val isLocket = aspect == ShareAspect.Locket
+    val lyricsRoom = if (isLocket) 172.dp else LyricsRoom
     val lines = session.lyrics.found.orEmpty()
     val lyricsPosition = remember(session, positionMs) { { positionMs() + session.lyricsOffsetMs } }
-    Column(Modifier.width(LyricsCardWidth).padding(18.dp)) {
+    Column(Modifier.width(LyricsCardWidth).padding(if (isLocket) 15.dp else 18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            CardCover(session.art.cover, ink, corner = 10.dp, modifier = Modifier.size(46.dp))
+            CardCover(session.art.cover, ink, corner = 10.dp, modifier = Modifier.size(if (isLocket) 42.dp else 46.dp))
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
                 Text(session.share.title, style = cardText(15f, FontWeight.Bold, ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -137,13 +155,13 @@ internal fun LyricsCard(session: SongShareSession, positionMs: () -> Long, movin
             Spacer(Modifier.width(8.dp))
             PlayingBadge(positionMs, moving, ink)
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(if (isLocket) 10.dp else 14.dp))
         if (moving && session.lyricsSynced) {
-            SungLyrics(session, lines, lyricsPosition)
+            SungLyrics(session, lines, lyricsPosition, lyricsRoom)
         } else {
-            StillLyrics(session, lines, ink)
+            StillLyrics(session, lines, ink, lyricsRoom)
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(if (isLocket) 12.dp else 16.dp))
         MochyMark(ink, size = 12f)
     }
 }
@@ -203,7 +221,7 @@ private fun PlayingBadge(positionMs: () -> Long, moving: Boolean, ink: Color) {
 
 // the picked lines as plain bold text for a picture, every one of them; without a pick, the lines sung in the share's moment
 @Composable
-private fun StillLyrics(session: SongShareSession, lines: List<LyricsEntry>, ink: Color) {
+private fun StillLyrics(session: SongShareSession, lines: List<LyricsEntry>, ink: Color, lyricsRoom: Dp = LyricsRoom) {
     val pick = session.pick
     val start = session.windowStartMs + session.lyricsOffsetMs
     val end = session.windowEndMs + session.lyricsOffsetMs
@@ -212,7 +230,7 @@ private fun StillLyrics(session: SongShareSession, lines: List<LyricsEntry>, ink
     } else {
         remember(lines, start, end) { linesInWindow(lines, start, end).joinToString("\n") { it.text.trim() } }
     }
-    val size = rememberStillTextSize(text)
+    val size = rememberStillTextSize(text, lyricsRoom)
     Text(
         text.ifBlank { " " },
         style = stillText(size, ink),
@@ -225,12 +243,12 @@ private fun stillText(size: Float, ink: Color) = cardText(size, FontWeight.Bold,
 
 // the usual size, or a step smaller at a time until the lines fit the card's room
 @Composable
-private fun rememberStillTextSize(text: String): Float {
+private fun rememberStillTextSize(text: String, lyricsRoom: Dp): Float {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    return remember(text, density) {
+    return remember(text, density, lyricsRoom) {
         val width = with(density) { LyricsColumnWidth.roundToPx() }
-        val room = with(density) { LyricsRoom.toPx() }
+        val room = with(density) { lyricsRoom.toPx() }
         fun heightAt(size: Float) = measurer.measure(text, stillText(size, Color.White), constraints = Constraints(maxWidth = width)).size.height
         var size = StillTextSize
         while (size > SmallestStillText && heightAt(size) > room) size -= 1f
@@ -248,7 +266,7 @@ internal fun linesInWindow(lines: List<LyricsEntry>, startMs: Long, endMs: Long)
 
 // the picked lines, every one of them on the card at once like the picture, each sung the way the lyrics page sings it: no list scrolling past
 @Composable
-private fun SungLyrics(session: SongShareSession, lines: List<LyricsEntry>, positionMs: () -> Long) {
+private fun SungLyrics(session: SongShareSession, lines: List<LyricsEntry>, positionMs: () -> Long, lyricsRoom: Dp = LyricsRoom) {
     val look = session.lyricsLook
     val pick = session.pick
     val start = session.windowStartMs + session.lyricsOffsetMs
@@ -257,7 +275,7 @@ private fun SungLyrics(session: SongShareSession, lines: List<LyricsEntry>, posi
         pick?.range?.mapNotNull { pick.entries.getOrNull(it) } ?: linesInWindow(lines, start, end)
     }
     if (sung.isEmpty()) {
-        StillLyrics(session, lines, Color.White)
+        StillLyrics(session, lines, Color.White, lyricsRoom)
         return
     }
     val useAgentAlignment = remember(sung) { usesAgentAlignment(sung) }
@@ -265,7 +283,7 @@ private fun SungLyrics(session: SongShareSession, lines: List<LyricsEntry>, posi
     val current by remember(sung) { derivedStateOf { LyricsUtils.findCurrentLineIndex(sung, positionMs()).coerceAtMost(sung.lastIndex) } }
     val anchor by remember(sung) { derivedStateOf { lyricAnchorIndex(sung, positionMs()).coerceAtMost(sung.lastIndex) } }
     val density = LocalDensity.current
-    val scale = rememberLineScale(sung, useAgentAlignment)
+    val scale = rememberLineScale(sung, useAgentAlignment, lyricsRoom)
     CompositionLocalProvider(
         LocalDensity provides Density(density.density * scale, fontScale = 1f),
         LocalContentColor provides Color.White,
@@ -282,11 +300,11 @@ private fun SungLyrics(session: SongShareSession, lines: List<LyricsEntry>, posi
 
 // how small the page's lines are drawn on the card: the usual size, or smaller when the picked lines would run past the card's room
 @Composable
-private fun rememberLineScale(sung: List<LyricsEntry>, useAgentAlignment: Boolean): Float {
+private fun rememberLineScale(sung: List<LyricsEntry>, useAgentAlignment: Boolean, lyricsRoom: Dp): Float {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val base = MaterialTheme.typography.headlineSmall
-    return remember(sung, useAgentAlignment, density, base) {
+    return remember(sung, useAgentAlignment, density, base, lyricsRoom) {
         // everything here is in the page's own size, before the card shrinks it
         val column = LyricsColumnWidth / LineScale
         val style = restingLineStyle(base, active = true, letterMotion = false)
@@ -296,7 +314,7 @@ private fun rememberLineScale(sung: List<LyricsEntry>, useAgentAlignment: Boolea
             val text = measurer.measure(entry.text, style, constraints = Constraints(maxWidth = width)).size.height
             text + with(density) { (insets.top * 2 + insets.padV * 2).roundToPx() }
         }
-        val room = with(density) { (LyricsRoom / LineScale).toPx() }
+        val room = with(density) { (lyricsRoom / LineScale).toPx() }
         LineScale * minOf(1f, room / height.coerceAtLeast(1))
     }
 }

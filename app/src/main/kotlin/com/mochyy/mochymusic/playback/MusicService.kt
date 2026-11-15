@@ -121,6 +121,7 @@ import com.mochyy.mochymusic.constants.DisableLoadMoreWhenRepeatAllKey
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import com.mochyy.mochymusic.cloud.MochyCloudSyncManager
 import com.mochyy.mochymusic.constants.HideExplicitKey
 import com.mochyy.mochymusic.constants.HideVideoSongsKey
 import com.mochyy.mochymusic.constants.HistoryDuration
@@ -228,13 +229,16 @@ import com.mochyy.mochymusic.utils.get
 import com.mochyy.mochymusic.utils.reportException
 import com.mochyy.mochymusic.widget.MochyWidgetManager
 import com.mochyy.mochymusic.widget.MusicWidgetReceiver
+import com.mochyy.mochymusic.widget.TurntableWidgetReceiver
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.decodeFromString
@@ -781,7 +785,7 @@ class MusicService :
         player = createExoPlayer()
         player.addListener(this@MusicService)
         observeOutputSettings()
-        sleepTimer = SleepTimer(scope, player)
+        sleepTimer = SleepTimer(scope, player, ::targetVolume)
         player.addListener(sleepTimer)
 
         scope.launch {
@@ -960,7 +964,7 @@ class MusicService :
             if (muted) 0f else volume
         }.collectLatest(scope) {
             // a running pause or skip fade sets the volume itself each frame, scaled by this
-            if (!transport.isFading) player.volume = it
+            if (!transport.isFading && !sleepTimer.isFadingOut) player.volume = it
             if (crossmixDirector.isTransitioning) fadingPlayer?.volume = it
         }
 
@@ -994,30 +998,37 @@ class MusicService :
             updateWidgetUI(player.isPlaying)
         }
 
-        combine(
-            currentMediaMetadata.distinctUntilChangedBy { it?.id },
-            dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
-        ) { mediaMetadata, showLyrics ->
-            mediaMetadata to showLyrics
-        }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
-            if (showLyrics && mediaMetadata != null && database.lyrics(mediaMetadata.id)
-                    .first() == null
-            ) {
-                val lyricsWithProvider = lyricsHelper.getLyrics(mediaMetadata)
-                // offline: nothing was found because nothing was asked; try again when online
-                if (lyricsWithProvider.provider != com.mochyy.mochymusic.lyrics.LyricsHelper.NoConnectionProvider) {
-                    database.query {
-                        upsert(
-                            LyricsEntity(
-                                id = mediaMetadata.id,
-                                lyrics = lyricsWithProvider.lyrics,
-                                provider = lyricsWithProvider.provider,
-                            ),
-                        )
+        currentMediaMetadata
+            .distinctUntilChangedBy { it?.id }
+            .collectLatest(scope) { mediaMetadata ->
+                if (mediaMetadata == null) return@collectLatest
+                delay(600L)
+                val existing = database.lyrics(mediaMetadata.id).first()
+                if (existing == null || existing.lyrics == LyricsEntity.LYRICS_NOT_FOUND) {
+                    val lyricsWithProvider = try {
+                        lyricsHelper.getLyrics(mediaMetadata)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Throwable) {
+                        return@collectLatest
+                    }
+                    // Chỉ lưu vào Room khi có lời thực tế để nghe karaoke offline
+                    if (lyricsWithProvider.provider != LyricsHelper.NoConnectionProvider &&
+                        lyricsWithProvider.lyrics.isNotBlank() &&
+                        lyricsWithProvider.lyrics != LyricsEntity.LYRICS_NOT_FOUND
+                    ) {
+                        database.query {
+                            upsert(
+                                LyricsEntity(
+                                    id = mediaMetadata.id,
+                                    lyrics = lyricsWithProvider.lyrics,
+                                    provider = lyricsWithProvider.provider,
+                                ),
+                            )
+                        }
                     }
                 }
             }
-        }
 
         dataStore.data
             .map { prefs ->
@@ -2642,27 +2653,36 @@ class MusicService :
             val songToToggle = currentSong.first()
             songToToggle?.let {
                 val song = it.song.toggleLike()
-                database.query {
-                    update(song)
-                    syncUtils.likeSong(song)
+                val newLiked = song.liked
+                withContext(Dispatchers.IO) {
+                    database.query {
+                        update(song)
+                        syncUtils.likeSong(song)
 
-                    if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
+                        if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
 
-                        val downloadRequest =
-                            androidx.media3.exoplayer.offline.DownloadRequest
-                                .Builder(song.id, song.id.toUri())
-                                .setCustomCacheKey(song.id)
-                                .setData(song.title.toByteArray())
-                                .build()
-                        androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
-                            this@MusicService,
-                            ExoDownloadService::class.java,
-                            downloadRequest,
-                            false
-                        )
+                            val downloadRequest =
+                                androidx.media3.exoplayer.offline.DownloadRequest
+                                    .Builder(song.id, song.id.toUri())
+                                    .setCustomCacheKey(song.id)
+                                    .setData(song.title.toByteArray())
+                                    .build()
+                            androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
+                                this@MusicService,
+                                ExoDownloadService::class.java,
+                                downloadRequest,
+                                false
+                            )
+                        }
                     }
                 }
                 currentMediaMetadata.value = player.currentMetadata
+                withTimeoutOrNull(1_500L) {
+                    currentSong.first { s -> s?.id == song.id && s.song.liked == newLiked }
+                }
+                updateNotification()
+                updateWidgetUI(player.isPlaying)
+                MochyCloudSyncManager.onFavoriteToggled(this@MusicService)
             }
         }
     }
@@ -2896,6 +2916,7 @@ class MusicService :
         if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
             scrobbleTimer.onSongStop()
             playReporter.onSongStop()
+            MochyCloudSyncManager.flushPendingHistory(this)
         }
     }
 
@@ -2952,6 +2973,7 @@ class MusicService :
                 startWidgetUpdates()
             } else {
                 stopWidgetUpdates()
+                MochyCloudSyncManager.flushPendingHistory(this)
             }
         }
 
@@ -4207,6 +4229,7 @@ class MusicService :
         discordPresence.update(null)
         // sends the last stretch of the song that was playing while the player can still say where it stopped
         playReporter.onSongStop()
+        MochyCloudSyncManager.flushPendingHistory(this)
         connectivityObserver.unregister()
         callWatcher.stop()
         abandonAudioFocus()
@@ -4227,6 +4250,7 @@ class MusicService :
     override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        MochyCloudSyncManager.flushPendingHistory(this)
         if (dataStore.get(StopPlaybackOnTaskRemovedKey, false)) {
             player.stop()
             stopSelf()
@@ -4253,7 +4277,7 @@ class MusicService :
                 player.seekToPrevious()
                 updateWidgetUI(player.isPlaying)
             }
-            MusicWidgetReceiver.ACTION_UPDATE_WIDGET -> {
+            MusicWidgetReceiver.ACTION_UPDATE_WIDGET, TurntableWidgetReceiver.ACTION_UPDATE_TURNTABLE_WIDGET -> {
                 updateWidgetUI(player.isPlaying)
             }
         }

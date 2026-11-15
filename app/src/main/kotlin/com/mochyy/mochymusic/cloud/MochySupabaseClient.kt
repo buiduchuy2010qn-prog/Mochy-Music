@@ -41,6 +41,12 @@ data class CloudHistoryRecord(
     val lastPlayedAt: String,
 )
 
+data class CloudUserMetadata(
+    val cardNumber: String?,
+    val joinedEpochDay: Long?,
+    val playlistsGz: String?,
+)
+
 class MochyCloudException(message: String) : Exception(message)
 
 /**
@@ -159,6 +165,119 @@ object MochySupabaseClient {
             val json = executeAuthRequest(request, isSignUp = false)
             parseAuthSession(json, fallbackUsername = session.username, fallbackDisplay = session.displayName)
         }.getOrNull()
+    }
+
+    suspend fun fetchUserMetadata(
+        context: Context,
+        session: MochyCloudSession,
+    ): CloudUserMetadata? = withContext(Dispatchers.IO) {
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext null
+        val request = Request.Builder()
+            .url("$baseUrl/auth/v1/user")
+            .header("apikey", publishableKey)
+            .header("Authorization", "Bearer ${session.accessToken}")
+            .header("Accept", "application/json")
+            .get()
+            .build()
+        val json = executeAuthRequest(request, isSignUp = false)
+        val meta = json.optJSONObject("user_metadata")
+            ?: json.optJSONObject("user")?.optJSONObject("user_metadata")
+        CloudUserMetadata(
+            cardNumber = meta?.optString("card_number")?.takeIf { it.isNotBlank() && it != "null" },
+            joinedEpochDay = meta?.optLong("joined_epoch_day", -1L)?.takeIf { it > 0L },
+            playlistsGz = meta?.optString("playlists_gz")?.takeIf { it.isNotBlank() && it != "null" },
+        )
+    }
+
+    suspend fun updateUserMetadata(
+        context: Context,
+        session: MochyCloudSession,
+        cardNumber: String? = null,
+        joinedEpochDay: Long? = null,
+        playlistsGz: String? = null,
+        clearPlaylists: Boolean = false,
+    ) = withContext(Dispatchers.IO) {
+        val data = JSONObject().apply {
+            if (cardNumber != null) put("card_number", cardNumber.take(24))
+            if (joinedEpochDay != null && joinedEpochDay > 0L) put("joined_epoch_day", joinedEpochDay)
+            if (clearPlaylists) {
+                put("playlists_gz", "")
+            } else if (playlistsGz != null) {
+                put("playlists_gz", playlistsGz)
+            }
+        }
+        if (data.length() == 0) return@withContext
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
+            ?: throw MochyCloudException("Chưa cấu hình Mochy Cloud.")
+        val body = JSONObject().apply {
+            put("data", data)
+        }.toString().toRequestBody(JsonMediaType)
+        val request = Request.Builder()
+            .url("$baseUrl/auth/v1/user")
+            .header("apikey", publishableKey)
+            .header("Authorization", "Bearer ${session.accessToken}")
+            .header("Accept", "application/json")
+            .put(body)
+            .build()
+        executeAuthRequest(request, isSignUp = false)
+    }
+
+    suspend fun updatePassword(
+        context: Context,
+        session: MochyCloudSession,
+        newPassword: String,
+    ) = withContext(Dispatchers.IO) {
+        if (newPassword.length < 6) {
+            throw MochyCloudException("Mật khẩu mới phải có ít nhất 6 ký tự.")
+        }
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
+            ?: throw MochyCloudException("Chưa cấu hình Mochy Cloud.")
+        val body = JSONObject().apply {
+            put("password", newPassword)
+        }.toString().toRequestBody(JsonMediaType)
+        val request = Request.Builder()
+            .url("$baseUrl/auth/v1/user")
+            .header("apikey", publishableKey)
+            .header("Authorization", "Bearer ${session.accessToken}")
+            .header("Accept", "application/json")
+            .put(body)
+            .build()
+        executeAuthRequest(request, isSignUp = false)
+    }
+
+    suspend fun wipeCloudData(
+        context: Context,
+        session: MochyCloudSession,
+    ) = withContext(Dispatchers.IO) {
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
+            ?: throw MochyCloudException("Chưa cấu hình Mochy Cloud.")
+        val uid = urlEncode(session.userId)
+        val delFavs = Request.Builder()
+            .url("$baseUrl/rest/v1/mochy_favorites?user_id=eq.$uid")
+            .header("apikey", publishableKey)
+            .header("Authorization", "Bearer ${session.accessToken}")
+            .delete()
+            .build()
+        executeRestWrite(delFavs)
+
+        val delHistory = Request.Builder()
+            .url("$baseUrl/rest/v1/mochy_history?user_id=eq.$uid")
+            .header("apikey", publishableKey)
+            .header("Authorization", "Bearer ${session.accessToken}")
+            .delete()
+            .build()
+        executeRestWrite(delHistory)
+
+        val clearAvatar = Request.Builder()
+            .url("$baseUrl/rest/v1/mochy_profiles?user_id=eq.$uid")
+            .header("apikey", publishableKey)
+            .header("Authorization", "Bearer ${session.accessToken}")
+            .header("Prefer", "return=minimal")
+            .patch(JSONObject().apply { put("avatar_webp", JSONObject.NULL) }.toString().toRequestBody(JsonMediaType))
+            .build()
+        executeRestWrite(clearAvatar)
+
+        updateUserMetadata(context, session, clearPlaylists = true)
     }
 
     suspend fun signOutRemote(context: Context, session: MochyCloudSession) = withContext(Dispatchers.IO) {

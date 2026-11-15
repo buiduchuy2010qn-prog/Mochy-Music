@@ -6,6 +6,7 @@ import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import com.mochyy.mochymusic.BuildConfig
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.security.KeyStore
@@ -36,6 +37,7 @@ object MochyCloudVault {
     private const val KeyAlias = "mochy_cloud_vault_v1"
     private const val VaultFileName = "mochy_cloud_vault.bin"
     private const val SyncStateFileName = "mochy_cloud_sync_state.json"
+    private const val PendingHistoryFileName = "mochy_cloud_pending_history.json"
     private const val AesGcmMode = "AES/GCM/NoPadding"
     private const val GcmTagBits = 128
 
@@ -170,16 +172,34 @@ object MochyCloudVault {
     fun clearSession(context: Context) {
         vaultFile(context).delete()
         syncStateFile(context).delete()
+        pendingHistoryFile(context).delete()
     }
 
     @Synchronized
-    fun loadSyncedFavoriteIds(context: Context, userId: String): Set<String>? {
+    fun loadSyncedFavoriteIds(context: Context, userId: String): Set<String>? =
+        loadSyncedIdSet(context, userId, "favoriteIds")
+
+    @Synchronized
+    fun saveSyncedFavoriteIds(context: Context, userId: String, ids: Set<String>) {
+        saveSyncedIdSet(context, userId, "favoriteIds", ids)
+    }
+
+    @Synchronized
+    fun loadSyncedPlaylistIds(context: Context, userId: String): Set<String>? =
+        loadSyncedIdSet(context, userId, "playlistIds")
+
+    @Synchronized
+    fun saveSyncedPlaylistIds(context: Context, userId: String, ids: Set<String>) {
+        saveSyncedIdSet(context, userId, "playlistIds", ids)
+    }
+
+    private fun loadSyncedIdSet(context: Context, userId: String, key: String): Set<String>? {
         val file = syncStateFile(context)
         if (!file.exists()) return null
         return runCatching {
             val json = JSONObject(file.readText(Charsets.UTF_8))
             if (json.optString("userId") != userId) return null
-            val arr = json.optJSONArray("favoriteIds") ?: return null
+            val arr = json.optJSONArray(key) ?: return null
             buildSet(arr.length()) {
                 for (i in 0 until arr.length()) {
                     arr.optString(i).takeIf { it.isNotBlank() }?.let(::add)
@@ -188,14 +208,82 @@ object MochyCloudVault {
         }.getOrNull()
     }
 
-    @Synchronized
-    fun saveSyncedFavoriteIds(context: Context, userId: String, ids: Set<String>) {
+    private fun saveSyncedIdSet(context: Context, userId: String, key: String, ids: Set<String>) {
         runCatching {
-            val json = JSONObject().apply {
-                put("userId", userId)
-                put("favoriteIds", org.json.JSONArray(ids.toList()))
+            val file = syncStateFile(context)
+            val existing = if (file.exists()) {
+                runCatching { JSONObject(file.readText(Charsets.UTF_8)) }.getOrNull()
+            } else null
+            val json = if (existing != null && existing.optString("userId") == userId) {
+                existing
+            } else {
+                JSONObject().put("userId", userId)
             }
-            syncStateFile(context).writeText(json.toString(), Charsets.UTF_8)
+            json.put(key, JSONArray(ids.toList()))
+            file.writeText(json.toString(), Charsets.UTF_8)
+        }
+    }
+
+    @Synchronized
+    fun loadPendingHistory(context: Context, userId: String): List<CloudHistoryRecord> {
+        val file = pendingHistoryFile(context)
+        if (!file.exists()) return emptyList()
+        return runCatching {
+            val json = JSONObject(file.readText(Charsets.UTF_8))
+            if (json.optString("userId") != userId) return@runCatching emptyList()
+            val arr = json.optJSONArray("items") ?: return@runCatching emptyList()
+            buildList(arr.length()) {
+                for (i in 0 until arr.length()) {
+                    val o = arr.optJSONObject(i) ?: continue
+                    val songId = o.optString("songId")
+                    if (songId.isBlank()) continue
+                    add(
+                        CloudHistoryRecord(
+                            songId = songId,
+                            title = o.optString("title"),
+                            artists = o.optString("artists"),
+                            albumName = o.optString("albumName").takeIf { it.isNotBlank() && it != "null" },
+                            duration = o.optInt("duration", -1),
+                            thumbnailUrl = o.optString("thumbnailUrl").takeIf { it.isNotBlank() && it != "null" },
+                            playCount = o.optLong("playCount", 1L).coerceAtLeast(1L),
+                            totalPlayMs = o.optLong("totalPlayMs", 0L).coerceAtLeast(0L),
+                            lastPlayedAt = o.optString("lastPlayedAt"),
+                        ),
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    @Synchronized
+    fun savePendingHistory(context: Context, userId: String, items: List<CloudHistoryRecord>) {
+        val file = pendingHistoryFile(context)
+        if (items.isEmpty()) {
+            file.delete()
+            return
+        }
+        runCatching {
+            val arr = JSONArray()
+            for (item in items) {
+                arr.put(
+                    JSONObject().apply {
+                        put("songId", item.songId)
+                        put("title", item.title)
+                        put("artists", item.artists)
+                        if (!item.albumName.isNullOrBlank()) put("albumName", item.albumName)
+                        put("duration", item.duration)
+                        if (!item.thumbnailUrl.isNullOrBlank()) put("thumbnailUrl", item.thumbnailUrl)
+                        put("playCount", item.playCount)
+                        put("totalPlayMs", item.totalPlayMs)
+                        put("lastPlayedAt", item.lastPlayedAt)
+                    },
+                )
+            }
+            val root = JSONObject().apply {
+                put("userId", userId)
+                put("items", arr)
+            }
+            file.writeText(root.toString(), Charsets.UTF_8)
         }
     }
 
@@ -204,6 +292,9 @@ object MochyCloudVault {
 
     private fun syncStateFile(context: Context): File =
         File(context.applicationContext.noBackupFilesDir, SyncStateFileName)
+
+    private fun pendingHistoryFile(context: Context): File =
+        File(context.applicationContext.noBackupFilesDir, PendingHistoryFileName)
 
     private fun getExistingKey(): SecretKey? {
         val ks = KeyStore.getInstance(KeystoreProvider).apply { load(null) }

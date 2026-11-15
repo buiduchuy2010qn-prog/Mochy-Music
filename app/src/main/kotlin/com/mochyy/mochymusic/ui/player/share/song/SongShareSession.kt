@@ -16,13 +16,16 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.Dp
 import com.mochyy.mochymusic.constants.LyricsMotionStyle
 import com.mochyy.mochymusic.lyrics.LyricsEntry
 import com.mochyy.mochymusic.models.MediaMetadata
 import com.mochyy.mochymusic.ui.player.share.LyricsShareSession
 import com.mochyy.mochymusic.ui.player.share.ShareBackground
+import com.mochyy.mochymusic.ui.player.share.ShareHeight
 import com.mochyy.mochymusic.ui.player.share.ShareSong
 import com.mochyy.mochymusic.ui.player.share.ShareStyle
+import com.mochyy.mochymusic.ui.player.share.ShareWidth
 import com.mochyy.mochymusic.ui.player.share.contentColorOn
 import com.mochyy.mochymusic.utils.VideoStreams
 
@@ -39,6 +42,11 @@ private const val LeadOutMs = 600L
 internal const val ShareMaxZoom = 4f
 
 internal enum class SongShareKind { MusicOnly, Lyrics }
+
+internal enum class ShareAspect(val pillLabel: String, val heightDp: Dp) {
+    Story("Khung 9:16 · Story", ShareHeight),
+    Locket("Khung 1:1 · Locket", ShareWidth),
+}
 
 internal sealed interface ShareVideoSource {
     // a clip from the phone: where the picked part starts, how long it runs, and how long the whole video is
@@ -102,6 +110,8 @@ internal class SongShareSession(val song: MediaMetadata) {
     val durationMs: Long = song.duration.coerceAtLeast(0) * 1000L
 
     var kind by mutableStateOf(SongShareKind.MusicOnly)
+
+    var aspect by mutableStateOf(ShareAspect.Story)
 
     // the lyrics half: which lines are picked, card or cinematic, and how each word looks; null for music only
     var pick by mutableStateOf<LyricsShareSession?>(null)

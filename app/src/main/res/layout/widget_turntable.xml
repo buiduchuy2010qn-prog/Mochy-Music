@@ -71,4 +71,23 @@
             android:contentDescription="@string/play_pause" />
     </FrameLayout>
 
+    <!-- Quick-Like Button - Bottom Right -->
+    <FrameLayout
+        android:id="@+id/widget_turntable_like_container"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="12dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/widget_turntable_nav_bg">
+
+        <ImageView
+            android:id="@+id/widget_turntable_like_button"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_widget_heart_outline_nav"
+            android:contentDescription="@string/like" />
+    </FrameLayout>
+
 </FrameLayout>

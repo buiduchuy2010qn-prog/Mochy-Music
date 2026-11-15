@@ -52,6 +52,8 @@ import com.mochyy.mochymusic.constants.CrossmixModeKey
 import com.mochyy.mochymusic.constants.DisableAiFilterKey
 import com.mochyy.mochymusic.constants.DisableBlurKey
 import com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey
+import com.mochyy.mochymusic.constants.ProfileCardNumberKey
+import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
 import com.mochyy.mochymusic.importer.account.AccountImportState
 import com.mochyy.mochymusic.importer.account.AccountService
 import com.mochyy.mochymusic.ui.screens.settings.importsync.onSignInTick
@@ -282,8 +284,19 @@ fun SetupWizardScreen(
     val (disableBlur, onDisableBlurChange) = rememberPreference(DisableBlurKey, defaultValue = false)
     val (crossmixMode, onCrossmixModeChange) = rememberEnumPreference(CrossmixModeKey, defaultValue = CrossmixMode.AUTO_CROSSFADE)
     val (disableAiFilter, onDisableAiFilterChange) = rememberPreference(DisableAiFilterKey, defaultValue = false)
+    val (storedCardNumber, _) = rememberPreference(ProfileCardNumberKey, defaultValue = "")
+    val (storedJoinedDay, _) = rememberPreference(ProfileJoinedEpochDayKey, defaultValue = -1L)
+    val effectiveCardNumber = storedCardNumber.ifBlank { vm.cardNumber }
+    val effectiveJoinedText = remember(storedJoinedDay, vm.joinedText) {
+        if (storedJoinedDay > 0L) {
+            "tham gia ngày " + java.time.LocalDate.ofEpochDay(storedJoinedDay)
+                .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
+        } else {
+            vm.joinedText
+        }
+    }
 
-    val card = CardInfo(username = username, photo = profilePicUri, cardNumber = vm.cardNumber, joinedText = vm.joinedText)
+    val card = CardInfo(username = username, photo = profilePicUri, cardNumber = effectiveCardNumber, joinedText = effectiveJoinedText)
 
     fun afterHello(): Step = if (vm.blur?.verdict == BlurCapability.Verdict.Laggy) Step.BlurWarning else Step.LastOne
 
@@ -473,8 +486,8 @@ fun SetupWizardScreen(
                                 val existing = lastPickedUri
                                 if (existing != null) selectedUncroppedUri = existing else openPhotoPicker()
                             },
-                            cardNumber = vm.cardNumber,
-                            joinedText = vm.joinedText,
+                            cardNumber = effectiveCardNumber,
+                            joinedText = effectiveJoinedText,
                             onNext = { if (username.isNotBlank()) go(Step.Hello) },
                         )
 

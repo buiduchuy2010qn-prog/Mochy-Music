@@ -16,6 +16,7 @@ import androidx.annotation.StringRes
 import androidx.core.content.FileProvider
 import androidx.media3.datasource.DataSource
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.ui.player.share.song.ShareAspect
 import com.mochyy.mochymusic.ui.player.share.song.ShareLayers
 import com.mochyy.mochymusic.ui.player.share.song.SongShareKind
 import com.mochyy.mochymusic.ui.player.share.song.SongShareSession
@@ -66,7 +67,7 @@ private val ShareRequest.cardMoves: Boolean
 
 internal suspend fun ShareRequest.sendTo(app: ShareApp) {
     val target = app.installedPackage(context) ?: return
-    if (app.takesSticker(context) && openStory(app, target)) return
+    if (session.aspect == ShareAspect.Story && app.takesSticker(context) && openStory(app, target)) return
     val baked = export(ShareLayers.Everything)
     val send = Intent(Intent.ACTION_SEND).apply {
         type = baked.mimeType

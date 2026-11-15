@@ -47,7 +47,6 @@ import com.mochyy.mochymusic.ui.player.share.CinematicLayout
 import com.mochyy.mochymusic.ui.player.share.LyricsShareSession
 import com.mochyy.mochymusic.ui.player.share.MusicCloudsRestPhase
 import com.mochyy.mochymusic.ui.player.share.ShareBackground
-import com.mochyy.mochymusic.ui.player.share.ShareHeight
 import com.mochyy.mochymusic.ui.player.share.ShareRegions
 import com.mochyy.mochymusic.ui.player.share.ShareStyle
 import com.mochyy.mochymusic.ui.player.share.ShareWidth
@@ -87,6 +86,7 @@ internal fun SongSharePicture(
     moving: Boolean,
     modifier: Modifier = Modifier,
     kind: SongShareKind = session.kind,
+    aspect: ShareAspect = session.aspect,
     // the style tiles show both lyrics styles at once, whatever the share has picked
     style: ShareStyle? = session.pick?.style,
     // the editor and the exports say where the card is; the small tiles don't
@@ -98,7 +98,7 @@ internal fun SongSharePicture(
     video: (@Composable () -> Unit)? = null,
 ) {
     val backdrop = rememberGraphicsLayer()
-    Box(modifier.size(ShareWidth, ShareHeight).clipToBounds()) {
+    Box(modifier.size(ShareWidth, aspect.heightDp).clipToBounds()) {
         if (layers.background) {
             Box(
                 Modifier
@@ -113,11 +113,12 @@ internal fun SongSharePicture(
         }
         val pick = session.pick
         if (layers.card && kind == SongShareKind.Lyrics && style == ShareStyle.Cinematic && pick != null) {
-            CinematicWords(session, pick, positionMs, moving, regions)
+            CinematicWords(session, pick, positionMs, moving, regions, aspect)
         } else if (layers.card) {
             CardSlot(
                 session = session,
                 kind = kind,
+                aspect = aspect,
                 positionMs = positionMs,
                 moving = moving,
                 backdrop = if (layers.glass && layers.background) backdrop else null,
@@ -136,6 +137,7 @@ private fun CinematicWords(
     positionMs: () -> Long,
     moving: Boolean,
     regions: ShareRegions?,
+    aspect: ShareAspect,
 ) {
     val flow = if (moving) {
         val timings = remember(pick.chosen) { cinematicTimings(pick) }
@@ -143,13 +145,14 @@ private fun CinematicWords(
     } else {
         null
     }
-    CinematicLayout(pick, regions, ink = session.wordsInk, cover = session.art.cover, flow = flow)
+    CinematicLayout(pick, regions, ink = session.wordsInk, cover = session.art.cover, flow = flow, canvasHeight = aspect.heightDp)
 }
 
 @Composable
 private fun BoxScope.CardSlot(
     session: SongShareSession,
     kind: SongShareKind,
+    aspect: ShareAspect,
     positionMs: () -> Long,
     moving: Boolean,
     backdrop: GraphicsLayer?,
@@ -191,8 +194,8 @@ private fun BoxScope.CardSlot(
         }
         Spacer(Modifier.matchParentSize().background(session.cardTint.copy(alpha = session.cardOpacity)))
         when (kind) {
-            SongShareKind.MusicOnly -> MusicOnlyCard(session, positionMs, moving)
-            SongShareKind.Lyrics -> LyricsCard(session, positionMs, moving)
+            SongShareKind.MusicOnly -> MusicOnlyCard(session, positionMs, moving, aspect = aspect)
+            SongShareKind.Lyrics -> LyricsCard(session, positionMs, moving, aspect = aspect)
         }
     }
 }

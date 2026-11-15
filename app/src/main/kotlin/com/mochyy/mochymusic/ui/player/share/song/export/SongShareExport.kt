@@ -53,6 +53,7 @@ import com.mochyy.mochymusic.constants.BlurQuality
 import com.mochyy.mochymusic.ui.player.canvasMimeType
 import com.mochyy.mochymusic.ui.player.share.ShareWidth
 import com.mochyy.mochymusic.ui.player.share.song.MaxCardBlur
+import com.mochyy.mochymusic.ui.player.share.song.ShareAspect
 import com.mochyy.mochymusic.ui.player.share.song.ShareLayers
 import com.mochyy.mochymusic.ui.player.share.song.ShareVideoSource
 import com.mochyy.mochymusic.ui.player.share.song.SongBackground
@@ -82,12 +83,14 @@ private const val Tag = "SongShare"
 // how many still frames the picture gets to settle into place before the first real one
 private const val WarmUpFrames = 3
 
-// stories are 9:16; the short side is the quality
+// stories are 9:16 and locket cards are 1:1; the short side is the quality
 internal enum class ShareQuality(val width: Int) {
     UltraHd(2160),
     FullHd(1080);
 
     val height: Int get() = width * 16 / 9
+
+    fun heightFor(aspect: ShareAspect): Int = if (aspect == ShareAspect.Locket) width else height
 }
 
 // the app's own theme, handed to the export so its lyrics use the same fonts as the lyrics page
@@ -131,7 +134,8 @@ internal suspend fun exportStill(
     cropToCard: Boolean = false,
 ): File {
     val host = checkNotNull(session.offscreenHost) { "The share isn't on screen" }
-    val frames = OffscreenFrames(host, quality.width, quality.height) {
+    val outHeight = quality.heightFor(session.aspect)
+    val frames = OffscreenFrames(host, quality.width, outHeight) {
         ExportPicture(session, theme, quality.width, { session.windowStartMs }, layers, moving = false)
     }
     try {
@@ -168,9 +172,9 @@ internal suspend fun exportVideo(
     job: ShareExportJob,
 ): File {
     val host = checkNotNull(session.offscreenHost) { "The share isn't on screen" }
-    val fps = ShareEncoders.frameRateFor(quality)
+    val fps = ShareEncoders.frameRateFor(quality, session.aspect)
     val width = quality.width
-    val height = quality.height
+    val height = quality.heightFor(session.aspect)
     val video = (session.background as? SongBackground.Video)?.takeIf { layers.background }
     val background = video?.let { videoBackground(session, it) }
     // over a video the card is drawn alone and its blur is done on the video itself; otherwise compose draws all of it

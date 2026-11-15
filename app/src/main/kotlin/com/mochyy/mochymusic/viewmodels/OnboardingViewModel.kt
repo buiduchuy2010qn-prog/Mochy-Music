@@ -154,8 +154,12 @@ class OnboardingViewModel @Inject constructor(
     fun saveCard() {
         viewModelScope.launch(Dispatchers.IO) {
             context.dataStore.edit { prefs ->
-                prefs[ProfileCardNumberKey] = cardNumber
-                prefs[ProfileJoinedEpochDayKey] = LocalDate.now().toEpochDay()
+                if (prefs[ProfileCardNumberKey].isNullOrBlank()) {
+                    prefs[ProfileCardNumberKey] = cardNumber
+                }
+                if ((prefs[ProfileJoinedEpochDayKey] ?: -1L) <= 0L) {
+                    prefs[ProfileJoinedEpochDayKey] = LocalDate.now().toEpochDay()
+                }
             }
         }
     }
