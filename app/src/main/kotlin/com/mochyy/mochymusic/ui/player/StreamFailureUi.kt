@@ -18,7 +18,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
 import com.mochyy.mochymusic.LocalPlayerConnection
+import com.mochyy.mochymusic.utils.ConnectivityDiagnostics
 import kotlin.math.ceil
 
 /** The red of a failed stream's countdown. */
@@ -50,14 +52,20 @@ fun rememberStreamFailureProgress(): State<Float> {
 /** "Error, timeout in 6s" while a stream is failing, null otherwise; changes once a second. */
 @Composable
 fun rememberStreamFailureLabel(progress: State<Float>): State<String?> {
+    val context = LocalContext.current
     val failure by (LocalPlayerConnection.current?.streamFailure
         ?: return remember { object : State<String?> { override val value: String? = null } }).collectAsState()
-    return remember(failure) {
+    return remember(failure, context) {
         derivedStateOf {
             val f = failure
             val p = progress.value
             if (f == null || p < 0f) null
-            else "Lỗi luồng phát, thử lại sau ${ceil((1f - p) * f.timeoutMs / 1000f).toInt().coerceAtLeast(0)}s"
+            else {
+                val sec = ceil((1f - p) * f.timeoutMs / 1000f).toInt().coerceAtLeast(0)
+                val netHint = ConnectivityDiagnostics.quickFailureHint(context)
+                if (netHint != null) "$netHint · thử lại sau ${sec}s"
+                else "Lỗi luồng phát, thử lại sau ${sec}s"
+            }
         }
     }
 }

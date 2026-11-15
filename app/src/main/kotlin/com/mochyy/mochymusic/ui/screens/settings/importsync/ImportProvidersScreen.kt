@@ -75,6 +75,7 @@ fun ImportProvidersScreen(
                         LinkSource.APPLE_MUSIC -> "Danh sách phát và album công khai"
                         LinkSource.DEEZER -> "Danh sách phát và album công khai, không giới hạn số bài"
                         LinkSource.YOUTUBE -> "Danh sách phát và album, khớp chính xác bài hát"
+                        LinkSource.SOUNDCLOUD -> "Danh sách phát (sets) và bài hát công khai"
                     },
                     icon = painterResource(R.drawable.link),
                     iconShape = CircleShape,

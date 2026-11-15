@@ -546,7 +546,7 @@ class MusicService :
     private var prefetchJob: Job? = null
 
     // "studio version for music videos": a music video plays its song's studio upload when there is one
-    @Volatile private var studioForVideos = false
+    @Volatile private var studioForVideos = true
     // the outgoing song keeps its own normalisation on its own audio session until it's let go;
     // one shared enhancer used to be handed the next song's gain mid-fade
     private var fadingLoudnessEnhancer: LoudnessEnhancer? = null
@@ -1148,7 +1148,7 @@ class MusicService :
             }
 
         dataStore.data
-            .map { (it[SkipBlendKey] ?: false) to (it[StudioForVideosKey] ?: false) }
+            .map { (it[SkipBlendKey] ?: false) to (it[StudioForVideosKey] ?: true) }
             .distinctUntilChanged()
             .collect(scope) { (blend, studio) ->
                 skipBlend = blend
@@ -4085,6 +4085,11 @@ class MusicService :
                 } catch (_: SQLException) {
                 }
             }
+            com.mochyy.mochymusic.cloud.MochyCloudSyncManager.onSongPlayed(
+                this,
+                mediaItem.mediaId,
+                playbackStats.totalPlayTimeMs,
+            )
         }
     }
 

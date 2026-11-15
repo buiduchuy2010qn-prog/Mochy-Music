@@ -23,6 +23,7 @@ enum class LinkSource(val label: String, val example: String) {
     APPLE_MUSIC("Apple Music", "https://music.apple.com/us/playlist/…"),
     DEEZER("Deezer", "https://www.deezer.com/playlist/…"),
     YOUTUBE("YouTube Music", "https://music.youtube.com/playlist?list=…"),
+    SOUNDCLOUD("SoundCloud", "https://soundcloud.com/…/sets/…"),
 }
 
 class LinkImportException(message: String) : Exception(message)
@@ -45,13 +46,19 @@ object LinkImporter {
 
     private const val USER_AGENT =
         "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36"
+    private const val DESKTOP_USER_AGENT =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 
     private val SPOTIFY_REGEX = Regex("(?:open\\.spotify\\.com/(?:intl-[a-zA-Z-]+/)?(?:embed/)?|spotify:)(playlist|album)[/:]([A-Za-z0-9]{22})")
     private val APPLE_REGEX = Regex("music\\.apple\\.com/[a-z]{2}/(playlist|album)/(?:[^/?#]+/)?(pl\\.[A-Za-z0-9-]+|\\d+)")
     private val DEEZER_REGEX = Regex("deezer\\.com/(?:[a-z]{2}/)?(playlist|album)/(\\d+)")
     private val YT_LIST_REGEX = Regex("[?&]list=([A-Za-z0-9_-]+)")
     private val YT_BROWSE_REGEX = Regex("music\\.youtube\\.com/(?:browse|playlist)/((?:VL|MPREb_)?[A-Za-z0-9_-]+)")
-    private val SHORT_LINK_HOSTS = listOf("spotify.link", "spotify.app.link", "deezer.page.link", "link.deezer.com")
+    private val SOUNDCLOUD_REGEX = Regex("https?://(?:www\\.|m\\.)?soundcloud\\.com/[A-Za-z0-9_.-]+/(?:sets/)?[A-Za-z0-9_.-]+")
+    private val SHORT_LINK_HOSTS = listOf("spotify.link", "spotify.app.link", "deezer.page.link", "link.deezer.com", "on.soundcloud.com", "soundcloud.app.goo.gl")
+
+    @Volatile
+    private var cachedScClientId: String? = null
 
     /** works out which service a pasted link belongs to, or null if it isn't one we read */
     fun detect(link: String): LinkSource? {
@@ -61,6 +68,7 @@ object LinkImporter {
             text.contains("music.apple.com") -> LinkSource.APPLE_MUSIC
             text.contains("deezer") -> LinkSource.DEEZER
             text.contains("youtube.com") || text.contains("youtu.be") -> LinkSource.YOUTUBE
+            text.contains("soundcloud.com") || text.contains("on.soundcloud.com") || text.contains("soundcloud.app.goo.gl") -> LinkSource.SOUNDCLOUD
             else -> null
         }
     }
@@ -73,7 +81,8 @@ object LinkImporter {
             LinkSource.APPLE_MUSIC -> fetchApple(resolved)
             LinkSource.DEEZER -> fetchDeezer(resolved)
             LinkSource.YOUTUBE -> fetchYouTube(resolved)
-            null -> throw LinkImportException("Paste a Spotify, Apple Music, Deezer or YouTube Music link.")
+            LinkSource.SOUNDCLOUD -> fetchSoundCloud(resolved)
+            null -> throw LinkImportException("Paste a Spotify, Apple Music, Deezer, SoundCloud or YouTube Music link.")
         }
     }
 
@@ -87,10 +96,11 @@ object LinkImporter {
     private suspend fun resolveShortLink(url: String): String {
         val response = get(url)
         val finalUrl = response.call.request.url.toString()
-        if (listOf(SPOTIFY_REGEX, DEEZER_REGEX, YT_LIST_REGEX).any { it.containsMatchIn(finalUrl) }) return finalUrl
+        if (listOf(SPOTIFY_REGEX, DEEZER_REGEX, YT_LIST_REGEX, SOUNDCLOUD_REGEX).any { it.containsMatchIn(finalUrl) }) return finalUrl
         val body = runCatching { response.bodyAsText() }.getOrDefault("")
         SPOTIFY_REGEX.find(body)?.let { return "https://open.spotify.com/${it.groupValues[1]}/${it.groupValues[2]}" }
         DEEZER_REGEX.find(body)?.let { return "https://www.deezer.com/${it.groupValues[1]}/${it.groupValues[2]}" }
+        SOUNDCLOUD_REGEX.find(body)?.let { return it.value }
         return finalUrl
     }
 
@@ -320,4 +330,198 @@ object LinkImporter {
 
     /** a link reads one playlist, so origin is where that one lives */
     private fun ParsedImport.from(origin: PlaylistOrigin) = copy(playlistOrigins = playlists.keys.associateWith { origin })
+
+    // soundcloud: reads window.__sc_hydration from public playlist/track page, resolves stub track IDs via api-v2
+
+    private suspend fun fetchSoundCloud(url: String): ParsedImport {
+        val canonicalUrl = url.replace("://m.soundcloud.com", "://soundcloud.com")
+        val response = try {
+            client.get(canonicalUrl) {
+                header("User-Agent", DESKTOP_USER_AGENT)
+                header("Accept-Language", "en-US,en;q=0.9")
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            throw LinkImportException("Không thể kết nối SoundCloud — hãy kiểm tra mạng.")
+        }
+        val html = when (response.status.value) {
+            in 200..299 -> response.bodyAsText()
+            404 -> throw LinkImportException("Không tìm thấy SoundCloud playlist/bài hát (hoặc đang đặt riêng tư).")
+            429 -> throw LinkImportException("SoundCloud đang giới hạn truy cập tạm thời, thử lại sau ít phút.")
+            else -> throw LinkImportException("SoundCloud phản hồi lỗi (${response.status.value}).")
+        }
+
+        val hydrationJson = extractScHydrationArray(html)
+            ?: throw LinkImportException("Không đọc được dữ liệu SoundCloud. Hãy dán link playlist (/sets/...) hoặc bài hát công khai.")
+        val items = (json.parseToJsonElement(hydrationJson) as? JsonArray).orEmpty()
+
+        val playlistData = items.firstNotNullOfOrNull { el ->
+            val obj = el.obj() ?: return@firstNotNullOfOrNull null
+            if (obj.string("hydratable") == "playlist") obj["data"].obj() else null
+        }
+        val singleTrackData = items.firstNotNullOfOrNull { el ->
+            val obj = el.obj() ?: return@firstNotNullOfOrNull null
+            if (obj.string("hydratable") == "sound") obj["data"].obj() else null
+        }
+
+        if (playlistData == null && singleTrackData != null) {
+            val track = parseSoundCloudTrack(singleTrackData)
+                ?: throw LinkImportException("Bài hát SoundCloud này không có dữ liệu công khai.")
+            val name = track.title
+            return ParsedImport(
+                likedSongs = emptyList(),
+                playlists = mapOf(name to listOf(track)),
+                provider = ImportSource.SOUNDCLOUD,
+                playlistCovers = coverFor(name, track.thumbnailUrl),
+            ).from(PlaylistOrigin(remoteId = singleTrackData.idString("id"), remoteUrl = canonicalUrl))
+        }
+
+        val data = playlistData
+            ?: throw LinkImportException("Hãy dán link playlist (/sets/...) hoặc bài hát công khai trên SoundCloud.")
+
+        val rawTracks = data["tracks"].array().mapNotNull { it.obj() }
+        val resolvedById = mutableMapOf<String, ImportedTrack>()
+        val missingIds = mutableListOf<String>()
+
+        for (t in rawTracks) {
+            val tid = t.idString("id") ?: continue
+            val parsed = parseSoundCloudTrack(t)
+            if (parsed != null) {
+                resolvedById[tid] = parsed
+            } else {
+                missingIds += tid
+            }
+        }
+
+        if (missingIds.isNotEmpty()) {
+            resolveSoundCloudTrackStubs(html, missingIds).forEach { (id, tr) ->
+                resolvedById[id] = tr
+            }
+        }
+
+        val orderedTracks = rawTracks.mapNotNull { t -> t.idString("id")?.let(resolvedById::get) }
+        if (orderedTracks.isEmpty()) {
+            throw LinkImportException("Danh sách phát SoundCloud này trống hoặc ở chế độ riêng tư.")
+        }
+
+        val playlistName = data.string("title") ?: "SoundCloud Playlist"
+        val coverUrl = data.string("artwork_url")?.replace("-large", "-t500x500")
+            ?: orderedTracks.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl
+
+        return ParsedImport(
+            likedSongs = emptyList(),
+            playlists = mapOf(playlistName to orderedTracks),
+            provider = ImportSource.SOUNDCLOUD,
+            playlistCovers = coverFor(playlistName, coverUrl),
+        ).from(PlaylistOrigin(remoteId = data.idString("id"), remoteUrl = data.string("permalink_url") ?: canonicalUrl))
+    }
+
+    private fun parseSoundCloudTrack(obj: JsonObject): ImportedTrack? {
+        val rawTitle = obj.string("title") ?: return null
+        val uploader = obj.path("user").obj()?.string("username").orEmpty()
+        val (artist, title) = splitSoundCloudArtistTitle(rawTitle, uploader)
+        val durationMs = obj.long("duration")?.takeIf { it > 0L }
+        val artwork = obj.string("artwork_url")?.replace("-large", "-t500x500")
+            ?: obj.path("user").obj()?.string("avatar_url")?.replace("-large", "-t500x500")
+        val id = obj.idString("id")
+        return ImportedTrack(
+            title = title,
+            artist = artist,
+            album = null,
+            durationMs = durationMs,
+            thumbnailUrl = artwork,
+            sourceId = id?.let { "soundcloud:track:$it" },
+        )
+    }
+
+    private fun splitSoundCloudArtistTitle(rawTitle: String, uploader: String): Pair<String, String> {
+        val parts = rawTitle.split(Regex("\\s+[-–—]\\s+"), limit = 2)
+        return if (parts.size == 2 && parts[0].length in 2..45 && parts[1].isNotBlank()) {
+            parts[0].trim() to parts[1].trim()
+        } else {
+            uploader.ifBlank { "SoundCloud" } to rawTitle.trim()
+        }
+    }
+
+    private suspend fun resolveSoundCloudTrackStubs(
+        pageHtml: String,
+        trackIds: List<String>,
+    ): Map<String, ImportedTrack> {
+        val clientId = obtainSoundCloudClientId(pageHtml) ?: return emptyMap()
+        val out = mutableMapOf<String, ImportedTrack>()
+        for (chunk in trackIds.chunked(45)) {
+            val url = "https://api-v2.soundcloud.com/tracks?ids=${chunk.joinToString(",")}&client_id=$clientId"
+            val resp = runCatching { get(url) }.getOrNull() ?: continue
+            if (resp.status.value == 401 || resp.status.value == 403) {
+                cachedScClientId = null
+                break
+            }
+            if (resp.status.value !in 200..299) continue
+            val text = runCatching { resp.bodyAsText() }.getOrNull() ?: continue
+            val arr = (runCatching { json.parseToJsonElement(text) }.getOrNull() as? JsonArray).orEmpty()
+            for (el in arr) {
+                val obj = el.obj() ?: continue
+                val id = obj.idString("id") ?: continue
+                parseSoundCloudTrack(obj)?.let { out[id] = it }
+            }
+        }
+        return out
+    }
+
+    private suspend fun obtainSoundCloudClientId(pageHtml: String): String? {
+        cachedScClientId?.let { return it }
+        val scriptUrls = Regex("""https://a-v2\.sndcdn\.com/assets/[A-Za-z0-9._-]+\.js""")
+            .findAll(pageHtml)
+            .map { it.value }
+            .toList()
+            .asReversed()
+            .distinct()
+            .take(6)
+        val cidRegex = Regex("""client_id\s*[:=]\s*["']([A-Za-z0-9]{20,40})["']""")
+        for (jsUrl in scriptUrls) {
+            val body = runCatching {
+                client.get(jsUrl) { header("User-Agent", DESKTOP_USER_AGENT) }.bodyAsText()
+            }.getOrNull() ?: continue
+            val found = cidRegex.find(body)?.groupValues?.get(1)
+            if (!found.isNullOrBlank()) {
+                cachedScClientId = found
+                return found
+            }
+        }
+        return null
+    }
+
+    private fun extractScHydrationArray(html: String): String? {
+        val markerIdx = html.indexOf("window.__sc_hydration")
+        if (markerIdx < 0) return null
+        val start = html.indexOf('[', markerIdx)
+        if (start < 0) return null
+        var depth = 0
+        var inString = false
+        var escape = false
+        for (i in start until html.length) {
+            val c = html[i]
+            if (escape) {
+                escape = false
+                continue
+            }
+            if (c == '\\' && inString) {
+                escape = true
+                continue
+            }
+            if (c == '"') {
+                inString = !inString
+                continue
+            }
+            if (!inString) {
+                if (c == '[') depth++
+                else if (c == ']') {
+                    depth--
+                    if (depth == 0) return html.substring(start, i + 1)
+                }
+            }
+        }
+        return null
+    }
 }

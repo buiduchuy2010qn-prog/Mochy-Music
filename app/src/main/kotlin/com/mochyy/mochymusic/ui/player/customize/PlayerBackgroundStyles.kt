@@ -56,6 +56,11 @@ fun PlayerBackgroundContent(
             thumbnailUrl = thumbnailUrl,
             modifier = modifier,
         )
+        PlayerBackgroundStyle.KAWARP -> com.mochyy.mochymusic.ui.player.flagship.KawarpBackdrop(
+            thumbnailUrl = thumbnailUrl,
+            pureBlack = pureBlack,
+            modifier = modifier,
+        )
     }
 }
 

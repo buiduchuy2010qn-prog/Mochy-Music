@@ -1131,8 +1131,8 @@
     <!-- skips that cross over, the studio version of music videos, recent searches -->
     <string name="settings_blend_skips">Chuyển mượt khi bấm qua bài</string>
     <string name="settings_blend_skips_desc">Tải sẵn bài kế tiếp và bài trước đó để khi bạn bấm chuyển bài sẽ hòa âm mượt ngay lập tức</string>
-    <string name="settings_studio_for_videos">Ưu tiên bản thu phòng thu cho MV</string>
-    <string name="settings_studio_for_videos_desc">Khi mở MV, tự động phát âm thanh bản thu chuẩn trong album (nếu có) để không lẫn tiếng thoại hay hiệu ứng phụ của video</string>
+    <string name="settings_studio_for_videos">Tự động ưu tiên bản thu Audio chuẩn (né MV)</string>
+    <string name="settings_studio_for_videos_desc">Khi phát MV hoặc video có đoạn dạo/thoại dài, tự động dùng âm thanh bản thu chuẩn trong album (nếu có) để nghe sạch nhất</string>
     <string name="playing_studio_version">Đang phát bản thu phòng thu</string>
     <string name="recent_searches">Tìm kiếm gần đây</string>
     <string name="recent_searches_clear">Xóa</string>

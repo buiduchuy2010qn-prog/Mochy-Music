@@ -620,6 +620,9 @@ enum class PlayerBackgroundStyle {
 
     // the cover's colours drifting slowly, following a playing video or animated cover as it changes
     AMBIENT,
+
+    // domain-warped organic fluid waves powered by AGSL with adaptive frame strain monitor
+    KAWARP,
 }
 
 enum class PlayerCoverStyle {

@@ -82,6 +82,7 @@ class App : Application(), SingletonImageLoader.Factory {
 
         PreferencesCache.start(this, applicationScope)
         com.mochyy.mochymusic.utils.NotRecommended.init(this)
+        com.mochyy.mochymusic.cloud.MochyCloudSyncManager.start(this, applicationScope)
 
         applicationScope.launch(Dispatchers.IO) {
             try {

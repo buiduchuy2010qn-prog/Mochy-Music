@@ -37,8 +37,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -140,6 +142,8 @@ internal fun UserProfilePage(
     val statusBarTop = WindowInsets.stableSystemBars.asPaddingValues().calculateTopPadding()
     val name = idCardName(username)
     val openEditor = { popup.showEditProfileSheet(currentName = username, currentPhoto = photo) }
+    var showCloudSheet by remember { mutableStateOf(false) }
+    val cloudState by com.mochyy.mochymusic.cloud.MochyCloudSyncManager.state.collectAsState()
 
     Column(
         modifier = Modifier
@@ -195,12 +199,20 @@ internal fun UserProfilePage(
             },
         )
         Spacer(Modifier.height(18.dp))
-        EditProfilePill(
-            onClick = openEditor,
+        Row(
             modifier = Modifier
                 .padding(start = HomeContentInset)
                 .reveal(state, row = 0),
-        )
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            EditProfilePill(onClick = openEditor)
+            MochyCloudPill(
+                label = if (cloudState.signedIn) "Cloud · @${cloudState.username}" else "Mochy Cloud",
+                signedIn = cloudState.signedIn,
+                onClick = { showCloudSheet = true },
+            )
+        }
         Spacer(Modifier.height(40.dp))
         Box(
             modifier = Modifier
@@ -220,6 +232,9 @@ internal fun UserProfilePage(
         ArtistsSection(state, viewModel, navController)
         // room to scroll the last row clear of the mini player and the nav bar
         Spacer(Modifier.height(180.dp))
+    }
+    if (showCloudSheet) {
+        com.mochyy.mochymusic.cloud.MochyCloudSheet(onDismiss = { showCloudSheet = false })
     }
 }
 
@@ -277,6 +292,41 @@ private fun EditProfilePill(onClick: () -> Unit, modifier: Modifier = Modifier) 
             .clickable(onClick = onClick)
             .padding(horizontal = 15.dp, vertical = 8.dp),
     )
+}
+
+@Composable
+private fun MochyCloudPill(
+    label: String,
+    signedIn: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier
+            .clip(CircleShape)
+            .background(if (signedIn) Color(0xFF1F3B2C) else PillGrey)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Icon(
+            painter = painterResource(com.mochyy.mochymusic.R.drawable.cloud),
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(14.dp),
+        )
+        Text(
+            text = label,
+            style = TextStyle(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.5.sp,
+                letterSpacing = (-0.03).em,
+                color = Color.White,
+            ),
+        )
+    }
 }
 
 // ---- Total listens ----------------------------------------------------------------------------

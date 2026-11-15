@@ -339,7 +339,7 @@ private fun localItems(): List<SettingsItem> {
 @Composable
 private fun playerBehaviourItems(): List<SettingsItem> {
     val (disableVideoAutoplay, onDisableVideoAutoplayChange) = rememberPreference(DisableVideoAutoplayKey, defaultValue = true)
-    val (studioForVideos, onStudioForVideosChange) = rememberPreference(com.mochyy.mochymusic.constants.StudioForVideosKey, defaultValue = false)
+    val (studioForVideos, onStudioForVideosChange) = rememberPreference(com.mochyy.mochymusic.constants.StudioForVideosKey, defaultValue = true)
     val (youtubeTranslations, onYoutubeTranslationsChange) = rememberPreference(YouTubeCaptionTranslationKey, defaultValue = true)
     val (syncLyricsToVideo, onSyncLyricsToVideoChange) = rememberPreference(SyncLyricsToVideoKey, defaultValue = true)
     val (dontSkipOnFailure, onDontSkipOnFailureChange) = rememberPreference(DontSkipOnFailureKey, defaultValue = false)

@@ -31,9 +31,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameMillis
@@ -46,7 +48,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.ui.component.damageBoundary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -144,6 +148,7 @@ fun LyricsInterludeDots(
     val glows = remember { Array(DotCount) { mutableFloatStateOf(0f) } }
     val finale = remember { mutableFloatStateOf(0f) }
     val clockMs = remember { mutableLongStateOf(0L) }
+    val countdownSec = remember { mutableIntStateOf(0) }
 
     val height = remember { Animatable(if (visible) 1f else 0f) }
     val pops = remember { Array(DotCount) { Animatable(if (visible) 1f else 0f) } }
@@ -181,7 +186,15 @@ fun LyricsInterludeDots(
         while (true) {
             withFrameMillis { frameMs ->
                 clockMs.longValue = frameMs
-                val progress = ((positionProvider() - startMs).toFloat() / span).coerceIn(0f, 1f)
+                val nowPos = positionProvider()
+                val progress = ((nowPos - startMs).toFloat() / span).coerceIn(0f, 1f)
+                val remMs = endMs - nowPos
+                val nextSec = if (span >= 8_000L && remMs in 1L..9_000L) {
+                    ((remMs + 999L) / 1000L).toInt().coerceIn(1, 9)
+                } else {
+                    0
+                }
+                if (countdownSec.intValue != nextSec) countdownSec.intValue = nextSec
                 val finaleNow = smoothstep((progress - FinaleFraction) / (1f - FinaleFraction))
                 finale.floatValue = finaleNow
                 for (index in 0 until DotCount) {
@@ -291,6 +304,16 @@ fun LyricsInterludeDots(
                     }
             )
             if (index < DotCount - 1) Spacer(modifier = Modifier.size(DotGap))
+        }
+        val secShown = countdownSec.intValue
+        if (secShown in 1..9) {
+            Spacer(modifier = Modifier.size(10.dp))
+            Text(
+                text = "còn ${secShown}s",
+                color = Color.White.copy(alpha = 0.72f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }

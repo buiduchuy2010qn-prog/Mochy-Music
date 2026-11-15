@@ -1461,7 +1461,7 @@ private fun PlayerBackdropCrossfade(
                 .fillMaxSize()
                 .graphicsLayer { alpha = (1f - effectiveVideoAlpha()) * (1f - effectiveCanvasAlpha()) }
         ) {
-            if (ambient != null) {
+            if (ambient != null && backgroundStyle == PlayerBackgroundStyle.AMBIENT) {
                 // one for every song: its colours drift to the next song's by themselves, on the player's clock
                 AmbientBackdrop(
                     colors = ambient,

@@ -177,9 +177,13 @@ private val LocalizedSettingsStrings = mapOf(
 private val LocalizedSettingsPageStrings = mapOf(
     "Import & sync" to "Nhập & đồng bộ",
     "Experimental" to "Thử nghiệm",
+    "Mochy Cloud" to "Tài khoản Mochy Cloud",
 )
 
 private val SettingsIndex = listOf(
+    // Cloud account
+    SettingsEntry("Mochy Cloud", "Mochy Cloud", "mochy_cloud", "cloud account supabase login register signup avatar history favorites tai khoan dang ky dang nhap dong bo yeu thich lich su"),
+
     // Customisation
     SettingsEntry("Customisation", "Customisation", "customisation_settings", "customize cover rounding playlist player home styles gesture swipe blur animation lyrics"),
     SettingsEntry("App icon & name", "Customisation", "customisation_settings", "icon icons logo rename app name doi ten bieu tuong anh rieng home screen launcher"),
@@ -339,6 +343,8 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
 
     var query by remember { mutableStateOf(TextFieldValue()) }
     var isSearchFocused by remember { mutableStateOf(false) }
+    var showCloudSheet by remember { mutableStateOf(false) }
+    val onOpenCloudSheet: () -> Unit = { showCloudSheet = true }
 
     val isSearching = isSearchFocused || query.text.isNotBlank()
 
@@ -425,8 +431,12 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(BubbleColor)
                                     .clickable {
-                                        SettingsHighlight.pending = entry.highlightKey
-                                        open(entry.route)
+                                        if (entry.route == "mochy_cloud") {
+                                            onOpenCloudSheet()
+                                        } else {
+                                            SettingsHighlight.pending = entry.highlightKey
+                                            open(entry.route)
+                                        }
                                     }
                                     .padding(horizontal = 16.dp, vertical = 14.dp)
                             ) {
@@ -557,6 +567,13 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // in the order of the design: sound first, then how the app acts and looks, then the rest
+                        CategoryBubble(
+                            title = "Tài khoản Mochy Cloud",
+                            iconRes = R.drawable.cloud,
+                            selected = false,
+                            onClick = onOpenCloudSheet
+                        )
+
                         CategoryBubble(
                             title = stringResource(R.string.settings_audio_lab_category),
                             iconRes = R.drawable.equalizer,
@@ -700,6 +717,10 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                 },
             )
         }
+    }
+
+    if (showCloudSheet) {
+        com.mochyy.mochymusic.cloud.MochyCloudSheet(onDismiss = { showCloudSheet = false })
     }
 }
 

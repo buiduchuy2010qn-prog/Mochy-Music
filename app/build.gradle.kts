@@ -82,6 +82,26 @@ extensions.configure<ApplicationExtension> {
             }.standardOutput.asText.get().trim().toLong() * 1000L
         }.getOrDefault(0L)
         buildConfigField("long", "BUILD_TIME_MILLIS", "${buildTimeMillis}L")
+
+        val mochyUrl = System.getenv("MOCHY_SUPABASE_URL").orEmpty().trim()
+        val mochyKey = System.getenv("MOCHY_SUPABASE_PUBLISHABLE_KEY").orEmpty().trim()
+        val mochyMask = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+        fun encodeXorBytes(raw: String, mask: ByteArray): String {
+            if (raw.isEmpty()) return "new int[]{}"
+            val src = raw.toByteArray(Charsets.UTF_8)
+            return src.mapIndexed { idx, b ->
+                val v = b.toInt() and 0xFF
+                val m = mask[idx % mask.size].toInt() and 0xFF
+                val salt = (idx * 31 + 17) and 0xFF
+                v xor m xor salt
+            }.joinToString(prefix = "new int[]{", postfix = "}")
+        }
+        val maskExpr = mochyMask.joinToString(prefix = "new int[]{", postfix = "}") {
+            (it.toInt() and 0xFF).toString()
+        }
+        buildConfigField("int[]", "MOCHY_CLOUD_M", maskExpr)
+        buildConfigField("int[]", "MOCHY_CLOUD_U", encodeXorBytes(mochyUrl, mochyMask))
+        buildConfigField("int[]", "MOCHY_CLOUD_K", encodeXorBytes(mochyKey, mochyMask))
     }
     
 

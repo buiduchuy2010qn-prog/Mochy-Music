@@ -129,6 +129,8 @@ jobs:
         env:
           APP_VER: ${{ needs.detect-changes.outputs.app_ver }}
           BUILD_NUM: ${{ needs.detect-changes.outputs.build_num }}
+          MOCHY_SUPABASE_URL: ${{ secrets.MOCHY_SUPABASE_URL }}
+          MOCHY_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MOCHY_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           export MOCHY_APP_VERSION="$APP_VER"
           ./gradlew assembleArm64GmsRelease -PmochyAppVersion="$APP_VER" -PmochyBuildNumber="$BUILD_NUM" --no-configuration-cache --no-daemon

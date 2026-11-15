@@ -265,9 +265,10 @@ object YTPlayerUtils {
         connectivityManager: ConnectivityManager,
     ): PlaybackData? {
         val details = data.videoDetails ?: return null
-        val type = details.musicVideoType ?: return null
-        if (type == com.music.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.MUSIC_VIDEO_TYPE_ATV) return null
         val title = details.title ?: return null
+        val type = details.musicVideoType
+        if (type == com.music.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.MUSIC_VIDEO_TYPE_ATV) return null
+        if (type == null && !SongVersions.looksLikeMusicVideoTitle(title)) return null
         val artist = details.author?.removeSuffix(" - Topic") ?: return null
         // looked up once a session per video, the answer (or that there's none) kept for every replay and seek after
         val known = studioIds[videoId]

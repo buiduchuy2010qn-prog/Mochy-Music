@@ -18,7 +18,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -32,10 +35,13 @@ import com.mochyy.mochymusic.ui.component.SettingsGroup
 import com.mochyy.mochymusic.ui.component.SettingsGroupStyle
 import com.mochyy.mochymusic.ui.component.SettingsItem
 import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
+import com.mochyy.mochymusic.utils.ConnectivityDiagnostics
+import com.mochyy.mochymusic.utils.NetworkProbeReport
 import com.mochyy.mochymusic.utils.PlaybackLogEntry
 import com.mochyy.mochymusic.utils.PlaybackLogLevel
 import com.mochyy.mochymusic.utils.PlaybackLogManager
 import com.mochyy.mochymusic.utils.YTPlayerUtils
+import kotlinx.coroutines.launch
 
 /** newest entries first, capped so the scrolling column stays responsive */
 private const val VISIBLE_ENTRIES = 200
@@ -49,6 +55,9 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
 
     val lastValidated = remember(logs) { logs.lastOrNull { it.message == "Stream validated" } }
     val hasPoToken = YTPlayerUtils.hasPoToken
+    val scope = rememberCoroutineScope()
+    var probingNetwork by remember { mutableStateOf(false) }
+    var probeReport by remember { mutableStateOf<NetworkProbeReport?>(null) }
 
     SubSettingsScaffold(
         title = "Chẩn đoán phát nhạc",
@@ -83,6 +92,21 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
             style = SettingsGroupStyle.Grouped,
             items = listOf(
                 SettingsItem(
+                    title = { Text(if (probingNetwork) "Đang dò kết nối đa chặng..." else "Kiểm tra mạng đa chặng") },
+                    descriptionText = "Đo độ trễ DNS, cổng Google 204 và máy chủ YouTube Music",
+                    icon = painterResource(R.drawable.wifi_proxy),
+                    iconShape = CircleShape,
+                    onClick = {
+                        if (!probingNetwork) {
+                            scope.launch {
+                                probingNetwork = true
+                                probeReport = ConnectivityDiagnostics.runMultiHopProbe(context)
+                                probingNetwork = false
+                            }
+                        }
+                    },
+                ),
+                SettingsItem(
                     title = { Text("Sao chép nhật ký") },
                     descriptionText = "Sao chép toàn bộ nhật ký phát nhạc vào bộ nhớ tạm",
                     icon = painterResource(R.drawable.key),
@@ -101,6 +125,31 @@ fun PlaybackDiagnosticsScreen(navController: NavController) {
                 ),
             ),
         )
+
+        probeReport?.let { report ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = if (report.overallOk) "Kết nối khỏe mạnh" else "Phát hiện nghẽn mạng",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (report.overallOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    DiagnosticsRow("Mạng hệ thống", report.transportSummary)
+                    DiagnosticsRow("Phân giải DNS", report.dnsSummary)
+                    DiagnosticsRow("Cổng Google 204", report.google204Summary)
+                    DiagnosticsRow("YouTube Music", report.ytMusicSummary)
+                    DiagnosticsRow("Chẩn đoán", report.summaryVi)
+                }
+            }
+        }
 
         if (recent.isEmpty()) {
             Text(

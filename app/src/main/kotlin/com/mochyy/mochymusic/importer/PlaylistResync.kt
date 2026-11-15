@@ -190,6 +190,7 @@ class PlaylistResync @Inject constructor(
         LinkSource.APPLE_MUSIC -> ImportSource.APPLE_MUSIC
         LinkSource.DEEZER -> ImportSource.DEEZER
         LinkSource.YOUTUBE -> ImportSource.YOUTUBE_MUSIC
+        LinkSource.SOUNDCLOUD -> ImportSource.SOUNDCLOUD
     }
 
     private companion object {
