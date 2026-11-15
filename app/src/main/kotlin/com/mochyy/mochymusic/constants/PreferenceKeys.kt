@@ -236,6 +236,7 @@ val DisableLoadMoreWhenRepeatAllKey = booleanPreferencesKey("disableLoadMoreWhen
 val InfiniteQueueKey = booleanPreferencesKey("infiniteQueue")
 
 val SetupCompletedKey = booleanPreferencesKey("setupCompleted")
+val MochyCloudWelcomeSeenKey = booleanPreferencesKey("mochyCloudWelcomeSeen")
 val UsernameKey = stringPreferencesKey("username")
 val ProfilePicUriKey = stringPreferencesKey("profilePicUri")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")

@@ -907,11 +907,25 @@ class MainActivity : ComponentActivity() {
                 val swipeToSong by rememberPreference(SwipeToSongKey, false)
 
                 val setupCompleted by rememberPreference(com.mochyy.mochymusic.constants.SetupCompletedKey, false)
+                val mochyCloudWelcomeSeen by rememberPreference(com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey, false)
+                val cloudState by com.mochyy.mochymusic.cloud.MochyCloudSyncManager.state.collectAsState()
                 var forceShowSetup by remember { mutableStateOf(false) }
                 // Seeded once per process: a restored backup can say setup is done on an
                 // install that has never actually shown the wizard. Kept as state because
                 // finishing the wizard writes the marker and must dismiss it right away.
                 var onboardedHere by remember { mutableStateOf(hasOnboardedOnThisInstall(context)) }
+                val fullSetupNeeded = !setupCompleted || !onboardedHere || forceShowSetup
+                var cloudWelcomeLatch by rememberSaveable {
+                    mutableStateOf(!fullSetupNeeded && cloudState.isConfigured && !cloudState.signedIn && !mochyCloudWelcomeSeen)
+                }
+
+                LaunchedEffect(fullSetupNeeded, cloudState.isConfigured, cloudState.signedIn, mochyCloudWelcomeSeen) {
+                    if (cloudState.signedIn && !mochyCloudWelcomeSeen) {
+                        dataStore.edit { it[com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey] = true }
+                    } else if (!fullSetupNeeded && cloudState.isConfigured && !cloudState.signedIn && !mochyCloudWelcomeSeen) {
+                        cloudWelcomeLatch = true
+                    }
+                }
 
 
                 CompositionLocalProvider(
@@ -948,19 +962,28 @@ class MainActivity : ComponentActivity() {
                         },
                     )
                     com.mochyy.mochymusic.ui.screens.donate.DonatePromptScheduler(
-                        enabled = setupCompleted && onboardedHere && !forceShowSetup,
+                        enabled = !fullSetupNeeded && !cloudWelcomeLatch,
                     )
                         SetupWizardContainer(
-                            isVisible = !setupCompleted || !onboardedHere || forceShowSetup,
+                            isVisible = fullSetupNeeded || cloudWelcomeLatch,
+                            accountOnlyMode = !fullSetupNeeded && cloudWelcomeLatch,
+                            onAccountOnlyFinished = {
+                                cloudWelcomeLatch = false
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    dataStore.edit { it[com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey] = true }
+                                }
+                            },
                             onSetupCompleted = { username, uri ->
                                 markOnboardedOnThisInstall(context)
                                 onboardedHere = true
+                                cloudWelcomeLatch = false
                                 coroutineScope.launch(Dispatchers.IO) {
                                     val savedUriStr = uri?.let { com.mochyy.mochymusic.ui.screens.profile.ProfileStore.copyPhoto(context, it) }.orEmpty()
 
                                     dataStore.updateData { prefs ->
                                         prefs.toMutablePreferences().apply {
                                             set(com.mochyy.mochymusic.constants.SetupCompletedKey, true)
+                                            set(com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey, true)
                                             set(com.mochyy.mochymusic.constants.UsernameKey, username)
                                             if (savedUriStr.isNotEmpty()) {
                                                 set(com.mochyy.mochymusic.constants.ProfilePicUriKey, savedUriStr)

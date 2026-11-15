@@ -27,13 +27,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +48,9 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -115,6 +121,7 @@ internal fun OnboardingPage(
                 Text(
                     text = title,
                     color = Onb.Title,
+                    fontFamily = InterFontFamily,
                     fontSize = 34.sp,
                     lineHeight = 38.sp,
                     fontWeight = FontWeight.Bold,
@@ -125,6 +132,7 @@ internal fun OnboardingPage(
                     Text(
                         text = subtitle,
                         color = Onb.Subtitle,
+                        fontFamily = InterFontFamily,
                         fontSize = 18.sp,
                         lineHeight = 23.sp,
                         fontWeight = FontWeight.Bold,
@@ -193,6 +201,7 @@ internal fun OnbButton(
         Text(
             text = text,
             color = if (style == OnbButtonStyle.Primary) Color.White else Onb.Muted,
+            fontFamily = InterFontFamily,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -225,8 +234,91 @@ internal fun OnbTextField(
                     .background(Onb.Field)
                     .padding(horizontal = 20.dp, vertical = 14.dp),
             ) {
-                if (value.isEmpty()) Text(placeholder, color = Onb.Faint, fontSize = 16.sp)
+                if (value.isEmpty()) Text(placeholder, color = Onb.Faint, fontFamily = InterFontFamily, fontSize = 16.sp)
                 inner()
+            }
+        },
+    )
+}
+
+/** Mochy-native rounded pill text input with optional leading prefix & password visibility toggle */
+@Composable
+internal fun OnbPillInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    prefix: String? = null,
+    isPassword: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions(
+        keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+        imeAction = ImeAction.Done,
+    ),
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+) {
+    var passwordVisible by remember { mutableStateOf(false) }
+    val visual = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = TextStyle(
+            color = Color.White,
+            fontFamily = InterFontFamily,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.03).em,
+        ),
+        cursorBrush = SolidColor(Color.White),
+        visualTransformation = visual,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        modifier = modifier.fillMaxWidth(),
+        decorationBox = { inner ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(CircleShape)
+                    .background(Onb.Field)
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (!prefix.isNullOrEmpty()) {
+                    Text(
+                        text = prefix,
+                        color = Onb.Muted,
+                        fontFamily = InterFontFamily,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    if (value.isEmpty()) {
+                        Text(
+                            text = placeholder,
+                            color = Onb.Faint,
+                            fontFamily = InterFontFamily,
+                            fontSize = 16.sp,
+                            letterSpacing = (-0.03).em,
+                        )
+                    }
+                    inner()
+                }
+                if (isPassword) {
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = if (passwordVisible) "Ẩn" else "Hiện",
+                        color = Onb.Subtitle,
+                        fontFamily = InterFontFamily,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable { passwordVisible = !passwordVisible }
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
             }
         },
     )
@@ -276,9 +368,9 @@ internal fun OnbChoiceCard(
             PageBadge(icon = icon, size = 56.dp)
             Spacer(Modifier.width(18.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(title, color = Color.White, fontFamily = InterFontFamily, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
-                Text(description, color = Onb.Subtitle, fontSize = 12.sp, lineHeight = 15.sp)
+                Text(description, color = Onb.Subtitle, fontFamily = InterFontFamily, fontSize = 12.sp, lineHeight = 15.sp)
             }
         }
     }
@@ -307,10 +399,10 @@ internal fun OnbToggleCard(
                     Spacer(Modifier.width(14.dp))
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(title, color = Color.White, fontFamily = InterFontFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     if (description.isNotEmpty()) {
                         Spacer(Modifier.height(3.dp))
-                        Text(description, color = Onb.Muted, fontSize = 11.sp, lineHeight = 14.sp)
+                        Text(description, color = Onb.Muted, fontFamily = InterFontFamily, fontSize = 11.sp, lineHeight = 14.sp)
                     }
                 }
                 Spacer(Modifier.width(12.dp))

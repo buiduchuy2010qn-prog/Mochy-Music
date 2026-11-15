@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.utils.dataStore
 import com.mochyy.mochymusic.constants.SetupCompletedKey
 import com.mochyy.mochymusic.ui.launch.LaunchGate
+import com.mochyy.mochymusic.ui.screens.setup.onboarding.MochyAccountStandaloneSheet
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.mochyy.mochymusic.ui.component.backdropClick
@@ -43,6 +44,8 @@ private const val SheetAfterIntroMillis = 120L
 fun SetupWizardContainer(
     isVisible: Boolean,
     isStacked: Boolean = false,
+    accountOnlyMode: Boolean = false,
+    onAccountOnlyFinished: () -> Unit = {},
     onSetupCompleted: (String, Uri?) -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -116,27 +119,37 @@ fun SetupWizardContainer(
                         translationY = inverseProgress * (size.height * 1.15f) + dragOffsetY
                     }
             ) {
-                SetupWizardScreen(
-                    onComplete = onSetupCompleted,
-                    onDrag = { delta ->
-                        val resistance = 1f - (dragOffsetY / 2000f).coerceIn(0f, 0.8f)
-                        val newOffset = dragOffsetY + delta * resistance
-                        if (newOffset > 0) {
-                            dragOffsetY = newOffset
-                        }
-                    },
-                    onDragRelease = {
-                        coroutineScope.launch {
-                            androidx.compose.animation.core.animate(
-                                initialValue = dragOffsetY,
-                                targetValue = 0f,
-                                animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)
-                            ) { value, _ ->
-                                dragOffsetY = value
-                            }
+                val handleDrag: (Float) -> Unit = { delta ->
+                    val resistance = 1f - (dragOffsetY / 2000f).coerceIn(0f, 0.8f)
+                    val newOffset = dragOffsetY + delta * resistance
+                    if (newOffset > 0) {
+                        dragOffsetY = newOffset
+                    }
+                }
+                val handleDragRelease: () -> Unit = {
+                    coroutineScope.launch {
+                        androidx.compose.animation.core.animate(
+                            initialValue = dragOffsetY,
+                            targetValue = 0f,
+                            animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)
+                        ) { value, _ ->
+                            dragOffsetY = value
                         }
                     }
-                )
+                }
+                if (accountOnlyMode) {
+                    MochyAccountStandaloneSheet(
+                        onFinished = onAccountOnlyFinished,
+                        onDrag = handleDrag,
+                        onDragRelease = handleDragRelease,
+                    )
+                } else {
+                    SetupWizardScreen(
+                        onComplete = onSetupCompleted,
+                        onDrag = handleDrag,
+                        onDragRelease = handleDragRelease,
+                    )
+                }
             }
         }
     }

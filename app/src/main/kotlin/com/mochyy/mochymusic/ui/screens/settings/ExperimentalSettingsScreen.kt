@@ -30,6 +30,7 @@ import com.mochyy.mochymusic.constants.HapticFocusKey
 import com.mochyy.mochymusic.constants.HapticSensitivity
 import com.mochyy.mochymusic.constants.MusicHapticsEnabledKey
 import com.mochyy.mochymusic.constants.MusicHapticsSensitivityKey
+import com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey
 import com.mochyy.mochymusic.constants.SetupCompletedKey
 import com.mochyy.mochymusic.ui.component.SettingsGroup
 import com.mochyy.mochymusic.ui.component.SettingsGroupStyle
@@ -281,6 +282,7 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                                     context.dataStore.updateData { prefs ->
                                         prefs.toMutablePreferences().apply {
                                             set(SetupCompletedKey, false)
+                                            set(MochyCloudWelcomeSeenKey, false)
                                         }
                                     }
                                 }

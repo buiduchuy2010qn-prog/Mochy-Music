@@ -42,12 +42,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.edit
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mochyy.mochymusic.cloud.MochyCloudVault
 import com.mochyy.mochymusic.constants.CrossmixMode
 import com.mochyy.mochymusic.constants.CrossmixModeKey
 import com.mochyy.mochymusic.constants.DisableAiFilterKey
 import com.mochyy.mochymusic.constants.DisableBlurKey
+import com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey
 import com.mochyy.mochymusic.importer.account.AccountImportState
 import com.mochyy.mochymusic.importer.account.AccountService
 import com.mochyy.mochymusic.ui.screens.settings.importsync.onSignInTick
@@ -64,6 +68,7 @@ import com.mochyy.mochymusic.ui.screens.setup.onboarding.HelloCardStep
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ImportAskPage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ImportModePage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.LastOnePage
+import com.mochyy.mochymusic.ui.screens.setup.onboarding.MochyWelcomeAccountStep
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.Onb
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnbButton
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnboardingBrowserSheet
@@ -73,6 +78,7 @@ import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProviderSetupPage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.RestoringPage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.SyncOptionsPage
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.WhatToSyncPage
+import com.mochyy.mochymusic.utils.dataStore
 import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.viewmodels.OnboardingViewModel
@@ -86,7 +92,7 @@ import kotlinx.coroutines.launch
 import com.mochyy.mochymusic.ui.component.backdropClick
 
 private enum class Step {
-    Welcome, ImportAsk, ImportMode, Restoring, Providers, ProviderSetup, WhatToSync, SyncOptions,
+    Welcome, MochyAccount, ImportAsk, ImportMode, Restoring, Providers, ProviderSetup, WhatToSync, SyncOptions,
     Profile, Hello, BlurWarning, LastOne, Done,
 }
 
@@ -102,6 +108,13 @@ fun SetupWizardScreen(
 ) {
     val vm: OnboardingViewModel = hiltViewModel()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    fun markCloudWelcomeSeen() {
+        scope.launch {
+            context.dataStore.edit { it[MochyCloudWelcomeSeenKey] = true }
+        }
+    }
 
     val history = remember { mutableStateListOf(Step.Welcome) }
     var forward by remember { mutableStateOf(true) }
@@ -120,6 +133,8 @@ fun SetupWizardScreen(
     var profilePicUri by remember { mutableStateOf<Uri?>(null) }
     var selectedUncroppedUri by remember { mutableStateOf<Uri?>(null) }
     var lastPickedUri by remember { mutableStateOf<Uri?>(null) }
+    var cloudAvatarUri by remember { mutableStateOf<Uri?>(null) }
+    var pickingForCloudAccount by remember { mutableStateOf(false) }
     var prefilled by remember { mutableStateOf(false) }
     var isLeavingWelcome by remember { mutableStateOf(false) }
 
@@ -273,16 +288,29 @@ fun SetupWizardScreen(
     fun afterHello(): Step = if (vm.blur?.verdict == BlurCapability.Verdict.Laggy) Step.BlurWarning else Step.LastOne
 
     BackHandler(enabled = !browserWanted) {
-        if (selectedUncroppedUri != null) selectedUncroppedUri = null else back()
+        if (selectedUncroppedUri != null) {
+            pickingForCloudAccount = false
+            selectedUncroppedUri = null
+        } else {
+            back()
+        }
     }
 
     PhotoCropperContainer(
         uri = selectedUncroppedUri,
         onDone = { cropped ->
-            profilePicUri = cropped
+            if (pickingForCloudAccount) {
+                cloudAvatarUri = cropped
+                pickingForCloudAccount = false
+            } else {
+                profilePicUri = cropped
+            }
             selectedUncroppedUri = null
         },
-        onCancel = { selectedUncroppedUri = null },
+        onCancel = {
+            pickingForCloudAccount = false
+            selectedUncroppedUri = null
+        },
         onSelectNewImage = { openPhotoPicker() },
     ) {
         Box(
@@ -332,7 +360,8 @@ fun SetupWizardScreen(
                                     isLeavingWelcome = true
                                     scope.launch {
                                         delay(400)
-                                        go(Step.ImportAsk)
+                                        val next = if (MochyCloudVault.isConfigured(context)) Step.MochyAccount else Step.ImportAsk
+                                        go(next)
                                         isLeavingWelcome = false
                                     }
                                 },
@@ -342,6 +371,26 @@ fun SetupWizardScreen(
                                     .padding(horizontal = 28.dp, vertical = 18.dp),
                             )
                         }
+
+                        Step.MochyAccount -> MochyWelcomeAccountStep(
+                            standaloneWelcome = false,
+                            onAuthenticated = { cloudName, avatarUri ->
+                                if (cloudName.isNotBlank()) username = cloudName
+                                if (avatarUri != null) profilePicUri = avatarUri
+                                markCloudWelcomeSeen()
+                                go(Step.ImportAsk)
+                            },
+                            onGuest = {
+                                markCloudWelcomeSeen()
+                                go(Step.ImportAsk)
+                            },
+                            onBack = ::back,
+                            onPickAvatarRequest = {
+                                pickingForCloudAccount = true
+                                openPhotoPicker()
+                            },
+                            pickedAvatarUri = cloudAvatarUri,
+                        )
 
                         Step.ImportAsk -> ImportAskPage(
                             onYes = { go(Step.ImportMode) },

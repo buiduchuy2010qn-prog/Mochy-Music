@@ -13,6 +13,7 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
@@ -86,43 +88,63 @@ object MochyCloudSyncManager {
         username: String,
         password: String,
         displayName: String,
-    ): Result<Unit> = runCatching {
-        val app = context.applicationContext
-        val session = MochySupabaseClient.signUp(app, username, password, displayName)
-        MochyCloudVault.saveSession(app, session)
-        ProfileStore.save(app, session.displayName, null)
-        _state.value = _state.value.copy(
-            isConfigured = true,
-            signedIn = true,
-            username = session.username,
-            displayName = session.displayName,
-            lastError = null,
-        )
-        appScope?.let { startFavoritesObserver(app, it) }
-        syncNowInternal(app)
-    }.onFailure { err ->
-        _state.value = _state.value.copy(lastError = err.message)
+        avatarUri: Uri? = null,
+    ): Result<Unit> = withContext(NonCancellable + Dispatchers.IO) {
+        runCatching {
+            val app = context.applicationContext
+            val session = MochySupabaseClient.signUp(app, username, password, displayName)
+            MochyCloudVault.saveSession(app, session)
+            var localAvatarPath: String? = null
+            if (avatarUri != null) {
+                val webpDataUri = MochyAvatarCodec.encodeUriToWebpDataUri(app, avatarUri)
+                val localAvatarFile = if (webpDataUri != null) {
+                    runCatching {
+                        MochySupabaseClient.updateProfile(app, session, session.displayName, webpDataUri)
+                    }
+                    MochyAvatarCodec.decodeDataUriToFile(app, webpDataUri)
+                } else null
+                localAvatarPath = localAvatarFile?.absolutePath
+                ProfileStore.save(app, session.displayName, localAvatarFile?.let(Uri::fromFile) ?: avatarUri)
+            } else {
+                ProfileStore.save(app, session.displayName, null)
+            }
+            _state.value = _state.value.copy(
+                isConfigured = true,
+                signedIn = true,
+                username = session.username,
+                displayName = session.displayName,
+                avatarLocalPath = localAvatarPath,
+                lastError = null,
+            )
+            appScope?.let { startFavoritesObserver(app, it) }
+            syncNowInternal(app)
+        }.onFailure { err ->
+            _state.value = _state.value.copy(lastError = err.message)
+        }
     }
 
     suspend fun signIn(
         context: Context,
         username: String,
         password: String,
-    ): Result<Unit> = runCatching {
-        val app = context.applicationContext
-        val session = MochySupabaseClient.signIn(app, username, password)
-        MochyCloudVault.saveSession(app, session)
-        _state.value = _state.value.copy(
-            isConfigured = true,
-            signedIn = true,
-            username = session.username,
-            displayName = session.displayName,
-            lastError = null,
-        )
-        appScope?.let { startFavoritesObserver(app, it) }
-        syncNowInternal(app)
-    }.onFailure { err ->
-        _state.value = _state.value.copy(lastError = err.message)
+    ): Result<Unit> = withContext(NonCancellable + Dispatchers.IO) {
+        runCatching {
+            val app = context.applicationContext
+            val session = MochySupabaseClient.signIn(app, username, password)
+            MochyCloudVault.saveSession(app, session)
+            ProfileStore.save(app, session.displayName, null)
+            _state.value = _state.value.copy(
+                isConfigured = true,
+                signedIn = true,
+                username = session.username,
+                displayName = session.displayName,
+                lastError = null,
+            )
+            appScope?.let { startFavoritesObserver(app, it) }
+            syncNowInternal(app)
+        }.onFailure { err ->
+            _state.value = _state.value.copy(lastError = err.message)
+        }
     }
 
     suspend fun signOut(context: Context) {
@@ -246,9 +268,7 @@ object MochyCloudSyncManager {
                 if (decodedAvatar != null) {
                     avatarPath = decodedAvatar.absolutePath
                 }
-                if (decodedAvatar != null || activeDisplay != session.displayName) {
-                    ProfileStore.save(app, activeDisplay, decodedAvatar?.let(Uri::fromFile))
-                }
+                ProfileStore.save(app, activeDisplay, decodedAvatar?.let(Uri::fromFile))
             }
 
             // 2. Yêu thích (hai chiều)
