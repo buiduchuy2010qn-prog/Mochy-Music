@@ -318,6 +318,23 @@ fun YouTubeSongMenu(
                             com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song.toMediaMetadata())
                         }
                     ),
+                    Material3MenuItemData(
+                        title = { Text(text = "Đăng lên Duchi Locket") },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_duchi_locket),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            onDismiss()
+                            com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket(
+                                context = context,
+                                song = song.toMediaMetadata(),
+                                playerConnection = playerConnection,
+                            )
+                        }
+                    ),
                     song.album?.let { album ->
                         Material3MenuItemData(
                             title = { Text(text = stringResource(R.string.view_album)) },

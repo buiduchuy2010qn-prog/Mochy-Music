@@ -86,7 +86,7 @@ data class FullVersion(
 
 fun parseFullVersion(text: String): FullVersion {
     val semverRegex = Regex("""(\d+)\.(\d+)(?:\.(\d+))?""")
-    val buildNumRegex = Regex("""(?:build#|\(#|#|\()(\d+)\)?""", RegexOption.IGNORE_CASE)
+    val buildNumRegex = Regex("""(?:build#|-b|\(#|#|\()(\d+)\)?""", RegexOption.IGNORE_CASE)
 
     val semverMatch = semverRegex.find(text)
     val major = semverMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
@@ -99,8 +99,8 @@ fun parseFullVersion(text: String): FullVersion {
     return FullVersion(major, minor, patch, buildNumber)
 }
 
-// automatic background checks reuse the last answer for 6 hours; tapping "Kiểm tra cập nhật" passes force = true
-private const val CacheTtlMillis = 6L * 60L * 60L * 1000L
+// automatic background checks reuse the last answer for 15 minutes; tapping "Kiểm tra cập nhật" passes force = true
+private const val CacheTtlMillis = 15L * 60L * 1000L
 
 // older releases in this repo are the app under its old id, so "downgrade" to one would add a second app instead
 private val FirstReleaseWithThisId = FullVersion(major = 8, minor = 2, patch = 3)
@@ -119,7 +119,7 @@ private val updateScope = kotlinx.coroutines.CoroutineScope(
 
 private fun diskCacheFile(): File? = runCatching {
     val dir = System.getProperty("java.io.tmpdir")?.takeIf { it.isNotBlank() } ?: return@runCatching null
-    File(dir, "mochy_releases_cache_v2.json")
+    File(dir, "mochy_releases_cache_v3.json")
 }.getOrNull()
 
 private fun readDiskCache(): Pair<Long, List<ParsedRelease>>? = runCatching {
@@ -568,9 +568,15 @@ private suspend fun fetchReleasesFromApi(): Result<List<ParsedRelease>> = withCo
 }
 
 fun isNewerThanInstalled(candidateVersionText: String): Boolean {
-    val candidate = parseFullVersion(candidateVersionText).copy(buildNumber = 0)
-    val installed = parseFullVersion(BuildConfig.VERSION_NAME).copy(buildNumber = 0)
-    return candidate > installed
+    val candidate = parseFullVersion(candidateVersionText)
+    val installed = parseFullVersion(BuildConfig.VERSION_NAME)
+    val candidateSemver = candidate.copy(buildNumber = 0)
+    val installedSemver = installed.copy(buildNumber = 0)
+    return when {
+        candidateSemver != installedSemver -> candidateSemver > installedSemver
+        candidate.buildNumber > 0 && installed.buildNumber > 0 -> candidate.buildNumber > installed.buildNumber
+        else -> false
+    }
 }
 
 suspend fun downloadApk(

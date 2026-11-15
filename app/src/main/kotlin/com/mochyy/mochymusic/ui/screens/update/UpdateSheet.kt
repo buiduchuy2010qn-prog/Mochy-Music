@@ -47,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -71,24 +72,34 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.UsernameKey
+import com.mochyy.mochymusic.core.updater.DuchiLocketOtaState
 import com.mochyy.mochymusic.core.updater.GithubRelease
 import com.mochyy.mochymusic.core.updater.UpdateState
 import com.mochyy.mochymusic.core.updater.apkFileFor
+import com.mochyy.mochymusic.core.updater.checkDuchiLocketOta
 import com.mochyy.mochymusic.core.updater.downloadApk
+import com.mochyy.mochymusic.core.updater.downloadDuchiLocketApk
 import com.mochyy.mochymusic.core.updater.formatBytes
 import com.mochyy.mochymusic.core.updater.getLatestRelease
 import com.mochyy.mochymusic.core.updater.getPreviousRelease
 import com.mochyy.mochymusic.core.updater.installApk
 import com.mochyy.mochymusic.core.updater.isDownloaded
 import com.mochyy.mochymusic.core.updater.isNewerThanInstalled
+import com.mochyy.mochymusic.core.updater.loadLocketAppIcon
+import com.mochyy.mochymusic.core.updater.openDuchiLocketApp
 import com.mochyy.mochymusic.core.updater.parseFullVersion
 import com.mochyy.mochymusic.ui.component.BetaBadge
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.utils.CustomAppBranding
+import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuSurface
 import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
@@ -98,7 +109,29 @@ import kotlinx.coroutines.launch
 @Composable
 fun rememberUpdateState(): androidx.compose.runtime.State<UpdateState> {
     val state = remember { mutableStateOf<UpdateState>(UpdateState.Checking) }
-    LaunchedEffect(Unit) { state.value = checkUpdate(force = false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    val lastCheckTriggerMs = remember { longArrayOf(0L) }
+
+    LaunchedEffect(Unit) {
+        lastCheckTriggerMs[0] = System.currentTimeMillis()
+        state.value = checkUpdate(force = false)
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val now = System.currentTimeMillis()
+                if (now - lastCheckTriggerMs[0] > 2_000L && state.value !is UpdateState.Checking) {
+                    lastCheckTriggerMs[0] = now
+                    scope.launch { state.value = checkUpdate(force = false) }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     return state
 }
 
@@ -266,6 +299,18 @@ private fun ColumnScope.UpdateSheetContent(
                 onRetry = checkAgain,
             )
 
+            Spacer(Modifier.height(14.dp))
+            DuchiLocketEcosystemCard()
+
+            val (userName) = rememberPreference(UsernameKey, "")
+            var showWhatsNew by remember { mutableStateOf(false) }
+            if (showWhatsNew) {
+                WhatsNewPromptSheet(
+                    userName = userName,
+                    onDismiss = { showWhatsNew = false },
+                )
+            }
+
             Spacer(Modifier.height(22.dp))
             Text(
                 text = stringResource(R.string.upd_actions),
@@ -276,6 +321,11 @@ private fun ColumnScope.UpdateSheetContent(
             )
             Spacer(Modifier.height(10.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionRow(
+                    icon = R.drawable.sparks,
+                    label = "Có gì mới ở v${shortVersion(BuildConfig.VERSION_NAME)}",
+                    onClick = { showWhatsNew = true },
+                )
                 ActionRow(
                     icon = R.drawable.refresh,
                     label = if (state is UpdateState.Checking) stringResource(R.string.upd_checking) else stringResource(R.string.upd_check),
@@ -441,6 +491,369 @@ private fun StatusRow(
                     .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onAction)
                     .padding(horizontal = 16.dp, vertical = 7.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun DuchiLocketEcosystemCard() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val accentGreen = Color(0xFF9CF58A)
+
+    var locketState by remember { mutableStateOf<DuchiLocketOtaState>(DuchiLocketOtaState.Checking) }
+    var locketIcon by remember { mutableStateOf(loadLocketAppIcon(context)) }
+    var downloading by remember { mutableStateOf(false) }
+    val progress = remember { mutableFloatStateOf(0f) }
+    var errorText by remember { mutableStateOf<String?>(null) }
+    val lastRefreshMs = remember { longArrayOf(0L) }
+
+    fun refreshLocket(force: Boolean) {
+        lastRefreshMs[0] = System.currentTimeMillis()
+        scope.launch {
+            if (force) locketState = DuchiLocketOtaState.Checking
+            errorText = null
+            locketState = checkDuchiLocketOta(context, force = force)
+            locketIcon = loadLocketAppIcon(context)
+        }
+    }
+
+    LaunchedEffect(Unit) { refreshLocket(force = false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && !downloading) {
+                val now = System.currentTimeMillis()
+                if (now - lastRefreshMs[0] > 1_200L) {
+                    refreshLocket(force = false)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val ready = locketState as? DuchiLocketOtaState.Ready
+    val installed = when (val s = locketState) {
+        is DuchiLocketOtaState.Ready -> s.installed
+        is DuchiLocketOtaState.Offline -> s.installed
+        DuchiLocketOtaState.Checking -> null
+    }
+    val statusBadge = when {
+        locketState is DuchiLocketOtaState.Checking -> "ĐANG KIỂM TRA"
+        locketState is DuchiLocketOtaState.Offline -> "NGOẠI TUYẾN"
+        ready != null && ready.installed == null -> "CHƯA CÀI"
+        ready != null && ready.updateAvailable -> "CÓ BẢN MỚI"
+        else -> "MỚI NHẤT"
+    }
+    val badgeColor = when {
+        ready != null && (ready.updateAvailable || ready.installed != null && !ready.updateAvailable) -> accentGreen
+        locketState is DuchiLocketOtaState.Offline -> Color(0xFFFFB74D)
+        else -> Color.White.copy(alpha = 0.72f)
+    }
+    val subtitle = when (val s = locketState) {
+        DuchiLocketOtaState.Checking -> "Đang kiểm tra kênh locket-ota-latest…"
+        is DuchiLocketOtaState.Offline -> s.installed?.let {
+            "Đã cài v${it.versionName} · Chưa kết nối được OTA"
+        } ?: "Chưa cài đặt · Chạm Thử lại để tải từ OTA"
+        is DuchiLocketOtaState.Ready -> when {
+            s.installed == null -> "Chưa cài đặt · Mới nhất v${s.manifest.versionName} (${formatBytes(s.manifest.sizeBytes)})"
+            s.updateAvailable -> "Đã cài v${s.installed.versionName} -> Mới v${s.manifest.versionName}"
+            else -> "Đã cài v${s.installed.versionName} · Bản mới nhất"
+        }
+    }
+
+    val spin = remember { Animatable(0f) }
+    val checking = locketState is DuchiLocketOtaState.Checking
+    LaunchedEffect(checking) {
+        if (checking) {
+            while (true) {
+                spin.animateTo(spin.value + 360f, tween(900, easing = LinearEasing))
+            }
+        } else {
+            val rest = (spin.value / 360f).let { kotlin.math.ceil(it) * 360f }
+            spin.animateTo(rest, spring(dampingRatio = 0.7f, stiffness = 300f))
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(MenuRowSurface)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+            .padding(horizontal = 18.dp, vertical = 16.dp)
+            .animateContentSize(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = "Hệ sinh thái Duchi",
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White.copy(alpha = 0.56f),
+                letterSpacing = (-0.1).sp,
+                modifier = Modifier.weight(1f),
+            )
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(badgeColor.copy(alpha = 0.14f))
+                    .border(1.dp, badgeColor.copy(alpha = 0.35f), CircleShape)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    text = statusBadge,
+                    fontFamily = InterFontFamily,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = badgeColor,
+                    letterSpacing = 0.2.sp,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.07f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
+            ) {
+                if (locketIcon != null) {
+                    Image(
+                        bitmap = locketIcon!!,
+                        contentDescription = "Duchi Locket",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(14.dp)),
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_duchi_locket),
+                        contentDescription = "Duchi Locket",
+                        tint = accentGreen,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Duchi Locket",
+                    fontFamily = InterFontFamily,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.4).sp,
+                    color = Color.White,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = Color.White.copy(alpha = 0.68f),
+                )
+            }
+
+            val refreshInteraction = remember { MutableInteractionSource() }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .pressBounce(refreshInteraction)
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.1f))
+                    .clickable(
+                        enabled = !downloading,
+                        interactionSource = refreshInteraction,
+                        indication = RemoteFocus,
+                        onClick = { refreshLocket(force = true) },
+                    ),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.refresh),
+                    contentDescription = "Kiểm tra Duchi Locket",
+                    tint = Color.White.copy(alpha = if (downloading) 0.35f else 0.85f),
+                    modifier = Modifier
+                        .size(16.dp)
+                        .graphicsLayer { rotationZ = spin.value },
+                )
+            }
+        }
+
+        if (ready != null && (ready.installed == null || ready.updateAvailable) && ready.manifest.notes.isNotBlank()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = ready.manifest.notes,
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = Color.White.copy(alpha = 0.66f),
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        if (errorText != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = errorText!!,
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                color = Color(0xFFFF8A80),
+            )
+        }
+
+        val showInstallOrUpdate = ready != null && (ready.installed == null || ready.updateAvailable)
+        val showOpen = installed != null
+        val showRetry = locketState is DuchiLocketOtaState.Offline
+
+        if (showOpen || showInstallOrUpdate || showRetry) {
+            Spacer(Modifier.height(12.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (showOpen) {
+                    val openInteraction = remember { MutableInteractionSource() }
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .pressBounce(openInteraction)
+                            .weight(1f)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.14f))
+                            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(12.dp))
+                            .clickable(
+                                enabled = !downloading,
+                                interactionSource = openInteraction,
+                                indication = RemoteFocus,
+                                onClick = { openDuchiLocketApp(context) },
+                            ),
+                    ) {
+                        Text(
+                            text = "Mở Duchi Locket",
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = (-0.2).sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                if (showInstallOrUpdate && ready != null) {
+                    val animatedProgress by animateFloatAsState(
+                        targetValue = progress.floatValue,
+                        animationSpec = tween(durationMillis = 120),
+                        label = "locketDownloadProgress",
+                    )
+                    val actionInteraction = remember { MutableInteractionSource() }
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .pressBounce(actionInteraction)
+                            .weight(1f)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (downloading) Color.White.copy(alpha = 0.14f) else accentGreen)
+                            .clickable(
+                                enabled = !downloading,
+                                interactionSource = actionInteraction,
+                                indication = RemoteFocus,
+                                onClick = {
+                                    downloading = true
+                                    errorText = null
+                                    progress.floatValue = 0f
+                                    scope.launch {
+                                        val result = downloadDuchiLocketApk(context, ready.manifest) {
+                                            progress.floatValue = it
+                                        }
+                                        downloading = false
+                                        result.fold(
+                                            onSuccess = { file ->
+                                                if (!installApk(context, file)) {
+                                                    errorText = "Hãy cấp quyền cài ứng dụng ngoài rồi bấm lại."
+                                                }
+                                            },
+                                            onFailure = { err ->
+                                                errorText = err.message ?: "Tải APK Duchi Locket thất bại."
+                                            },
+                                        )
+                                    }
+                                },
+                            ),
+                    ) {
+                        if (downloading) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(fraction = animatedProgress)
+                                    .background(accentGreen.copy(alpha = 0.32f)),
+                            )
+                        }
+                        Text(
+                            text = when {
+                                downloading -> "Đang tải ${(animatedProgress * 100).toInt()}%"
+                                ready.installed == null -> "Cài v${ready.manifest.versionName}"
+                                else -> "Cập nhật v${ready.manifest.versionName}"
+                            },
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (downloading) Color.White else Color.Black,
+                            letterSpacing = (-0.2).sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                } else if (showRetry) {
+                    val retryInteraction = remember { MutableInteractionSource() }
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .pressBounce(retryInteraction)
+                            .weight(1f)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.16f))
+                            .clickable(
+                                interactionSource = retryInteraction,
+                                indication = RemoteFocus,
+                                onClick = { refreshLocket(force = true) },
+                            ),
+                    ) {
+                        Text(
+                            text = "Thử lại OTA",
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = (-0.2).sp,
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -53,6 +53,8 @@
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
         <package android:name="com.facebook.katana" />
+        <!-- Duchi Locket ecosystem companion app -->
+        <package android:name="com.huylocket.app" />
     </queries>
     <application
         android:name=".App"

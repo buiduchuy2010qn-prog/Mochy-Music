@@ -386,7 +386,7 @@ fun UpdatePromptSheet(
                         enabled = !downloading,
                         label = "Để sau",
                         dimmed = downloading,
-                        onClick = onDismiss,
+                        onClick = onSnooze,
                         modifier = Modifier.weight(1f),
                     )
                 }

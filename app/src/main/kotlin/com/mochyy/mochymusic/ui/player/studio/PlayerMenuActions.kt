@@ -34,7 +34,8 @@ enum class PlayerMenuAction(val label: String, @param:DrawableRes val icon: Int)
     KEEP_AWAKE("Giữ sáng màn hình", R.drawable.lock_open),
     TRANSLATE_LYRICS("Dịch lời bài hát", R.drawable.translate),
     DOWNLOAD("Tải xuống", R.drawable.download),
-    ADD_TO_PLAYLIST("Thêm vào DS phát", R.drawable.playlist_add);
+    ADD_TO_PLAYLIST("Thêm vào DS phát", R.drawable.playlist_add),
+    DUCHI_LOCKET("Đăng lên Locket", R.drawable.ic_duchi_locket);
 
     companion object {
         val DefaultSlots = listOf(OTHER_MENU, SLEEP_TIMER, SEE_VIDEO, REPEAT)

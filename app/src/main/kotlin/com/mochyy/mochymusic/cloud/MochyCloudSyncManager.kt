@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.datastore.preferences.core.edit
 import com.mochyy.mochymusic.constants.ProfileCardNumberKey
 import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
+import com.mochyy.mochymusic.constants.ProfilePicUriKey
+import com.mochyy.mochymusic.constants.UsernameKey
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.db.entities.ArtistEntity
 import com.mochyy.mochymusic.db.entities.Event
@@ -32,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -100,6 +103,9 @@ object MochyCloudSyncManager {
             }
             startObservers(app, scope)
             scope.launch(Dispatchers.IO) {
+                readLocalAvatarFile(app)?.let { local ->
+                    _state.value = _state.value.copy(avatarLocalPath = local.absolutePath)
+                }
                 syncNowInternal(app)
             }
         }
@@ -126,9 +132,14 @@ object MochyCloudSyncManager {
                     MochyAvatarCodec.decodeDataUriToFile(app, webpDataUri)
                 } else null
                 localAvatarPath = localAvatarFile?.absolutePath
-                ProfileStore.save(app, session.displayName, localAvatarFile?.let(Uri::fromFile) ?: avatarUri)
+                ProfileStore.save(
+                    app,
+                    session.displayName,
+                    localAvatarFile?.let(Uri::fromFile) ?: avatarUri,
+                    syncToCloud = false,
+                )
             } else {
-                ProfileStore.save(app, session.displayName, null)
+                ProfileStore.save(app, session.displayName, null, syncToCloud = false)
             }
             _state.value = _state.value.copy(
                 isConfigured = true,
@@ -154,12 +165,14 @@ object MochyCloudSyncManager {
             val app = context.applicationContext
             val session = MochySupabaseClient.signIn(app, username, password)
             MochyCloudVault.saveSession(app, session)
-            ProfileStore.save(app, session.displayName, null)
+            val existingAvatar = readLocalAvatarFile(app)
+            ProfileStore.save(app, session.displayName, null, syncToCloud = false)
             _state.value = _state.value.copy(
                 isConfigured = true,
                 signedIn = true,
                 username = session.username,
                 displayName = session.displayName,
+                avatarLocalPath = existingAvatar?.absolutePath ?: _state.value.avatarLocalPath,
                 lastError = null,
             )
             appScope?.let { startObservers(app, it) }
@@ -209,7 +222,7 @@ object MochyCloudSyncManager {
             MochyAvatarCodec.decodeDataUriToFile(app, webpDataUri)
         } else null
         if (newDisplayName != null || localFile != null) {
-            ProfileStore.save(app, updatedName, localFile?.let(Uri::fromFile))
+            ProfileStore.save(app, updatedName, localFile?.let(Uri::fromFile), syncToCloud = false)
         }
         _state.value = _state.value.copy(
             displayName = updatedName,
@@ -244,7 +257,7 @@ object MochyCloudSyncManager {
                 MochyCloudVault.saveSyncedFavoriteIds(app, session.userId, emptySet())
                 MochyCloudVault.saveSyncedPlaylistIds(app, session.userId, emptySet())
                 MochySupabaseClient.wipeCloudData(app, session)
-                ProfileStore.save(app, session.displayName, null)
+                ProfileStore.save(app, session.displayName, null, syncToCloud = false)
                 _state.value = _state.value.copy(
                     avatarLocalPath = null,
                     favoritesCount = 0,
@@ -261,6 +274,33 @@ object MochyCloudSyncManager {
         val scope = appScope ?: return
         scope.launch(Dispatchers.IO) {
             syncNowInternal(context.applicationContext)
+        }
+    }
+
+    fun onLocalProfileSaved(context: Context, name: String, photoPath: String?) {
+        val app = context.applicationContext
+        if (!MochyCloudVault.isConfigured(app) || MochyCloudVault.loadSession(app) == null) return
+        val cleanName = name.trim().take(40)
+        val cleanPhoto = photoPath?.removePrefix("file://")?.takeIf { it.isNotBlank() }
+        _state.value = _state.value.copy(
+            displayName = cleanName.ifBlank { _state.value.displayName },
+            avatarLocalPath = cleanPhoto ?: _state.value.avatarLocalPath,
+        )
+        val scope = appScope ?: return
+        scope.launch(NonCancellable + Dispatchers.IO) {
+            val session = getValidSession(app) ?: return@launch
+            val webp = cleanPhoto?.let(::File)?.takeIf { it.exists() }?.let { file ->
+                MochyAvatarCodec.encodeUriToWebpDataUri(app, Uri.fromFile(file))
+            }
+            runCatching {
+                MochySupabaseClient.ensureProfileRow(app, session, cleanName.ifBlank { session.displayName })
+                MochySupabaseClient.updateProfile(
+                    context = app,
+                    session = session,
+                    displayName = cleanName.takeIf { it.isNotBlank() },
+                    avatarWebp = webp,
+                )
+            }
         }
     }
 
@@ -283,6 +323,7 @@ object MochyCloudSyncManager {
         scope.launch(Dispatchers.IO) {
             val db = database(app)
             val song = db.getSongByIdBlocking(songId) ?: return@launch
+            if (!isCloudTrackEligible(song.song)) return@launch
             val existingPending = pendingHistoryMap[songId]
             val prev = historyPlayCountCache[songId]
                 ?: existingPending?.let { it.playCount to it.totalPlayMs }
@@ -418,18 +459,43 @@ object MochyCloudSyncManager {
             flushPendingHistoryInternal(app)
 
             // 1. Hồ sơ & ảnh đại diện nhẹ
-            val profile = MochySupabaseClient.fetchProfile(app, session)
-            var avatarPath = _state.value.avatarLocalPath
+            val localAvatarFile = readLocalAvatarFile(app)
+            val localUserName = runCatching {
+                app.dataStore.data.first()[UsernameKey]?.trim().orEmpty()
+            }.getOrDefault("")
+            var profile = MochySupabaseClient.fetchProfile(app, session)
+            if (profile == null) {
+                MochySupabaseClient.ensureProfileRow(
+                    app,
+                    session,
+                    localUserName.ifBlank { session.displayName },
+                )
+                profile = MochySupabaseClient.fetchProfile(app, session)
+            }
+            var avatarPath = localAvatarFile?.absolutePath ?: _state.value.avatarLocalPath
             var activeDisplay = session.displayName
             if (profile != null) {
                 if (profile.displayName.isNotBlank()) {
                     activeDisplay = profile.displayName
+                } else if (localUserName.isNotBlank()) {
+                    activeDisplay = localUserName
                 }
                 val decodedAvatar = profile.avatarWebp?.let { MochyAvatarCodec.decodeDataUriToFile(app, it) }
                 if (decodedAvatar != null) {
                     avatarPath = decodedAvatar.absolutePath
+                    ProfileStore.save(app, activeDisplay, Uri.fromFile(decodedAvatar), syncToCloud = false)
+                } else if (localAvatarFile != null) {
+                    val webp = MochyAvatarCodec.encodeUriToWebpDataUri(app, Uri.fromFile(localAvatarFile))
+                    if (webp != null) {
+                        runCatching {
+                            MochySupabaseClient.updateProfile(app, session, activeDisplay, webp)
+                        }
+                    }
+                    avatarPath = localAvatarFile.absolutePath
+                    ProfileStore.save(app, activeDisplay, null, syncToCloud = false)
+                } else {
+                    ProfileStore.save(app, activeDisplay, null, syncToCloud = false)
                 }
-                ProfileStore.save(app, activeDisplay, decodedAvatar?.let(Uri::fromFile))
             }
 
             // 1B. Metadata tài khoản (Thẻ ID bạc 3D + GZIP Playlist)
@@ -449,7 +515,7 @@ object MochyCloudSyncManager {
             val addedLocally = if (prevSynced != null) localById.keys - prevSynced else localById.keys
 
             val toPushFavs = addedLocally.mapNotNull { id ->
-                localById[id]?.takeIf { !remoteById.containsKey(id) }?.let { song ->
+                localById[id]?.takeIf { !remoteById.containsKey(id) && isCloudTrackEligible(it.song) }?.let { song ->
                     CloudFavoriteRecord(
                         songId = song.id,
                         title = song.title,
@@ -492,6 +558,7 @@ object MochyCloudSyncManager {
 
             for ((songId, events) in groupedLocal) {
                 val song = events.first().song
+                if (!isCloudTrackEligible(song.song)) continue
                 val localCount = events.size.toLong()
                 val localPlayMs = events.sumOf { it.event.playTime }.coerceAtLeast(0L)
                 val latestLocal = events.maxOf { it.event.timestamp }
@@ -822,6 +889,20 @@ object MochyCloudSyncManager {
             ?: runCatching { OffsetDateTime.parse(raw).toInstant() }.getOrNull()
             ?: runCatching { LocalDateTime.parse(raw).toInstant(ZoneOffset.UTC) }.getOrNull()
     }
+
+    private suspend fun readLocalAvatarFile(app: Context): File? = runCatching {
+        val path = app.dataStore.data.first()[ProfilePicUriKey]?.trim().orEmpty()
+        if (path.isBlank()) return@runCatching null
+        File(path.removePrefix("file://")).takeIf { it.exists() && it.isFile && it.length() > 0L }
+    }.getOrNull()
+
+    private fun isCloudTrackEligible(song: SongEntity): Boolean =
+        !song.isLocal &&
+            song.id.isNotBlank() &&
+            song.id.length <= 64 &&
+            !song.id.startsWith("LA") &&
+            !song.id.contains("://") &&
+            !song.id.contains("/")
 
     private fun database(context: Context): MusicDatabase =
         EntryPointAccessors.fromApplication(context.applicationContext, CloudSyncEntryPoint::class.java)

@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -231,6 +233,56 @@ private fun SendContent(send: SendState, live: Boolean) {
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             ShareApp.entries.forEach { app ->
                 AppTile(app, enabled = !send.working) { send.start { sendTo(app); null } }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        val locketPlayerConnection = LocalPlayerConnection.current
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(MenuRowSurface)
+                .border(1.dp, Color(0xFF9CF58A).copy(alpha = 0.28f), RoundedCornerShape(18.dp))
+                .clickable(enabled = !send.working) {
+                    com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket(
+                        context = context,
+                        song = session.song,
+                        playerConnection = locketPlayerConnection,
+                    )
+                }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF9CF58A).copy(alpha = 0.16f)),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_duchi_locket),
+                    contentDescription = "Duchi Locket",
+                    tint = Color(0xFF9CF58A),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Đăng lên Duchi Locket",
+                    fontFamily = InterFontFamily,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.3).sp,
+                )
+                Text(
+                    text = "Phát bài trên Mochy & mở khung Nhạc ở Locket",
+                    fontFamily = InterFontFamily,
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 12.sp,
+                )
             }
         }
         Spacer(Modifier.height(16.dp))

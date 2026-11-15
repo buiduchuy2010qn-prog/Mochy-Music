@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.flowOf
 class PlayerMenuExtras internal constructor(
     private val context: Context,
     private val database: MusicDatabase,
+    private val playerConnection: PlayerConnection,
     private val song: MediaMetadata?,
     private val keepScreenOn: Boolean,
     private val setKeepScreenOn: (Boolean) -> Unit,
@@ -70,6 +71,9 @@ class PlayerMenuExtras internal constructor(
             PlayerMenuAction.DOWNLOAD -> toggleDownload()
             PlayerMenuAction.ADD_TO_PLAYLIST -> if (song != null) showAddToPlaylist()
             PlayerMenuAction.SHARE -> if (song != null) com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song)
+            PlayerMenuAction.DUCHI_LOCKET -> if (song != null) {
+                com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket(context, song, playerConnection)
+            }
             else -> return false
         }
         return true
@@ -125,6 +129,7 @@ fun rememberPlayerMenuExtras(playerConnection: PlayerConnection, openLyrics: () 
     return PlayerMenuExtras(
         context = context,
         database = database,
+        playerConnection = playerConnection,
         song = song,
         keepScreenOn = keepScreenOn,
         setKeepScreenOn = setKeepScreenOn,

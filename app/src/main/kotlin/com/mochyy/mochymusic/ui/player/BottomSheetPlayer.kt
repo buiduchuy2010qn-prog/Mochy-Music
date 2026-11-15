@@ -1709,9 +1709,20 @@ private fun PlayerSheet(
                 } else {
                     set
                 }
+                val locketAction = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.DUCHI_LOCKET
+                val withLocket = if (locketAction !in withShare && menuLayout.side != locketAction) {
+                    val shareIdx = withShare.indexOf(shareAction)
+                    if (shareIdx >= 0) {
+                        withShare.toMutableList().apply { add(shareIdx + 1, locketAction) }
+                    } else {
+                        withShare + locketAction
+                    }
+                } else {
+                    withShare
+                }
                 // with a youtube video on the cover, the full video mode goes on top unless it's already one of the four
                 val fullVideo = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.FULL_VIDEO
-                if (videoShowing && fullVideo !in withShare) listOf(fullVideo) + withShare else withShare
+                if (videoShowing && fullVideo !in withLocket) listOf(fullVideo) + withLocket else withLocket
             },
             isActive = ::menuActionActive,
             onAction = onMenuAction,

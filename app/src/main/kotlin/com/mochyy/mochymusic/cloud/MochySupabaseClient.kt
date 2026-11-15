@@ -10,6 +10,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 data class CloudProfileRecord(
@@ -328,6 +329,7 @@ object MochySupabaseClient {
                 put("avatar_webp", avatarWebp)
             }
         }
+        if (payload.length() == 0) return@withContext
         val uid = urlEncode(session.userId)
         val request = Request.Builder()
             .url("$baseUrl/rest/v1/mochy_profiles?user_id=eq.$uid")
@@ -374,21 +376,28 @@ object MochySupabaseClient {
         session: MochyCloudSession,
         items: List<CloudFavoriteRecord>,
     ) = withContext(Dispatchers.IO) {
-        if (items.isEmpty()) return@withContext
+        val safeItems = items
+            .filter { isCloudSafeSongId(it.songId) }
+            .distinctBy { it.songId }
+        if (safeItems.isEmpty()) return@withContext
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext
-        for (chunk in items.chunked(100)) {
+        for (chunk in safeItems.chunked(100)) {
             val arr = JSONArray()
             for (item in chunk) {
                 arr.put(
-                    JSONObject().apply {
-                        put("user_id", session.userId)
-                        put("song_id", item.songId.take(64))
-                        put("title", item.title.take(240))
-                        put("artists", item.artists.take(240))
-                        if (!item.albumName.isNullOrBlank()) put("album_name", item.albumName.take(240))
-                        put("duration", item.duration.coerceIn(-1, 86400))
-                        if (!item.thumbnailUrl.isNullOrBlank()) put("thumbnail_url", item.thumbnailUrl.take(512))
-                        if (item.likedAt.isNotBlank()) put("liked_at", item.likedAt)
+                    buildBaseTrackJson(
+                        userId = session.userId,
+                        songId = item.songId,
+                        title = item.title,
+                        artists = item.artists,
+                        albumName = item.albumName,
+                        duration = item.duration,
+                        thumbnailUrl = item.thumbnailUrl,
+                    ).apply {
+                        put(
+                            "liked_at",
+                            item.likedAt.trim().takeIf { it.isNotBlank() && it != "null" } ?: Instant.now().toString(),
+                        )
                     },
                 )
             }
@@ -461,23 +470,30 @@ object MochySupabaseClient {
         session: MochyCloudSession,
         items: List<CloudHistoryRecord>,
     ) = withContext(Dispatchers.IO) {
-        if (items.isEmpty()) return@withContext
+        val safeItems = items
+            .filter { isCloudSafeSongId(it.songId) }
+            .distinctBy { it.songId }
+        if (safeItems.isEmpty()) return@withContext
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext
-        for (chunk in items.chunked(100)) {
+        for (chunk in safeItems.chunked(100)) {
             val arr = JSONArray()
             for (item in chunk) {
                 arr.put(
-                    JSONObject().apply {
-                        put("user_id", session.userId)
-                        put("song_id", item.songId.take(64))
-                        put("title", item.title.take(240))
-                        put("artists", item.artists.take(240))
-                        if (!item.albumName.isNullOrBlank()) put("album_name", item.albumName.take(240))
-                        put("duration", item.duration.coerceIn(-1, 86400))
-                        if (!item.thumbnailUrl.isNullOrBlank()) put("thumbnail_url", item.thumbnailUrl.take(512))
-                        put("play_count", item.playCount.coerceAtLeast(1L))
+                    buildBaseTrackJson(
+                        userId = session.userId,
+                        songId = item.songId,
+                        title = item.title,
+                        artists = item.artists,
+                        albumName = item.albumName,
+                        duration = item.duration,
+                        thumbnailUrl = item.thumbnailUrl,
+                    ).apply {
+                        put("play_count", item.playCount.coerceIn(1L, 2_000_000_000L))
                         put("total_play_ms", item.totalPlayMs.coerceAtLeast(0L))
-                        if (item.lastPlayedAt.isNotBlank()) put("last_played_at", item.lastPlayedAt)
+                        put(
+                            "last_played_at",
+                            item.lastPlayedAt.trim().takeIf { it.isNotBlank() && it != "null" } ?: Instant.now().toString(),
+                        )
                     },
                 )
             }
@@ -492,12 +508,12 @@ object MochySupabaseClient {
         }
     }
 
-    private fun ensureProfileRow(context: Context, session: MochyCloudSession, displayName: String) {
+    internal fun ensureProfileRow(context: Context, session: MochyCloudSession, displayName: String) {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return
         val body = JSONObject().apply {
             put("user_id", session.userId)
             put("username", session.username)
-            put("display_name", displayName.take(40))
+            put("display_name", displayName.trim().ifBlank { session.username }.take(40))
         }.toString().toRequestBody(JsonMediaType)
         val request = Request.Builder()
             .url("$baseUrl/rest/v1/mochy_profiles?on_conflict=user_id")
@@ -507,6 +523,47 @@ object MochySupabaseClient {
             .post(body)
             .build()
         runCatching { http.newCall(request).execute().close() }
+    }
+
+    private fun isCloudSafeSongId(id: String): Boolean =
+        id.isNotBlank() && id.length <= 64 && !id.startsWith("LA") && !id.contains("://") && !id.contains("/")
+
+    private fun sanitizeCloudUrl(raw: String?): Any {
+        val trimmed = raw?.trim().orEmpty()
+        if (trimmed.isBlank() || trimmed == "null" ||
+            trimmed.startsWith("content://", ignoreCase = true) ||
+            trimmed.startsWith("file://", ignoreCase = true)
+        ) {
+            return JSONObject.NULL
+        }
+        if (trimmed.length <= 512) return trimmed
+        val stripped = trimmed.substringBefore('?')
+        return if (stripped.length <= 512 && stripped.startsWith("http", ignoreCase = true)) {
+            stripped
+        } else {
+            JSONObject.NULL
+        }
+    }
+
+    private fun buildBaseTrackJson(
+        userId: String,
+        songId: String,
+        title: String,
+        artists: String,
+        albumName: String?,
+        duration: Int,
+        thumbnailUrl: String?,
+    ): JSONObject = JSONObject().apply {
+        put("user_id", userId)
+        put("song_id", songId)
+        put("title", title.trim().ifBlank { "Bài hát" }.take(240))
+        put("artists", artists.trim().ifBlank { "Nghệ sĩ" }.take(240))
+        put(
+            "album_name",
+            albumName?.trim()?.takeIf { it.isNotBlank() && it != "null" }?.take(240) ?: JSONObject.NULL,
+        )
+        put("duration", duration.coerceIn(-1, 86400))
+        put("thumbnail_url", sanitizeCloudUrl(thumbnailUrl))
     }
 
     private fun executeAuthRequest(request: Request, isSignUp: Boolean): JSONObject {
@@ -566,6 +623,7 @@ object MochySupabaseClient {
                 "Vui lòng đợi 30 giây giữa các lần đổi ảnh đại diện."
             "avatar" in msg.lowercase() -> "Ảnh đại diện không hợp lệ hoặc vượt giới hạn nhẹ."
             code >= 500 -> "Máy chủ Mochy Cloud đang bận."
+            code == 400 && pgCode.isNotBlank() -> "Đồng bộ thất bại (mã 400 · $pgCode)."
             else -> "Đồng bộ thất bại (mã $code)."
         }
     }

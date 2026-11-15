@@ -984,6 +984,10 @@ class MainActivity : ComponentActivity() {
                                         prefs.toMutablePreferences().apply {
                                             set(com.mochyy.mochymusic.constants.SetupCompletedKey, true)
                                             set(com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey, true)
+                                            set(
+                                                com.mochyy.mochymusic.constants.LastKnownVersionNameKey,
+                                                com.mochyy.mochymusic.ui.screens.update.shortVersion(BuildConfig.VERSION_NAME),
+                                            )
                                             set(com.mochyy.mochymusic.constants.UsernameKey, username)
                                             if (savedUriStr.isNotEmpty()) {
                                                 set(com.mochyy.mochymusic.constants.ProfilePicUriKey, savedUriStr)
@@ -1345,7 +1349,10 @@ class MainActivity : ComponentActivity() {
                     // "share song" from any menu opens here, over the app and the player
                     com.mochyy.mochymusic.ui.player.share.song.SongShareHost()
 
-                    HomeUpdatePrompt(currentRoute = currentRoute)
+                    HomeUpdatePrompt(
+                        currentRoute = currentRoute,
+                        wizardOpen = fullSetupNeeded || cloudWelcomeLatch,
+                    )
 
                     sharedSong?.let { song ->
                         playerConnection?.let {
@@ -1690,26 +1697,38 @@ private object AppContentNeverObscured : androidx.compose.runtime.State<Boolean>
 
 val LocalHideAppChrome = staticCompositionLocalOf { mutableStateOf(false) }
 
-private const val UpdateSnoozeWindowMillis = 24L * 60L * 60L * 1000L
+private const val UpdateSnoozeWindowMillis = 6L * 60L * 60L * 1000L
 
 @Composable
-private fun HomeUpdatePrompt(currentRoute: String?) {
-    if (currentRoute == "setup" || currentRoute == "wrapped") return
+private fun HomeUpdatePrompt(
+    currentRoute: String?,
+    wizardOpen: Boolean = false,
+) {
+    if (wizardOpen || currentRoute == "setup" || currentRoute == "wrapped") return
     val (noticeHidden) = rememberPreference(com.mochyy.mochymusic.constants.HideUpdateNoticeKey, defaultValue = false)
-    if (noticeHidden) return
 
     val updateState by com.mochyy.mochymusic.ui.screens.update.rememberUpdateState()
-    val (_, setSnoozedAt) = rememberPreference(
+    val (snoozedAt, setSnoozedAt) = rememberPreference(
         com.mochyy.mochymusic.constants.UpdatePromptSnoozedAtKey,
         defaultValue = 0L,
+    )
+    val (lastKnownVersion, setLastKnownVersion) = rememberPreference(
+        com.mochyy.mochymusic.constants.LastKnownVersionNameKey,
+        defaultValue = "",
     )
     val (userName) = rememberPreference(com.mochyy.mochymusic.constants.UsernameKey, "")
 
     var dismissed by rememberSaveable { mutableStateOf(false) }
+    var whatsNewDismissed by rememberSaveable { mutableStateOf(false) }
 
+    val currentVersion = remember {
+        com.mochyy.mochymusic.ui.screens.update.shortVersion(BuildConfig.VERSION_NAME)
+    }
     val release = (updateState as? com.mochyy.mochymusic.core.updater.UpdateState.Available)?.release
+    val isSnoozed = snoozedAt > 0L && (System.currentTimeMillis() - snoozedAt) < UpdateSnoozeWindowMillis
+    val showUpdatePopup = !noticeHidden && release != null && !dismissed && !isSnoozed
 
-    if (release != null && !dismissed) {
+    if (showUpdatePopup && release != null) {
         com.mochyy.mochymusic.ui.screens.update.UpdatePromptSheet(
             release = release,
             userName = userName,
@@ -1718,6 +1737,19 @@ private fun HomeUpdatePrompt(currentRoute: String?) {
                 dismissed = true
             },
             onDismiss = { dismissed = true },
+        )
+    } else if (
+        updateState !is com.mochyy.mochymusic.core.updater.UpdateState.Checking &&
+        !dismissed &&
+        !whatsNewDismissed &&
+        lastKnownVersion != currentVersion
+    ) {
+        com.mochyy.mochymusic.ui.screens.update.WhatsNewPromptSheet(
+            userName = userName,
+            onDismiss = {
+                whatsNewDismissed = true
+                setLastKnownVersion(currentVersion)
+            },
         )
     }
 }

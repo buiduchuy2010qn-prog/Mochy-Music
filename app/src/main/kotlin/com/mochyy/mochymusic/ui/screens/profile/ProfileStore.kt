@@ -35,7 +35,12 @@ object ProfileStore {
      * Saves [name], and [photo] if a new one was picked. It finishes even if the screen that asked
      * goes away halfway, so a closed sheet never leaves a picture copied but not saved.
      */
-    suspend fun save(context: Context, name: String, photo: Uri?) = withContext(NonCancellable + Dispatchers.IO) {
+    suspend fun save(
+        context: Context,
+        name: String,
+        photo: Uri?,
+        syncToCloud: Boolean = true,
+    ) = withContext(NonCancellable + Dispatchers.IO) {
         val app = context.applicationContext
         val newPath = photo?.let { copyPhoto(app, it) }
         var oldPath: String? = null
@@ -47,6 +52,9 @@ object ProfileStore {
             }
         }
         oldPath?.let { deleteOldPhoto(app, it) }
+        if (syncToCloud) {
+            com.mochyy.mochymusic.cloud.MochyCloudSyncManager.onLocalProfileSaved(app, name, newPath)
+        }
     }
 
     /** Removes a picture this class copied earlier; anything else (a content uri, someone else's file) stays. */
