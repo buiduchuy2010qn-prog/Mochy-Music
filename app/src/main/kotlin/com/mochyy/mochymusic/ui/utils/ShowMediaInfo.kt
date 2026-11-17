@@ -2,8 +2,6 @@
 
 package com.mochyy.mochymusic.ui.utils
 
-import com.mochyy.mochymusic.ui.theme.InterFontFamily
-
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.text.format.Formatter
@@ -288,7 +286,7 @@ fun ShowMediaInfo(videoId: String) {
                     Text(
                         text = stringResource(R.string.description),
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = InterFontFamily,
+                            fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
                         ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -358,7 +356,7 @@ fun InfoItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = InterFontFamily,
+                fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.5.sp
             ),

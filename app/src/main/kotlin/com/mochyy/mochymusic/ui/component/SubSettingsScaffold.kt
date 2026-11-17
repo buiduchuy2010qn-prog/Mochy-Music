@@ -146,30 +146,26 @@ fun SubSettingsScaffold(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .glassRoot(glassState, isActive = { collapseProgress > 0.005f }),
+
+                .glassRoot(glassState, isActive = { !scrollState.isScrollInProgress })
+                .verticalScroll(scrollState)
+                .padding(horizontal = PagePadding)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = PagePadding)
-            ) {
-                Spacer(modifier = Modifier.height(totalHeaderHeight))
+            Spacer(modifier = Modifier.height(totalHeaderHeight))
 
-                if (searchBar != null) {
-                    // Reserves the pill's resting space in the normal flow; the pill itself is drawn
-                    // as an overlay below so it can slide out over the header instead of being
-                    // clipped by the scrolling column.
-                    Spacer(modifier = Modifier.height(SearchBarHeight + 16.dp))
-                }
-
-                CompositionLocalProvider(LocalSettingsScroll provides settingsScroll) { content() }
-
-                Spacer(modifier = Modifier.height(bottomInset.calculateBottomPadding() + 24.dp))
+            if (searchBar != null) {
+                // Reserves the pill's resting space in the normal flow; the pill itself is drawn
+                // as an overlay below so it can slide out over the header instead of being
+                // clipped by the scrolling column.
+                Spacer(modifier = Modifier.height(SearchBarHeight + 16.dp))
             }
+
+            CompositionLocalProvider(LocalSettingsScroll provides settingsScroll) { content() }
+
+            Spacer(modifier = Modifier.height(bottomInset.calculateBottomPadding() + 24.dp))
         }
 
         Box(
@@ -181,10 +177,10 @@ fun SubSettingsScaffold(
         ) {
             ProgressiveGlassBackground(
                 state = glassState,
-                maxBlurRadius = { 42f * collapseProgress },
-                foundationColor = headerFoundationColor.copy(alpha = 0.35f),
+                maxBlurRadius = { 40f * collapseProgress },
+                foundationColor = headerFoundationColor.copy(alpha = 0.55f),
                 direction = BlurDirection.BottomToTop,
-                steps = 3,
+                steps = 2,
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -195,10 +191,10 @@ fun SubSettingsScaffold(
                     .drawWithCache {
                         val gradient = if (progressive) {
                             Brush.verticalGradient(
-                                0f to Color.Black.copy(alpha = 0.52f),
-                                0.35f to Color.Black.copy(alpha = 0.28f),
-                                0.70f to Color.Black.copy(alpha = 0.10f),
-                                1f to Color.Transparent,
+                                0f to Color.Black.copy(alpha = 0.90f),
+                                0.20f to Color.Black.copy(alpha = 0.50f),
+                                0.45f to Color.Black.copy(alpha = 0.18f),
+                                0.75f to Color.Transparent,
                             )
                         } else {
                             SolidColor(Color.Black.copy(alpha = FlatBarScrimAlpha))

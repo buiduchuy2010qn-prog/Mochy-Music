@@ -2,8 +2,6 @@
 
 package com.mochyy.mochymusic.ui.screens.settings.integrations.discord
 
-import com.mochyy.mochymusic.ui.theme.InterFontFamily
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -281,13 +279,13 @@ private fun Times(activity: PresenceActivity, now: Long) {
     val mono = Modifier.padding(top = 6.dp)
     val end = activity.endMs
     if (end == null) {
-        Text("đã phát ${clock(now - start)}", color = DiscordColors.Secondary, fontSize = 10.sp, fontFamily = InterFontFamily, modifier = mono)
+        Text("đã phát ${clock(now - start)}", color = DiscordColors.Secondary, fontSize = 10.sp, fontFamily = FontFamily.Monospace, modifier = mono)
         return
     }
     val total = (end - start).coerceAtLeast(1)
     val elapsed = (now - start).coerceIn(0, total)
     Row(verticalAlignment = Alignment.CenterVertically, modifier = mono) {
-        Text(clock(elapsed), color = DiscordColors.Secondary, fontSize = 9.sp, fontFamily = InterFontFamily)
+        Text(clock(elapsed), color = DiscordColors.Secondary, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
         Box(
             Modifier
                 .weight(1f)
@@ -303,7 +301,7 @@ private fun Times(activity: PresenceActivity, now: Long) {
                     .background(Color.White),
             )
         }
-        Text(clock(total), color = DiscordColors.Secondary, fontSize = 9.sp, fontFamily = InterFontFamily)
+        Text(clock(total), color = DiscordColors.Secondary, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
     }
 }
 

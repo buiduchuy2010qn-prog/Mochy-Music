@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -240,8 +241,8 @@ internal fun MochyWelcomeAccountStep(
                                     Text(
                                         text = "@${cloudState.username} · Đã kết nối Mochy Cloud",
                                         color = Onb.Subtitle,
-                                        fontFamily = InterFontFamily,
-                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 11.5.sp,
                                     )
                                 }
                             }
@@ -387,9 +388,8 @@ internal fun MochyWelcomeAccountStep(
                         Text(
                             text = "3–24 ký tự thường, số, dấu . hoặc _",
                             color = Onb.Faint,
-                            fontFamily = InterFontFamily,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.5.sp,
                             modifier = Modifier.padding(start = 10.dp),
                         )
                     }
@@ -447,7 +447,7 @@ internal fun MochyWelcomeAccountStep(
                     if (!errorMsg.isNullOrBlank()) {
                         Text(
                             text = errorMsg.orEmpty(),
-                            color = Color(0xFFFF8A80),
+                            color = Color(0xFFE0736B),
                             fontFamily = InterFontFamily,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -558,7 +558,7 @@ internal fun MochyWelcomeAccountStep(
                     if (!errorMsg.isNullOrBlank()) {
                         Text(
                             text = errorMsg.orEmpty(),
-                            color = Color(0xFFFF8A80),
+                            color = Color(0xFFE0736B),
                             fontFamily = InterFontFamily,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,

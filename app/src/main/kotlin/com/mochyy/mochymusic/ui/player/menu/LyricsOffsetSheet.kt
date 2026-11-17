@@ -2,8 +2,6 @@
 
 package com.mochyy.mochymusic.ui.player.menu
 
-import com.mochyy.mochymusic.ui.theme.InterFontFamily
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -256,7 +254,6 @@ private fun OffsetValueBox(
             singleLine = true,
             textStyle = TextStyle(
                 color = Color.White,
-                fontFamily = InterFontFamily,
                 fontSize = 44.sp,
                 fontWeight = FontWeight.Bold,
             ),

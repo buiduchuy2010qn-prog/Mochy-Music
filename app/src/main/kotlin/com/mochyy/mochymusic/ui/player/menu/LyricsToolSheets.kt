@@ -8,8 +8,6 @@
 
 package com.mochyy.mochymusic.ui.player.menu
 
-import com.mochyy.mochymusic.ui.theme.InterFontFamily
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -124,7 +122,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
                 Text(
                     text = "Chỉnh sửa lời bài hát",
                     color = Color.White,
-                    fontFamily = InterFontFamily, fontSize = 15.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
@@ -183,7 +181,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
                                 onValueChange = { if (index < drafts.size) drafts[index] = it },
                                 textStyle = TextStyle(
                                     color = Color.White,
-                                    fontFamily = InterFontFamily, fontSize = 15.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
                                 ),
                                 cursorBrush = SolidColor(Color.White),
@@ -278,7 +276,7 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
             Text(
                 text = "Nguồn lời bài hát",
                 color = Color.White,
-                fontFamily = InterFontFamily, fontSize = 15.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -529,7 +527,7 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
                         else -> "Dịch lời bài hát!"
                     },
                     color = Color.White.copy(alpha = if (target.isBlank() || isTranslating) 0.45f else 1f),
-                    fontFamily = InterFontFamily, fontSize = 15.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -649,7 +647,7 @@ private fun LanguagePickerSheet(
             Text(
                 text = title,
                 color = Color.White,
-                fontFamily = InterFontFamily, fontSize = 15.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -670,7 +668,7 @@ private fun LanguagePickerSheet(
                     value = query,
                     onValueChange = { query = it },
                     singleLine = true,
-                    textStyle = TextStyle(fontFamily = InterFontFamily, color = Color.White, fontSize = 13.sp),
+                    textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
                     cursorBrush = SolidColor(Color.White),
                     modifier = Modifier.fillMaxWidth(),
                 )

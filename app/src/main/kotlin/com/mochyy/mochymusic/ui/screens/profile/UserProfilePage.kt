@@ -106,7 +106,7 @@ internal val ProfileNameStyle = TextStyle(
 )
 
 internal val ProfileTagStyle = TextStyle(
-    fontFamily = InterFontFamily,
+    fontFamily = FontFamily.Monospace,
     fontWeight = FontWeight.SemiBold,
     fontSize = 11.sp,
     letterSpacing = (-0.05).em,
@@ -209,7 +209,6 @@ internal fun UserProfilePage(
             EditProfilePill(onClick = openEditor)
             MochyCloudPill(
                 label = if (cloudState.signedIn) "Cloud · @${cloudState.username}" else "Mochy Cloud",
-                signedIn = cloudState.signedIn,
                 onClick = { showCloudSheet = true },
             )
         }
@@ -297,7 +296,6 @@ private fun EditProfilePill(onClick: () -> Unit, modifier: Modifier = Modifier) 
 @Composable
 private fun MochyCloudPill(
     label: String,
-    signedIn: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -306,7 +304,7 @@ private fun MochyCloudPill(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier
             .clip(CircleShape)
-            .background(if (signedIn) Color(0xFF1F3B2C) else PillGrey)
+            .background(PillGrey)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
@@ -375,7 +373,7 @@ private fun ListensCard(total: ListenTotal, width: Dp, onClick: () -> Unit, modi
             Spacer(Modifier.width(6.dp))
             Text(
                 text = total.label,
-                style = TextStyle(fontFamily = InterFontFamily, fontSize = 9.5.sp, color = Color(0xFF8A8A8A)),
+                style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.5.sp, color = Color(0xFF8A8A8A)),
                 modifier = Modifier.alignByBaseline(),
             )
         }

@@ -2,8 +2,6 @@
 
 package com.mochyy.mochymusic.ui.component
 
-import com.mochyy.mochymusic.ui.theme.InterFontFamily
-
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -133,7 +131,7 @@ private fun PlaybackLogEntryItem(log: PlaybackLogEntry) {
             Text(
                 text = log.timestamp,
                 style = MaterialTheme.typography.labelSmall,
-                fontFamily = InterFontFamily,
+                fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -165,14 +163,14 @@ private fun PlaybackLogEntryItem(log: PlaybackLogEntry) {
         Text(
             text = log.message,
             style = MaterialTheme.typography.bodySmall,
-            fontFamily = InterFontFamily,
+            fontFamily = FontFamily.Monospace,
             fontWeight = if (log.level == PlaybackLogLevel.BOT) androidx.compose.ui.text.font.FontWeight.Bold else null
         )
         log.details?.let { details ->
             Text(
                 text = details,
                 style = MaterialTheme.typography.bodySmall,
-                fontFamily = InterFontFamily,
+                fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis

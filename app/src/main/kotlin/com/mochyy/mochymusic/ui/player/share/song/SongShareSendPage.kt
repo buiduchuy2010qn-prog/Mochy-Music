@@ -241,9 +241,8 @@ private fun SendContent(send: SendState, live: Boolean) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(MenuRowSurface)
-                .border(1.dp, Color(0xFF9CF58A).copy(alpha = 0.28f), RoundedCornerShape(18.dp))
                 .clickable(enabled = !send.working) {
                     com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket(
                         context = context,
@@ -256,15 +255,15 @@ private fun SendContent(send: SendState, live: Boolean) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF9CF58A).copy(alpha = 0.16f)),
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.12f)),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_duchi_locket),
                     contentDescription = "Duchi Locket",
-                    tint = Color(0xFF9CF58A),
-                    modifier = Modifier.size(20.dp),
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
                 )
             }
             Spacer(Modifier.width(12.dp))
@@ -280,7 +279,7 @@ private fun SendContent(send: SendState, live: Boolean) {
                 Text(
                     text = "Phát bài trên Mochy & mở khung Nhạc ở Locket",
                     fontFamily = InterFontFamily,
-                    color = Color.White.copy(alpha = 0.65f),
+                    color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                 )
             }

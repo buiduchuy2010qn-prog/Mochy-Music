@@ -208,12 +208,12 @@ private fun inline(text: String, strongColor: Color): AnnotatedString = buildAnn
         strong = SpanStyle(
             fontFamily = InterFontFamily,
             fontWeight = FontWeight.Bold,
-            color = strongColor,
+            color = Color(0xFF9CF58A),
         ),
         link = SpanStyle(
             fontFamily = InterFontFamily,
             fontWeight = FontWeight.Bold,
-            color = strongColor,
+            color = Color(0xFF9CF58A),
             
         ),
     )
@@ -252,7 +252,7 @@ fun ChangelogMarkdown(
                 is MdBlock.Heading -> Text(
                     text = remember(block) { inline(block.text, strongColor) },
                     fontFamily = InterFontFamily,
-                    color = strongColor,
+                    color = Color(0xFF9CF58A),
                     fontSize = when (block.level) {
                         1 -> fontSize * 1.25f
                         2 -> fontSize * 1.18f

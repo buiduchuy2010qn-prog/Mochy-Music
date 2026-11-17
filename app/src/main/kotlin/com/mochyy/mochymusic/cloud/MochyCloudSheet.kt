@@ -25,11 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,6 +44,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,10 +54,11 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
+import com.mochyy.mochymusic.ui.player.menu.MenuSheetSurface
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.Onb
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnbButton
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnbButtonStyle
-import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnbCard
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnbPillInput
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.PageBadge
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
@@ -69,14 +68,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val SheetErrorRed = Color(0xFFE0736B)
+
 @Composable
 fun MochyCloudSheet(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val state by MochyCloudSyncManager.state.collectAsState()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var authTab by remember { mutableIntStateOf(0) } // 0 = Đăng nhập, 1 = Đăng ký
     var usernameInput by remember { mutableStateOf("") }
@@ -108,29 +107,19 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Onb.Page,
-        contentColor = Color.White,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 12.dp, bottom = 8.dp)
-                    .width(72.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.35f)),
-            )
-        },
-    ) {
+    MenuSheetSurface(
+        onDismiss = onDismiss,
+        wrapHeight = true,
+        fullDetent = 0.92f,
+        dismissEnabled = !busy,
+    ) { _ ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp)
-                .padding(bottom = 24.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(
@@ -157,23 +146,33 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
             }
 
             if (!state.isConfigured) {
-                OnbCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MenuRowSurface)
+                        .padding(14.dp),
+                ) {
                     Text(
                         text = "Bản dựng này chưa gắn khóa Mochy Cloud hoặc chữ ký APK không hợp lệ.",
-                        color = Color(0xFFFF8A80),
+                        color = SheetErrorRed,
                         fontFamily = InterFontFamily,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(14.dp),
                     )
                 }
             } else {
                 AnimatedContent(targetState = state.signedIn, label = "mochyCloudAuth") { signedIn ->
                     if (!signedIn) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OnbCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(MenuRowSurface)
+                                    .padding(14.dp),
+                            ) {
                                 Row(
-                                    modifier = Modifier.padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 ) {
@@ -197,7 +196,7 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(CircleShape)
-                                    .background(Onb.Card)
+                                    .background(MenuRowSurface)
                                     .padding(4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
@@ -245,9 +244,8 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                             Text(
                                 text = "3–24 ký tự thường, số, dấu . hoặc _",
                                 color = Onb.Faint,
-                                fontFamily = InterFontFamily,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.5.sp,
                                 modifier = Modifier.padding(start = 10.dp),
                             )
 
@@ -314,9 +312,14 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                         }
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OnbCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(MenuRowSurface)
+                                    .padding(16.dp),
+                            ) {
                                 Row(
-                                    modifier = Modifier.padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                                 ) {
@@ -361,8 +364,8 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                                         Text(
                                             text = "@${state.username} · Avatar WebP ≤ 24 KB",
                                             color = Onb.Subtitle,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 12.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 11.sp,
                                         )
                                         Spacer(Modifier.height(8.dp))
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -440,60 +443,9 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                OnbCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(18.dp)) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Text(
-                                            text = "${state.favoritesCount}",
-                                            color = Color.White,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            text = "Yêu thích",
-                                            color = Onb.Muted,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-                                OnbCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(18.dp)) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Text(
-                                            text = "${state.playlistsCount}",
-                                            color = Color.White,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            text = "Playlist",
-                                            color = Onb.Muted,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-                                OnbCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(18.dp)) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Text(
-                                            text = "${state.historyCount}",
-                                            color = Color.White,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        Text(
-                                            text = "Lịch sử nghe",
-                                            color = Onb.Muted,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
+                                CloudStatTile(state.favoritesCount.toString(), "Yêu thích", Modifier.weight(1f))
+                                CloudStatTile(state.playlistsCount.toString(), "Playlist", Modifier.weight(1f))
+                                CloudStatTile(state.historyCount.toString(), "Lịch sử nghe", Modifier.weight(1f))
                             }
 
                             if (state.lastSyncEpochMs > 0L) {
@@ -504,8 +456,8 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                                 Text(
                                     text = "Đồng bộ gần nhất: $formatted · Tối đa 25 Playlist, 500 lịch sử & 2.000 yêu thích",
                                     color = Onb.Faint,
-                                    fontFamily = InterFontFamily,
-                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 10.5.sp,
                                     modifier = Modifier.padding(horizontal = 4.dp),
                                 )
                             }
@@ -544,7 +496,7 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(CircleShape)
-                                        .background(Onb.ButtonSecondary)
+                                        .background(MenuRowSurface)
                                         .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
                                         .clickable(enabled = !busy) {
                                             showPasswordEditor = !showPasswordEditor
@@ -566,8 +518,8 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(CircleShape)
-                                        .background(Onb.ButtonSecondary)
-                                        .border(1.dp, Color(0xFFFF6E6E).copy(alpha = 0.28f), CircleShape)
+                                        .background(MenuRowSurface)
+                                        .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
                                         .clickable(enabled = !busy) {
                                             confirmWipeCloud = !confirmWipeCloud
                                             showPasswordEditor = false
@@ -578,7 +530,7 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                                 ) {
                                     Text(
                                         text = "Xóa dữ liệu Cloud",
-                                        color = Color(0xFFFF8A80),
+                                        color = SheetErrorRed,
                                         fontFamily = InterFontFamily,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
@@ -587,125 +539,129 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
                             }
 
                             if (showPasswordEditor) {
-                                OnbCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Text(
-                                            text = "Đổi mật khẩu tài khoản",
-                                            color = Color.White,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                        OnbPillInput(
-                                            value = newPasswordInput,
-                                            onValueChange = { newPasswordInput = it },
-                                            placeholder = "mật khẩu mới (tối thiểu 6 ký tự)",
-                                            isPassword = true,
-                                            keyboardOptions = KeyboardOptions(
-                                                keyboardType = KeyboardType.Password,
-                                                imeAction = ImeAction.Next,
-                                            ),
-                                            keyboardActions = KeyboardActions(
-                                                onNext = { focusManager.moveFocus(FocusDirection.Down) },
-                                            ),
-                                        )
-                                        OnbPillInput(
-                                            value = confirmPasswordInput,
-                                            onValueChange = { confirmPasswordInput = it },
-                                            placeholder = "nhập lại mật khẩu mới",
-                                            isPassword = true,
-                                            keyboardOptions = KeyboardOptions(
-                                                keyboardType = KeyboardType.Password,
-                                                imeAction = ImeAction.Done,
-                                            ),
-                                            keyboardActions = KeyboardActions(
-                                                onDone = { focusManager.clearFocus() },
-                                            ),
-                                        )
-                                        OnbButton(
-                                            text = if (busy) "Đang cập nhật…" else "Cập nhật mật khẩu",
-                                            enabled = !busy && newPasswordInput.length >= 6 && newPasswordInput == confirmPasswordInput,
-                                            onClick = {
-                                                focusManager.clearFocus()
-                                                scope.launch {
-                                                    busy = true
-                                                    val res = MochyCloudSyncManager.changePassword(context, newPasswordInput)
-                                                    busy = false
-                                                    res.onSuccess {
-                                                        newPasswordInput = ""
-                                                        confirmPasswordInput = ""
-                                                        showPasswordEditor = false
-                                                        statusNotice = "Đã đổi mật khẩu Mochy Cloud thành công."
-                                                    }.onFailure {
-                                                        statusNotice = it.message ?: "Không thể đổi mật khẩu."
-                                                    }
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(MenuRowSurface)
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Text(
+                                        text = "Đổi mật khẩu tài khoản",
+                                        color = Color.White,
+                                        fontFamily = InterFontFamily,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    OnbPillInput(
+                                        value = newPasswordInput,
+                                        onValueChange = { newPasswordInput = it },
+                                        placeholder = "mật khẩu mới (tối thiểu 6 ký tự)",
+                                        isPassword = true,
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Password,
+                                            imeAction = ImeAction.Next,
+                                        ),
+                                        keyboardActions = KeyboardActions(
+                                            onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                                        ),
+                                    )
+                                    OnbPillInput(
+                                        value = confirmPasswordInput,
+                                        onValueChange = { confirmPasswordInput = it },
+                                        placeholder = "nhập lại mật khẩu mới",
+                                        isPassword = true,
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Password,
+                                            imeAction = ImeAction.Done,
+                                        ),
+                                        keyboardActions = KeyboardActions(
+                                            onDone = { focusManager.clearFocus() },
+                                        ),
+                                    )
+                                    OnbButton(
+                                        text = if (busy) "Đang cập nhật…" else "Cập nhật mật khẩu",
+                                        enabled = !busy && newPasswordInput.length >= 6 && newPasswordInput == confirmPasswordInput,
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            scope.launch {
+                                                busy = true
+                                                val res = MochyCloudSyncManager.changePassword(context, newPasswordInput)
+                                                busy = false
+                                                res.onSuccess {
+                                                    newPasswordInput = ""
+                                                    confirmPasswordInput = ""
+                                                    showPasswordEditor = false
+                                                    statusNotice = "Đã đổi mật khẩu Mochy Cloud thành công."
+                                                }.onFailure {
+                                                    statusNotice = it.message ?: "Không thể đổi mật khẩu."
                                                 }
-                                            },
+                                            }
+                                        },
+                                    )
+                                    if (confirmPasswordInput.isNotEmpty() && newPasswordInput != confirmPasswordInput) {
+                                        Text(
+                                            text = "Mật khẩu nhập lại chưa khớp.",
+                                            color = SheetErrorRed,
+                                            fontFamily = InterFontFamily,
+                                            fontSize = 11.sp,
                                         )
-                                        if (confirmPasswordInput.isNotEmpty() && newPasswordInput != confirmPasswordInput) {
-                                            Text(
-                                                text = "Mật khẩu nhập lại chưa khớp.",
-                                                color = Color(0xFFFF8A80),
-                                                fontFamily = InterFontFamily,
-                                                fontSize = 11.sp,
-                                            )
-                                        }
                                     }
                                 }
                             }
 
                             if (confirmWipeCloud) {
-                                OnbCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(MenuRowSurface)
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Text(
+                                        text = "Xác nhận xóa dữ liệu đám mây?",
+                                        color = SheetErrorRed,
+                                        fontFamily = InterFontFamily,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        text = "Toàn bộ Yêu thích, Playlist cá nhân, Lịch sử nghe và Avatar lưu trên Cloud sẽ bị xóa. Nhạc trên thiết bị này vẫn được giữ nguyên.",
+                                        color = Onb.Subtitle,
+                                        fontFamily = InterFontFamily,
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp,
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        Text(
-                                            text = "Xác nhận xóa dữ liệu đám mây?",
-                                            color = Color(0xFFFF8A80),
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
+                                        OnbButton(
+                                            text = "Hủy",
+                                            style = OnbButtonStyle.Secondary,
+                                            enabled = !busy,
+                                            onClick = { confirmWipeCloud = false },
+                                            modifier = Modifier.weight(1f),
                                         )
-                                        Text(
-                                            text = "Toàn bộ Yêu thích, Playlist cá nhân, Lịch sử nghe và Avatar lưu trên Cloud sẽ bị xóa. Nhạc trên thiết bị này vẫn được giữ nguyên.",
-                                            color = Onb.Subtitle,
-                                            fontFamily = InterFontFamily,
-                                            fontSize = 12.sp,
-                                            lineHeight = 16.sp,
+                                        OnbButton(
+                                            text = if (busy) "Đang xóa…" else "Xác nhận xóa",
+                                            enabled = !busy,
+                                            onClick = {
+                                                scope.launch {
+                                                    busy = true
+                                                    val res = MochyCloudSyncManager.clearAllCloudData(context)
+                                                    busy = false
+                                                    confirmWipeCloud = false
+                                                    statusNotice = res.fold(
+                                                        onSuccess = { "Đã xóa sạch dữ liệu trên Mochy Cloud." },
+                                                        onFailure = { it.message ?: "Không thể xóa dữ liệu Cloud." },
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f),
                                         )
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            OnbButton(
-                                                text = "Hủy",
-                                                style = OnbButtonStyle.Secondary,
-                                                enabled = !busy,
-                                                onClick = { confirmWipeCloud = false },
-                                                modifier = Modifier.weight(1f),
-                                            )
-                                            OnbButton(
-                                                text = if (busy) "Đang xóa…" else "Xác nhận xóa",
-                                                enabled = !busy,
-                                                onClick = {
-                                                    scope.launch {
-                                                        busy = true
-                                                        val res = MochyCloudSyncManager.clearAllCloudData(context)
-                                                        busy = false
-                                                        confirmWipeCloud = false
-                                                        statusNotice = res.fold(
-                                                            onSuccess = { "Đã xóa sạch dữ liệu trên Mochy Cloud." },
-                                                            onFailure = { it.message ?: "Không thể xóa dữ liệu Cloud." },
-                                                        )
-                                                    }
-                                                },
-                                                modifier = Modifier.weight(1f),
-                                            )
-                                        }
                                     }
                                 }
                             }
@@ -716,17 +672,51 @@ fun MochyCloudSheet(onDismiss: () -> Unit) {
 
             val notice = statusNotice ?: state.lastError
             if (!notice.isNullOrBlank()) {
-                OnbCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MenuRowSurface)
+                        .padding(12.dp),
+                ) {
                     Text(
                         text = notice,
                         color = Color.White,
                         fontFamily = InterFontFamily,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(12.dp),
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CloudStatTile(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(MenuRowSurface)
+            .padding(12.dp),
+    ) {
+        Text(
+            text = value,
+            color = Color.White,
+            fontFamily = InterFontFamily,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            color = Onb.Muted,
+            fontFamily = InterFontFamily,
+            fontSize = 11.sp,
+            maxLines = 1,
+        )
     }
 }

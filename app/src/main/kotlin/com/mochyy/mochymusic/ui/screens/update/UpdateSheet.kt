@@ -66,6 +66,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -98,7 +99,6 @@ import com.mochyy.mochymusic.ui.component.BetaBadge
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.pressBounce
-import com.mochyy.mochymusic.utils.CustomAppBranding
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.player.menu.MenuSurface
@@ -240,35 +240,21 @@ private fun ColumnScope.UpdateSheetContent(
                 },
         )
 
-        val branding = CustomAppBranding.rememberBranding()
-        val customLogo = CustomAppBranding.rememberCustomLogoBitmap()
-
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(6.dp))
-            if (customLogo != null) {
-                Image(
-                    bitmap = customLogo,
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(MenuRowSurface),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_mochy_mark),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(76.dp)
-                        .clip(RoundedCornerShape(22.dp)),
+                    tint = Color.White,
+                    modifier = Modifier.size(38.dp),
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(76.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(MenuRowSurface),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_mochy_mark),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(38.dp),
-                    )
-                }
             }
 
             Spacer(Modifier.height(14.dp))
@@ -500,7 +486,6 @@ private fun DuchiLocketEcosystemCard() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val accentGreen = Color(0xFF9CF58A)
 
     var locketState by remember { mutableStateOf<DuchiLocketOtaState>(DuchiLocketOtaState.Checking) }
     var locketIcon by remember { mutableStateOf(loadLocketAppIcon(context)) }
@@ -547,11 +532,6 @@ private fun DuchiLocketEcosystemCard() {
         ready != null && ready.updateAvailable -> "CÓ BẢN MỚI"
         else -> "MỚI NHẤT"
     }
-    val badgeColor = when {
-        ready != null && (ready.updateAvailable || ready.installed != null && !ready.updateAvailable) -> accentGreen
-        locketState is DuchiLocketOtaState.Offline -> Color(0xFFFFB74D)
-        else -> Color.White.copy(alpha = 0.72f)
-    }
     val subtitle = when (val s = locketState) {
         DuchiLocketOtaState.Checking -> "Đang kiểm tra kênh locket-ota-latest…"
         is DuchiLocketOtaState.Offline -> s.installed?.let {
@@ -582,8 +562,7 @@ private fun DuchiLocketEcosystemCard() {
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .background(MenuRowSurface)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
-            .padding(horizontal = 18.dp, vertical = 16.dp)
+            .padding(horizontal = 20.dp, vertical = 18.dp)
             .animateContentSize(),
     ) {
         Row(
@@ -602,16 +581,15 @@ private fun DuchiLocketEcosystemCard() {
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(badgeColor.copy(alpha = 0.14f))
-                    .border(1.dp, badgeColor.copy(alpha = 0.35f), CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
                     .padding(horizontal = 8.dp, vertical = 2.dp),
             ) {
                 Text(
                     text = statusBadge,
-                    fontFamily = InterFontFamily,
+                    fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = badgeColor,
+                    color = Color(0xFF8A8A8A),
                     letterSpacing = 0.2.sp,
                 )
             }
@@ -628,8 +606,7 @@ private fun DuchiLocketEcosystemCard() {
                 modifier = Modifier
                     .size(46.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White.copy(alpha = 0.07f))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
+                    .background(Color.White.copy(alpha = 0.08f)),
             ) {
                 if (locketIcon != null) {
                     Image(
@@ -644,7 +621,7 @@ private fun DuchiLocketEcosystemCard() {
                     Icon(
                         painter = painterResource(R.drawable.ic_duchi_locket),
                         contentDescription = "Duchi Locket",
-                        tint = accentGreen,
+                        tint = Color.White,
                         modifier = Modifier.size(24.dp),
                     )
                 }
@@ -667,7 +644,7 @@ private fun DuchiLocketEcosystemCard() {
                     fontFamily = InterFontFamily,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
-                    color = Color.White.copy(alpha = 0.68f),
+                    color = Color(0xFF9A9A9A),
                 )
             }
 
@@ -704,7 +681,7 @@ private fun DuchiLocketEcosystemCard() {
                 fontFamily = InterFontFamily,
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
-                color = Color.White.copy(alpha = 0.66f),
+                color = Color(0xFF9A9A9A),
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -716,7 +693,7 @@ private fun DuchiLocketEcosystemCard() {
                 text = errorText!!,
                 fontFamily = InterFontFamily,
                 fontSize = 12.sp,
-                color = Color(0xFFFF8A80),
+                color = Color(0xFFE0736B),
             )
         }
 
@@ -737,10 +714,10 @@ private fun DuchiLocketEcosystemCard() {
                         modifier = Modifier
                             .pressBounce(openInteraction)
                             .weight(1f)
-                            .height(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.14f))
-                            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(12.dp))
+                            .height(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
                             .clickable(
                                 enabled = !downloading,
                                 interactionSource = openInteraction,
@@ -773,9 +750,10 @@ private fun DuchiLocketEcosystemCard() {
                         modifier = Modifier
                             .pressBounce(actionInteraction)
                             .weight(1f)
-                            .height(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (downloading) Color.White.copy(alpha = 0.14f) else accentGreen)
+                            .height(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
                             .clickable(
                                 enabled = !downloading,
                                 interactionSource = actionInteraction,
@@ -809,7 +787,7 @@ private fun DuchiLocketEcosystemCard() {
                                     .align(Alignment.CenterStart)
                                     .fillMaxHeight()
                                     .fillMaxWidth(fraction = animatedProgress)
-                                    .background(accentGreen.copy(alpha = 0.32f)),
+                                    .background(Color.White.copy(alpha = 0.22f)),
                             )
                         }
                         Text(
@@ -821,7 +799,7 @@ private fun DuchiLocketEcosystemCard() {
                             fontFamily = InterFontFamily,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (downloading) Color.White else Color.Black,
+                            color = Color.White,
                             letterSpacing = (-0.2).sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -834,9 +812,10 @@ private fun DuchiLocketEcosystemCard() {
                         modifier = Modifier
                             .pressBounce(retryInteraction)
                             .weight(1f)
-                            .height(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.16f))
+                            .height(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
                             .clickable(
                                 interactionSource = retryInteraction,
                                 indication = RemoteFocus,
@@ -1181,16 +1160,6 @@ internal fun android.content.Context.openUrl(url: String) {
 @Composable
 internal fun AppIconImage(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val customLogo = CustomAppBranding.rememberCustomLogoBitmap()
-    if (customLogo != null) {
-        Image(
-            bitmap = customLogo,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = modifier,
-        )
-        return
-    }
     val icon = remember(context) {
         runCatching {
             context.packageManager

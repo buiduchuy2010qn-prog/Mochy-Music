@@ -126,7 +126,6 @@ import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.LocalAppContentObscured
 import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.utils.CustomAppBranding
 import com.mochyy.mochymusic.constants.InnerTubeCookieKey
 import com.mochyy.mochymusic.constants.ProfileCardNumberKey
 import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
@@ -732,11 +731,9 @@ fun ProfileScreen(navController: NavController) {
                             },
                         )
                         Spacer(Modifier.height(16.dp))
-                        ModderCard(
-                            onClick = { navController.navigate("developer_space?person=0") },
-                        )
-                        Spacer(Modifier.height(16.dp))
                         DeveloperCard(onClick = { navController.navigate("developer_space") })
+                        Spacer(Modifier.height(16.dp))
+                        DiscordCard(onClick = { context.openDevUrl(DiscordUrl) })
                         Spacer(Modifier.height(28.dp))
                         Text("Cài đặt", style = PageTitle.copy(fontSize = 15.sp), modifier = Modifier.padding(start = 2.dp, bottom = 10.dp))
                         OpenSettingsRow(onClick = { navController.navigate("mochy_settings") })
@@ -770,11 +767,7 @@ fun ProfileScreen(navController: NavController) {
                             .background(
                                 if (progressiveBar) {
                                     Brush.verticalGradient(
-                                        listOf(
-                                            Color.Black.copy(alpha = 0.50f * collapseProgress),
-                                            Color.Black.copy(alpha = 0.25f * collapseProgress),
-                                            Color.Transparent,
-                                        ),
+                                        listOf(Color.Black, Color.Black.copy(alpha = 0.85f * collapseProgress), Color.Transparent),
                                     )
                                 } else {
                                     androidx.compose.ui.graphics.SolidColor(Color.Black.copy(alpha = com.mochyy.mochymusic.ui.component.FlatBarScrimAlpha))
@@ -785,40 +778,20 @@ fun ProfileScreen(navController: NavController) {
             }
 
             // ---- logo, and the greeting sliding into the bar beside it ----
-            val customProfileLogo = CustomAppBranding.rememberCustomLogoBitmap()
-            val profileBrandName = CustomAppBranding.rememberBranding().displayName()
-            if (customProfileLogo != null) {
-                Image(
-                    bitmap = customProfileLogo,
-                    contentDescription = profileBrandName,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .padding(start = HomeContentInset, top = statusBarTop + TopBarLogoTop)
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .graphicsLayer {
-                            val k = 1f - collapseProgress * 0.18f
-                            scaleX = k
-                            scaleY = k
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                        },
-                )
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.ic_mochy_mark),
-                    contentDescription = profileBrandName,
-                    tint = Color.White,
-                    modifier = Modifier
-                        .padding(start = HomeContentInset, top = statusBarTop + TopBarLogoTop)
-                        .size(width = 31.dp, height = 34.dp)
-                        .graphicsLayer {
-                            val k = 1f - collapseProgress * 0.18f
-                            scaleX = k
-                            scaleY = k
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                        },
-                )
-            }
+            Icon(
+                painter = painterResource(R.drawable.ic_mochy_mark),
+                contentDescription = "Mochy",
+                tint = Color.White,
+                modifier = Modifier
+                    .padding(start = HomeContentInset, top = statusBarTop + TopBarLogoTop)
+                    .size(width = 31.dp, height = 34.dp)
+                    .graphicsLayer {
+                        val k = 1f - collapseProgress * 0.18f
+                        scaleX = k
+                        scaleY = k
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                    },
+            )
             if (collapseProgress > 0.01f) {
                 Text(
                     text = "${MochyGreeting.current}, ${accountName.ifBlank { "bạn" }}!",
@@ -921,7 +894,7 @@ private val PageTitle = TextStyle(
     color = Color.White,
 )
 
-private val MonoSmall = TextStyle(fontFamily = InterFontFamily, fontSize = 13.sp)
+private val MonoSmall = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp)
 
 /** A big figure's size in dp: it follows the card's width, not the font-size setting, so it never overflows. */
 @Composable
@@ -958,7 +931,7 @@ private fun ListeningTimeCard(totalMs: Long, onViewStats: () -> Unit) {
                 Spacer(Modifier.width(10.dp))
                 Text(
                     "Tổng thời gian\nnghe nhạc",
-                    style = TextStyle(fontFamily = InterFontFamily, fontSize = 14.sp, lineHeight = 18.sp, color = Color(0xFF8A8A8A), textAlign = TextAlign.End),
+                    style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 18.sp, color = Color(0xFF8A8A8A), textAlign = TextAlign.End),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -1139,7 +1112,8 @@ private fun DeveloperCard(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ModderCard(onClick: () -> Unit) {
+private fun DiscordCard(onClick: () -> Unit) {
+    val face = 30.dp
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -1147,58 +1121,25 @@ private fun ModderCard(onClick: () -> Unit) {
             .clip(RoundedCornerShape(22.dp))
             .background(PageCard)
             .clickable(onClick = onClick)
-            .padding(CardPadding),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        coil3.compose.AsyncImage(
-            model = "https://github.com/buiduchuy2010qn-prog.png?size=160",
-            contentDescription = "Đức Huy",
-            placeholder = painterResource(R.drawable.ic_mochy_mark),
-            error = painterResource(R.drawable.ic_mochy_mark),
+        Image(
+            painter = painterResource(R.drawable.mochy_discord),
+            contentDescription = "Discord",
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(44.dp)
+                .size(face)
                 .clip(CircleShape)
-                .background(Color(0xFF232323))
-                .border(1.5.dp, PageCard, CircleShape),
+                .background(Color.White),
         )
-        Spacer(Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                "Người chỉnh sửa & Việt hóa",
-                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF9A9A9A)),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                "Đức Huy",
-                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp, letterSpacing = (-0.6).sp, color = Color.White),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                "@buiduchuy2010qn-prog",
-                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Medium, fontSize = 12.5.sp, color = Color(0xFF8A8A8A)),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Spacer(Modifier.width(10.dp))
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .clip(CircleShape)
-                .background(Color(0xFF4D4D4D))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text(
-                "Tác giả",
-                style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White),
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
+        Spacer(Modifier.width(12.dp))
+        Text(
+            "Tham gia máy chủ Discord của Mochy!",
+            style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = (-0.6).sp, color = Color.White),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
