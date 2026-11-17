@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +58,7 @@ import com.mochyy.mochymusic.constants.DisableBlurKey
 import com.mochyy.mochymusic.constants.ElementBlurKey
 import com.mochyy.mochymusic.constants.EnableElementBlurAnimatorKey
 import com.mochyy.mochymusic.constants.EnableProgressiveBlurKey
+import com.mochyy.mochymusic.constants.LowEndModeKey
 import com.mochyy.mochymusic.constants.LyricsMotionStyle
 import com.mochyy.mochymusic.constants.LyricsMotionStyleKey
 import com.mochyy.mochymusic.constants.PlayerNavBarDefault
@@ -63,12 +66,16 @@ import com.mochyy.mochymusic.constants.PlayerNavBarKey
 import com.mochyy.mochymusic.constants.PlayerStatusBarDefault
 import com.mochyy.mochymusic.constants.PlayerStatusBarKey
 import com.mochyy.mochymusic.ui.component.AppSwitch
+import com.mochyy.mochymusic.ui.screens.audiolab.LabCard
 import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
+import com.mochyy.mochymusic.ui.screens.audiolab.LabToggleRow
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.AnimationSpeeds
 import com.mochyy.mochymusic.ui.utils.animationSpeedLabel
+import com.mochyy.mochymusic.utils.LowEndModeManager
 import com.mochyy.mochymusic.utils.rememberEnumPreference
 import com.mochyy.mochymusic.utils.rememberPreference
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private const val MinBlurStrength = 10f
@@ -96,6 +103,9 @@ internal fun BlurSection(modifier: Modifier = Modifier) {
     val (quality, onQuality) = rememberEnumPreference(BlurQualityKey, com.mochyy.mochymusic.ui.component.DefaultBlurQuality)
     val (strength, onStrength) = rememberPreference(BlurStrengthPxKey, defaultValue = DefaultBlurStrength)
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val (lowEndMode) = rememberPreference(LowEndModeKey, defaultValue = false)
     var lastTick by remember { mutableIntStateOf((strength / 5f).roundToInt()) }
     val blurOn = !disableBlur
     val defaultQuality = com.mochyy.mochymusic.ui.component.DefaultBlurQuality
@@ -163,6 +173,19 @@ internal fun BlurSection(modifier: Modifier = Modifier) {
             },
             enabled = blurOn,
         )
+        Spacer(Modifier.height(11.dp))
+        LabCard(padding = 18.dp) {
+            LabToggleRow(
+                title = stringResource(R.string.customise_low_end_mode),
+                subtitle = stringResource(R.string.customise_low_end_mode_desc),
+                checked = lowEndMode,
+                onCheckedChange = { next ->
+                    scope.launch {
+                        LowEndModeManager.setEnabled(context, next)
+                    }
+                },
+            )
+        }
     }
 }
 

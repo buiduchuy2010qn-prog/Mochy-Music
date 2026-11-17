@@ -125,7 +125,7 @@ jobs:
           fi
           echo "Restored persistent signing keystore with alias androiddebugkey."
 
-      - name: Build Arm64 & Universal Release APKs & Versioned Artifacts
+      - name: Build Arm64 & Universal Release APKs via Single-Pass ABI Splits
         env:
           APP_VER: ${{ needs.detect-changes.outputs.app_ver }}
           BUILD_NUM: ${{ needs.detect-changes.outputs.build_num }}
@@ -133,12 +133,13 @@ jobs:
           MOCHY_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MOCHY_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           export MOCHY_APP_VERSION="$APP_VER"
-          ./gradlew assembleArm64GmsRelease assembleUniversalGmsRelease -PmochyAppVersion="$APP_VER" -PmochyBuildNumber="$BUILD_NUM" --no-configuration-cache --no-daemon
+          ./gradlew assembleUniversalGmsRelease -PmochyAbiSplits=true -PmochyAppVersion="$APP_VER" -PmochyBuildNumber="$BUILD_NUM" --no-configuration-cache --no-daemon
           mkdir -p dist-android
-          ARM64_APK=$(find app/build/outputs/apk -name "*arm64*release*.apk" | head -n 1)
-          UNI_APK=$(find app/build/outputs/apk -name "*universal*release*.apk" | head -n 1)
+          ARM64_APK=$(find app/build/outputs/apk -name "*-arm64-v8a-release*.apk" | head -n 1)
+          UNI_APK=$(find app/build/outputs/apk -name "*-universal-release*.apk" | head -n 1)
           if [ -z "$ARM64_APK" ] || [ -z "$UNI_APK" ]; then
-            echo "ERROR: Expected both arm64 and universal release APKs. Found arm64='$ARM64_APK' universal='$UNI_APK'"
+            echo "ERROR: Expected arm64-v8a and universal split APKs. Found arm64='$ARM64_APK' universal='$UNI_APK'"
+            find app/build/outputs/apk -name "*.apk" || true
             exit 1
           fi
           cp "$ARM64_APK" "dist-android/Mochy-Music-v${APP_VER}-vi-arm64.apk"
@@ -346,7 +347,7 @@ jobs:
             if [ -n "$OTHER" ]; then echo "#### 🔧 Cải thiện khác"; echo "$OTHER"; echo ""; fi
             echo "#### 📥 Danh sách tệp cài đặt chính thức:"
             echo "1. 📱 **Android 64-bit ARM64 (Khuyên dùng cho máy đời mới — Hỗ trợ cài đè OTA):** **${APK_ARM64_FILE}**"
-            echo "2. 📱 **Android Universal 32-bit/64-bit (Tương thích mọi máy kể cả ARMv7 / Android 8.1+):** **${APK_UNI_FILE}**"
+            echo "2. 📱 **Android Universal 32-bit/64-bit (Cho máy 32-bit / J6, J7 Android 8.1+ — Tích hợp công tắc Tối ưu máy yếu):** **${APK_UNI_FILE}**"
             echo "3. 🪟 **Windows Bộ cài đặt (.exe — Hỗ trợ cài đè OTA):** **${WIN_SETUP_FILE}**"
             echo "4. 🪟 **Windows Bản chạy ngay (Portable .exe):** **${WIN_PORT_FILE}**"
             echo "5. 🐧 **Linux Mọi bản phân phối (.AppImage):** **${LIN_APPIMAGE_FILE}**"

@@ -24,18 +24,19 @@ extensions.configure<ApplicationExtension> {
     compileSdk = 37
     ndkVersion = "27.0.12077973"
 
+    val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+    val versionStep = (ciRunNumber - 10).coerceAtLeast(0)
+    val tenths = 83 + versionStep
+    val fallbackSemver = if (versionStep == 0) "11.1.0" else "${tenths / 10}.${tenths % 10}.0"
+    val propVer = (project.findProperty("mochyAppVersion") as? String)?.takeIf { it.isNotBlank() }
+    val propBuild = (project.findProperty("mochyBuildNumber") as? String)?.toIntOrNull()
+    val computedSemver = propVer ?: System.getenv("MOCHY_APP_VERSION")?.takeIf { it.isNotBlank() } ?: fallbackSemver
+    val computedBuildNum = propBuild ?: (1228 + ciRunNumber)
+
     defaultConfig {
         applicationId = "com.mochyy.mochymusic"
         minSdk = 24
         targetSdk = 37
-        val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-        val versionStep = (ciRunNumber - 10).coerceAtLeast(0)
-        val tenths = 83 + versionStep
-        val fallbackSemver = if (versionStep == 0) "11.0.0" else "${tenths / 10}.${tenths % 10}.0"
-        val propVer = (project.findProperty("mochyAppVersion") as? String)?.takeIf { it.isNotBlank() }
-        val propBuild = (project.findProperty("mochyBuildNumber") as? String)?.toIntOrNull()
-        val computedSemver = propVer ?: System.getenv("MOCHY_APP_VERSION")?.takeIf { it.isNotBlank() } ?: fallbackSemver
-        val computedBuildNum = propBuild ?: (1228 + ciRunNumber)
         versionCode = 73 + ciRunNumber
         versionName = "$computedSemver build#$computedBuildNum"
 
@@ -106,6 +107,8 @@ extensions.configure<ApplicationExtension> {
     }
     
 
+    val useAbiSplits = (project.findProperty("mochyAbiSplits") as? String)?.toBoolean() == true
+
     flavorDimensions += listOf("abi", "variant")
     productFlavors {
         // FOSS variant (default) - self-updating, no Google Play Services
@@ -130,27 +133,38 @@ extensions.configure<ApplicationExtension> {
         create("universal") {
             dimension = "abi"
             buildConfigField("String", "ARCHITECTURE", "\"universal\"")
-            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
+            if (!useAbiSplits) ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
         }
         create("arm64") {
             dimension = "abi"
             buildConfigField("String", "ARCHITECTURE", "\"arm64\"")
-            ndk { abiFilters += "arm64-v8a" }
+            if (!useAbiSplits) ndk { abiFilters += "arm64-v8a" }
         }
         create("armeabi") {
             dimension = "abi"
             buildConfigField("String", "ARCHITECTURE", "\"armeabi\"")
-            ndk { abiFilters += "armeabi-v7a" }
+            if (!useAbiSplits) ndk { abiFilters += "armeabi-v7a" }
         }
         create("x86") {
             dimension = "abi"
             buildConfigField("String", "ARCHITECTURE", "\"x86\"")
-            ndk { abiFilters += "x86" }
+            if (!useAbiSplits) ndk { abiFilters += "x86" }
         }
         create("x86_64") {
             dimension = "abi"
             buildConfigField("String", "ARCHITECTURE", "\"x86_64\"")
-            ndk { abiFilters += "x86_64" }
+            if (!useAbiSplits) ndk { abiFilters += "x86_64" }
+        }
+    }
+
+    if (useAbiSplits) {
+        splits {
+            abi {
+                isEnable = true
+                reset()
+                include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+                isUniversalApk = true
+            }
         }
     }
 

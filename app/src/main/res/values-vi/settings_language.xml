@@ -251,4 +251,6 @@
     <string name="settings_floating_lyrics">Lời bài hát nổi</string>
     <string name="settings_floating_lyrics_desc">Giữ câu đang hát trong một bong bóng nhỏ phía trên các ứng dụng khác</string>
     <string name="settings_floating_lyrics_detail">Chạm vào ảnh bìa để phát và tạm dừng, hoặc nhấn giữ để mở Mochy. Kéo để gắn vào cạnh gần nhất. Thả vào Đóng để ẩn cho tới khi bạn mở lại Mochy, hoặc vào Không hiện lại để tắt hẳn.</string>
+    <string name="customise_low_end_mode">Tối ưu cho máy yếu (RAM thấp / Android 8)</string>
+    <string name="customise_low_end_mode_desc">Tắt toàn bộ làm mờ, shader lời bài hát, Canvas/video nền, CrossMix và giảm 60% RAM đệm ảnh cho máy 2–3 GB như J6/J7 (tắt đi sẽ khôi phục lại y nguyên cài đặt cũ)</string>
 </resources>

@@ -1394,3 +1394,6 @@ val LyricsCacheWipeKey = intPreferencesKey("lyricsCacheWipe")
 const val LyricsCacheWipeGeneration = 1
 
 val MochyCloudWelcomeSeenKey = booleanPreferencesKey("mochyCloudWelcomeSeen")
+val LowEndModeKey = booleanPreferencesKey("lowEndMode")
+val LowEndAutoEvaluatedKey = booleanPreferencesKey("lowEndAutoEvaluated_v1")
+val LowEndSnapshotJsonKey = stringPreferencesKey("lowEndSnapshotJson")

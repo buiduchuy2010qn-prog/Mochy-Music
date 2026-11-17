@@ -111,9 +111,10 @@ internal fun deviceSupportsArm64(): Boolean =
     android.os.Build.SUPPORTED_ABIS.any { it.equals("arm64-v8a", ignoreCase = true) }
 
 /**
- * Selects the compatible release APK asset for this phone's CPU ABI:
- * - 32-bit OS devices (e.g., Samsung Galaxy J6 running armeabi-v7a): never pick arm64-only APKs; choose universal/armeabi.
- * - 64-bit devices: match the installed flavor architecture (arm64 stays lightweight arm64; universal keeps universal) with safe fallback.
+ * Selects the compatible release APK asset purely from the device's supported CPU ABIs
+ * (compatible with single-pass ABI-split builds as well as flavor builds):
+ * - 64-bit ARM devices: pick arm64 ?: universal ?: other
+ * - 32-bit ARM devices (e.g. Galaxy J6/J7 Android 8.1) or x86 emulators: pick universal ?: armeabi ?: other
  */
 internal fun <T> selectPreferredApkAsset(
     items: List<T>,
@@ -121,12 +122,15 @@ internal fun <T> selectPreferredApkAsset(
 ): T? {
     val nonDebug = items.filter { item ->
         val n = nameOf(item)
-        n.endsWith(".apk", ignoreCase = true) && !n.contains("debug", ignoreCase = true)
+        n.endsWith(".apk", ignoreCase = true) &&
+            !n.contains("debug", ignoreCase = true) &&
+            !n.contains("-lte", ignoreCase = true)
     }
     if (nonDebug.isEmpty()) return null
 
-    val appArch = runCatching { BuildConfig.ARCHITECTURE }.getOrDefault("universal")
-    val supportsArm64 = deviceSupportsArm64()
+    val primaryAbi = android.os.Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
+    val isX86Device = primaryAbi.startsWith("x86", ignoreCase = true)
+    val supportsArm64 = deviceSupportsArm64() && !isX86Device
 
     val arm64 = nonDebug.firstOrNull { nameOf(it).contains("arm64", ignoreCase = true) }
     val universal = nonDebug.firstOrNull { nameOf(it).contains("universal", ignoreCase = true) }
@@ -136,10 +140,10 @@ internal fun <T> selectPreferredApkAsset(
         !n.contains("arm64", ignoreCase = true) && !n.contains("x86", ignoreCase = true)
     }
 
-    return when {
-        !supportsArm64 -> universal ?: armeabi ?: other
-        appArch.equals("universal", ignoreCase = true) -> universal ?: arm64 ?: other
-        else -> arm64 ?: universal ?: other
+    return if (supportsArm64) {
+        arm64 ?: universal ?: other
+    } else {
+        universal ?: armeabi ?: other
     }
 }
 
@@ -163,7 +167,7 @@ private val updateScope = kotlinx.coroutines.CoroutineScope(
 
 private fun diskCacheFile(): File? = runCatching {
     val dir = System.getProperty("java.io.tmpdir")?.takeIf { it.isNotBlank() } ?: return@runCatching null
-    File(dir, "mochy_releases_cache_v4.json")
+    File(dir, "mochy_releases_cache_v6.json")
 }.getOrNull()
 
 private fun readDiskCache(): Pair<Long, List<ParsedRelease>>? = runCatching {

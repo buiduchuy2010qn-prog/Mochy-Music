@@ -52,6 +52,11 @@ private data class WhatsNewHighlight(
 
 private val V110Highlights = listOf(
     WhatsNewHighlight(
+        icon = R.drawable.smartphone,
+        title = "Công tắc Tối ưu máy yếu ngay trong Tùy chỉnh",
+        summary = "Gạt bật trong Cài đặt › Tùy chỉnh › Làm mờ để tối ưu sâu RAM & GPU cho máy 2–3 GB / Android 8.1 (tự bật lần đầu trên J6/J7 Android 8.1); tắt đi tự trả lại nguyên vẹn cấu hình cũ.",
+    ),
+    WhatsNewHighlight(
         icon = R.drawable.lyrics,
         title = "Hợp nhất Mochy 8.4.2 gốc mới nhất",
         summary = "Lời bài hát nổi (Floating Lyrics), nền động Spotify Canvas, hàng đợi kiểu Spotify (FIFO), kết nối tới 10 thiết bị & ý nghĩa bài hát.",
@@ -60,11 +65,6 @@ private val V110Highlights = listOf(
         icon = R.drawable.equalizer,
         title = "Android Auto, TV, Xuất FLAC & Tối ưu RAM",
         summary = "Hỗ trợ Android Auto + Hey Google, sửa metadata & nhập lời bài hát, xuất nhạc lossless FLAC, chọn thư mục lưu, Innertube X & giảm RAM chạy nền.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.smartphone,
-        title = "Hỗ trợ đầy đủ máy 32-bit & 64-bit",
-        summary = "Bổ sung gói Universal (armeabi-v7a) cho Android 7.0+ như Samsung Galaxy J6 và tự động chọn đúng bản chip khi cập nhật OTA.",
     ),
     WhatsNewHighlight(
         icon = R.drawable.ic_duchi_locket,

@@ -101,7 +101,8 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch(Dispatchers.IO) {
             // the plain 5 s crossfade used to be the default and onboarding's pick, and it never mixed a thing: anyone left on it moves to crossmix once
             try {
-                if (dataStore.data.first()[CrossmixDefaultMovedKey] != true) {
+                val snapshot = dataStore.data.first()
+                if (snapshot[LowEndModeKey] != true && snapshot[CrossmixDefaultMovedKey] != true) {
                     dataStore.edit { prefs ->
                         if (prefs[CrossmixModeKey] == CrossmixMode.AUTO_CROSSFADE.name) prefs[CrossmixModeKey] = CrossmixMode.CROSSMIX.name
                         prefs[CrossmixDefaultMovedKey] = true
@@ -132,6 +133,7 @@ class App : Application(), SingletonImageLoader.Factory {
         }
 
         applicationScope.launch {
+            com.mochyy.mochymusic.utils.LowEndModeManager.initializeOnLaunch(this@App)
             initializeSettings()
             observeSettingsChanges()
         }
@@ -151,9 +153,11 @@ class App : Application(), SingletonImageLoader.Factory {
                 // play out first. VISIONOS streams need no token, so nothing waits on this
                 com.mochyy.mochymusic.ui.launch.LaunchGate.awaitIntro()
                 kotlinx.coroutines.delay(PoTokenAfterIntroMillis)
-                com.mochyy.mochymusic.utils.YTPlayerUtils.preWarmPoToken()
-                // the player script compiles now, so the first song doesn't wait for it
-                com.mochyy.mochymusic.utils.YTPlayerUtils.preWarmInnerTubeX()
+                if (!com.mochyy.mochymusic.utils.LowEndModeManager.isActive && dataStore.data.first()[LowEndModeKey] != true) {
+                    com.mochyy.mochymusic.utils.YTPlayerUtils.preWarmPoToken()
+                    // the player script compiles now, so the first song doesn't wait for it
+                    com.mochyy.mochymusic.utils.YTPlayerUtils.preWarmInnerTubeX()
+                }
             }
         }
 
@@ -324,32 +328,56 @@ class App : Application(), SingletonImageLoader.Factory {
                     if (index > 0) com.mochyy.mochymusic.utils.YTPlayerUtils.preWarmInnerTubeX()
                 }
         }
+
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
+                .map { it[LowEndModeKey] == true }
+                .distinctUntilChanged()
+                .collect { active ->
+                    com.mochyy.mochymusic.utils.LowEndModeManager.isActive = active
+                }
+        }
     }
 
-    // the screen went to the background: covers decoded for it were the most the app held while music played on, so most of them go; the latest stay for coming back
+    // the screen went to the background or the OS reports memory pressure: trim or shed decoded cover caches proactively
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level == android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
-            SingletonImageLoader.get(this).memoryCache?.let { cache -> cache.trimToSize(cache.size / 4) }
+        val cache = SingletonImageLoader.get(this).memoryCache ?: return
+        when {
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_MODERATE ||
+                level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> cache.clear()
+            level == android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
+                level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> cache.trimToSize(cache.size / 8)
+            level == android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ||
+                level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> cache.trimToSize(cache.size / 4)
         }
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = runBlocking {
-            dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
+        val (lowEnd, cacheSize) = runBlocking {
+            val prefs = dataStore.data.first()
+            val active = if (prefs[LowEndAutoEvaluatedKey] != true) {
+                prefs[LowEndModeKey] == true ||
+                    com.mochyy.mochymusic.utils.LowEndModeManager.isAndroid8LowRamHardware(this@App)
+            } else {
+                prefs[LowEndModeKey] == true
+            }
+            com.mochyy.mochymusic.utils.LowEndModeManager.isActive = active
+            val defaultDiskMb = if (active) 128 else 512
+            active to (prefs[MaxImageCacheSizeKey] ?: defaultDiskMb)
         }
         return ImageLoader.Builder(this).apply {
             components {
                 add(SvgDecoder.Factory())
                 add(com.mochyy.mochymusic.utils.ImageRetry)
             }
-            // covers ease in as they arrive; coil skips the fade for ones already in memory, so scrolling back never flickers
-            crossfade(300)
+            // covers ease in as they arrive; skip fade-blends only when Low-End Mode is enabled
+            if (lowEnd) crossfade(false) else crossfade(300)
             allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
 
             memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.30)
+                    .maxSizePercent(context, if (lowEnd) 0.12 else 0.30)
                     .build()
             }
             if (cacheSize == 0) {

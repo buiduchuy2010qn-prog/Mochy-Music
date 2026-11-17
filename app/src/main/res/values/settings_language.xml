@@ -246,4 +246,6 @@
     <string name="settings_floating_lyrics">Floating lyrics</string>
     <string name="settings_floating_lyrics_desc">Keep the line being sung in a little bubble over other apps</string>
     <string name="settings_floating_lyrics_detail">Tap the cover for play and pause, or hold it to open Mochy. Drag it and it snaps to the nearest edge. Drop it on Close to hide it until you\'re back in Mochy, or on Don\'t show again to turn it off.</string>
+    <string name="customise_low_end_mode">Low-end device mode</string>
+    <string name="customise_low_end_mode_desc">Turns off blur, lyric shaders, Canvas, background video and CrossMix, and trims RAM cache for 2–3 GB phones (restores your previous settings when turned off)</string>
 </resources>
