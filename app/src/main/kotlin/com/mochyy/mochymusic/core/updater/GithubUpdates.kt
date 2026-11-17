@@ -43,6 +43,8 @@ data class GithubRelease(
     val apkName: String?,
     val apkSizeBytes: Long,
     val publishedAt: String,
+    // marked as a prerelease on github, which is what makes it a nightly
+    val isNightly: Boolean = false,
 )
 
 private fun cleanAndroidReleaseBody(raw: String): String {
@@ -70,33 +72,75 @@ sealed interface UpdateState {
     data class Failed(val message: String) : UpdateState
 }
 
+// a release is x.y.z, a nightly adds a fourth number counting up from the release it was built on (8.3.2.1, 8.3.2.2, then 8.3.3)
 data class FullVersion(
     val major: Int = 0,
     val minor: Int = 0,
     val patch: Int = 0,
-    val buildNumber: Int = 0
+    val buildNumber: Int = 0,
+    val nightly: Int = 0,
 ) : Comparable<FullVersion> {
     override fun compareTo(other: FullVersion): Int {
         if (major != other.major) return major.compareTo(other.major)
         if (minor != other.minor) return minor.compareTo(other.minor)
         if (patch != other.patch) return patch.compareTo(other.patch)
+        if (nightly != other.nightly) return nightly.compareTo(other.nightly)
         return buildNumber.compareTo(other.buildNumber)
     }
+
+    // what people read: 8.3.2, 8.3.2.4 for a nightly
+    val name: String get() = if (nightly > 0) "$major.$minor.$patch.$nightly" else "$major.$minor.$patch"
 }
 
+private val VersionRegex = Regex("""(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?""")
+private val BuildNumberRegex = Regex("""(?:build#|-b|\(#|#|\()(\d+)\)?""", RegexOption.IGNORE_CASE)
+
 fun parseFullVersion(text: String): FullVersion {
-    val semverRegex = Regex("""(\d+)\.(\d+)(?:\.(\d+))?""")
-    val buildNumRegex = Regex("""(?:build#|-b|\(#|#|\()(\d+)\)?""", RegexOption.IGNORE_CASE)
+    val version = VersionRegex.find(text)?.groupValues
+    val buildNumber = BuildNumberRegex.find(text)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+    return FullVersion(
+        major = version?.get(1)?.toIntOrNull() ?: 0,
+        minor = version?.get(2)?.toIntOrNull() ?: 0,
+        patch = version?.getOrNull(3)?.toIntOrNull() ?: 0,
+        buildNumber = buildNumber,
+        nightly = version?.getOrNull(4)?.toIntOrNull() ?: 0,
+    )
+}
 
-    val semverMatch = semverRegex.find(text)
-    val major = semverMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-    val minor = semverMatch?.groupValues?.get(2)?.toIntOrNull() ?: 0
-    val patch = semverMatch?.groupValues?.getOrNull(3)?.toIntOrNull() ?: 0
+internal fun deviceSupportsArm64(): Boolean =
+    android.os.Build.SUPPORTED_ABIS.any { it.equals("arm64-v8a", ignoreCase = true) }
 
-    val buildMatch = buildNumRegex.find(text)
-    val buildNumber = buildMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+/**
+ * Selects the compatible release APK asset for this phone's CPU ABI:
+ * - 32-bit OS devices (e.g., Samsung Galaxy J6 running armeabi-v7a): never pick arm64-only APKs; choose universal/armeabi.
+ * - 64-bit devices: match the installed flavor architecture (arm64 stays lightweight arm64; universal keeps universal) with safe fallback.
+ */
+internal fun <T> selectPreferredApkAsset(
+    items: List<T>,
+    nameOf: (T) -> String,
+): T? {
+    val nonDebug = items.filter { item ->
+        val n = nameOf(item)
+        n.endsWith(".apk", ignoreCase = true) && !n.contains("debug", ignoreCase = true)
+    }
+    if (nonDebug.isEmpty()) return null
 
-    return FullVersion(major, minor, patch, buildNumber)
+    val appArch = runCatching { BuildConfig.ARCHITECTURE }.getOrDefault("universal")
+    val supportsArm64 = deviceSupportsArm64()
+
+    val arm64 = nonDebug.firstOrNull { nameOf(it).contains("arm64", ignoreCase = true) }
+    val universal = nonDebug.firstOrNull { nameOf(it).contains("universal", ignoreCase = true) }
+    val armeabi = nonDebug.firstOrNull { nameOf(it).contains("armeabi", ignoreCase = true) }
+    val other = nonDebug.firstOrNull {
+        val n = nameOf(it)
+        !n.contains("arm64", ignoreCase = true) && !n.contains("x86", ignoreCase = true)
+    }
+
+    return when {
+        !supportsArm64 -> universal ?: armeabi ?: other
+        appArch.equals("universal", ignoreCase = true) -> universal ?: arm64 ?: other
+        else -> arm64 ?: universal ?: other
+    }
 }
 
 // automatic background checks reuse the last answer for 15 minutes; tapping "Kiểm tra cập nhật" passes force = true
@@ -119,7 +163,7 @@ private val updateScope = kotlinx.coroutines.CoroutineScope(
 
 private fun diskCacheFile(): File? = runCatching {
     val dir = System.getProperty("java.io.tmpdir")?.takeIf { it.isNotBlank() } ?: return@runCatching null
-    File(dir, "mochy_releases_cache_v3.json")
+    File(dir, "mochy_releases_cache_v4.json")
 }.getOrNull()
 
 private fun readDiskCache(): Pair<Long, List<ParsedRelease>>? = runCatching {
@@ -143,6 +187,7 @@ private fun readDiskCache(): Pair<Long, List<ParsedRelease>>? = runCatching {
                 apkName = o.optString("apkName").takeIf { it.isNotBlank() },
                 apkSizeBytes = o.optLong("apkSizeBytes", 0L),
                 publishedAt = o.optString("publishedAt"),
+                isNightly = o.optBoolean("isNightly", false),
             )
             add(ParsedRelease(parseFullVersion(rel.version), rel))
         }
@@ -168,6 +213,7 @@ private fun writeDiskCache(savedAt: Long, list: List<ParsedRelease>) {
                     .put("apkName", r.apkName.orEmpty())
                     .put("apkSizeBytes", r.apkSizeBytes)
                     .put("publishedAt", r.publishedAt)
+                    .put("isNightly", r.isNightly)
             )
         }
         val root = JSONObject().put("savedAt", savedAt).put("items", arr)
@@ -207,18 +253,33 @@ private suspend fun getReleases(force: Boolean): Result<List<ParsedRelease>> {
     return result
 }
 
-/** The newest release, whatever is installed. */
-suspend fun getLatestRelease(force: Boolean = false): Result<GithubRelease?> =
-    getReleases(force).map { list -> list.maxByOrNull { it.version }?.release }
+// release only sees releases; nightly sees the prereleases and the releases, and takes the newest of all
+private fun ParsedRelease.inChannel(channel: UpdateChannel) = channel == UpdateChannel.Nightly || !release.isNightly
+
+/** The newest release on [channel], whatever is installed. */
+suspend fun getLatestRelease(
+    channel: UpdateChannel = UpdateChannel.Release,
+    force: Boolean = false,
+): Result<GithubRelease?> =
+    getReleases(force).map { list -> list.filter { it.inChannel(channel) }.maxByOrNull { it.version }?.release }
 
 /**
- * The newest release from before the installed version (by its x.y.z, so an older build of the
- * same version doesn't count). What "Downgrade to" offers; null when there is none.
+ * What "Downgrade to" offers, null when there's none: on release, the newest release before the
+ * installed x.y.z (an older build of the same version doesn't count); on nightly, the nightly before
+ * this one. A nightly never steps down to a release, that can break the library.
  */
-suspend fun getPreviousRelease(force: Boolean = false): Result<GithubRelease?> {
+suspend fun getPreviousRelease(
+    channel: UpdateChannel = UpdateChannel.Release,
+    force: Boolean = false,
+): Result<GithubRelease?> {
     val installed = parseFullVersion(BuildConfig.VERSION_NAME).copy(buildNumber = 0)
     return getReleases(force).map { list ->
-        list.filter { it.version.copy(buildNumber = 0) < installed }.maxByOrNull { it.version }?.release
+        when {
+            channel == UpdateChannel.Release && installedIsNightly -> null
+            channel == UpdateChannel.Release -> list.filter { !it.release.isNightly && it.version.copy(buildNumber = 0) < installed }
+            !installedIsNightly -> null
+            else -> list.filter { it.release.isNightly && it.version.copy(buildNumber = 0) < installed }
+        }?.maxByOrNull { it.version }?.release
     }
 }
 
@@ -305,7 +366,6 @@ private fun remoteFileSize(url: String): Long = runCatching {
                     current = URL(URL(current), location).toString()
                 }
                 code == 206 -> {
-                    // "bytes 0-0/34067828"
                     val total = connection.getHeaderField("Content-Range")
                         ?.substringAfterLast('/')?.trim()?.toLongOrNull()
                     return@runCatching total ?: 0L
@@ -320,16 +380,18 @@ private fun remoteFileSize(url: String): Long = runCatching {
     0L
 }.getOrDefault(0L)
 
-/** The APK's file name in a release's expanded asset list on github.com, or null. */
+/** Compatible APK file name in a release's expanded asset list on github.com, or null. */
 private fun apkNameFromExpandedAssets(tag: String): String? = runCatching {
     val html = httpGetText(
         "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/expanded_assets/$tag",
         timeoutMs = 8_000,
     )
-    Regex("releases/download/[^/\"]+/([^\"<>\\s/]+?\\.apk)\"", RegexOption.IGNORE_CASE)
+    val names = Regex("releases/download/[^/\"]+/([^\"<>\\s/]+?\\.apk)\"", RegexOption.IGNORE_CASE)
         .findAll(html)
         .map { it.groupValues[1] }
-        .firstOrNull { !it.contains("debug", ignoreCase = true) }
+        .distinct()
+        .toList()
+    selectPreferredApkAsset(names) { it }
 }.getOrNull()
 
 private class AtomEntry(
@@ -337,7 +399,7 @@ private class AtomEntry(
     val title: String,
     val body: String,
     val publishedAt: String,
-    val apkName: String?,
+    val apkNames: List<String>,
     val version: FullVersion,
 )
 
@@ -350,19 +412,21 @@ private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
     val contentRegex = Regex("(?s)<content[^>]*>(.*?)</content>")
     val apkNameRegex = Regex("(Mochy-Music-[^\"<>\\s*`]*?\\.apk)", RegexOption.IGNORE_CASE)
 
-    // read every entry first, without touching the network again
     val entries = entryRegex.findAll(xml).mapNotNull { match ->
         val entry = match.groupValues[1]
         val tag = tagRegex.find(entry)?.groupValues?.get(1).orEmpty()
         if (tag.isBlank()) return@mapNotNull null
         val rawTitle = unescapeXmlAndHtml(titleRegex.find(entry)?.groupValues?.get(1).orEmpty()).ifBlank { tag }
         val rawContent = contentRegex.find(entry)?.groupValues?.get(1).orEmpty()
-        // the apk is named in the notes the release workflow writes; read it before the notes are trimmed for android
         val fullBody = atomHtmlToMarkdown(rawContent)
-        val apkName = apkNameRegex.find(fullBody)?.groupValues?.get(1)
-            ?.takeIf { !it.contains("debug", ignoreCase = true) }
+        val apkNames = apkNameRegex.findAll(fullBody)
+            .map { it.groupValues[1] }
+            .filter { !it.contains("debug", ignoreCase = true) }
+            .distinct()
+            .toList()
+        val chosenApkName = selectPreferredApkAsset(apkNames) { it }
         val tagVer = parseFullVersion("$rawTitle $tag")
-        val apkVer = apkName?.let(::parseFullVersion)
+        val apkVer = (chosenApkName ?: apkNames.firstOrNull())?.let(::parseFullVersion)
         val version = if (
             apkVer != null && apkVer.major > 0 &&
             (apkVer.major != tagVer.major || apkVer.minor != tagVer.minor || apkVer.patch != tagVer.patch)
@@ -376,7 +440,7 @@ private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
             title = rawTitle.replace("(Android • Windows • Linux)", "(Android APK)"),
             body = cleanAndroidReleaseBody(fullBody),
             publishedAt = updatedRegex.find(entry)?.groupValues?.get(1).orEmpty().trim(),
-            apkName = apkName,
+            apkNames = apkNames,
             version = version,
         )
     }
@@ -388,13 +452,15 @@ private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
     val seenSemvers = mutableSetOf<Triple<Int, Int, Int>>()
     buildList {
         entries.forEachIndexed { index, entry ->
-            // only the newest release is worth extra requests: its apk name if the notes lack it,
-            // and its exact size for the sheet and the download check. Older ones get theirs on download.
             val newest = index == 0
-            val apkName = entry.apkName ?: if (newest) apkNameFromExpandedAssets(entry.tag) else null
+            val preferredFromNotes = selectPreferredApkAsset(entry.apkNames) { it }
+            val apkName = if (newest) {
+                preferredFromNotes ?: apkNameFromExpandedAssets(entry.tag)
+            } else {
+                preferredFromNotes
+            }
             if (apkName.isNullOrBlank()) return@forEachIndexed
 
-            // the apk inside may be older than the release (a PC-only release carries the last apk forward)
             val fileVer = parseFullVersion(apkName)
             val fullVer = if (
                 fileVer.major > 0 &&
@@ -410,9 +476,9 @@ private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
             val apkUrl = "https://github.com/$OtaGithubOwner/$OtaGithubRepo/releases/download/${entry.tag}/$apkName"
             val size = if (newest) remoteFileSize(apkUrl) else 0L
             val displayVersion = if (fullVer.buildNumber > 0) {
-                "${fullVer.major}.${fullVer.minor}.${fullVer.patch} (${fullVer.buildNumber})"
+                "${fullVer.name} (${fullVer.buildNumber})"
             } else {
-                "${fullVer.major}.${fullVer.minor}.${fullVer.patch}"
+                fullVer.name
             }
 
             add(
@@ -429,12 +495,20 @@ private fun fetchReleasesFromAtom(): Result<List<ParsedRelease>> = runCatching {
                         apkName = apkName,
                         apkSizeBytes = size,
                         publishedAt = entry.publishedAt,
+                        isNightly = false,
                     ),
                 ),
             )
         }
     }
 }
+
+private data class ApiApkAsset(
+    val name: String,
+    val url: String,
+    val apiUrl: String?,
+    val size: Long,
+)
 
 private suspend fun fetchReleasesFromApi(): Result<List<ParsedRelease>> = withContext(Dispatchers.IO) {
     runCatching {
@@ -446,14 +520,13 @@ private suspend fun fetchReleasesFromApi(): Result<List<ParsedRelease>> = withCo
         }
         val json = connection.inputStream.bufferedReader().use { it.readText() }
         val releases = JSONArray(json)
-        val appArch = runCatching { BuildConfig.ARCHITECTURE }.getOrDefault("universal")
         val seenSemvers = mutableSetOf<Triple<Int, Int, Int>>()
 
         buildList {
             for (i in 0 until releases.length()) {
                 val release = releases.getJSONObject(i)
                 if (release.optBoolean("draft", false)) continue
-                if (release.optBoolean("prerelease", false)) continue
+                val isNightly = release.optBoolean("prerelease", false)
 
                 val tag = release.optString("tag_name").orEmpty()
                 val rawTitle = release.optString("name").orEmpty().ifBlank { tag }
@@ -462,69 +535,23 @@ private suspend fun fetchReleasesFromApi(): Result<List<ParsedRelease>> = withCo
 
                 if (tagVer.major == 0 && tagVer.minor == 0 && tagVer.patch == 0) continue
 
-                val assets = release.optJSONArray("assets")
-                var selectedUrl: String? = null
-                var selectedApiUrl: String? = null
-                var selectedName: String? = null
-                var selectedSize = 0L
-
-                var universalUrl: String? = null
-                var universalApiUrl: String? = null
-                var universalName: String? = null
-                var universalSize = 0L
-
-                var fallbackUrl: String? = null
-                var fallbackApiUrl: String? = null
-                var fallbackName: String? = null
-                var fallbackSize = 0L
-
-                if (assets != null) {
-                    for (a in 0 until assets.length()) {
-                        val asset = assets.getJSONObject(a)
-                        val name = asset.optString("name").orEmpty()
-                        if (!name.endsWith(".apk", ignoreCase = true) || name.contains("debug", ignoreCase = true)) continue
-                        val url = asset.optString("browser_download_url").orEmpty()
-                        val apiUrl = asset.optString("url").orEmpty().takeIf { it.isNotBlank() }
-                        val size = asset.optLong("size", 0L)
-
-                        if (appArch.isNotBlank() && appArch != "universal" && name.contains(appArch, ignoreCase = true)) {
-                            selectedUrl = url
-                            selectedApiUrl = apiUrl
-                            selectedName = name
-                            selectedSize = size
-                        } else if (name.contains("universal", ignoreCase = true)) {
-                            universalUrl = url
-                            universalApiUrl = apiUrl
-                            universalName = name
-                            universalSize = size
-                        } else if (fallbackUrl == null) {
-                            fallbackUrl = url
-                            fallbackApiUrl = apiUrl
-                            fallbackName = name
-                            fallbackSize = size
+                val assetsJson = release.optJSONArray("assets")
+                val apkAssets = buildList {
+                    if (assetsJson != null) {
+                        for (a in 0 until assetsJson.length()) {
+                            val asset = assetsJson.getJSONObject(a)
+                            val name = asset.optString("name").orEmpty()
+                            val url = asset.optString("browser_download_url").orEmpty()
+                            val apiUrl = asset.optString("url").orEmpty().takeIf { it.isNotBlank() }
+                            val size = asset.optLong("size", 0L)
+                            add(ApiApkAsset(name = name, url = url, apiUrl = apiUrl, size = size))
                         }
                     }
                 }
 
-                val apkUrl = selectedUrl ?: universalUrl ?: fallbackUrl
-                val apkApiUrl = when {
-                    selectedUrl != null -> selectedApiUrl
-                    universalUrl != null -> universalApiUrl
-                    else -> fallbackApiUrl
-                }
-                val apkName = selectedName ?: universalName ?: fallbackName
-                val apkSize = when {
-                    selectedUrl != null -> selectedSize
-                    universalUrl != null -> universalSize
-                    else -> fallbackSize
-                }
+                val picked = selectPreferredApkAsset(apkAssets) { it.name } ?: continue
 
-                // Skip PC-only releases that do not contain an Android APK asset
-                if (apkUrl == null || apkName == null) continue
-
-                // If the APK filename encodes its own version (e.g. Mochy-Music-v9.4.0-vi-arm64.apk),
-                // prefer the APK's actual version over a PC-only release tag.
-                val apkVer = parseFullVersion(apkName)
+                val apkVer = parseFullVersion(picked.name)
                 val fullVer = if (
                     apkVer.major > 0 &&
                     (apkVer.major != tagVer.major || apkVer.minor != tagVer.minor || apkVer.patch != tagVer.patch)
@@ -540,9 +567,9 @@ private suspend fun fetchReleasesFromApi(): Result<List<ParsedRelease>> = withCo
                 if (!seenSemvers.add(semverKey)) continue
 
                 val displayVersion = if (fullVer.buildNumber > 0) {
-                    "${fullVer.major}.${fullVer.minor}.${fullVer.patch} (${fullVer.buildNumber})"
+                    "${fullVer.name} (${fullVer.buildNumber})"
                 } else {
-                    "${fullVer.major}.${fullVer.minor}.${fullVer.patch}"
+                    fullVer.name
                 }
 
                 add(
@@ -554,11 +581,12 @@ private suspend fun fetchReleasesFromApi(): Result<List<ParsedRelease>> = withCo
                             version = displayVersion,
                             body = cleanAndroidReleaseBody(release.optString("body").orEmpty()),
                             htmlUrl = release.optString("html_url").orEmpty().ifBlank { "$GithubRepoUrl/releases" },
-                            apkUrl = apkUrl,
-                            apkApiUrl = apkApiUrl,
-                            apkName = apkName,
-                            apkSizeBytes = apkSize,
+                            apkUrl = picked.url,
+                            apkApiUrl = picked.apiUrl,
+                            apkName = picked.name,
+                            apkSizeBytes = picked.size,
                             publishedAt = release.optString("published_at").orEmpty(),
+                            isNightly = isNightly,
                         ),
                     ),
                 )
@@ -693,13 +721,15 @@ fun canInstallPackages(context: Context): Boolean =
         context.packageManager.canRequestPackageInstalls()
 
 fun requestInstallPermission(context: Context) {
-    runCatching {
-        context.startActivity(
-            Intent(
-                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                android.net.Uri.parse("package:" + context.packageName),
-            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
+    // many tv boxes have no page for one app, so it falls back to the whole list, then security, then settings
+    val pages = listOf(
+        Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:" + context.packageName)),
+        Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES),
+        Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS),
+        Intent(android.provider.Settings.ACTION_SETTINGS),
+    )
+    pages.firstOrNull { page ->
+        runCatching { context.startActivity(page.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
     }
 }
 

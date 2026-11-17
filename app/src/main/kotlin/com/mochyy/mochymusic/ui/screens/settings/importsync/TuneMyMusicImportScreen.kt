@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,25 +39,26 @@ fun TuneMyMusicImportScreen(
     viewModel: ImportSyncViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val csvPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) viewModel.loadFile(uri, sourceLabel = "TuneMyMusic")
-    }
+    val csvPicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) viewModel.loadFile(uri, sourceLabel = "TuneMyMusic")
+        }
 
     SubSettingsScaffold(
-        title = "TuneMyMusic CSV",
+        title = stringResource(R.string.import_sync_tunemymusic_title),
         onBack = { navController.navigateUp() },
     ) {
         ImportInfoCard {
             Text(
-                "Hoạt động với mọi dịch vụ mà TuneMyMusic hỗ trợ, bao gồm cả danh sách phát riêng tư và bài hát đã thích.",
+                stringResource(R.string.tunemymusic_info_intro),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Spacer(Modifier.height(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Step(1, "Mở TuneMyMusic và chọn dịch vụ nguồn của bạn (Spotify, Apple Music, Tidal, Amazon Music…).")
-                Step(2, "Đăng nhập và chọn các danh sách phát cùng bài hát đã thích cần chuyển.")
-                Step(3, "Ở bước chọn đích đến, chọn \"Export to file\", sau đó chọn CSV.")
-                Step(4, "Quay lại đây và chọn tệp .csv vừa tải về.")
+                Step(1, stringResource(R.string.tunemymusic_step_1))
+                Step(2, stringResource(R.string.tunemymusic_step_2))
+                Step(3, stringResource(R.string.tunemymusic_step_3))
+                Step(4, stringResource(R.string.tunemymusic_step_4))
             }
         }
 
@@ -64,28 +66,33 @@ fun TuneMyMusicImportScreen(
 
         SettingsGroup(
             style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                SettingsItem(
-                    title = { Text("Mở TuneMyMusic") },
-                    descriptionText = "Mở tunemymusic.com trong trình duyệt",
-                    icon = painterResource(R.drawable.web_link),
-                    iconShape = CircleShape,
-                    onClick = {
-                        try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TUNEMYMUSIC_URL)))
-                        } catch (_: ActivityNotFoundException) {
-                            Toast.makeText(context, "Không tìm thấy trình duyệt", Toast.LENGTH_SHORT).show()
-                        }
-                    },
+            items =
+                listOf(
+                    SettingsItem(
+                        title = { Text(stringResource(R.string.tunemymusic_open_site)) },
+                        descriptionText = stringResource(R.string.tunemymusic_open_site_desc),
+                        icon = painterResource(R.drawable.web_link),
+                        iconShape = CircleShape,
+                        onClick = {
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TUNEMYMUSIC_URL)))
+                            } catch (_: ActivityNotFoundException) {
+                                Toast.makeText(context, context.getString(R.string.tunemymusic_no_browser), Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    ),
+                    SettingsItem(
+                        title = { Text(stringResource(R.string.tunemymusic_choose_file)) },
+                        descriptionText = stringResource(R.string.tunemymusic_choose_file_desc),
+                        icon = painterResource(R.drawable.playlist_add),
+                        iconShape = CircleShape,
+                        onClick = {
+                            csvPicker.launch(
+                                arrayOf("text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream"),
+                            )
+                        },
+                    ),
                 ),
-                SettingsItem(
-                    title = { Text("Chọn tệp CSV") },
-                    descriptionText = "Cũng hỗ trợ CSV từ Exportify và các công cụ khác",
-                    icon = painterResource(R.drawable.playlist_add),
-                    iconShape = CircleShape,
-                    onClick = { csvPicker.launch(arrayOf("text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream")) },
-                ),
-            ),
         )
     }
 
@@ -93,7 +100,10 @@ fun TuneMyMusicImportScreen(
 }
 
 @Composable
-private fun Step(number: Int, text: String) {
+private fun Step(
+    number: Int,
+    text: String,
+) {
     Row {
         Text("$number.", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.width(10.dp))

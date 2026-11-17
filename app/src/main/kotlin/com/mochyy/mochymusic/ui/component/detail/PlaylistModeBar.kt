@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,14 +100,14 @@ internal fun PlaylistModeBarRow(
                 Spacer(Modifier.width(8.dp))
                 ModeCircleButton(
                     icon = R.drawable.more_horiz,
-                    contentDescription = "Thao tác với bài đã chọn",
+                    contentDescription = stringResource(R.string.pc_mode_actions),
                     enabled = mode.count > 0,
                     onClick = mode.onMore,
                 )
                 Spacer(Modifier.width(8.dp))
                 ModeCircleButton(
                     icon = R.drawable.close,
-                    contentDescription = "Hủy chọn",
+                    contentDescription = stringResource(R.string.pc_mode_stop),
                     onClick = mode.onClose,
                 )
             }
@@ -117,14 +118,14 @@ internal fun PlaylistModeBarRow(
                 if (mode.onMore != null) {
                     ModeCircleButton(
                         icon = R.drawable.more_horiz,
-                        contentDescription = "Tùy chọn",
+                        contentDescription = stringResource(R.string.options),
                         onClick = mode.onMore,
                     )
                     Spacer(Modifier.width(8.dp))
                 }
                 ModeCircleButton(
                     icon = R.drawable.check,
-                    contentDescription = "Xong",
+                    contentDescription = stringResource(R.string.done),
                     filled = true,
                     onClick = mode.onDone,
                 )
@@ -148,7 +149,7 @@ private fun SelectTitle(count: Int, modifier: Modifier = Modifier) {
         modifier = modifier,
     ) { shown ->
         Text(
-            text = if (shown == 0) "Chọn" else "Đã chọn $shown",
+            text = if (shown == 0) stringResource(R.string.pc_mode_select) else stringResource(R.string.pc_mode_n_selected, shown),
             style = PlaylistTitleStyle,
             color = Color.White,
             maxLines = 1,
@@ -179,7 +180,7 @@ private fun SelectAllPill(allSelected: Boolean, onClick: () -> Unit) {
             label = "selectAllLabel",
         ) { all ->
             Text(
-                text = if (all) "Bỏ chọn tất cả" else "Chọn tất cả",
+                text = stringResource(if (all) R.string.pc_mode_deselect_all else R.string.pc_mode_select_all),
                 style = PillLabelStyle.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
                 color = Color.White,
                 maxLines = 1,
@@ -273,7 +274,7 @@ private fun EditOrderPill(
                 )
             }
             Text(
-                text = "Sửa thứ tự",
+                text = stringResource(R.string.pc_mode_edit_order),
                 style = PillLabelStyle,
                 color = Color.White,
                 maxLines = 1,
@@ -316,7 +317,7 @@ fun PlaylistSelectTick(checked: Boolean, modifier: Modifier = Modifier) {
         ) {
             Icon(
                 painter = painterResource(R.drawable.check),
-                contentDescription = if (checked) "Đã chọn" else "Chưa chọn",
+                contentDescription = stringResource(if (checked) R.string.pc_mode_selected else R.string.pc_mode_not_selected),
                 tint = PillContent,
                 modifier = Modifier
                     .size(14.dp)

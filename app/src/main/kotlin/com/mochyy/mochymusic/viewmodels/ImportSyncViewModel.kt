@@ -58,19 +58,19 @@ class ImportSyncViewModel @Inject constructor(
     private var loadJob: Job? = null
 
     fun loadLink(link: String) {
-        val source = LinkImporter.detect(link)?.label ?: "liên kết"
+        val source = LinkImporter.detect(link)?.label ?: "link"
         loadJob?.cancel()
-        _pending.value = PendingImport.Loading("Đang đọc danh sách phát từ $source…")
+        _pending.value = PendingImport.Loading("Reading the $source playlist…")
         loadJob = viewModelScope.launch(Dispatchers.IO) {
             _pending.value = try {
                 PendingImport.Ready(LinkImporter.fetch(link), source)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: LinkImportException) {
-                PendingImport.Failed(e.message ?: "Không thể đọc liên kết này.")
+                PendingImport.Failed(e.message ?: "Couldn't read that link.")
             } catch (e: Exception) {
                 Timber.e(e, "Link import failed")
-                PendingImport.Failed("Không thể đọc liên kết này.")
+                PendingImport.Failed("Couldn't read that link.")
             }
         }
     }
@@ -78,20 +78,20 @@ class ImportSyncViewModel @Inject constructor(
     /** [sourceLabel] is only for the review dialog ("Mochy backup", "TuneMyMusic"). */
     fun loadFile(uri: Uri, sourceLabel: String) {
         loadJob?.cancel()
-        _pending.value = PendingImport.Loading("Đang đọc tệp…")
+        _pending.value = PendingImport.Loading("Reading the file…")
         loadJob = viewModelScope.launch(Dispatchers.IO) {
             _pending.value = try {
                 val size = queryColumn(uri, OpenableColumns.SIZE)?.toLongOrNull()
                 if (size != null && size > MAX_CSV_BYTES) {
-                    PendingImport.Failed("Tệp quá lớn, không phải là tệp xuất danh sách phát.")
+                    PendingImport.Failed("That file is too big to be a playlist export.")
                 } else {
                     val text = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
                         ?: throw IllegalStateException("Couldn't open that file")
                     val fileName = queryColumn(uri, OpenableColumns.DISPLAY_NAME)
-                        ?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "Danh sách phát đã nhập"
+                        ?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "Imported playlist"
                     val parsed = parseImportCsv(text, fallbackPlaylistName = fileName)
                     if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) {
-                        PendingImport.Failed("Không tìm thấy bài hát nào trong tệp. Tệp CSV cần có dòng tiêu đề chứa cột \"Track name\".")
+                        PendingImport.Failed("No songs in that file. It needs a header row with at least a \"Track name\" column.")
                     } else {
                         PendingImport.Ready(parsed, sourceLabel)
                     }
@@ -100,7 +100,7 @@ class ImportSyncViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Timber.e(e, "File import failed")
-                PendingImport.Failed("Không thể đọc tệp này. Hãy đảm bảo đây là tệp xuất .csv hợp lệ.")
+                PendingImport.Failed("Couldn't read that file. Make sure it's a .csv export.")
             }
         }
     }
@@ -128,7 +128,7 @@ class ImportSyncViewModel @Inject constructor(
     fun clearFinishedImport() = importService.clearFinished()
 
     fun export(uri: Uri) {
-        _exportMessage.value = "Đang xuất…"
+        _exportMessage.value = "Exporting…"
         viewModelScope.launch(Dispatchers.IO) {
             _exportMessage.value = try {
                 val (csv, summary) = MochyCsvExporter.build(database)
@@ -137,12 +137,12 @@ class ImportSyncViewModel @Inject constructor(
                     out.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
                     out.write(csv.toByteArray(Charsets.UTF_8))
                 } ?: throw IllegalStateException("Couldn't write the file")
-                "Đã xuất ${summary.likedSongs} bài hát đã thích và ${summary.playlists} danh sách phát (${summary.playlistSongs} bài hát)."
+                "Exported ${summary.likedSongs} liked songs and ${summary.playlists} playlists (${summary.playlistSongs} songs)."
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Timber.e(e, "Export failed")
-                "Xuất thất bại: ${e.message ?: "lỗi không xác định"}"
+                "Export failed: ${e.message ?: "unknown error"}"
             }
         }
     }

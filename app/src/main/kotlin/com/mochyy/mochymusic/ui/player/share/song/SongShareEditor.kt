@@ -49,6 +49,7 @@ import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.SheetPillButton
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.player.share.EditOutlines
+import com.mochyy.mochymusic.ui.player.share.ShareHeight
 import com.mochyy.mochymusic.ui.player.share.ShareMuted
 import com.mochyy.mochymusic.ui.player.share.ShareRegions
 import com.mochyy.mochymusic.ui.player.share.ShareTitle
@@ -104,12 +105,6 @@ private fun ColumnScope.EditorContent(session: SongShareSession, popup: PopupShe
                 null
             },
         )
-        AspectRatioPill(
-            aspect = session.aspect,
-            modifier = Modifier.align(Alignment.TopStart),
-        ) {
-            session.aspect = if (session.aspect == ShareAspect.Story) ShareAspect.Locket else ShareAspect.Story
-        }
         EditBackgroundPill(Modifier.align(Alignment.TopEnd)) { popup.showBackgroundType(session) }
     }
     if (timeline) {
@@ -140,27 +135,6 @@ private fun SongTimeline(session: SongShareSession, live: Boolean) {
         playheadMs = { if (live) session.playheadMs() else null },
         marks = lineStarts,
         drawStrip = { timeToX -> drawSongStrip(lineStarts, session.durationMs, timeToX) },
-    )
-}
-
-@Composable
-private fun AspectRatioPill(aspect: ShareAspect, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val interaction = remember { MutableInteractionSource() }
-    Text(
-        aspect.pillLabel,
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 12.sp,
-        letterSpacing = (-0.2).sp,
-        color = Color.White,
-        modifier = modifier
-            .padding(12.dp)
-            .pressBounce(interaction)
-            .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.38f))
-            .border(1.dp, Color.White.copy(alpha = 0.16f), CircleShape)
-            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
     )
 }
 
@@ -244,9 +218,8 @@ private fun CardCloseUp(session: SongShareSession, live: Boolean) {
     val bounds = session.cardBounds ?: return
     val resting = remember(session) { { session.windowStartMs } }
     BoxWithConstraints(Modifier.fillMaxWidth().height(210.dp), contentAlignment = Alignment.Center) {
-        val picHeight = session.aspect.heightDp
         val cardWidth = ShareWidth * bounds.width
-        val cardHeight = picHeight * bounds.height
+        val cardHeight = ShareHeight * bounds.height
         val k = minOf(maxWidth / cardWidth, maxHeight / cardHeight, 1.5f)
         val density = LocalDensity.current
         Box(Modifier.size(cardWidth * k, cardHeight * k).clip(RoundedCornerShape(cardCornerOf(session.kind) * k))) {
@@ -259,7 +232,7 @@ private fun CardCloseUp(session: SongShareSession, live: Boolean) {
                     video = { ShareVideoLayer(session, playing = live && session.previewPlays) },
                     modifier = Modifier
                         .wrapContentSize(Alignment.TopStart, unbounded = true)
-                        .offset(x = -ShareWidth * bounds.left, y = -picHeight * bounds.top),
+                        .offset(x = -ShareWidth * bounds.left, y = -ShareHeight * bounds.top),
                 )
             }
         }

@@ -1,4 +1,4 @@
-﻿import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 import java.security.MessageDigest
@@ -21,17 +21,17 @@ plugins {
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.mochyy.mochymusic"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.mochyy.mochymusic"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
         val versionStep = (ciRunNumber - 10).coerceAtLeast(0)
         val tenths = 83 + versionStep
-        val fallbackSemver = if (versionStep == 0) "9.0.0" else "${tenths / 10}.${tenths % 10}.0"
+        val fallbackSemver = if (versionStep == 0) "11.0.0" else "${tenths / 10}.${tenths % 10}.0"
         val propVer = (project.findProperty("mochyAppVersion") as? String)?.takeIf { it.isNotBlank() }
         val propBuild = (project.findProperty("mochyBuildNumber") as? String)?.toIntOrNull()
         val computedSemver = propVer ?: System.getenv("MOCHY_APP_VERSION")?.takeIf { it.isNotBlank() } ?: fallbackSemver
@@ -432,6 +432,9 @@ dependencies {
 
     implementation(libs.media3)
     implementation(libs.media3.session)
+    implementation(libs.car.app)
+    implementation(libs.car.app.projected)
+    implementation(libs.androidx.media)
     implementation(libs.media3.hls)
     implementation(libs.media3.dash)
     implementation(libs.media3.ui)
@@ -486,6 +489,8 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
+    // finds song streams first, with mochy's own client walk as the backup (YTPlayerUtils)
+    implementation(libs.innertubex)
 
     // Protobuf for message serialization (lite version for Android)
     implementation(libs.protobuf.javalite)
@@ -501,6 +506,7 @@ dependencies {
     implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }
-
-

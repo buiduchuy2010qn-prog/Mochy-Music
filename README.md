@@ -19,9 +19,11 @@
 
 ## 🌟 Điểm nổi bật của Bản Chỉnh Sửa & Việt Hóa (`@buiduchuy2010qn-prog`)
 
-- 🇻🇳 **Việt hóa 100% toàn diện:** Toàn bộ giao diện, trình phát nhạc, lời bài hát, bộ chỉnh âm (Equalizer / AutoEq), cài đặt, cử chỉ vuốt và thông báo đều được dịch sang Tiếng Việt tự nhiên, đồng thời tự động nhận diện ngôn ngữ mặc định theo thiết bị.
-- 🔄 **Pop-up Cập nhật tự động (OTA) đồng bộ khi mở ứng dụng:** Khi có phiên bản mới trên GitHub Releases, cả bản **Android** và bản **Windows / Linux** đều tự động hiện bảng thông báo nổi (Pop-up đồng bộ font chữ `Inter` và giao diện tối của ứng dụng) để bạn xem nội dung cập nhật và nhấn **"Cập nhật ngay"** cài đè trực tiếp không mất dữ liệu.
-- 📤 **Chia sẻ bài hát nhanh trong menu 3 chấm (`⋮`):** Đưa nút **Chia sẻ bài hát** (kèm tạo thẻ ảnh bài hát / lời bài hát hoặc sao chép liên kết) ra ngay menu 3 chấm (`⋮`) của trình phát nhạc và danh sách bài hát.
+- 🇻🇳 **Việt hóa 100% toàn diện:** Toàn bộ giao diện, trình phát nhạc, lời bài hát, bộ chỉnh âm (Equalizer / AutoEq), Audio Pass, Kết nối thiết bị, cài đặt, cử chỉ vuốt và thông báo đều được dịch sang Tiếng Việt tự nhiên, đồng thời tự động nhận diện ngôn ngữ mặc định theo thiết bị.
+- 🆕 **Hợp nhất trọn vẹn Mochy gốc 8.4.2 + tính năng độc quyền (v11.0.0):** Giữ nguyên 100% giao diện & chất lượng Mochy Music 8.4.2 gốc (Audio Pass, CrossMix, Floating Lyrics, Device Integration, Sửa thông tin bài hát, Android Auto / Car mode), đồng thời tích hợp **Mochy Cloud**, **Duchi Locket**, bộ biểu tượng **Logo mới**, **Kawarp backdrop** và nhập nhạc qua link **SoundCloud**.
+- 📱 **Hỗ trợ cả ARM64 & Universal (32-bit/64-bit, Android 7.0+):** Phát hành song song bản `arm64` nhẹ gọn cho máy đời mới và bản `universal` tương thích các thiết bị 32-bit `armeabi-v7a` (ví dụ Samsung Galaxy J6 Android 8.1); bộ OTA tự động chọn đúng APK theo kiến trúc máy.
+- 🔄 **Pop-up Cập nhật tự động (OTA) đồng bộ khi mở ứng dụng:** Khi có phiên bản mới trên GitHub Releases, cả bản **Android** và bản **Windows / Linux** đều tự động hiện bảng thông báo nổi (kèm pop-up **Có gì mới**) để bạn xem nội dung cập nhật và nhấn **"Cập nhật ngay"** cài đè trực tiếp không mất dữ liệu.
+- 📤 **Chia sẻ bài hát & Đăng lên Locket nhanh trong menu 3 chấm (`⋮`):** Đưa nút **Chia sẻ bài hát** và **Đăng lên Locket** ra ngay menu 3 chấm (`⋮`) của trình phát nhạc và danh sách bài hát.
 - 💻 **Hỗ trợ đa nền tảng trong cùng 1 kho mã nguồn:** Tự động đóng gói đầy đủ bộ cài kèm số phiên bản rõ ràng cho **Android (`.apk`)**, **Windows (`.exe` Setup & Portable)** và **Linux (`.AppImage` & `.deb`)**.
 
 ---
@@ -32,7 +34,8 @@
 
 | Thiết bị / Hệ điều hành | Tên tệp tải về (kèm số phiên bản) | Ghi chú |
 | :--- | :--- | :--- |
-| 📱 **Điện thoại Android** | `Mochy-Music-v<Phiên_bản>-vi-arm64.apk` | Hỗ trợ cài đè và tự động cập nhật OTA ngay trong ứng dụng |
+| 📱 **Android 64-bit (Khuyên dùng)** | `Mochy-Music-v<Phiên_bản>-vi-arm64.apk` | Tối ưu cho hầu hết điện thoại Android 7.0+ đời mới, hỗ trợ cài đè OTA |
+| 📱 **Android Universal (32-bit / 64-bit)** | `Mochy-Music-v<Phiên_bản>-vi-universal.apk` | Dùng cho máy 32-bit `armeabi-v7a` (như Galaxy J6 Android 8.1) hoặc khi không cài được bản `arm64` |
 | 🪟 **Máy tính Windows (Khuyên dùng)** | `Mochy-Music-v<Phiên_bản>-Windows-x64-Setup.exe` | Bộ cài đặt chuẩn Windows, hỗ trợ tự động tải & cài đè OTA |
 | 🪟 **Máy tính Windows (Chạy ngay)** | `Mochy-Music-v<Phiên_bản>-Windows-x64-Portable.exe` | Bản Portable mở lên dùng ngay không cần cài đặt |
 | 🐧 **Máy tính Linux (Mọi bản phân phối)** | `Mochy-Music-v<Phiên_bản>-Linux-x86_64.AppImage` | Cấp quyền thực thi (`chmod +x`) và chạy trực tiếp |

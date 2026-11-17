@@ -65,7 +65,7 @@ class OnboardingViewModel @Inject constructor(
         private set
 
     val cardNumber: String = (10_000_000_000L + Random.nextLong(89_999_999_999L)).toString()
-    val joinedText: String = "tham gia ngày " + LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
+    val joinedText: String = "joined at " + LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
 
     /** Onboarding can be run again from Settings; start each run clean. */
     fun reset() {
@@ -112,16 +112,16 @@ class OnboardingViewModel @Inject constructor(
     suspend fun importBackup(uri: Uri): String? = withContext(Dispatchers.IO) {
         try {
             val text = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                ?: return@withContext "Không thể mở tệp đó."
-            val parsed = parseImportCsv(text, fallbackPlaylistName = "Danh sách phát đã nhập")
-            if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) return@withContext "Không có bài hát nào trong tệp đó."
-            if (!importService.startImport(parsed)) return@withContext "Đang có một tiến trình nhập khác chạy."
+                ?: return@withContext "Couldn't open that file."
+            val parsed = parseImportCsv(text, fallbackPlaylistName = "Imported playlist")
+            if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) return@withContext "No songs in that file."
+            if (!importService.startImport(parsed)) return@withContext "Another import is still running."
             null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Backup import failed")
-            "Không thể đọc tệp đó. Hãy đảm bảo đó là tệp sao lưu .csv."
+            "Couldn't read that file. Make sure it's a .csv backup."
         }
     }
 
@@ -154,12 +154,8 @@ class OnboardingViewModel @Inject constructor(
     fun saveCard() {
         viewModelScope.launch(Dispatchers.IO) {
             context.dataStore.edit { prefs ->
-                if (prefs[ProfileCardNumberKey].isNullOrBlank()) {
-                    prefs[ProfileCardNumberKey] = cardNumber
-                }
-                if ((prefs[ProfileJoinedEpochDayKey] ?: -1L) <= 0L) {
-                    prefs[ProfileJoinedEpochDayKey] = LocalDate.now().toEpochDay()
-                }
+                prefs[ProfileCardNumberKey] = cardNumber
+                prefs[ProfileJoinedEpochDayKey] = LocalDate.now().toEpochDay()
             }
         }
     }

@@ -4,6 +4,8 @@ package com.mochyy.mochymusic.ui.component
 
 import android.content.Context
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.res.stringResource
+import com.mochyy.mochymusic.R
 import com.music.innertube.YouTube
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.db.entities.PlaylistEntity
@@ -54,7 +56,7 @@ fun PopupSheetState.showEditPlaylistSheet(
         buttonBar = {
             val scope = rememberCoroutineScope()
             SheetPillButton(
-                text = if (form.busy) "Đang lưu…" else "Xong",
+                text = stringResource(if (form.busy) R.string.pc_saving else R.string.done),
                 enabled = form.name.isNotBlank() && !form.busy,
                 onClick = {
                     form.busy = true
@@ -62,14 +64,17 @@ fun PopupSheetState.showEditPlaylistSheet(
                     sheet?.setLocked(true)
                     scope.launch(Dispatchers.IO) {
                         try {
+                            // the playlist as it is now: a cover redrawn while the sheet was open would otherwise be pointed back at a file that's gone
+                            val current = database.playlistEntity(playlist.id) ?: playlist
+                            val currentGenerated = PlaylistCoverStore.parse(current.thumbnailUrl)
                             val name = form.name.trim()
-                            val titleChanged = name != playlist.name
-                            var thumbnail = playlist.thumbnailUrl
+                            val titleChanged = name != current.name
+                            var thumbnail = current.thumbnailUrl
 
                             val choice = form.choice
                             val redraw = when {
                                 choice != null -> choice
-                                generated != null && titleChanged -> CoverChoice.Generated(generated.style)
+                                currentGenerated != null && titleChanged -> CoverChoice.Generated(currentGenerated.style)
                                 else -> null
                             }
                             if (redraw != null) {
@@ -83,18 +88,18 @@ fun PopupSheetState.showEditPlaylistSheet(
                                 )?.let { thumbnail = it }
                             }
 
-                            val saved = playlist.copy(
+                            val saved = current.copy(
                                 name = name,
                                 description = form.description.trim().ifBlank { null },
                                 thumbnailUrl = thumbnail,
                                 lastUpdateTime = LocalDateTime.now(),
                             )
-                            database.query { update(saved) }
-                            if (thumbnail != playlist.thumbnailUrl) {
+                            database.update(saved)
+                            if (thumbnail != current.thumbnailUrl) {
                                 PlaylistCoverStore.deleteStale(appContext, playlist.id, thumbnail)
                             }
                             if (titleChanged) {
-                                playlist.browseId?.let { runCatching { YouTube.renamePlaylist(it, name) } }
+                                current.browseId?.let { runCatching { YouTube.renamePlaylist(it, name) } }
                             }
 
                             withContext(Dispatchers.Main) { sheet?.dismiss() }

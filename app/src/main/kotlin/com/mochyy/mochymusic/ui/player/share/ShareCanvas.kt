@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,13 +51,11 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.cloud.MochyCloudSyncManager
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
 import kotlin.math.sqrt
@@ -86,38 +83,14 @@ private val CinematicLineGap = 2.dp
 private const val CinematicTextSize = 23f
 private const val CinematicSmallestText = 12f
 
-private data class CinematicMetrics(
-    val top: Dp,
-    val markBottom: Dp,
-    val markGap: Dp,
-    val headerGap: Dp,
-    val wordsRoom: Dp,
-)
-
-/** Margins and available lyrics height scaled for both 9:16 Story and 1:1 Locket canvases. */
-private fun cinematicMetrics(canvasHeight: Dp): CinematicMetrics {
-    val compact = canvasHeight <= 400.dp
-    val top = if (compact) 26.dp else CinematicTop
-    val markBottom = if (compact) 22.dp else CinematicMarkBottom
-    val markGap = if (compact) 14.dp else CinematicMarkGap
-    val headerGap = if (compact) 14.dp else CinematicHeaderGap
-    val wordsRoom = canvasHeight - top - markBottom - 16.dp - markGap - 38.dp - headerGap
-    return CinematicMetrics(top, markBottom, markGap, headerGap, wordsRoom)
-}
+/** Room the words get when the song sits with them: the picture less the margins, the mark and the song. */
+private val CinematicWordsRoom = ShareHeight - CinematicTop - CinematicMarkBottom - 16.dp - CinematicMarkGap - 38.dp - CinematicHeaderGap
 
 private fun shareText(size: Float, weight: FontWeight = FontWeight.Bold, color: Color, tracking: Float = -0.5f) =
     TextStyle(fontFamily = InterFontFamily, fontWeight = weight, fontSize = size.sp, letterSpacing = tracking.sp, color = color)
 
 @Composable
 internal fun MochyMark(color: Color, size: Float = 14f) {
-    val cloudState by MochyCloudSyncManager.state.collectAsState()
-    val label = remember(cloudState.signedIn, cloudState.username) {
-        if (cloudState.signedIn && cloudState.username.isNotBlank()) {
-            "@${cloudState.username} · Mochy"
-        } else {
-            "Mochy"
-        }
-    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painter = painterResource(R.drawable.ic_mochy_mark),
@@ -126,12 +99,7 @@ internal fun MochyMark(color: Color, size: Float = 14f) {
             modifier = Modifier.size((size + 2f).dp),
         )
         Spacer(Modifier.width(6.dp))
-        Text(
-            label,
-            style = shareText(size, color = color, tracking = -0.4f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Text("Mochy", style = shareText(size, color = color, tracking = -0.4f))
     }
 }
 
@@ -180,10 +148,10 @@ internal fun CinematicLayout(
     cover: ImageBitmap? = null,
     // in a video the words light up as they're sung; null keeps them all lit for a picture
     flow: CinematicFlow? = null,
-    canvasHeight: Dp = ShareHeight,
+    // the reading and the translation under each picked line, as the share's switches want them
+    readings: List<List<String>> = emptyList(),
 ) {
-    val metrics = remember(canvasHeight) { cinematicMetrics(canvasHeight) }
-    val textSize = rememberCinematicTextSize(session, metrics.wordsRoom)
+    val textSize = rememberCinematicTextSize(session, readings)
     val below = animateFloatAsState(
         if (session.headerBelow) 1f else 0f,
         spring(dampingRatio = 0.8f, stiffness = 240f),
@@ -206,12 +174,15 @@ internal fun CinematicLayout(
                     verticalArrangement = Arrangement.spacedBy(CinematicLineGap),
                     modifier = if (regions != null) Modifier.onGloballyPositioned { regions.words = it.boundsInParent() } else Modifier,
                 ) {
-                    session.chosen.forEach { (line, text) ->
+                    session.chosen.forEachIndexed { i, (line, text) ->
                         val style = shareText(textSize, color = ink, tracking = -1f)
                         if (flow == null) {
                             Text(cinematicLine(session, line, text, ink, textSize), style = style)
                         } else {
                             SungLine(session, line, text, ink, textSize, style, flow)
+                        }
+                        readings.getOrNull(i)?.forEach { reading ->
+                            Text(reading, style = readingText(textSize, ink))
                         }
                     }
                 }
@@ -226,10 +197,10 @@ internal fun CinematicLayout(
         val words = wordsPart.first().measure(loose)
         val mark = markPart.first().measure(loose)
         layout(constraints.maxWidth, constraints.maxHeight) {
-            val markTop = constraints.maxHeight - metrics.markBottom.roundToPx() - mark.height
-            val gap = metrics.headerGap.roundToPx()
-            val areaTop = metrics.top.roundToPx()
-            val areaBottom = markTop - metrics.markGap.roundToPx()
+            val markTop = constraints.maxHeight - CinematicMarkBottom.roundToPx() - mark.height
+            val gap = CinematicHeaderGap.roundToPx()
+            val areaTop = CinematicTop.roundToPx()
+            val areaBottom = markTop - CinematicMarkGap.roundToPx()
             val block = header.height + gap + words.height
             val top = areaTop + ((areaBottom - areaTop - block) / 2).coerceAtLeast(0)
             // read here, so the slide only places things again and never recomposes
@@ -253,22 +224,23 @@ internal fun CinematicLayout(
  * to 40 words with big ones mixed in can't all sit at full size.
  */
 @Composable
-private fun rememberCinematicTextSize(session: LyricsShareSession, wordsRoom: Dp): Float {
+private fun rememberCinematicTextSize(session: LyricsShareSession, readings: List<List<String>>): Float {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val chosen = session.chosen
     val looks = session.looks.toMap()
-    return remember(chosen, looks, density, wordsRoom) {
+    return remember(chosen, looks, readings, density) {
         val width = with(density) { (ShareWidth - CinematicSide * 2).roundToPx() }
-        val room = with(density) { wordsRoom.toPx() }
+        val room = with(density) { CinematicWordsRoom.toPx() }
         val lineGap = with(density) { CinematicLineGap.toPx() }
-        fun heightAt(size: Float): Float = chosen.sumOf { (line, text) ->
+        fun heightAt(size: Float): Float = chosen.mapIndexed { i, (line, text) ->
             measurer.measure(
                 cinematicLine(session, line, text, Color.White, size),
                 style = shareText(size, color = Color.White, tracking = -1f),
                 constraints = Constraints(maxWidth = width),
-            ).size.height
-        } + lineGap * (chosen.size - 1).coerceAtLeast(0)
+            ).size.height +
+                readings.getOrNull(i).orEmpty().sumOf { measurer.measure(it, readingText(size, Color.White), constraints = Constraints(maxWidth = width)).size.height }
+        }.sum() + lineGap * (chosen.size - 1).coerceAtLeast(0)
 
         val full = heightAt(CinematicTextSize)
         if (full <= room) return@remember CinematicTextSize
@@ -278,6 +250,13 @@ private fun rememberCinematicTextSize(session: LyricsShareSession, wordsRoom: Dp
         size
     }
 }
+
+// a reading or a translation under a cinematic line: half the size, softer, no bold
+private fun readingText(base: Float, ink: Color) =
+    shareText(base * CinematicReadingShare, weight = FontWeight.Medium, color = ink.copy(alpha = ink.alpha * CinematicReadingAlpha), tracking = -0.3f)
+
+private const val CinematicReadingShare = 0.5f
+private const val CinematicReadingAlpha = 0.72f
 
 internal fun cinematicLine(
     session: LyricsShareSession,

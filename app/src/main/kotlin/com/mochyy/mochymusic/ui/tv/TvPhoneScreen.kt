@@ -201,11 +201,16 @@ private fun TvPhonePairing(profile: TvProfile) {
 @Composable
 internal fun TvPairingSteps(pairing: TvPairing, modifier: Modifier = Modifier) {
     val code by pairing.code.collectAsState()
+    // the phone finds this code over the wi-fi, which android 17 asks about first
+    com.mochyy.mochymusic.link.AskForLocalNetwork(onGranted = { pairing.advertiseAgain() })
+    val seen = remember { HashSet<Any>() }
     Column(modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            code?.code.orEmpty().forEach { digit ->
+            // each digit rises in after the one before it, and again only when a new code changes it
+            code?.code.orEmpty().forEachIndexed { index, digit ->
                 Box(
                     Modifier
+                        .tvReveal(index to digit, seen, delayMillis = 200 + index * 70)
                         .size(width = 44.dp, height = 56.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(TvColors.Card)
@@ -219,7 +224,7 @@ internal fun TvPairingSteps(pairing: TvPairing, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(22.dp))
         listOf(
             stringResource(R.string.tv_pair_step_open),
-            stringResource(R.string.tv_pair_step_pick, code?.tvName.orEmpty()),
+            stringResource(R.string.tv_pair_step_pick, code?.deviceName.orEmpty()),
             stringResource(R.string.tv_pair_step_code),
         ).forEachIndexed { index, step ->
             Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -229,6 +234,11 @@ internal fun TvPairingSteps(pairing: TvPairing, modifier: Modifier = Modifier) {
                 Spacer(Modifier.width(10.dp))
                 Text(step, style = TvText.Body.copy(fontSize = 14.sp, color = Color(0xFFCFCFCF)))
             }
+        }
+        // for a wi-fi that hides tvs from phones: the phone can type this instead
+        code?.address?.let { address ->
+            Spacer(Modifier.height(10.dp))
+            Text(stringResource(R.string.tv_pair_by_address, address), style = TvText.Body.copy(fontSize = 13.sp, color = TvColors.Muted))
         }
     }
 }

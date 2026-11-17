@@ -61,8 +61,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.pressBounce
+import com.mochyy.mochymusic.ui.component.rememberResourcePainter
 import com.mochyy.mochymusic.ui.player.findActivity
 import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
 import com.mochyy.mochymusic.utils.AppIcon
@@ -71,6 +71,7 @@ import com.mochyy.mochymusic.utils.AppIconFamily
 import com.mochyy.mochymusic.utils.AppIcons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 private val TileSize = 66.dp
 // close to a launcher's squircle, so the tile reads as the icon it will be
@@ -142,11 +143,11 @@ internal fun IconsSection() {
     }
 }
 
-// each piece of art loaded once and shared by every tile; anime mochy is a bitmap, and every tile used to decode its own
+// each piece of art loaded once and shared by every tile, through coil so the anime bitmap decodes off the main thread (it cost 20 ms on the page's first frame)
 @Composable
 private fun rememberIconArt(): Map<Int, Painter> {
     val ids = remember { AppIcon.entries.map { it.foreground }.distinct() }
-    return ids.associateWith { painterResource(it) }
+    return ids.associateWith { rememberResourcePainter(it) }
 }
 
 // the icon in use with its name and family, and the chevron that opens every other choice
@@ -293,8 +294,8 @@ private fun IconArt(icon: AppIcon, art: Map<Int, Painter>, picked: Boolean, modi
         Image(
             painter = art.getValue(icon.foreground),
             contentDescription = null,
-            contentScale = if (icon.family == AppIconFamily.NewLogo) ContentScale.Crop else ContentScale.Fit,
-            modifier = if (icon.family == AppIconFamily.NewLogo) Modifier.size(TileSize) else Modifier.requiredSize(TileSize * 1.5f),
+            contentScale = if (icon.family == com.mochyy.mochymusic.utils.AppIconFamily.NewLogo) ContentScale.Crop else ContentScale.Fit,
+            modifier = if (icon.family == com.mochyy.mochymusic.utils.AppIconFamily.NewLogo) Modifier.size(TileSize) else Modifier.requiredSize(TileSize * 1.5f),
         )
     }
 }

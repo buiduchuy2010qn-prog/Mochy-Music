@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +54,7 @@ import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.importer.ImportProgress
 import com.mochyy.mochymusic.importer.ImportSource
 import com.mochyy.mochymusic.importer.account.AccountService
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.mochyy.mochymusic.ui.screens.search.SearchColors
 import com.mochyy.mochymusic.ui.component.damageBoundary
@@ -129,6 +131,7 @@ fun LibraryImportBanner(
     onOpenSheet: () -> Unit,
     onOpenProgress: () -> Unit,
     modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
 ) {
     Crossfade(
         targetState = progress.isRunning,
@@ -140,32 +143,56 @@ fun LibraryImportBanner(
         if (running) {
             ImportProgressBanner(progress = progress, onClick = onOpenProgress)
         } else {
-            ImportPromoBanner(onClick = onOpenSheet)
+            ImportPromoBanner(onClick = onOpenSheet, onDismiss = onDismiss)
         }
     }
 }
 
 @Composable
-private fun ImportPromoBanner(onClick: () -> Unit) {
-    Column(
+private fun ImportPromoBanner(onClick: () -> Unit, onDismiss: (() -> Unit)? = null) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(BannerShape)
             .background(SearchColors.Tile)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(vertical = 22.dp),
+            .clickable(role = Role.Button, onClick = onClick),
     ) {
-        ProviderMarquee()
-        Spacer(Modifier.height(20.dp))
-        Text(
-            text = "Nhập nhạc của bạn tại đây!",
-            color = SearchColors.Primary,
-            fontSize = 21.sp,
-            lineHeight = 25.sp,
-            letterSpacing = (-0.4).sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 22.dp),
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 22.dp),
+        ) {
+            ProviderMarquee()
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.lib_import_banner_title),
+                color = SearchColors.Primary,
+                fontSize = 21.sp,
+                lineHeight = 25.sp,
+                letterSpacing = (-0.4).sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 22.dp),
+            )
+        }
+        if (onDismiss != null) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable(role = Role.Button, onClick = onDismiss),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.close),
+                    contentDescription = stringResource(R.string.close),
+                    tint = SearchColors.Primary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
     }
 }
 
@@ -248,11 +275,14 @@ private fun ImportProgressBanner(progress: ImportProgress, onClick: () -> Unit) 
         Spacer(Modifier.height(24.dp))
         Text(
             text = when {
-                progress.resync != null && total <= 0 -> "Đang kiểm tra bài hát mới trong \"${progress.resync.playlistName}\"…"
-                progress.resync != null -> "Đang thêm $done/$total bài mới vào \"${progress.resync.playlistName}\""
-                total <= 0 -> "Đang chuẩn bị danh sách bài hát…"
-                progress.source != null -> "Đang thêm $done/$total bài hát từ ${progress.source.label}"
-                else -> "Đang thêm $done/$total bài hát"
+                progress.resync != null && total <= 0 ->
+                    stringResource(R.string.lib_import_checking_resync, progress.resync.playlistName)
+                progress.resync != null ->
+                    stringResource(R.string.lib_import_adding_resync, done, total, progress.resync.playlistName)
+                total <= 0 -> stringResource(R.string.lib_import_getting_ready)
+                progress.source != null ->
+                    stringResource(R.string.lib_import_adding_from, done, total, progress.source.label)
+                else -> stringResource(R.string.lib_import_adding, done, total)
             },
             color = SearchColors.Primary,
             fontSize = 21.sp,

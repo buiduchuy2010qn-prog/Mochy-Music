@@ -257,7 +257,7 @@ object ComposeToImage {
             canvas.drawBitmap(it, null, logoRect, logoPaint)
         }
 
-        val appName = CustomAppBranding.appName(context)
+        val appName = context.getString(R.string.app_name)
         val appNamePaint = TextPaint().apply {
             color = secondaryTxtColor
             textSize = 14f * scale

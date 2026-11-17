@@ -88,6 +88,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -254,7 +255,7 @@ fun <A> featuredArtistsOf(
         .map { (artistId, names) -> FeaturedArtistUi(id = artistId, name = names.first()) }
 
 // passes the scaffold's cover composable down to PlaylistHeader when classic or minimal style draws a framed cover
-private val LocalPlaylistFramedCover = staticCompositionLocalOf<(@Composable (Modifier) -> Unit)?> { null }
+internal val LocalPlaylistFramedCover = staticCompositionLocalOf<(@Composable (Modifier) -> Unit)?> { null }
 
 /** the cover band at the top of a playlist, shared by the header item and the backdrop behind it */
 @Composable
@@ -322,6 +323,12 @@ fun PlaylistDetailScaffold(
     LaunchedEffect(searchBarUp) {
         if (searchBarUp) lazyListState.scrollToItem(0)
     }
+    // the cover stays up behind the search, gone soft as if scrolled part way, so the results read over it
+    val searchSoftness by animateFloatAsState(
+        targetValue = if (searchBarUp) SearchCoverSoftness else 0f,
+        animationSpec = tween(420),
+        label = "playlistSearchCover",
+    )
 
     // the tapped card's cover comes first: the screen grows out of that image, so it has to be
     // there from the first frame, and keeping it means the cover never swaps mid-way
@@ -395,6 +402,28 @@ fun PlaylistDetailScaffold(
     // before the bar collapses
     val pillNeedsGlass = rememberUpdatedState(modeBar is PlaylistModeBar.EditOrder)
 
+    // on its side the cover stays at the left with the title on it, and the songs take the right
+    if (com.mochyy.mochymusic.ui.utils.isLandscapeLayout()) {
+        PlaylistSideBySide(
+            sharedElementKey = sharedElementKey,
+            coverUrl = coverUrl,
+            cover = cover,
+            framedCover = framedCover,
+            background = background,
+            lazyListState = lazyListState,
+            contentPadding = contentPadding,
+            onBackClick = onBackClick,
+            onBackLongClick = onBackLongClick,
+            onMoreClick = onMoreClick,
+            topBarOverride = topBarOverride,
+            modeBar = modeBar,
+            modifier = modifier,
+            overlay = overlay,
+            content = content,
+        )
+        return
+    }
+
     CompositionLocalProvider(LocalPlaylistFramedCover provides framedCover) {
     Box(
         modifier = Modifier
@@ -433,7 +462,7 @@ fun PlaylistDetailScaffold(
                     coverUrl = coverUrl,
                     cover = cover,
                     coverHeight = coverHeight,
-                    scrollProgress = { scrollProgress.value },
+                    scrollProgress = { maxOf(scrollProgress.value, searchSoftness) },
                     background = background,
                 )
             } else if (classicBackdrop) {
@@ -441,7 +470,7 @@ fun PlaylistDetailScaffold(
                     coverUrl = coverUrl,
                     cover = cover,
                     height = classicHeaderHeight,
-                    scrollProgress = { scrollProgress.value },
+                    scrollProgress = { maxOf(scrollProgress.value, searchSoftness) },
                     background = background,
                 )
             }
@@ -484,6 +513,8 @@ fun PlaylistDetailScaffold(
 
 // the backdrop is pinned behind the list, so it has to travel most of the way up on its own
 private const val CoverFollow = 0.8f
+// how far "scrolled" the cover looks behind the song search: soft and a little up, still there like the design
+private const val SearchCoverSoftness = 0.42f
 private const val CoverSoftBy = 0.55f
 
 @Composable
@@ -662,7 +693,7 @@ private fun PlaylistClassicBackdrop(
 }
 
 @Composable
-private fun PlaylistTopBar(
+internal fun PlaylistTopBar(
     glassState: GlassState,
     morph: () -> Float,
     coverUrl: String?,
@@ -787,7 +818,7 @@ private fun PlaylistNormalBarRow(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.more_horiz),
-                    contentDescription = "Tùy chọn",
+                    contentDescription = stringResource(R.string.options),
                     tint = Color.White,
                     modifier = Modifier.size(18.dp),
                 )
@@ -857,7 +888,7 @@ private fun BackPill(
         ) {
             Icon(
                 painter = painterResource(R.drawable.arrow_back_ios),
-                contentDescription = "Quay lại",
+                contentDescription = stringResource(R.string.back_button_desc),
                 tint = Color.White,
                 modifier = Modifier
                     .size(16.dp)
@@ -940,11 +971,15 @@ fun PlaylistHeader(
     onCreatorClick: ((CreatorUi) -> Unit)? = null,
     compact: Boolean = false,
     below: (@Composable () -> Unit)? = null,
+    // opens the list's own song search, from a round button beside shuffle
+    onSearchClick: (() -> Unit)? = null,
 ) {
     val playlistStyle by rememberEnumPreference(PlaylistStyleKey, defaultValue = PlaylistStyle.FLOW)
     val framedCover = LocalPlaylistFramedCover.current
-    val useMinimal = compact || playlistStyle == PlaylistStyle.MINIMAL
-    val useClassic = !compact && playlistStyle == PlaylistStyle.CLASSIC
+    // on its side the block sits on the cover at the left, so it never draws a framed cover of its own
+    val side = LocalPlaylistSideHeader.current
+    val useMinimal = compact || (side == null && playlistStyle == PlaylistStyle.MINIMAL)
+    val useClassic = side == null && !compact && playlistStyle == PlaylistStyle.CLASSIC
 
     val body: @Composable () -> Unit = {
         Column(
@@ -1003,15 +1038,23 @@ fun PlaylistHeader(
                 Spacer(Modifier.width(9.dp))
                 CircleAction(
                     icon = R.drawable.shuffle,
-                    contentDescription = "Phát ngẫu nhiên",
+                    contentDescription = stringResource(R.string.shuffle),
                     onClick = onShuffleClick,
                     spinOnClick = true,
                 )
+                if (onSearchClick != null) {
+                    Spacer(Modifier.width(4.dp))
+                    CircleAction(
+                        icon = R.drawable.search_outline,
+                        contentDescription = stringResource(R.string.search_this_list),
+                        onClick = onSearchClick,
+                    )
+                }
                 if (isSaved != null) {
                     Spacer(Modifier.width(4.dp))
                     CircleAction(
                         icon = if (isSaved) R.drawable.library_add_check else R.drawable.library_add,
-                        contentDescription = if (isSaved) "Trong thư viện" else "Thêm vào thư viện",
+                        contentDescription = stringResource(if (isSaved) R.string.pc_in_library else R.string.add_to_library),
                         onClick = onSaveClick,
                     )
                 }
@@ -1028,7 +1071,9 @@ fun PlaylistHeader(
         }
     }
 
-    if (useMinimal || useClassic) {
+    if (side != null) {
+        PublishSideHeader(side, body)
+    } else if (useMinimal || useClassic) {
         Column(
             modifier = modifier
                 .fillMaxWidth()
@@ -1133,7 +1178,7 @@ internal fun PlayPill(isPlaying: Boolean, onClick: () -> Unit) {
             label = "playPillLabel",
         ) { playing ->
             Text(
-                text = if (playing) "Tạm dừng" else "Phát",
+                text = stringResource(if (playing) R.string.pause else R.string.play),
                 style = PillLabelStyle,
                 color = PillContent,
             )
@@ -1231,7 +1276,7 @@ private fun CreatorRow(creators: List<CreatorUi>, onClick: ((CreatorUi) -> Unit)
             text = when (creators.size) {
                 1 -> creators[0].name
                 2 -> "${creators[0].name} & ${creators[1].name}"
-                else -> "${creators[0].name}, ${creators[1].name} & ${creators.size - 2} nghệ sĩ khác"
+                else -> "${creators[0].name}, ${creators[1].name} & ${creators.size - 2} more"
             },
             style = PlaylistCreatorStyle,
             color = Color.White.copy(alpha = 0.88f),
@@ -1271,20 +1316,6 @@ private fun CreatorAvatar(creator: CreatorUi, size: Dp, modifier: Modifier = Mod
             )
         }
     }
-}
-
-/** "search" beside the sort control, in its style: opens the list's own song search */
-@Composable
-fun PlaylistSearchControl(onClick: () -> Unit) {
-    Text(
-        text = "tìm kiếm",
-        style = PlaylistStatsStyle.copy(fontSize = 12.sp),
-        color = Color.White.copy(alpha = 0.72f),
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp, horizontal = 2.dp),
-    )
 }
 
 /** the "last added ⌄" label under the buttons; opens a small menu of sort orders */
@@ -1340,7 +1371,7 @@ fun <T : Enum<T>> PlaylistSortControl(
                         {
                             Icon(
                                 painter = painterResource(R.drawable.expand_more),
-                                contentDescription = if (descending) "Giảm dần" else "Tăng dần",
+                                contentDescription = stringResource(if (descending) R.string.pc_sort_descending else R.string.pc_sort_ascending),
                                 tint = Color.White,
                                 modifier = Modifier
                                     .size(18.dp)
@@ -1515,14 +1546,14 @@ fun PlaylistEndOfLine(
                 .height(25.dp)
         ) {
             Text(
-                text = "$songCount BÀI HÁT",
+                text = pluralStringResource(R.plurals.pc_detail_songs, songCount, songCount).uppercase(),
                 style = ReceiptSmallStyle,
                 color = Color.White.copy(alpha = 0.6f),
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "CUỐI DANH SÁCH",
+                text = stringResource(R.string.pc_detail_end_of_line),
                 style = ReceiptCenterStyle,
                 color = Color.White.copy(alpha = 0.78f),
                 maxLines = 1,
@@ -1530,7 +1561,7 @@ fun PlaylistEndOfLine(
             )
             val minutes = (totalSeconds + 30) / 60
             Text(
-                text = "$minutes PHÚT",
+                text = pluralStringResource(R.plurals.pc_detail_minutes, minutes, minutes).uppercase(),
                 style = ReceiptSmallStyle,
                 color = Color.White.copy(alpha = 0.6f),
                 maxLines = 1,
@@ -1594,7 +1625,7 @@ fun FeaturedArtistsRow(
     artists: List<FeaturedArtistUi>,
     onArtistClick: (FeaturedArtistUi) -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "Nghệ sĩ nổi bật",
+    title: String = stringResource(R.string.pc_featured_artist),
     onTitleClick: (() -> Unit)? = null,
     showChevron: Boolean = true,
 ) {

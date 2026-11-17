@@ -890,7 +890,7 @@ private fun loadDevices(
                         } else null
 
                         AudioDevice(
-                            name = deviceInfo.productName?.toString() ?: "Thiết bị Bluetooth",
+                            name = deviceInfo.productName?.toString() ?: "Bluetooth Device",
                             type = AudioDeviceType.BLUETOOTH,
                             isConnected = true,
                             isActive = false,
@@ -910,7 +910,7 @@ private fun loadDevices(
                     }
                     AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> {
                         AudioDevice(
-                            name = deviceInfo.productName?.toString() ?: "Âm thanh USB",
+                            name = deviceInfo.productName?.toString() ?: "USB Audio",
                             type = AudioDeviceType.USB_HEADSET,
                             isConnected = true,
                             isActive = false,
@@ -960,7 +960,7 @@ private fun loadDevices(
             loadDevicesLegacy(context, onSuccess, onError)
         }
     } catch (e: Exception) {
-        onError("Không thể tải danh sách thiết bị: ${e.message}")
+        onError("Failed to load devices: ${e.message}")
     }
 }
 
@@ -995,16 +995,16 @@ private fun loadDevicesLegacy(context: Context, onSuccess: (List<AudioDevice>) -
     val devices = mutableListOf<AudioDevice>()
 
     if (audioManager.isBluetoothA2dpOn) {
-        devices.add(AudioDevice("Thiết bị Bluetooth", AudioDeviceType.BLUETOOTH, true, true))
+        devices.add(AudioDevice("Bluetooth Device", AudioDeviceType.BLUETOOTH, true, true))
     }
     if (audioManager.isWiredHeadsetOn) {
-        devices.add(AudioDevice("Tai nghe có dây", AudioDeviceType.WIRED_HEADPHONES, true, true))
+        devices.add(AudioDevice("Wired Headphones", AudioDeviceType.WIRED_HEADPHONES, true, true))
     }
     if (audioManager.isSpeakerphoneOn) {
-        devices.add(AudioDevice("Loa ngoài", AudioDeviceType.EXTERNAL_SPEAKER, true, true))
+        devices.add(AudioDevice("External Speaker", AudioDeviceType.EXTERNAL_SPEAKER, true, true))
     }
     if (devices.isEmpty() || !devices.any { it.isActive }) {
-        devices.add(AudioDevice("Loa điện thoại", AudioDeviceType.PHONE_SPEAKER, true, true))
+        devices.add(AudioDevice("Phone Speaker", AudioDeviceType.PHONE_SPEAKER, true, true))
     }
     onSuccess(devices.filter { it.isActive }.take(1))
 }
@@ -1100,7 +1100,7 @@ private fun AudioDeviceRow(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                val statusText = if (isActiveDevice) "Đã kết nối" else "Khả dụng"
+                val statusText = if (isActiveDevice) "Connected" else "Available"
 
                 Row(
                     modifier = Modifier
@@ -1130,7 +1130,7 @@ private fun AudioDeviceRow(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.VolumeUp,
-                        contentDescription = "Mức âm lượng",
+                        contentDescription = "Volume level",
                         tint = onContainer,
                         modifier = Modifier.size(14.dp)
                     )

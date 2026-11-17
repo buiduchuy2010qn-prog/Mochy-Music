@@ -2,8 +2,6 @@
 
 package com.mochyy.mochymusic.ui.player.info
 
-import com.mochyy.mochymusic.ui.theme.InterFontFamily
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -39,6 +38,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 
@@ -100,10 +100,10 @@ internal fun NerdsDivider() {
     ) {
         Box(Modifier.weight(1f).height(1.dp).background(InfoLine))
         Text(
-            text = "THÔNG SỐ KỸ THUẬT",
+            text = stringResource(R.string.pc_info_nerds),
             color = InfoMuted,
             fontSize = 10.sp,
-            fontFamily = InterFontFamily,
+            fontFamily = FontFamily.Monospace,
             letterSpacing = 0.55.em,
             modifier = Modifier.padding(horizontal = 14.dp),
         )

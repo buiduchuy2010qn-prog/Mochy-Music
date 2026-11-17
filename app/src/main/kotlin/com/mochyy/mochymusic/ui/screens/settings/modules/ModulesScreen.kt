@@ -21,6 +21,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +46,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
-import com.mochyy.mochymusic.core.updater.DiscordUrl
 import com.mochyy.mochymusic.modules.ModuleEntry
 import com.mochyy.mochymusic.ui.component.ActionPromptDialog
 import com.mochyy.mochymusic.ui.component.BetaBadge
@@ -55,6 +55,7 @@ import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
 import com.mochyy.mochymusic.ui.screens.settings.devspace.openDevUrl
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.viewmodels.ModulesViewModel
+import kotlinx.coroutines.launch
 
 const val ModulesRoute = "modules"
 const val ModuleRoutePattern = "module/{id}"
@@ -75,6 +76,9 @@ fun ModulesScreen(navController: NavController, viewModel: ModulesViewModel = hi
     val sources = entries.filter { !it.isLookOnly }
     val open: (ModuleEntry) -> Unit = { navController.navigate(moduleRoute(it.id)) }
     val findMore = { overlay.showFindModulesSheet(viewModel) { id -> navController.navigate(moduleRoute(id)) } }
+    val updating by viewModel.updating.collectAsState()
+    val scope = rememberCoroutineScope()
+    val update: (ModuleEntry) -> Unit = { entry -> scope.launch { context.updateModule(viewModel, entry) } }
 
     SubSettingsScaffold(
         title = stringResource(R.string.settings_modules_category),
@@ -83,8 +87,8 @@ fun ModulesScreen(navController: NavController, viewModel: ModulesViewModel = hi
     ) {
         ThirdPartyCard { context.openDevUrl(ModuleDocsUrl) }
         Spacer(Modifier.height(14.dp))
-        // mochy's bar is where people share modules, so it sits right up top
-        ModulesBarBanner { context.openDevUrl(DiscordUrl) }
+        // mochy's bar is where people share modules, so its browser sits right up top
+        ModulesBarBanner { navController.navigate(ModuleBrowserRoute) }
         Spacer(Modifier.height(22.dp))
         Box(Modifier.fillMaxWidth().padding(horizontal = 2.dp).height(1.dp).background(Color.White.copy(alpha = 0.28f)))
         Spacer(Modifier.height(28.dp))
@@ -93,14 +97,20 @@ fun ModulesScreen(navController: NavController, viewModel: ModulesViewModel = hi
         if (looks.isEmpty()) {
             DashedSlot(stringResource(R.string.modules_looks_empty), onClick = findMore)
         } else {
-            ModuleList(looks, onOpen = open, onRemove = { removing = it }, onReorder = { viewModel.reorder(it, looks = true) })
+            ModuleList(
+                looks, onOpen = open, onRemove = { removing = it }, onReorder = { viewModel.reorder(it, looks = true) },
+                updating = updating, onUpdate = update,
+            )
             Spacer(Modifier.height(12.dp))
             DashedSlot(stringResource(R.string.modules_add_more), onClick = findMore, compact = true)
         }
 
         Spacer(Modifier.height(34.dp))
         ModuleSectionTitle(stringResource(R.string.modules_sources), stringResource(R.string.modules_swipe_to_delete))
-        ModuleList(sources, onOpen = open, onRemove = { removing = it }, onReorder = { viewModel.reorder(it, looks = false) })
+        ModuleList(
+            sources, onOpen = open, onRemove = { removing = it }, onReorder = { viewModel.reorder(it, looks = false) },
+            updating = updating, onUpdate = update,
+        )
         Spacer(Modifier.height(12.dp))
         DashedSlot(stringResource(R.string.modules_add_more), onClick = findMore, compact = true)
         Spacer(Modifier.height(120.dp))

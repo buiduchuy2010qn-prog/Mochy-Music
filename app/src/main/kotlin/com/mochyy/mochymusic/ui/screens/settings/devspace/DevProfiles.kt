@@ -56,6 +56,7 @@ import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.screens.donate.showDonateSheet
 import com.mochyy.mochymusic.ui.utils.SoftBlurTransformation
 import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.rememberResourcePainter
 
 internal data class DevSocial(val label: String, val url: String)
 
@@ -88,6 +89,7 @@ internal val DevPeople = listOf(
         takesDonations = true,
         socials = listOf(
             DevSocial("Instagram", InstagramUrl),
+            DevSocial("Discord", DiscordUrl),
             DevSocial("Threads", ThreadsUrl),
         ).filter { it.url.isNotBlank() },
     ),
@@ -112,7 +114,7 @@ internal fun DevAvatar(person: DevPerson, modifier: Modifier = Modifier) {
         )
     } else {
         Image(
-            painter = painterResource(person.avatar),
+            painter = rememberResourcePainter(person.avatar),
             contentDescription = person.name,
             contentScale = ContentScale.Crop,
             modifier = modifier.clip(CircleShape).background(Color(0xFFD9D9D9)),
@@ -166,13 +168,13 @@ internal fun DevProfilePage(
                 Column(Modifier.rise(2).padding(top = 22.dp)) {
                     if (person.takesDonations) {
                         val popup = LocalZoomOutOverlayState.current
-                        SectionTitle("Ủng hộ tác giả gốc")
-                        DevLinkRow("Ủng hộ tác giả gốc (@realidkroo)!") { popup.showDonateSheet() }
+                        SectionTitle("Donate")
+                        DevLinkRow("Donate me!") { popup.showDonateSheet() }
                         Spacer(Modifier.height(14.dp))
                     }
                     if (person.socials.isNotEmpty()) {
                         val context = LocalContext.current
-                        SectionTitle("Liên kết & Kho mã nguồn")
+                        SectionTitle("Socials")
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             person.socials.forEach { social ->
                                 DevLinkRow(social.label) { context.openDevUrl(social.url) }

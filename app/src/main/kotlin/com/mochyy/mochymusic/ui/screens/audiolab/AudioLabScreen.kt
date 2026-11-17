@@ -63,7 +63,7 @@ import com.mochyy.mochymusic.constants.AudioQuality
 import com.mochyy.mochymusic.constants.AudioQualityKey
 import com.mochyy.mochymusic.constants.CrossmixMode
 import com.mochyy.mochymusic.constants.CrossmixModeKey
-import com.mochyy.mochymusic.constants.playable
+import com.mochyy.mochymusic.constants.DefaultTransitionMode
 import com.mochyy.mochymusic.eq.EqPresets
 import com.mochyy.mochymusic.eq.EqSettings
 import com.mochyy.mochymusic.playback.audio.AudioOutputs
@@ -101,7 +101,7 @@ fun AudioLabScreen(
         if (id == com.mochyy.mochymusic.modules.SourceModules.YouTubeId) youTubeOn
         else modules.any { it.module.info.id == id && it.enabled && it.account is com.mochyy.mochymusic.module.AccountState.SignedIn }
     }
-    val (mode) = rememberEnumPreference(CrossmixModeKey, defaultValue = CrossmixMode.AUTO_CROSSFADE)
+    val (mode) = rememberEnumPreference(CrossmixModeKey, defaultValue = DefaultTransitionMode)
 
     val effects = activeEffects(reverb, loudness, spatial, playback, volume)
 
@@ -111,7 +111,7 @@ fun AudioLabScreen(
     ) {
         val equalizer: @Composable (Modifier) -> Unit = { modifier ->
             BigHubCard(
-                title = "Bộ chỉnh âm (EQ)",
+                title = stringResource(R.string.lab_equalizer),
                 status = equalizerStatus(eq, presets.associate { it.id to it.name }),
                 on = eq.enabled,
                 onClick = { navController.navigate("equalizer") },
@@ -120,7 +120,7 @@ fun AudioLabScreen(
         }
         val effect: @Composable (Modifier) -> Unit = { modifier ->
             BigHubCard(
-                title = "Hiệu ứng âm thanh",
+                title = stringResource(R.string.lab_audio_effect),
                 status = effectsStatus(effects),
                 on = effects.isNotEmpty(),
                 onClick = { navController.navigate("audio_fx") },
@@ -129,7 +129,7 @@ fun AudioLabScreen(
         }
         val qualityCard: @Composable (Modifier) -> Unit = { modifier ->
             SmallHubCard(
-                title = "Chất lượng âm thanh",
+                title = stringResource(R.string.lab_audio_quality),
                 status = qualityName(quality, firstProvider),
                 onClick = { navController.navigate("audio_quality") },
                 modifier = modifier,
@@ -137,12 +137,12 @@ fun AudioLabScreen(
         }
         val transition: @Composable (Modifier) -> Unit = { modifier ->
             SmallHubCard(
-                title = "Chuyển bài",
-                status = when (mode.playable()) {
-                    CrossmixMode.OFF -> "Tắt"
-                    CrossmixMode.AUTO_CROSSFADE -> "Tự động"
-                    CrossmixMode.MANUAL_CROSSFADE -> "Thủ công"
-                    CrossmixMode.CROSSMIX -> "CrossMix"
+                title = stringResource(R.string.lab_transition),
+                status = when (mode) {
+                    CrossmixMode.OFF -> stringResource(R.string.lab_transition_off)
+                    CrossmixMode.AUTO_CROSSFADE -> stringResource(R.string.lab_transition_auto)
+                    CrossmixMode.MANUAL_CROSSFADE -> stringResource(R.string.lab_transition_manual)
+                    CrossmixMode.CROSSMIX -> stringResource(R.string.lab_transition_crossmix)
                 },
                 onClick = { navController.navigate("crossmix_settings") },
                 modifier = modifier,
@@ -193,31 +193,40 @@ fun AudioLabScreen(
 }
 
 /** the effects status line, first names then "and 2 more" as in the mock */
+@Composable
 private fun effectsStatus(effects: List<ActiveEffect>): String {
-    val names = effects.map { it.label.uppercase() }
+    val names = effects.map { stringResource(effectLabelRes(it.key)).uppercase() }
     return when {
-        names.isEmpty() -> "ĐÃ TẮT"
+        names.isEmpty() -> stringResource(R.string.lab_status_all_off)
         names.size <= 2 -> names.joinToString(", ")
-        else -> names.take(2).joinToString(", ") + " và ${names.size - 2} hiệu ứng khác"
+        else -> stringResource(R.string.lab_effects_and_more, names.take(2).joinToString(", "), names.size - 2)
     }
 }
 
+@Composable
 private fun equalizerStatus(eq: EqSettings, userPresets: Map<String, String>): String {
-    if (!eq.enabled) return "TẮT"
-    val curve = eq.presetId?.let { id -> EqPresets.BuiltIn.firstOrNull { it.id == id }?.name ?: userPresets[id] } ?: "Tùy chỉnh"
+    if (!eq.enabled) return stringResource(R.string.lab_status_off)
+    val custom = stringResource(R.string.lab_status_custom)
+    val curve = eq.presetId?.let { id -> EqPresets.BuiltIn.firstOrNull { it.id == id }?.name ?: userPresets[id] } ?: custom
     val correction = eq.correction?.takeIf { eq.correctionEnabled }?.model
     return (if (correction != null) "$curve · $correction" else curve).uppercase()
 }
 
+@Composable
 private fun qualityName(q: AudioQuality, firstProvider: String?): String = when (firstProvider) {
-    com.mochyy.mochymusic.module.monochrome.MonochromeModule.Id -> "Monochrome · Lossless"
-    com.mochyy.mochymusic.module.applemusic.AppleMusicModule.Id -> "Apple Music · AAC"
-    else -> "YouTube · " + when (q) {
-        AudioQuality.LOW -> "Thấp"
-        AudioQuality.MEDIUM -> "Trung bình"
-        AudioQuality.HIGH -> "Cao"
-        else -> "Tự động"
-    }
+    com.mochyy.mochymusic.module.monochrome.MonochromeModule.Id -> stringResource(R.string.lab_quality_monochrome)
+    com.mochyy.mochymusic.module.applemusic.AppleMusicModule.Id -> stringResource(R.string.lab_quality_apple_music)
+    else -> stringResource(
+        R.string.lab_quality_youtube,
+        stringResource(
+            when (q) {
+                AudioQuality.LOW -> R.string.lab_quality_low
+                AudioQuality.MEDIUM -> R.string.lab_quality_medium
+                AudioQuality.HIGH -> R.string.lab_quality_high
+                else -> R.string.lab_quality_auto
+            },
+        ),
+    )
 }
 
 /** the equalizer's and effects' card, a green dot and the state in small type with the name under it */

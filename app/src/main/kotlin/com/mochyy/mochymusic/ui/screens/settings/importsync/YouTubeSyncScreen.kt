@@ -60,133 +60,144 @@ fun YouTubeSyncScreen(
     var confirmUndo by remember { mutableStateOf(false) }
 
     SubSettingsScaffold(
-        title = "Đồng bộ",
+        title = stringResource(R.string.import_sync_sync_title),
         onBack = { navController.navigateUp() },
     ) {
         SettingsGroup(
-            title = "Tài khoản YouTube",
+            title = stringResource(R.string.yt_sync_account_header),
             style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                if (signedIn) {
+            items =
+                listOf(
+                    if (signedIn) {
+                        SettingsItem(
+                            title = { Text(accountName.ifBlank { stringResource(R.string.yt_sync_signed_in) }) },
+                            descriptionText = accountEmail.ifBlank { "YouTube Music" },
+                            icon = painterResource(R.drawable.account),
+                            iconShape = CircleShape,
+                            trailingContent = {
+                                TextButton(onClick = { confirmSignOut = true }) { Text(stringResource(R.string.yt_sync_sign_out)) }
+                            },
+                        )
+                    } else {
+                        SettingsItem(
+                            title = { Text(stringResource(R.string.yt_sync_sign_in_title)) },
+                            descriptionText = stringResource(R.string.yt_sync_sign_in_desc),
+                            icon = painterResource(R.drawable.login),
+                            iconShape = CircleShape,
+                            onClick = { navController.navigate(YouTubeLoginRoute) },
+                        )
+                    },
+                ),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        SettingsGroup(
+            title = stringResource(R.string.yt_sync_keep_in_sync_header),
+            style = SettingsGroupStyle.Grouped,
+            items =
+                listOf(
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_auto_sync_title),
+                        description = stringResource(R.string.yt_sync_auto_sync_desc),
+                        icon = R.drawable.sync,
+                        checked = autoSync,
+                        enabled = signedIn,
+                        onChange = onAutoSyncChange,
+                    ),
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_new_playlists_title),
+                        description = stringResource(R.string.yt_sync_new_playlists_desc),
+                        icon = R.drawable.playlist_add,
+                        checked = syncNewPlaylists,
+                        enabled = signedIn,
+                        onChange = onSyncNewPlaylistsChange,
+                    ),
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_report_plays_title),
+                        description = stringResource(R.string.yt_sync_report_plays_desc),
+                        icon = R.drawable.history,
+                        checked = reportPlays,
+                        enabled = signedIn,
+                        onChange = onReportPlaysChange,
+                    ),
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_pull_history_title),
+                        description = stringResource(R.string.yt_sync_pull_history_desc),
+                        icon = R.drawable.history,
+                        checked = pullHistory,
+                        enabled = signedIn,
+                        onChange = onPullHistoryChange,
+                    ),
+                ),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        SettingsGroup(
+            title = stringResource(R.string.yt_sync_other_apps_header),
+            style = SettingsGroupStyle.Grouped,
+            items =
+                listOf(
+                    toggleItem(
+                        title = stringResource(R.string.yt_sync_exclude_title),
+                        description = stringResource(R.string.yt_sync_exclude_desc),
+                        icon = R.drawable.cloud,
+                        checked = excludeImports,
+                        enabled = true,
+                        onChange = onExcludeImportsChange,
+                    ),
+                ),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        SettingsGroup(
+            title = stringResource(R.string.yt_sync_now_header),
+            style = SettingsGroupStyle.Grouped,
+            items =
+                listOf(
                     SettingsItem(
-                        title = { Text(accountName.ifBlank { "Đã đăng nhập" }) },
-                        descriptionText = accountEmail.ifBlank { "YouTube Music" },
-                        icon = painterResource(R.drawable.account),
+                        title = { Text(stringResource(R.string.yt_sync_now_title)) },
+                        descriptionText =
+                            if (pullHistory) {
+                                stringResource(
+                                    R.string.yt_sync_now_desc_history,
+                                )
+                            } else {
+                                stringResource(R.string.yt_sync_now_desc_no_history)
+                            },
+                        icon = painterResource(R.drawable.refresh),
                         iconShape = CircleShape,
-                        trailingContent = {
-                            TextButton(onClick = { confirmSignOut = true }) { Text("Đăng xuất") }
-                        },
-                    )
-                } else {
+                        enabled = signedIn && !state.running,
+                        onClick = viewModel::syncNow,
+                    ),
                     SettingsItem(
-                        title = { Text("Đăng nhập vào YouTube") },
-                        descriptionText = "Cần thiết để đồng bộ. Thông tin đăng nhập chỉ lưu trên điện thoại này",
-                        icon = painterResource(R.drawable.login),
+                        title = { Text(stringResource(R.string.yt_sync_pull_history_now_title)) },
+                        descriptionText = stringResource(R.string.yt_sync_pull_history_now_desc),
+                        icon = painterResource(R.drawable.history),
                         iconShape = CircleShape,
-                        onClick = { navController.navigate(YouTubeLoginRoute) },
-                    )
-                }
-            ),
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        SettingsGroup(
-            title = "Duy trì đồng bộ",
-            style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                toggleItem(
-                    title = "Đồng bộ thư viện khi mở ứng dụng",
-                    description = "Bài hát đã thích, thư viện, nghệ sĩ và danh sách phát đã lưu từ YouTube",
-                    icon = R.drawable.sync,
-                    checked = autoSync,
-                    enabled = signedIn,
-                    onChange = onAutoSyncChange,
+                        enabled = signedIn && !state.running,
+                        onClick = viewModel::pullHistoryNow,
+                    ),
+                    SettingsItem(
+                        title = { Text(stringResource(R.string.yt_sync_undo_title)) },
+                        descriptionText = stringResource(R.string.yt_sync_undo_desc),
+                        icon = painterResource(R.drawable.undo),
+                        iconShape = CircleShape,
+                        enabled = signedIn && state.canUndo && !state.running,
+                        onClick = { confirmUndo = true },
+                    ),
+                    SettingsItem(
+                        title = { Text(stringResource(R.string.yt_sync_upload_playlists_title)) },
+                        descriptionText = stringResource(R.string.yt_sync_upload_playlists_desc),
+                        detail = stringResource(R.string.yt_sync_upload_playlists_detail),
+                        icon = painterResource(R.drawable.cloud),
+                        iconShape = CircleShape,
+                        enabled = signedIn && !state.running,
+                        onClick = { confirmUpload = true },
+                    ),
                 ),
-                toggleItem(
-                    title = "Tạo danh sách phát mới trên YouTube",
-                    description = "Danh sách phát bạn tạo tại đây cũng sẽ được tạo trên YouTube",
-                    icon = R.drawable.playlist_add,
-                    checked = syncNewPlaylists,
-                    enabled = signedIn,
-                    onChange = onSyncNewPlaylistsChange,
-                ),
-                toggleItem(
-                    title = "Gửi lượt phát vào lịch sử YouTube",
-                    description = "Bài hát bạn nghe tại đây sẽ hiển thị trong lịch sử YouTube",
-                    icon = R.drawable.history,
-                    checked = reportPlays,
-                    enabled = signedIn,
-                    onChange = onReportPlaysChange,
-                ),
-                toggleItem(
-                    title = "Sao chép lịch sử YouTube về đây",
-                    description = "Lượt nghe từ các thiết bị khác sẽ được gộp vào lịch sử Mochy sau mỗi lần đồng bộ",
-                    icon = R.drawable.history,
-                    checked = pullHistory,
-                    enabled = signedIn,
-                    onChange = onPullHistoryChange,
-                ),
-            ),
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        SettingsGroup(
-            title = "Ứng dụng khác",
-            style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                toggleItem(
-                    title = stringResource(R.string.yt_sync_exclude_title),
-                    description = stringResource(R.string.yt_sync_exclude_desc),
-                    icon = R.drawable.cloud,
-                    checked = excludeImports,
-                    enabled = true,
-                    onChange = onExcludeImportsChange,
-                ),
-            ),
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        SettingsGroup(
-            title = "Tác vụ tức thì",
-            style = SettingsGroupStyle.Grouped,
-            items = listOf(
-                SettingsItem(
-                    title = { Text("Đồng bộ ngay") },
-                    descriptionText = if (pullHistory) "Thư viện, danh sách phát và lịch sử" else "Thư viện và danh sách phát",
-                    icon = painterResource(R.drawable.refresh),
-                    iconShape = CircleShape,
-                    enabled = signedIn && !state.running,
-                    onClick = viewModel::syncNow,
-                ),
-                SettingsItem(
-                    title = { Text("Sao chép lịch sử YouTube ngay") },
-                    descriptionText = "Chỉ thêm những lượt phát chưa có trong Mochy",
-                    icon = painterResource(R.drawable.history),
-                    iconShape = CircleShape,
-                    enabled = signedIn && !state.running,
-                    onClick = viewModel::pullHistoryNow,
-                ),
-                SettingsItem(
-                    title = { Text(stringResource(R.string.yt_sync_undo_title)) },
-                    descriptionText = stringResource(R.string.yt_sync_undo_desc),
-                    icon = painterResource(R.drawable.undo),
-                    iconShape = CircleShape,
-                    enabled = signedIn && state.canUndo && !state.running,
-                    onClick = { confirmUndo = true },
-                ),
-                SettingsItem(
-                    title = { Text("Đưa danh sách phát cục bộ lên YouTube") },
-                    descriptionText = "Sao chép danh sách phát trên máy lên YouTube",
-                    detail = "Tạo bản sao trên YouTube cho mọi danh sách phát chỉ có trên thiết bị này",
-                    icon = painterResource(R.drawable.cloud),
-                    iconShape = CircleShape,
-                    enabled = signedIn && !state.running,
-                    onClick = { confirmUpload = true },
-                ),
-            ),
         )
 
         if (state.running || state.message != null) {
@@ -200,7 +211,7 @@ fun YouTubeSyncScreen(
                     }
                 } else {
                     Text(state.message.orEmpty(), style = MaterialTheme.typography.bodyLarge)
-                    TextButton(onClick = viewModel::clearYouTubeMessage) { Text("OK") }
+                    TextButton(onClick = viewModel::clearYouTubeMessage) { Text(stringResource(R.string.import_sync_btn_ok)) }
                 }
             }
         }
@@ -208,7 +219,7 @@ fun YouTubeSyncScreen(
         if (!signedIn) {
             Spacer(Modifier.height(16.dp))
             Text(
-                "Nhập từ liên kết danh sách phát YouTube không cần tài khoản. Hãy dùng Nhập nhạc → YouTube Music.",
+                stringResource(R.string.yt_sync_no_account_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -219,17 +230,17 @@ fun YouTubeSyncScreen(
         DefaultDialog(
             onDismiss = { confirmSignOut = false },
             horizontalAlignment = Alignment.Start,
-            title = { Text("Đăng xuất khỏi YouTube?") },
+            title = { Text(stringResource(R.string.yt_sync_dialog_sign_out_title)) },
             buttons = {
-                TextButton(onClick = { confirmSignOut = false }) { Text("Hủy") }
+                TextButton(onClick = { confirmSignOut = false }) { Text(stringResource(R.string.yt_sync_cancel)) }
                 TextButton(onClick = {
                     confirmSignOut = false
                     viewModel.signOut()
-                }) { Text("Đăng xuất") }
+                }) { Text(stringResource(R.string.yt_sync_sign_out)) }
             },
         ) {
             Text(
-                "Mọi nội dung đã có trong thư viện vẫn được giữ nguyên. Quá trình đồng bộ sẽ dừng cho đến khi bạn đăng nhập lại.",
+                stringResource(R.string.yt_sync_dialog_sign_out_body),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -241,7 +252,7 @@ fun YouTubeSyncScreen(
             horizontalAlignment = Alignment.Start,
             title = { Text(stringResource(R.string.yt_sync_undo_dialog_title)) },
             buttons = {
-                TextButton(onClick = { confirmUndo = false }) { Text("Hủy") }
+                TextButton(onClick = { confirmUndo = false }) { Text(stringResource(R.string.yt_sync_cancel)) }
                 TextButton(onClick = {
                     confirmUndo = false
                     viewModel.undoLastSync(withYouTube = false)
@@ -272,17 +283,17 @@ fun YouTubeSyncScreen(
         DefaultDialog(
             onDismiss = { confirmUpload = false },
             horizontalAlignment = Alignment.Start,
-            title = { Text("Đưa danh sách phát cục bộ lên YouTube?") },
+            title = { Text(stringResource(R.string.yt_sync_dialog_upload_title)) },
             buttons = {
-                TextButton(onClick = { confirmUpload = false }) { Text("Hủy") }
+                TextButton(onClick = { confirmUpload = false }) { Text(stringResource(R.string.yt_sync_cancel)) }
                 TextButton(onClick = {
                     confirmUpload = false
                     viewModel.uploadLocalPlaylists()
-                }) { Text("Tạo") }
+                }) { Text(stringResource(R.string.yt_sync_dialog_upload_create)) }
             },
         ) {
             Text(
-                "Mỗi danh sách phát chỉ có trên Mochy sẽ được tạo một bản sao riêng tư trên tài khoản YouTube của bạn. Sau đó, mọi thay đổi sẽ được đồng bộ cả hai bên.",
+                stringResource(R.string.yt_sync_dialog_upload_body),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,36 +59,38 @@ fun PopupSheetState.showManageImportsSheet(
             sheet?.dismiss()
         }
     sheet = showWithHandle {
+        val context = LocalContext.current
         ManageLayout(
-            ManageAction(R.drawable.delete, "Xóa tất cả nhạc đã nhập") {
+            ManageAction(R.drawable.delete, stringResource(R.string.lib_manage_delete_all_imports)) {
                 confirmThen(
-                    title = "Xóa tất cả nhạc đã nhập?",
-                    message = "Mọi bài hát, lượt thích và danh sách phát bạn đã nhập sẽ được gỡ khỏi thư viện. Các bài hát " +
-                        "đã có từ trước và nhạc đồng bộ từ YouTube vẫn được giữ nguyên.",
-                    action = "Xóa tất cả nhạc đã nhập",
+                    title = context.getString(R.string.lib_manage_delete_all_imports_title),
+                    message = context.getString(R.string.lib_manage_delete_all_imports_msg),
+                    action = context.getString(R.string.lib_manage_delete_all_imports),
                     run = viewModel::deleteAllImports,
                 )
             },
-            ManageAction(R.drawable.undo, "Hoàn tác lần nhập gần nhất") {
+            ManageAction(R.drawable.undo, stringResource(R.string.lib_manage_undo_session)) {
                 confirmThen(
-                    title = "Hoàn tác lần nhập gần nhất?",
-                    message = "Các bài hát, lượt thích và danh sách phát từ lần nhập gần nhất sẽ được gỡ khỏi thư viện. " +
-                        "Mọi nội dung có từ trước vẫn được giữ nguyên.",
-                    action = "Hoàn tác nhập",
+                    title = context.getString(R.string.lib_manage_undo_last_title),
+                    message = context.getString(R.string.lib_manage_undo_last_msg),
+                    action = context.getString(R.string.lib_manage_undo_import),
                     run = viewModel::undoLatestImport,
                 )
             },
-            wide = ManageAction(R.drawable.sync, "Đồng bộ lại tất cả") {
+            wide = ManageAction(R.drawable.sync, stringResource(R.string.lib_manage_resync_all)) {
                 sheet?.dismiss()
                 onResyncAll()
             },
             rows = sources.map { source ->
-                ManageAction(R.drawable.delete, "Xóa nhạc nhập từ ${source.label}") {
+                ManageAction(R.drawable.delete, stringResource(R.string.lib_manage_delete_source, source.label)) {
                     confirmThen(
-                        title = "Xóa nhạc đã nhập từ ${source.label}?",
-                        message = "Mọi bài hát và danh sách phát bạn đã nhập từ ${source.label} sẽ được gỡ khỏi thư viện." +
-                            if (source == ImportSource.YOUTUBE_MUSIC) " Nhạc đồng bộ từ tài khoản YouTube vẫn được giữ nguyên." else "",
-                        action = "Xóa",
+                        title = context.getString(R.string.lib_manage_delete_source_title, source.label),
+                        message = context.getString(
+                            if (source == ImportSource.YOUTUBE_MUSIC) R.string.lib_manage_delete_source_msg_youtube
+                            else R.string.lib_manage_delete_source_msg,
+                            source.label,
+                        ),
+                        action = context.getString(R.string.lib_manage_delete),
                         run = { viewModel.deleteImportsFrom(source) },
                     )
                 }
@@ -107,25 +111,26 @@ fun PopupSheetState.showManageLocalSheet(
 ) {
     var sheet: PopupSheetHandle? = null
     sheet = showWithHandle {
+        val context = LocalContext.current
         ManageLayout(
-            ManageAction(R.drawable.refresh, "Quét lại nhạc trên máy") {
+            ManageAction(R.drawable.refresh, stringResource(R.string.lib_manage_rescan_local)) {
                 sheet?.dismiss()
                 onRescan()
             },
-            ManageAction(R.drawable.delete, "Xóa khỏi danh sách") {
+            ManageAction(R.drawable.delete, stringResource(R.string.lib_manage_delete_from_list)) {
                 sheet?.dismiss()
                 onRemoveFromList()
             },
-            wide = ManageAction(R.drawable.library_add, "Thêm thư mục nhạc") {
+            wide = ManageAction(R.drawable.library_add, stringResource(R.string.lib_manage_add_folder)) {
                 sheet?.dismiss()
                 onAddFolder()
             },
             rows = listOf(
-                ManageAction(R.drawable.undo, "Hoàn tác lần nhập gần nhất") {
+                ManageAction(R.drawable.undo, stringResource(R.string.lib_manage_undo_session)) {
                     showConfirm(
-                        title = "Hoàn tác lần nhập nhạc trên máy gần nhất?",
-                        message = "Các bài hát đã thêm sẽ được gỡ khỏi thư viện. Tệp gốc trên điện thoại vẫn được giữ nguyên.",
-                        action = "Hoàn tác nhập",
+                        title = context.getString(R.string.lib_manage_undo_local_title),
+                        message = context.getString(R.string.lib_manage_undo_local_msg),
+                        action = context.getString(R.string.lib_manage_undo_import),
                     ) {
                         viewModel.undoLatestLocalImport()
                         sheet?.dismiss()
@@ -147,19 +152,19 @@ fun PopupSheetState.showManageCachedSheet(
 ) {
     var sheet: PopupSheetHandle? = null
     sheet = showWithHandle {
+        val context = LocalContext.current
         ManageLayout(
-            ManageAction(R.drawable.clear_all, "Xóa bộ nhớ đệm") {
+            ManageAction(R.drawable.clear_all, stringResource(R.string.lib_manage_clear_cache)) {
                 showConfirm(
-                    title = "Xóa bộ nhớ đệm?",
-                    message = "Mọi bài hát lưu đệm sẽ được xóa khỏi điện thoại và sẽ phát trực tuyến lại ở lần nghe " +
-                        "tiếp theo. Thư viện và nhạc đã tải xuống của bạn vẫn được giữ nguyên.",
-                    action = "Xóa bộ nhớ đệm",
+                    title = context.getString(R.string.lib_manage_clear_cache_title),
+                    message = context.getString(R.string.lib_manage_clear_cache_msg),
+                    action = context.getString(R.string.lib_manage_clear_cache),
                 ) {
                     onClearCache()
                     sheet?.dismiss()
                 }
             },
-            ManageAction(R.drawable.delete, "Gỡ bài hát") {
+            ManageAction(R.drawable.delete, stringResource(R.string.lib_manage_remove_songs)) {
                 sheet?.dismiss()
                 showRemoveCachedSheet(cachedSongs, onRemove)
             },

@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.ui.screens.setup.onboarding
 
+import androidx.compose.ui.res.stringResource
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.Canvas
@@ -133,7 +134,7 @@ internal fun ProfileIdCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "HỒ SƠ USR#$cardNumber",
+                        text = stringResource(R.string.onb_card_profile_usr, cardNumber),
                         color = mutedText,
                         fontFamily = FontFamily.Monospace,
                         fontSize = (unit.value * 11f).sp,
@@ -157,14 +158,14 @@ internal fun ProfileIdCard(
                         if (photo != null) {
                             AsyncImage(
                                 model = photo,
-                                contentDescription = "Ảnh đại diện",
+                                contentDescription = stringResource(R.string.onb_profile_picture),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         } else if (onPhotoClick != null) {
                             Icon(
                                 painterResource(R.drawable.add),
-                                contentDescription = "Thêm ảnh đại diện",
+                                contentDescription = stringResource(R.string.onb_add_profile_picture),
                                 tint = Color.White.copy(alpha = 0.7f),
                                 modifier = Modifier.size(unit * 34f),
                             )
@@ -174,7 +175,7 @@ internal fun ProfileIdCard(
                     Column(modifier = Modifier.weight(1f)) {
                         if (showIdCardOf) {
                             Text(
-                                "THẺ THÀNH VIÊN CỦA",
+                                stringResource(R.string.onb_card_id_of),
                                 color = mutedText,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = (unit.value * 10f).sp,
@@ -212,7 +213,7 @@ internal fun ProfileIdCard(
                 Spacer(Modifier.weight(1f))
             }
             MarqueeStrip(
-                text = "THẺ CỦA ${name}",
+                text = stringResource(R.string.onb_card_of_name, name),
                 color = if (silver) Color(0xFF2B2B30).copy(alpha = 0.75f) else Color(0xFF8A8A8A),
                 background = if (silver) Color.Black.copy(alpha = 0.18f) else Color(0xFF1B1B1B),
                 modifier = Modifier

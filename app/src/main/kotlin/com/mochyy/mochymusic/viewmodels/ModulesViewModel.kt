@@ -90,11 +90,47 @@ class ModulesViewModel @Inject constructor(
     private var testJob: Job? = null
     private var signedIn = false
 
+    // the module being updated right now, for its button's spinner
+    private val _updating = MutableStateFlow<String?>(null)
+    val updating: StateFlow<String?> = _updating.asStateFlow()
+
+    // the module whose source is being asked for a newer copy by hand
+    private val _checkingUpdate = MutableStateFlow<String?>(null)
+    val checkingUpdate: StateFlow<String?> = _checkingUpdate.asStateFlow()
+
     init {
         modules.refresh()
+        // a quiet look for newer copies each time the modules open; each source is only really asked a few times a day
+        viewModelScope.launch { runCatching { registry.checkUpdates(force = false) } }
+    }
+
+    /** asks one module's github project or link for a newer copy right now */
+    fun checkUpdate(id: String) {
+        if (_checkingUpdate.value != null) return
+        _checkingUpdate.value = id
+        viewModelScope.launch {
+            runCatching { registry.checkUpdates(force = true, only = id) }
+            modules.refresh()
+            _checkingUpdate.value = null
+        }
+    }
+
+    /** puts the newer copy in place; gives back what the check came to, so a problem can be said */
+    suspend fun update(id: String): ModuleRegistry.LinkCheck {
+        _updating.value = id
+        val result = runCatching { registry.update(id) }.getOrDefault(ModuleRegistry.LinkCheck.Unreachable)
+        modules.refresh()
+        _updating.value = null
+        return result
     }
 
     fun setEnabled(id: String, on: Boolean) = modules.setEnabled(id, on)
+
+    /** puts a look above the others that are on, so what it brings wins where they meet */
+    fun raise(id: String) {
+        registry.raise(id)
+        modules.refresh()
+    }
 
     fun setPick(id: String, choiceId: String, optionId: String) = modules.setPick(id, choiceId, optionId)
 
@@ -309,7 +345,7 @@ class ModulesViewModel @Inject constructor(
             val result = withContext(Dispatchers.IO) {
                 runCatching { module.diagnose(track, modules.playbackPicks(id, module)) { report(it) } }
                     .getOrElse { e ->
-                        report(DiagnosticStep("Lỗi", false, e.message ?: e.javaClass.simpleName))
+                        report(DiagnosticStep("Error", false, e.message ?: e.javaClass.simpleName))
                         null
                     }
             }
@@ -317,25 +353,25 @@ class ModulesViewModel @Inject constructor(
             val drm = stream?.drm as? StreamDrm.Widevine
             var licensed = stream != null && drm == null
             if (drm != null) {
-                report(DiagnosticStep("Bản quyền", null, "Đang kiểm tra giấy phép DRM trên điện thoại này…"))
+                report(DiagnosticStep("License", null, "Asking for a license on this phone…"))
                 val outcome = withContext(Dispatchers.IO) { runCatching { checkWidevine(drm) } }
                 licensed = outcome.isSuccess
                 report(
                     outcome.fold(
-                        onSuccess = { DiagnosticStep("Bản quyền", true, it) },
-                        onFailure = { DiagnosticStep("Bản quyền", false, it.message ?: it.javaClass.simpleName) },
+                        onSuccess = { DiagnosticStep("License", true, it) },
+                        onFailure = { DiagnosticStep("License", false, it.message ?: it.javaClass.simpleName) },
                     )
                 )
             }
             // a license alone isn't proof: Apple's enhanced streams licensed fine and then
             // decrypted nothing, so the test ends by really decoding the start of the song
             if (stream != null && licensed) {
-                report(DiagnosticStep("Phát thử", null, "Đang giải mã thử đoạn đầu bài hát (tắt tiếng)…"))
+                report(DiagnosticStep("Play", null, "Decoding the start of the song, muted…"))
                 val outcome = runCatching { checkPlayback(stream) }
                 report(
                     outcome.fold(
-                        onSuccess = { DiagnosticStep("Phát thử", true, it) },
-                        onFailure = { DiagnosticStep("Phát thử", false, it.message ?: it.javaClass.simpleName) },
+                        onSuccess = { DiagnosticStep("Play", true, it) },
+                        onFailure = { DiagnosticStep("Play", false, it.message ?: it.javaClass.simpleName) },
                     )
                 )
             }
@@ -345,7 +381,7 @@ class ModulesViewModel @Inject constructor(
     }
 
     private suspend fun testLyrics(module: LyricsModule, track: TrackQuery) {
-        report(DiagnosticStep(StepLyrics, null, "Đang tải lời bài hát từ ${module.info.name}…"))
+        report(DiagnosticStep(StepLyrics, null, "Asking ${module.info.name} for the lyrics…"))
         val lyrics = withContext(Dispatchers.IO) { runCatching { module.lyrics(track) } }
         report(
             lyrics.fold(
@@ -361,7 +397,7 @@ class ModulesViewModel @Inject constructor(
     }
 
     private suspend fun testMetadata(module: MetadataModule, track: TrackQuery) {
-        report(DiagnosticStep(StepInfo, null, "Đang tải thông tin bài hát từ ${module.info.name}…"))
+        report(DiagnosticStep(StepInfo, null, "Asking ${module.info.name} about the song…"))
         val found = withContext(Dispatchers.IO) { runCatching { module.metadata(track) } }
         report(
             found.fold(
@@ -468,8 +504,8 @@ class ModulesViewModel @Inject constructor(
 
     private companion object {
         const val AppleApi = "https://amp-api.music.apple.com/"
-        const val StepLyrics = "Lời bài hát"
-        const val StepInfo = "Thông tin bài"
+        const val StepLyrics = "Lyrics"
+        const val StepInfo = "Song info"
         val LrcTime = Regex("""\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?]""")
         // a zip for a module's list is read no further than this, the same ceiling the js modules put on one
         const val MaxItemsZipBytes = 25 * 1024 * 1024

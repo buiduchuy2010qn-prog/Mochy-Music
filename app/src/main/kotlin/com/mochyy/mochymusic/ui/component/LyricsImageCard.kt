@@ -406,7 +406,7 @@ fun LyricsImageCard(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
-                        text = com.mochyy.mochymusic.utils.CustomAppBranding.appName(context),
+                        text = context.getString(R.string.app_name),
                         color = secondaryColor,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold

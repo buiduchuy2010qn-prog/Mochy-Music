@@ -773,19 +773,16 @@ suspend fun checkForUpdate(
                     val publishedAt = targetRelease.getString("published_at")
                     val formattedReleaseDate = formatGitHubDate(publishedAt)
                     val assets = targetRelease.getJSONArray("assets")
-
-                    var apkSizeInMB = ""
-                    var apkDownloadUrl = ""
-                    for (j in 0 until assets.length()) {
-                        val asset = assets.getJSONObject(j)
-                        val assetName = asset.getString("name")
-                        if (assetName.endsWith(".apk", ignoreCase = true) && !assetName.contains("debug", ignoreCase = true)) {
-                            val apkSizeInBytes = asset.getLong("size")
-                            apkSizeInMB = String.format("%.1f", apkSizeInBytes / (1024.0 * 1024.0))
-                            apkDownloadUrl = asset.getString("browser_download_url")
-                            break
+                    val candidateAssets = buildList {
+                        for (j in 0 until assets.length()) {
+                            add(assets.getJSONObject(j))
                         }
                     }
+                    val pickedAsset = selectPreferredApkAsset(candidateAssets) { it.optString("name") }
+                    val apkSizeInMB = pickedAsset?.let {
+                        String.format("%.1f", it.optLong("size", 0L) / (1024.0 * 1024.0))
+                    }.orEmpty()
+                    val apkDownloadUrl = pickedAsset?.optString("browser_download_url").orEmpty()
 
                     if (apkDownloadUrl.isNotEmpty()) {
                         withContext(Dispatchers.Main) {

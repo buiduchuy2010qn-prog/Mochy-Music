@@ -42,6 +42,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -57,6 +58,7 @@ import com.mochyy.mochymusic.core.updater.GithubOwner
 import com.mochyy.mochymusic.core.updater.GithubRepo
 import com.mochyy.mochymusic.core.updater.GithubRepoUrl
 import com.mochyy.mochymusic.ui.component.PopupSheetState
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.screens.donate.showSupportSheet
@@ -65,7 +67,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
-import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 @Immutable
 private data class LeadDevEntry(
@@ -98,190 +99,191 @@ private data class ContributorEntry(
     val profileUrl: String,
 )
 
-private val LeadDevs = listOf(
-    LeadDevEntry(
-        name = "Đức Huy (Người chỉnh sửa & Việt hóa)",
-        githubUser = "buiduchuy2010qn-prog",
-        devSpaceIndex = 0,
-        fallbackAvatar = R.drawable.ic_mochy_mark,
-    ),
-    LeadDevEntry(
-        name = "Roo (Tác giả gốc)",
-        githubUser = "realidkroo",
-        devSpaceIndex = 1,
-        fallbackAvatar = R.drawable.frame_51_3,
-    ),
-    LeadDevEntry(
-        name = "key (Đồng tác giả)",
-        githubUser = "realkeichi",
-        devSpaceIndex = 2,
-        fallbackAvatar = R.drawable.dev_keycii,
-    ),
-)
+private val LeadDevs =
+    listOf(
+        LeadDevEntry(
+            name = "Đức Huy (Người chỉnh sửa & Việt hóa)",
+            githubUser = "buiduchuy2010qn-prog",
+            devSpaceIndex = 0,
+            fallbackAvatar = R.drawable.ic_mochy_mark,
+        ),
+        LeadDevEntry(
+            name = "Roo (Tác giả gốc)",
+            githubUser = "realidkroo",
+            devSpaceIndex = 1,
+            fallbackAvatar = R.drawable.frame_51_3,
+        ),
+        LeadDevEntry(
+            name = "key (Đồng tác giả)",
+            githubUser = "realkeichi",
+            devSpaceIndex = 2,
+            fallbackAvatar = R.drawable.dev_keycii,
+        ),
+    )
 
-private val BaseCredits = listOf(
-    CreditEntry(
-        name = "vivizzz007",
-        subtitle = "Nhà phát triển ViviMusic — Nền tảng của ứng dụng này",
-        githubUser = "vivizzz007",
-        url = "https://github.com/vivizzz007/vivi-music",
-    ),
-    CreditEntry(
-        name = "Mostafa Alagamy",
-        subtitle = "Nhà phát triển Metrolist — Nền tảng gốc của ViviMusic",
-        githubUser = "mostafaalagamy",
-        url = "https://github.com/mostafaalagamy/Metrolist",
-    ),
-)
+private val BaseCredits =
+    listOf(
+        CreditEntry(
+            name = "vivizzz007",
+            subtitle = "Vivimusic dev, The base of this app",
+            githubUser = "vivizzz007",
+            url = "https://github.com/vivizzz007/vivi-music",
+        ),
+        CreditEntry(
+            name = "Mostafa Alagamy",
+            subtitle = "Metrolist dev, The base of vivmusic too",
+            githubUser = "mostafaalagamy",
+            url = "https://github.com/mostafaalagamy/Metrolist",
+        ),
+    )
 
-private val MoreCredits = listOf(
-    CreditEntry(
-        name = "maxrave-dev",
-        subtitle = "SimpMusic · Tích hợp nguồn lời bài hát",
-        githubUser = "maxrave-dev",
-        url = "https://github.com/maxrave-dev/SimpMusic",
-    ),
-    CreditEntry(
-        name = "Rukamori",
-        subtitle = "ArchiveTune · Cảm hứng thiết kế & kiến trúc",
-        githubUser = "rukamori",
-        url = "https://github.com/rukamori/ArchiveTune",
-    ),
-    CreditEntry(
-        name = "fast4x",
-        subtitle = "RiMusic · Bộ bọc dịch vụ YouTube Music InnerTube",
-        githubUser = "fast4x",
-        url = "https://github.com/fast4x/RiMusic",
-    ),
-    CreditEntry(
-        name = "tranxuanthang",
-        subtitle = "LRCLIB · Cơ sở dữ liệu lời bài hát đồng bộ LRC",
-        githubUser = "tranxuanthang",
-        url = "https://github.com/tranxuanthang/lrclib",
-    ),
-    CreditEntry(
-        name = "monochrome-music",
-        subtitle = "Monochrome Music · Luồng nhạc lossless FLAC",
-        githubUser = "monochrome-music",
-        url = "https://github.com/monochrome-music/monochrome",
-    ),
-    CreditEntry(
-        name = "Jaakko Pasanen",
-        subtitle = "AutoEq · Cơ sở dữ liệu cân chỉnh tai nghe",
-        githubUser = "jaakkopasanen",
-        url = "https://github.com/jaakkopasanen/AutoEq",
-    ),
-    CreditEntry(
-        name = "Ibra Al Tabian",
-        subtitle = "LyricsPlus · Máy chủ lời bài hát mã nguồn mở",
-        githubUser = "ibratabian17",
-        url = "https://github.com/ibratabian17/LyricsPlus",
-    ),
-    CreditEntry(
-        name = "Boidushya",
-        subtitle = "Better Lyrics API · Lời bài hát đồng bộ từng âm tiết",
-        githubUser = "boidushya",
-        url = "https://github.com/better-lyrics/api",
-    ),
-)
+private val MoreCredits =
+    listOf(
+        CreditEntry(
+            name = "maxrave-dev",
+            subtitle = "SimpMusic · lyrics API provider",
+            githubUser = "maxrave-dev",
+            url = "https://github.com/maxrave-dev/SimpMusic",
+        ),
+        CreditEntry(
+            name = "Rukamori",
+            subtitle = "ArchiveTune · design & architecture inspiration",
+            githubUser = "rukamori",
+            url = "https://github.com/rukamori/ArchiveTune",
+        ),
+        CreditEntry(
+            name = "fast4x",
+            subtitle = "RiMusic · YouTube Music InnerTube service wrapper",
+            githubUser = "fast4x",
+            url = "https://github.com/fast4x/RiMusic",
+        ),
+        CreditEntry(
+            name = "tranxuanthang",
+            subtitle = "LRCLIB · synchronized LRC lyrics provider",
+            githubUser = "tranxuanthang",
+            url = "https://github.com/tranxuanthang/lrclib",
+        ),
+        CreditEntry(
+            name = "monochrome-music",
+            subtitle = "Monochrome Music · lossless FLAC streams",
+            githubUser = "monochrome-music",
+            url = "https://github.com/monochrome-music/monochrome",
+        ),
+        CreditEntry(
+            name = "Jaakko Pasanen",
+            subtitle = "AutoEq · headphone equalizer database",
+            githubUser = "jaakkopasanen",
+            url = "https://github.com/jaakkopasanen/AutoEq",
+        ),
+        CreditEntry(
+            name = "Ibra Al Tabian",
+            subtitle = "LyricsPlus · open source lyrics server",
+            githubUser = "ibratabian17",
+            url = "https://github.com/ibratabian17/LyricsPlus",
+        ),
+        CreditEntry(
+            name = "Boidushya",
+            subtitle = "Better Lyrics API · synced syllable lyrics",
+            githubUser = "boidushya",
+            url = "https://github.com/better-lyrics/api",
+        ),
+    )
 
-private val Licenses = listOf(
-    LicenseEntry(
-        tag = "GPL-3.0",
-        title = "Mochy Music · GNU General Public License v3.0",
-        subtitle = "Phần mềm tự do mã nguồn mở, mã nguồn công khai trên GitHub",
-        url = "$GithubRepoUrl/blob/main/LICENSE",
-    ),
-    LicenseEntry(
-        tag = "GPL-3.0",
-        title = "ViviMusic · GNU General Public License v3.0",
-        subtitle = "bởi vivizzz007 · dự án nền tảng của ứng dụng",
-        url = "https://github.com/vivizzz007/vivi-music/blob/main/LICENSE",
-    ),
-    LicenseEntry(
-        tag = "GPL-3.0",
-        title = "Metrolist · GNU General Public License v3.0",
-        subtitle = "bởi Mostafa Alagamy · khung ứng dụng gốc",
-        url = "https://github.com/mostafaalagamy/Metrolist/blob/main/LICENSE",
-    ),
-    LicenseEntry(
-        tag = "GPL-3.0",
-        title = "SimpMusic · GNU General Public License v3.0",
-        subtitle = "bởi maxrave-dev · tích hợp nguồn lời bài hát",
-        url = "https://github.com/maxrave-dev/SimpMusic/blob/dev/LICENSE",
-    ),
-    LicenseEntry(
-        tag = "GPL-3.0",
-        title = "ArchiveTune · GNU General Public License v3.0",
-        subtitle = "bởi Rukamori · cảm hứng thiết kế và kiến trúc",
-        url = "https://github.com/rukamori/ArchiveTune/blob/main/LICENSE",
-    ),
-    LicenseEntry(
-        tag = "GPL-3.0",
-        title = "RiMusic · GNU General Public License v3.0",
-        subtitle = "bởi fast4x · giao tiếp InnerTube API",
-        url = "https://github.com/fast4x/RiMusic/blob/master/LICENSE",
-    ),
-    LicenseEntry(
-        tag = "MIT",
-        title = "LRCLIB · MIT License",
-        subtitle = "bởi tranxuanthang · cơ sở dữ liệu lời bài hát đồng bộ",
-        url = "https://github.com/tranxuanthang/lrclib/blob/main/LICENSE",
-    ),
-    LicenseEntry(
-        tag = "MIT",
-        title = "AutoEq · MIT License",
-        subtitle = "bởi Jaakko Pasanen · cấu hình cân chỉnh tai nghe",
-        url = "https://github.com/jaakkopasanen/AutoEq/blob/master/LICENSE",
-    ),
-)
+private val Licenses =
+    listOf(
+        LicenseEntry(
+            tag = "GPL-3.0",
+            title = "Mochy Music · GNU General Public License v3.0",
+            subtitle = "Free and open source software, source code on GitHub",
+            url = "$GithubRepoUrl/blob/main/LICENSE",
+        ),
+        LicenseEntry(
+            tag = "GPL-3.0",
+            title = "ViviMusic · GNU General Public License v3.0",
+            subtitle = "by vivizzz007 · base project this app was forked from",
+            url = "https://github.com/vivizzz007/vivi-music/blob/main/LICENSE",
+        ),
+        LicenseEntry(
+            tag = "GPL-3.0",
+            title = "Metrolist · GNU General Public License v3.0",
+            subtitle = "by Mostafa Alagamy · base framework",
+            url = "https://github.com/mostafaalagamy/Metrolist/blob/main/LICENSE",
+        ),
+        LicenseEntry(
+            tag = "GPL-3.0",
+            title = "SimpMusic · GNU General Public License v3.0",
+            subtitle = "by maxrave-dev · lyrics provider integration",
+            url = "https://github.com/maxrave-dev/SimpMusic/blob/dev/LICENSE",
+        ),
+        LicenseEntry(
+            tag = "GPL-3.0",
+            title = "ArchiveTune · GNU General Public License v3.0",
+            subtitle = "by Rukamori · design and architectural inspiration",
+            url = "https://github.com/rukamori/ArchiveTune/blob/main/LICENSE",
+        ),
+        LicenseEntry(
+            tag = "GPL-3.0",
+            title = "RiMusic · GNU General Public License v3.0",
+            subtitle = "by fast4x · InnerTube API wrapper",
+            url = "https://github.com/fast4x/RiMusic/blob/master/LICENSE",
+        ),
+        LicenseEntry(
+            tag = "MIT",
+            title = "LRCLIB · MIT License",
+            subtitle = "by tranxuanthang · synchronized lyrics database",
+            url = "https://github.com/tranxuanthang/lrclib/blob/main/LICENSE",
+        ),
+        LicenseEntry(
+            tag = "MIT",
+            title = "AutoEq · MIT License",
+            subtitle = "by Jaakko Pasanen · headphone correction profiles",
+            url = "https://github.com/jaakkopasanen/AutoEq/blob/master/LICENSE",
+        ),
+    )
 
 //  this guy promote the app
-private val ExtraContributors = listOf(
-    ContributorEntry(
-        login = "swtstvn",
-        avatarUrl = githubAvatarUrl("swtstvn"),
-        profileUrl = "https://github.com/swtstvn",
-    ),
-)
+private val ExtraContributors =
+    listOf(
+        ContributorEntry(
+            login = "swtstvn",
+            avatarUrl = githubAvatarUrl("swtstvn"),
+            profileUrl = "https://github.com/swtstvn",
+        ),
+    )
 
-private val FallbackContributors = listOf(
-    ContributorEntry(
-        login = "buiduchuy2010qn-prog",
-        avatarUrl = githubAvatarUrl("buiduchuy2010qn-prog"),
-        profileUrl = "https://github.com/buiduchuy2010qn-prog",
-    ),
-    ContributorEntry(
-        login = "realidkroo",
-        avatarUrl = githubAvatarUrl("realidkroo"),
-        profileUrl = "https://github.com/realidkroo",
-    ),
-    ContributorEntry(
-        login = "realkeichi",
-        avatarUrl = githubAvatarUrl("realkeichi"),
-        profileUrl = "https://github.com/realkeichi",
-    ),
-) + ExtraContributors
+private val FallbackContributors =
+    listOf(
+        ContributorEntry(
+            login = "realidkroo",
+            avatarUrl = githubAvatarUrl("realidkroo"),
+            profileUrl = "https://github.com/realidkroo",
+        ),
+        ContributorEntry(
+            login = "realkeichi",
+            avatarUrl = githubAvatarUrl("realkeichi"),
+            profileUrl = "https://github.com/realkeichi",
+        ),
+    ) + ExtraContributors
 
 // kept in memory for the session so reopening the about sheet never hits github twice
 @Volatile
 private var cachedContributors: List<ContributorEntry>? = null
 
 // github redirects username.png straight to the user's current avatar without counting against the api rate limit
-private fun githubAvatarUrl(githubUser: String): String =
-    "https://github.com/$githubUser.png?size=160"
+private fun githubAvatarUrl(githubUser: String): String = "https://github.com/$githubUser.png?size=160"
 
 private suspend fun fetchContributors(): List<ContributorEntry> {
     cachedContributors?.let { return it }
     return withContext(Dispatchers.IO) {
         runCatching {
             val url = URL("https://api.github.com/repos/$GithubOwner/$GithubRepo/contributors?per_page=30")
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8_000
-                readTimeout = 8_000
-                setRequestProperty("Accept", "application/vnd.github+json")
-                setRequestProperty("User-Agent", "mochy-android")
-            }
+            val conn =
+                (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 8_000
+                    readTimeout = 8_000
+                    setRequestProperty("Accept", "application/vnd.github+json")
+                    setRequestProperty("User-Agent", "mochy-android")
+                }
             try {
                 val arr = JSONArray(conn.inputStream.bufferedReader().use { it.readText() })
                 buildList {
@@ -308,21 +310,21 @@ private suspend fun fetchContributors(): List<ContributorEntry> {
 
 fun PopupSheetState.showAboutSheet(onOpenDevSpace: (Int) -> Unit = {}) {
     val popup = this
-    show(buttonBar = { SheetPrimaryButton(text = "Xong", onClick = popup::dismiss) }) {
+    show(buttonBar = { SheetPrimaryButton(text = stringResource(R.string.done), onClick = popup::dismiss) }) {
         AboutSheetContent(popup = popup, onOpenDevSpace = onOpenDevSpace)
     }
 }
 
 private fun PopupSheetState.showCreditsSheet() {
     val popup = this
-    show(buttonBar = { SheetPrimaryButton(text = "Xong", onClick = popup::dismiss) }) {
+    show(buttonBar = { SheetPrimaryButton(text = stringResource(R.string.done), onClick = popup::dismiss) }) {
         CreditsSheetContent()
     }
 }
 
 private fun PopupSheetState.showLicenseSheet() {
     val popup = this
-    show(buttonBar = { SheetPrimaryButton(text = "Xong", onClick = popup::dismiss) }) {
+    show(buttonBar = { SheetPrimaryButton(text = stringResource(R.string.done), onClick = popup::dismiss) }) {
         LicenseSheetContent()
     }
 }
@@ -347,27 +349,30 @@ private fun ColumnScope.AboutSheetContent(
         VersionRing(
             text = "MOCHY $installed",
             scrollProgress = { scrollState.value / ringScrollRangePx },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .layout { measurable, constraints ->
-                    val placeable = measurable.measure(
-                        constraints.copy(
-                            minWidth = 0,
-                            minHeight = 0,
-                            maxWidth = Constraints.Infinity,
-                            maxHeight = Constraints.Infinity,
-                        ),
-                    )
-                    layout(0, 0) {
-                        placeable.place(x = -placeable.width / 2, y = (-166).dp.roundToPx())
-                    }
-                },
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .layout { measurable, constraints ->
+                        val placeable =
+                            measurable.measure(
+                                constraints.copy(
+                                    minWidth = 0,
+                                    minHeight = 0,
+                                    maxWidth = Constraints.Infinity,
+                                    maxHeight = Constraints.Infinity,
+                                ),
+                            )
+                        layout(0, 0) {
+                            placeable.place(x = -placeable.width / 2, y = (-166).dp.roundToPx())
+                        }
+                    },
         )
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState),
         ) {
             Spacer(Modifier.height(18.dp))
             Column(
@@ -375,10 +380,11 @@ private fun ColumnScope.AboutSheetContent(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(76.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(MenuRowSurface),
+                    modifier =
+                        Modifier
+                            .size(76.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(MenuRowSurface),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -390,7 +396,7 @@ private fun ColumnScope.AboutSheetContent(
                 }
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    text = "Giới thiệu",
+                    text = stringResource(R.string.about_app),
                     fontSize = 36.sp,
                     lineHeight = 38.sp,
                     fontWeight = FontWeight.Bold,
@@ -398,7 +404,7 @@ private fun ColumnScope.AboutSheetContent(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Mochy Music | $installed",
+                    text = stringResource(R.string.about_mochy_music_version, installed),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.4).sp,
@@ -408,14 +414,15 @@ private fun ColumnScope.AboutSheetContent(
 
             Spacer(Modifier.height(18.dp))
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MenuRowSurface)
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MenuRowSurface)
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
             ) {
                 Text(
-                    text = "Mochy Music — Ứng dụng nghe nhạc mã nguồn mở hiện đại (GPL-3.0).",
+                    text = stringResource(R.string.about_app_description),
                     fontSize = 15.sp,
                     lineHeight = 19.sp,
                     fontWeight = FontWeight.Bold,
@@ -427,11 +434,12 @@ private fun ColumnScope.AboutSheetContent(
             SectionHeader("Người chỉnh sửa & Việt hóa (Bản chính thức)")
             Spacer(Modifier.height(8.dp))
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MenuRowSurface)
-                    .padding(vertical = 6.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MenuRowSurface)
+                        .padding(vertical = 6.dp),
             ) {
                 PersonRow(
                     name = "Đức Huy (@buiduchuy2010qn-prog)",
@@ -444,28 +452,29 @@ private fun ColumnScope.AboutSheetContent(
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Kho mã nguồn & Ủng hộ tác giả gốc")
+            SectionHeader(stringResource(R.string.about_actions))
             Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AboutPillRow(
-                    text = "Kho mã nguồn chính thức (buiduchuy2010qn-prog/Mochy-Music) \u2192",
-                    onClick = { context.openUrl("https://github.com/buiduchuy2010qn-prog/Mochy-Music") },
+                    text = stringResource(R.string.about_github),
+                    onClick = { context.openUrl(GithubRepoUrl) },
                 )
                 AboutPillRow(
-                    text = "Ủng hộ tác giả gốc (@realidkroo) :3 \u2192",
+                    text = stringResource(R.string.about_support_me),
                     onClick = { popup.showSupportSheet() },
                 )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Tác giả & Nhà phát triển chính")
+            SectionHeader(stringResource(R.string.about_meet_lead_dev))
             Spacer(Modifier.height(8.dp))
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MenuRowSurface)
-                    .padding(vertical = 6.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MenuRowSurface)
+                        .padding(vertical = 6.dp),
             ) {
                 LeadDevs.forEach { dev ->
                     PersonRow(
@@ -480,14 +489,15 @@ private fun ColumnScope.AboutSheetContent(
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Dự án nền tảng mã nguồn mở (Upstream)")
+            SectionHeader(stringResource(R.string.about_we_wont_exist))
             Spacer(Modifier.height(8.dp))
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MenuRowSurface)
-                    .padding(vertical = 6.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MenuRowSurface)
+                        .padding(vertical = 6.dp),
             ) {
                 BaseCredits.forEach { credit ->
                     PersonRow(
@@ -507,22 +517,23 @@ private fun ColumnScope.AboutSheetContent(
             )
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Giấy phép bản quyền (GPL-3.0)")
+            SectionHeader(stringResource(R.string.about_license))
             Spacer(Modifier.height(8.dp))
             AboutCardButton(
-                text = "Xem chi tiết giấy phép mã nguồn mở",
+                text = stringResource(R.string.about_more_license),
                 onClick = { popup.showLicenseSheet() },
             )
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Những người đóng góp")
+            SectionHeader(stringResource(R.string.about_cool_contributors))
             Spacer(Modifier.height(8.dp))
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MenuRowSurface)
-                    .padding(vertical = 6.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MenuRowSurface)
+                        .padding(vertical = 6.dp),
             ) {
                 contributors.forEach { contributor ->
                     PersonRow(
@@ -543,13 +554,14 @@ private fun ColumnScope.AboutSheetContent(
 private fun ColumnScope.CreditsSheetContent() {
     val context = LocalContext.current
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
     ) {
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Tác giả & Đóng góp",
+            text = stringResource(R.string.about_credits),
             fontSize = 36.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold,
@@ -557,11 +569,12 @@ private fun ColumnScope.CreditsSheetContent() {
         )
         Spacer(Modifier.height(16.dp))
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(MenuRowSurface)
-                .padding(vertical = 6.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MenuRowSurface)
+                    .padding(vertical = 6.dp),
         ) {
             (BaseCredits + MoreCredits).forEach { credit ->
                 PersonRow(
@@ -581,13 +594,14 @@ private fun ColumnScope.CreditsSheetContent() {
 private fun ColumnScope.LicenseSheetContent() {
     val context = LocalContext.current
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
     ) {
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Giấy phép",
+            text = stringResource(R.string.about_license),
             fontSize = 36.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold,
@@ -618,18 +632,22 @@ private fun SectionHeader(title: String) {
 }
 
 @Composable
-private fun AboutPillRow(text: String, onClick: () -> Unit) {
+private fun AboutPillRow(
+    text: String,
+    onClick: () -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.CenterStart,
-        modifier = Modifier
-            .pressBounce(interaction, pressedScale = 0.97f)
-            .fillMaxWidth()
-            .height(44.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MenuRowSurface)
-            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
-            .padding(horizontal = 18.dp),
+        modifier =
+            Modifier
+                .pressBounce(interaction, pressedScale = 0.97f)
+                .fillMaxWidth()
+                .height(44.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MenuRowSurface)
+                .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
+                .padding(horizontal = 18.dp),
     ) {
         Text(
             text = text,
@@ -643,18 +661,22 @@ private fun AboutPillRow(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AboutCardButton(text: String, onClick: () -> Unit) {
+private fun AboutCardButton(
+    text: String,
+    onClick: () -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.CenterStart,
-        modifier = Modifier
-            .pressBounce(interaction, pressedScale = 0.97f)
-            .fillMaxWidth()
-            .height(54.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(MenuRowSurface)
-            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
-            .padding(horizontal = 18.dp),
+        modifier =
+            Modifier
+                .pressBounce(interaction, pressedScale = 0.97f)
+                .fillMaxWidth()
+                .height(54.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MenuRowSurface)
+                .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
+                .padding(horizontal = 18.dp),
     ) {
         Text(
             text = text,
@@ -679,11 +701,12 @@ private fun PersonRow(
     val interaction = remember { MutableInteractionSource() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .pressBounce(interaction, pressedScale = 0.98f)
-            .fillMaxWidth()
-            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .pressBounce(interaction, pressedScale = 0.98f)
+                .fillMaxWidth()
+                .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         GithubAvatar(
             url = avatarUrl,
@@ -730,14 +753,15 @@ private fun AndMoreRow(
     val stackWidth = circleSize + step * (avatars.size - 1).coerceAtLeast(0)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .pressBounce(interaction, pressedScale = 0.97f)
-            .fillMaxWidth()
-            .height(54.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(MenuRowSurface)
-            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
-            .padding(horizontal = 16.dp),
+        modifier =
+            Modifier
+                .pressBounce(interaction, pressedScale = 0.97f)
+                .fillMaxWidth()
+                .height(54.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MenuRowSurface)
+                .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
+                .padding(horizontal = 16.dp),
     ) {
         Box(
             contentAlignment = Alignment.CenterStart,
@@ -747,15 +771,16 @@ private fun AndMoreRow(
                 GithubAvatar(
                     url = url,
                     size = circleSize,
-                    modifier = Modifier
-                        .offset(x = step * index)
-                        .border(1.5.dp, MenuRowSurface, CircleShape),
+                    modifier =
+                        Modifier
+                            .offset(x = step * index)
+                            .border(1.5.dp, MenuRowSurface, CircleShape),
                 )
             }
         }
         Spacer(Modifier.width(12.dp))
         Text(
-            text = "Xem tất cả tác giả đóng góp \u2192",
+            text = stringResource(R.string.about_and_more),
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.4).sp,
@@ -771,13 +796,14 @@ private fun LicenseCard(
     val interaction = remember { MutableInteractionSource() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .pressBounce(interaction, pressedScale = 0.98f)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(MenuRowSurface)
-            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+        modifier =
+            Modifier
+                .pressBounce(interaction, pressedScale = 0.98f)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(MenuRowSurface)
+                .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick)
+                .padding(horizontal = 18.dp, vertical = 16.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -812,10 +838,11 @@ private fun LicenseCard(
 private fun ArrowBadge() {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(20.dp)
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.16f)),
+        modifier =
+            Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.16f)),
     ) {
         Icon(
             painter = painterResource(R.drawable.arrow_forward),
@@ -834,18 +861,21 @@ private fun GithubAvatar(
     @DrawableRes fallbackRes: Int? = null,
 ) {
     val context = LocalContext.current
-    val request = remember(url) {
-        ImageRequest.Builder(context)
-            .data(url)
-            .crossfade(true)
-            .build()
-    }
+    val request =
+        remember(url) {
+            ImageRequest
+                .Builder(context)
+                .data(url)
+                .crossfade(true)
+                .build()
+        }
     val fallback = fallbackRes?.let { painterResource(it) }
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(Color(0xFFD9D9D9)),
+        modifier =
+            modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(Color(0xFFD9D9D9)),
     ) {
         AsyncImage(
             model = request,

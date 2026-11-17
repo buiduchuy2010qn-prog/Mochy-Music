@@ -35,10 +35,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -81,10 +83,15 @@ internal fun LyricsSourceFooter(
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val project = remember(provider) { LyricsProviderRegistry.getProject(provider) }
+    val website = remember(provider) { LyricsProviderRegistry.getWebsite(provider) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            LabeledText(label = "Nguồn", value = sourceName(provider))
+            LabeledText(
+                label = stringResource(R.string.pc_lyrics_source),
+                value = sourceName(provider),
+                onValueClick = website?.let { url -> { uriHandler.safeOpenUri(context, url) } },
+            )
             if (onSwitchSource != null) {
                 Spacer(modifier = Modifier.width(10.dp))
                 SwitchSourceButton(onClick = onSwitchSource)
@@ -101,21 +108,30 @@ internal fun LyricsSourceFooter(
 }
 
 /** The name to show for a saved provider, including the two that aren't online sources. */
+@Composable
 private fun sourceName(provider: String): String = when (provider) {
-    EmbeddedLyrics.Provider -> "Tệp nhạc"
-    LyricsMenuViewModel.USER_EDITED -> "Bản bạn sửa"
+    EmbeddedLyrics.Provider -> stringResource(R.string.pc_lyrics_song_file)
+    LyricsMenuViewModel.USER_EDITED -> stringResource(R.string.pc_lyrics_your_edit)
     else -> LyricsProviderRegistry.getDisplayName(provider)
 }
 
 @Composable
-private fun LabeledText(label: String, value: String?) {
+private fun LabeledText(label: String, value: String?, onValueClick: (() -> Unit)? = null) {
     Text(
         text = buildAnnotatedString {
             withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = LabelColor)) { append(label) }
-            if (value != null) append(" $value")
+            if (value == null) return@buildAnnotatedString
+            append(" ")
+            // an underline tells people the source name opens its website
+            if (onValueClick != null) {
+                withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) { append(value) }
+            } else {
+                append(value)
+            }
         },
         style = FooterTextStyle,
         maxLines = 1,
+        modifier = if (onValueClick != null) Modifier.clickable(onClick = onValueClick) else Modifier,
     )
 }
 
@@ -127,7 +143,7 @@ private fun SwitchSourceButton(onClick: () -> Unit) {
         background = Color.White.copy(alpha = 0.08f),
     ) {
         FooterIcon(Icons.Rounded.SwapVert, tint = LabelColor)
-        Text(text = "Đổi nguồn", style = ButtonTextStyle.copy(color = LabelColor))
+        Text(text = stringResource(R.string.pc_lyrics_switch), style = ButtonTextStyle.copy(color = LabelColor))
     }
 }
 
@@ -145,7 +161,7 @@ private fun StarOnGitHubButton(onClick: () -> Unit) {
             tint = Color.White.copy(alpha = 0.85f),
             modifier = Modifier.size(15.dp),
         )
-        Text(text = "Tặng sao trên GitHub", style = ButtonTextStyle.copy(color = Color.White.copy(alpha = 0.85f)))
+        Text(text = stringResource(R.string.pc_star_github), style = ButtonTextStyle.copy(color = Color.White.copy(alpha = 0.85f)))
         FooterIcon(Icons.Rounded.Star, tint = StarColor)
     }
 }

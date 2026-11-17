@@ -11,7 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -55,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.scrobble.ScrobbleSite
+import com.mochyy.mochymusic.ui.screens.devices.showDeviceIntegration
 import com.mochyy.mochymusic.ui.screens.settings.importsync.YouTubeSyncRoute
 import com.mochyy.mochymusic.ui.screens.settings.integrations.IntegrationsRoute
 import com.mochyy.mochymusic.ui.screens.settings.integrations.discord.DiscordRoute
@@ -101,6 +100,7 @@ private val LocalizedSettingsTitles = mapOf(
     "Play alongside other apps" to R.string.playback_mix_other_apps,
     "Save Player's last state" to R.string.playback_save_state,
     "Local song auto metadata" to R.string.settings_local_auto_metadata,
+    "Keep shuffle on" to R.string.settings_persistent_shuffle,
     "Disable auto-playing YouTube video" to R.string.settings_disable_video_autoplay,
     "Translations from YouTube" to R.string.settings_youtube_translations,
     "Sync lyrics to music videos" to R.string.settings_sync_lyrics_video,
@@ -121,6 +121,8 @@ private val LocalizedSettingsTitles = mapOf(
     "Modules" to R.string.settings_modules_category,
     "Storage" to R.string.storage,
     "App behaviour" to R.string.settings_app_behaviour,
+    "Playback" to R.string.settings_playback_category,
+    "Now playing" to R.string.settings_now_playing,
     "Disable description on settings" to R.string.settings_hide_descriptions,
     "Cover rounding" to R.string.customise_cover_rounding,
     "Playlist styles" to R.string.customise_playlist_styles,
@@ -137,51 +139,16 @@ private val LocalizedSettingsTitles = mapOf(
 )
 private val LocalizedSettingsPages = mapOf(
     "App behaviour" to R.string.settings_app_behaviour,
+    "Playback" to R.string.settings_playback_category,
+    "Now playing" to R.string.settings_now_playing,
     "Customisation" to R.string.settings_customisation_category,
     "Storage" to R.string.storage,
     "Audio Lab" to R.string.settings_audio_lab_category,
     "Modules" to R.string.settings_modules_category,
     "Integrations" to R.string.integrations,
 )
-private val LocalizedSettingsStrings = mapOf(
-    "Studio version for music videos" to "Phiên bản phòng thu cho video nhạc",
-    "Crossfade" to "Chuyển bài mượt (Crossfade)",
-    "Blend skips" to "Chuyển âm khi qua bài",
-    "Equalizer" to "Bộ chỉnh âm (EQ)",
-    "AutoEQ" to "Cân chỉnh tai nghe (AutoEQ)",
-    "Audio Quality" to "Chất lượng âm thanh",
-    "Reverb" to "Tiếng vang (Reverb)",
-    "Loudness" to "Tăng cường âm lượng",
-    "Audio Normalization" to "Cân bằng âm lượng bài hát",
-    "Spatial audio" to "Âm thanh không gian",
-    "Dolby Atmos" to "Dolby Atmos & Âm thanh vòm",
-    "Playback speed" to "Tốc độ phát & Cao độ",
-    "Exponential volume" to "Đường cong âm lượng",
-    "Provider order" to "Thứ tự ưu tiên nguồn phát",
-    "Now Playing" to "Trạng thái Đang phát",
-    "Send likes" to "Đồng bộ lượt thích",
-    "Music cache limit" to "Giới hạn bộ nhớ đệm nhạc",
-    "Manage downloads" to "Quản lý nhạc đã tải",
-    "Remove all downloads" to "Xóa tất cả nhạc đã tải",
-    "Mochy on your TV" to "Mochy trên TV của bạn",
-    "Import & sync" to "Nhập & đồng bộ",
-    "Big disc cover styles" to "Kiểu bìa đĩa nhạc cỡ lớn",
-    "Music haptics" to "Rung phản hồi theo nhạc",
-    "Playback diagnostics" to "Chẩn đoán phát nhạc",
-    "Repeat initial setup" to "Chạy lại thiết lập ban đầu",
-    "Show where songs play from" to "Hiển thị nguồn phát bài hát",
-    "Force playback" to "Buộc phát nhạc",
-)
-private val LocalizedSettingsPageStrings = mapOf(
-    "Import & sync" to "Nhập & đồng bộ",
-    "Experimental" to "Thử nghiệm",
-    "Mochy Cloud" to "Tài khoản Mochy Cloud",
-)
 
 private val SettingsIndex = listOf(
-    // Cloud account
-    SettingsEntry("Mochy Cloud", "Mochy Cloud", "mochy_cloud", "cloud account supabase login register signup avatar history favorites tai khoan dang ky dang nhap dong bo yeu thich lich su"),
-
     // Customisation
     SettingsEntry("Customisation", "Customisation", "customisation_settings", "customize cover rounding playlist player home styles gesture swipe blur animation lyrics"),
     SettingsEntry("Cover rounding", "Customisation", "customisation_settings", "square rounded corner radius px thumbnail art"),
@@ -204,35 +171,51 @@ private val SettingsIndex = listOf(
     SettingsEntry("Open with your finger", "Customisation", "customisation_settings", "player open swipe up mini player follow finger speed velocity gesture"),
 
     // App behaviour
-    SettingsEntry("App behaviour", "App behaviour", "general_settings", "general playback player behaviour"),
+    SettingsEntry("App behaviour", "App behaviour", "general_settings", "general app language updates network data library privacy"),
     SettingsEntry("Larp mode", "App behaviour", "general_settings", "larp 67 flac 768 khz wadax atlantis dac hi-res lossless bit-perfect flex"),
     SettingsEntry("App language", "App behaviour", "general_settings", "language bahasa locale device system indonesia english translate", R.string.app_language),
     SettingsEntry("Disable App Updates notice", "App behaviour", "general_settings", "update popup notification updater"),
+    SettingsEntry("Disable description on settings", "App behaviour", "general_settings", "hide subtitle text rows titles only"),
     SettingsEntry("Offline mode", "App behaviour", "general_settings", "play downloaded cache offline"),
     SettingsEntry("Data saver", "App behaviour", "general_settings", "data saver mobile metered cellular bandwidth lower quality canvas video"),
     SettingsEntry("Proxy", "App behaviour", ProxySettingsRoute, "proxy socks http server vpn network region country blocked bot sign in"),
     SettingsEntry("Albums from liked songs", "App behaviour", "general_settings", "albums library liked songs old way apple music"),
-    SettingsEntry("Keep playing even when closed", "App behaviour", "general_settings", "background close stop playback"),
-    SettingsEntry("Play alongside other apps", "App behaviour", "general_settings", "audio focus mix pause other app video game sound together"),
-    SettingsEntry("Save Player's last state", "App behaviour", "general_settings", "persistent queue restore track state"),
     SettingsEntry("Local song auto metadata", "App behaviour", "general_settings", "match tags id3 covers lyrics"),
-    SettingsEntry("Disable auto-playing YouTube video", "App behaviour", "general_settings", "music video live autoplay cover"),
-    SettingsEntry("Studio version for music videos", "App behaviour", "general_settings", "music video mv omv audio studio album version skit sound effects official"),
-    SettingsEntry("Translations from YouTube", "App behaviour", "general_settings", "captions translate lyrics language"),
-    SettingsEntry("Sync lyrics to music videos", "App behaviour", "general_settings", "lyrics video timing intro skit"),
-    SettingsEntry("Don't skip on failure", "App behaviour", "general_settings", "fail stream error stay skip"),
-    SettingsEntry("Skip timeout failure", "App behaviour", "general_settings", "skip timeout seconds failed stream"),
-    SettingsEntry("Skip Silence", "App behaviour", "general_settings", "silence trim gap interval"),
-    SettingsEntry("Audio format badge", "App behaviour", "general_settings", "format codec opus aac flac badge title quality"),
-    SettingsEntry("Show sample rate", "App behaviour", "general_settings", "sample rate khz hz format badge quality"),
-    SettingsEntry("Always enable Youtube background", "App behaviour", "general_settings", "youtube video background canvas"),
-    SettingsEntry("Enable animated canvas", "App behaviour", "general_settings", "canvas animation spotify looping visual"),
-    SettingsEntry("High quality bloom", "App behaviour", "general_settings", "lyrics bloom quality extra soft pass glow"),
-    SettingsEntry("Disable description on settings", "App behaviour", "general_settings", "hide subtitle text rows titles only"),
+    SettingsEntry("Pause search history", "App behaviour", "general_settings", "search history pause private incognito privacy", R.string.pause_search_history),
+    SettingsEntry("Count plays on YouTube views", "App behaviour", "general_settings", "youtube history plays views report count privacy", R.string.settings_youtube_plays),
+
+    // Playback
+    SettingsEntry("Playback", "Playback", PlaybackSettingsRoute, "background bluetooth shuffle skip silence mute queue failure"),
+    SettingsEntry("Keep playing even when closed", "Playback", PlaybackSettingsRoute, "background close stop playback"),
+    SettingsEntry("Play alongside other apps", "Playback", PlaybackSettingsRoute, "audio focus mix pause other app video game sound together"),
+    SettingsEntry("Resume on Bluetooth connection", "Playback", PlaybackSettingsRoute, "bluetooth headphones earbuds car connect resume auto play start", R.string.playback_resume_bluetooth),
+    SettingsEntry("Pause when muted", "Playback", PlaybackSettingsRoute, "pause mute volume silent zero off automatic", R.string.pause_music_when_media_is_muted),
+    SettingsEntry("Save Player's last state", "Playback", PlaybackSettingsRoute, "persistent queue restore track state"),
+    SettingsEntry("Keep shuffle on", "Playback", PlaybackSettingsRoute, "shuffle persistent spotify random keep new playlist"),
+    SettingsEntry("Skip Silence", "Playback", PlaybackSettingsRoute, "silence trim gap interval"),
+    SettingsEntry("Don't skip on failure", "Playback", PlaybackSettingsRoute, "fail stream error stay skip"),
+    SettingsEntry("Skip timeout failure", "Playback", PlaybackSettingsRoute, "skip timeout seconds failed stream"),
+
+    // Now playing
+    SettingsEntry("Now playing", "Now playing", NowPlayingSettingsRoute, "player lyrics video canvas badge format"),
+    SettingsEntry("Audio format badge", "Now playing", NowPlayingSettingsRoute, "format codec opus aac flac badge title quality"),
+    SettingsEntry("Show sample rate", "Now playing", NowPlayingSettingsRoute, "sample rate khz hz format badge quality"),
+    SettingsEntry("Translations from YouTube", "Now playing", NowPlayingSettingsRoute, "captions translate lyrics language"),
+    SettingsEntry("Sync lyrics to music videos", "Now playing", NowPlayingSettingsRoute, "lyrics video timing intro skit"),
+    SettingsEntry("Romanisation as the main line", "Now playing", NowPlayingSettingsRoute, "romaji romanization pinyin latin lyrics japanese korean chinese", R.string.settings_romanize_as_main),
+    SettingsEntry("High quality bloom", "Now playing", NowPlayingSettingsRoute, "lyrics bloom quality extra soft pass glow"),
+    SettingsEntry("Floating lyrics overlay bubble", "Now playing", NowPlayingSettingsRoute, "floating lyrics overlay bubble pill other apps draw over", R.string.settings_floating_lyrics),
+    SettingsEntry("Always enable Youtube background", "Now playing", NowPlayingSettingsRoute, "youtube video background canvas"),
+    SettingsEntry("Video quality", "Now playing", NowPlayingSettingsRoute, "video quality resolution 1080p 720p 480p sharp", R.string.video_quality),
+    SettingsEntry("Disable auto-playing YouTube video", "Now playing", NowPlayingSettingsRoute, "music video live autoplay cover"),
+    SettingsEntry("Studio version for music videos", "Now playing", NowPlayingSettingsRoute, "music video mv omv audio studio album version skit sound effects official", R.string.settings_studio_for_videos),
+    SettingsEntry("Enable animated canvas", "Now playing", NowPlayingSettingsRoute, "canvas animation spotify looping visual"),
+    SettingsEntry("Canvas order", "Now playing", NowPlayingSettingsRoute, "canvas order apple music tidal spotify source priority", R.string.canvas_order),
+    SettingsEntry("Canvas on Wi-Fi only", "Now playing", NowPlayingSettingsRoute, "canvas wifi mobile data", R.string.appearance_canvas_wifi),
 
     // Audio Lab
     SettingsEntry("Audio Lab", "Audio Lab", "audio_lab", "sound effects equalizer fx quality"),
-    SettingsEntry("Crossfade", "Audio Lab", "crossmix_settings", "crossmix automix transition gapless blend"),
+    SettingsEntry("Transition", "Audio Lab", "crossmix_settings", "crossfade crossmix automix transition gapless blend"),
     SettingsEntry("Blend skips", "Audio Lab", "crossmix_settings", "skip next previous back crossfade seamless preload transition fade blend"),
     SettingsEntry("Equalizer", "Audio Lab", "equalizer", "eq bass treble band parametric graph autoeq headphones correction preset"),
     SettingsEntry("AutoEQ", "Audio Lab", "equalizer", "headphones earbuds correction harman database model"),
@@ -270,7 +253,7 @@ private val SettingsIndex = listOf(
     SettingsEntry("Remove all downloads", "Storage", "storage_settings", "delete clear downloads offline space"),
 
     // Experimental
-    SettingsEntry("Mochy on your TV", "Import & sync", com.mochyy.mochymusic.ui.screens.settings.tvlink.TvLinkRoute, "tv television android tv google tv pair link phone sync stream downloads big screen"),
+    SettingsEntry("Device integration", "Import & sync", com.mochyy.mochymusic.ui.screens.devices.DeviceIntegrationRoute, "tv television android tv google tv phone tablet car head unit pair link sync stream downloads big screen remote control devices"),
     SettingsEntry("Import & sync", "Experimental", "experimental_settings", "import spotify apple music deezer tidal tunemymusic csv youtube sync export backup transfer"),
     SettingsEntry("Big disc cover styles", "Experimental", "experimental_settings", "disc vinyl cover"),
     SettingsEntry("Music haptics", "Experimental", "experimental_settings", "vibration haptic"),
@@ -279,59 +262,38 @@ private val SettingsIndex = listOf(
     SettingsEntry("Repeat initial setup", "Experimental", "experimental_settings", "onboarding wizard setup"),
     SettingsEntry("Show where songs play from", "Experimental", "experimental_settings", "source banner toast apple music monochrome youtube"),
     SettingsEntry("Force playback", "Experimental", "experimental_settings", "fallback skip error stream failed youtube"),
+
+    // Cloud account
+    SettingsEntry("Mochy Cloud", "Mochy Cloud", "mochy_cloud", "cloud account supabase login register signup avatar history favorites tai khoan dang ky dang nhap dong bo yeu thich lich su"),
 )
 
-private data class RecommendedSetting(
-    val titleRes: Int,
-    val breadcrumbRes: Int,
-    val iconRes: Int,
-    // opens a page, the list's own way: over it on a phone, beside it on a wide screen
-    val onClick: (open: (String) -> Unit) -> Unit,
+private val LocalizedCloudStrings = mapOf(
+    "Mochy Cloud" to "Tài khoản Mochy Cloud",
 )
 
-private val RecommendedOptions = listOf(
-    RecommendedSetting(
-        titleRes = R.string.settings_rec_blur,
-        breadcrumbRes = R.string.settings_crumb_customisation,
-        iconRes = R.drawable.contrast,
-        onClick = { open ->
-            SettingsHighlight.pending = "Blur"
-            open("customisation_settings")
-        }
-    ),
-    RecommendedSetting(
-        titleRes = R.string.settings_rec_crossfade,
-        breadcrumbRes = R.string.settings_crumb_audio_lab,
-        iconRes = R.drawable.linear_scale,
-        onClick = { open ->
-            open("crossmix_settings")
-        }
-    ),
-    RecommendedSetting(
-        titleRes = R.string.settings_rec_equalizer,
-        breadcrumbRes = R.string.settings_crumb_audio_lab,
-        iconRes = R.drawable.equalizer,
-        onClick = { open ->
-            open("equalizer")
-        }
-    )
-)
-
-private val BubbleColor = Color(0xFF1C1C1E)
+internal val BubbleColor = Color(0xFF1C1C1E)
 private val SelectedBubbleColor = Color(0xFF3A3A3E)
 
 // the header holds the mochy mark with the big "Settings" under it, taller than search's title-only header
 private val SettingsTitleBlockHeight = 88.dp
 private val SettingsMarkSize = 32.dp
-private val IconBgColor = Color(0xFF333338)
+internal val IconBgColor = Color(0xFF333338)
 
 @Composable
 fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null) {
     val focusManager = LocalFocusManager.current
-    // on a wide screen the list stays put and its pages open beside it
+    val sheets = com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState.current
+    val devices = com.mochyy.mochymusic.ui.screens.devices.rememberDevicesLink()
+    // on a wide screen the list stays put and its pages open beside it; device integration is a sheet over either
     val open: (String) -> Unit = { route ->
-        if (pane != null) navController.openSettingsPage(route) else navController.navigate(route)
+        when {
+            route == com.mochyy.mochymusic.ui.screens.devices.DeviceIntegrationRoute -> sheets.showDeviceIntegration(devices)
+            pane != null -> navController.openSettingsPage(route)
+            else -> navController.navigate(route)
+        }
     }
+    var showCloudSheet by remember { mutableStateOf(false) }
+    val onOpenCloudSheet: () -> Unit = { showCloudSheet = true }
     val selected = pane?.selectedRoute
     val scrollState = rememberScrollState()
     val glassState = remember { GlassState() }
@@ -340,8 +302,6 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
 
     var query by remember { mutableStateOf(TextFieldValue()) }
     var isSearchFocused by remember { mutableStateOf(false) }
-    var showCloudSheet by remember { mutableStateOf(false) }
-    val onOpenCloudSheet: () -> Unit = { showCloudSheet = true }
 
     val isSearching = isSearchFocused || query.text.isNotBlank()
 
@@ -351,9 +311,9 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
         focusManager.clearFocus()
     }
 
-    val recommendedItem = remember { RecommendedOptions.random() }
-
     val context = LocalContext.current
+    // picked again each time the list opens, so a tip that was just followed stops showing
+    val recommendations = remember(context) { pickRecommendations(context) }
     val results = remember(query.text, context) {
         val q = query.text.trim()
         if (q.isBlank()) {
@@ -361,7 +321,8 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
         } else {
             SettingsIndex.filter {
                 it.title.contains(q, ignoreCase = true) ||
-                    (it.titleRes ?: LocalizedSettingsTitles[it.title])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true || LocalizedSettingsStrings[it.title]?.contains(q, ignoreCase = true) == true ||
+                    (it.titleRes ?: LocalizedSettingsTitles[it.title])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
+                    LocalizedCloudStrings[it.title]?.contains(q, ignoreCase = true) == true ||
                     (it.pageRes ?: LocalizedSettingsPages[it.page])?.let { id -> context.getString(id).contains(q, ignoreCase = true) } == true ||
                     it.keywords.contains(q, ignoreCase = true) ||
                     it.page.contains(q, ignoreCase = true)
@@ -455,14 +416,14 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                                     Spacer(modifier = Modifier.width(11.dp))
                                     Column {
                                         Text(
-                                            text = (entry.titleRes ?: LocalizedSettingsTitles[entry.title])?.let { stringResource(it) } ?: LocalizedSettingsStrings[entry.title] ?: entry.title,
+                                            text = (entry.titleRes ?: LocalizedSettingsTitles[entry.title])?.let { stringResource(it) } ?: LocalizedCloudStrings[entry.title] ?: entry.title,
                                             fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 16.sp,
                                             color = Color.White
                                         )
                                         Text(
-                                            text = (entry.pageRes ?: LocalizedSettingsPages[entry.page])?.let { stringResource(it) } ?: LocalizedSettingsPageStrings[entry.page] ?: entry.page,
+                                            text = (entry.pageRes ?: LocalizedSettingsPages[entry.page])?.let { stringResource(it) } ?: LocalizedCloudStrings[entry.page] ?: entry.page,
                                             fontFamily = InterFontFamily,
                                             fontSize = 12.sp,
                                             color = Color.White.copy(alpha = 0.55f)
@@ -482,66 +443,7 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         .fillMaxWidth()
                         .graphicsLayer { alpha = contentAlpha }
                 ) {
-                    // Recommended Item Card
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(BubbleColor)
-                            .clickable { recommendedItem.onClick(open) }
-                            .padding(18.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.settings_recommended_item),
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 13.sp,
-                                color = Color.White.copy(alpha = 0.55f)
-                            )
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .clip(CircleShape)
-                                        .background(IconBgColor),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(recommendedItem.iconRes),
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(
-                                        text = stringResource(recommendedItem.titleRes),
-                                        fontFamily = InterFontFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        text = stringResource(recommendedItem.breadcrumbRes),
-                                        fontFamily = InterFontFamily,
-                                        fontSize = 13.sp,
-                                        color = Color.White.copy(alpha = 0.55f)
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    RecommendedCard(recommendations = recommendations, open = open)
 
                     Spacer(modifier = Modifier.height(18.dp))
 
@@ -565,17 +467,24 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                     ) {
                         // in the order of the design: sound first, then how the app acts and looks, then the rest
                         CategoryBubble(
-                            title = "Tài khoản Mochy Cloud",
-                            iconRes = R.drawable.cloud,
-                            selected = false,
-                            onClick = onOpenCloudSheet
-                        )
-
-                        CategoryBubble(
                             title = stringResource(R.string.settings_audio_lab_category),
                             iconRes = R.drawable.equalizer,
                             selected = selected == "audio_lab",
                             onClick = { open("audio_lab") }
+                        )
+
+                        CategoryBubble(
+                            title = stringResource(R.string.settings_playback_category),
+                            iconRes = R.drawable.play,
+                            selected = selected == PlaybackSettingsRoute,
+                            onClick = { open(PlaybackSettingsRoute) }
+                        )
+
+                        CategoryBubble(
+                            title = stringResource(R.string.settings_now_playing),
+                            iconRes = R.drawable.lyrics,
+                            selected = selected == NowPlayingSettingsRoute,
+                            onClick = { open(NowPlayingSettingsRoute) }
                         )
 
                         CategoryBubble(
@@ -607,10 +516,10 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         )
 
                         CategoryBubble(
-                            title = stringResource(R.string.tv_link_title),
+                            title = stringResource(R.string.devices_title),
                             iconRes = R.drawable.cast_connected,
-                            selected = selected == com.mochyy.mochymusic.ui.screens.settings.tvlink.TvLinkRoute,
-                            onClick = { open(com.mochyy.mochymusic.ui.screens.settings.tvlink.TvLinkRoute) }
+                            selected = false,
+                            onClick = { open(com.mochyy.mochymusic.ui.screens.devices.DeviceIntegrationRoute) }
                         )
 
                         CategoryBubble(
@@ -618,6 +527,13 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                             iconRes = R.drawable.library_add,
                             selected = selected == "modules",
                             onClick = { open("modules") }
+                        )
+
+                        CategoryBubble(
+                            title = "Tài khoản Mochy Cloud",
+                            iconRes = R.drawable.cloud,
+                            selected = false,
+                            onClick = onOpenCloudSheet
                         )
 
                         // pages the modules that are on bring to settings, right under modules

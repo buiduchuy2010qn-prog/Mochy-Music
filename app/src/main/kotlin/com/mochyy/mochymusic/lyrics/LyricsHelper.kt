@@ -534,7 +534,7 @@ constructor(
     }
 
     companion object {
-        private const val MAX_CACHE_SIZE = 16
+        private const val MAX_CACHE_SIZE = 3
 
         /**
          * The provider of a lookup that couldn't go online (offline mode, or no network). Its

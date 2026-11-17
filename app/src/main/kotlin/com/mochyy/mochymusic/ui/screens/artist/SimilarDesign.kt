@@ -158,9 +158,9 @@ internal fun SimilarPage(
     groups: SimilarGroups?,
     deepLoading: Boolean,
     artistsTitle: String,
-    playlistsTitle: String = "Danh sách phát nổi bật",
-    songsTitle: String = "Bài hát nổi bật",
-    albumsTitle: String = "Mới phát hành",
+    playlistsTitle: String = "Featured Playlist",
+    songsTitle: String = "Featured songs",
+    albumsTitle: String = "New from them",
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val menuState = LocalMenuState.current
@@ -346,6 +346,7 @@ internal fun SimilarPage(
                                 modifier = Modifier.revealOnAppear(key = "albums", seenState = revealSeen),
                             ) {
                                 items(groups.albums, key = { it.id }) { album ->
+                                    val active = album.id == mediaMetadata?.album?.id
                                     HomeCoverCard(
                                         title = album.title,
                                         subtitle = listOfNotNull(
@@ -354,8 +355,8 @@ internal fun SimilarPage(
                                         ).joinToString(" · ").ifBlank { null },
                                         thumbnailUrl = album.thumbnail,
                                         sharedElementKey = "album-${album.id}",
-                                        isActive = album.id == mediaMetadata?.album?.id,
-                                        isPlaying = isPlaying,
+                                        isActive = active,
+                                        isPlaying = active && isPlaying,
                                         modifier = Modifier.combinedClickable(
                                             interactionSource = null,
                                             indication = HomeCardHighlight,
@@ -373,7 +374,7 @@ internal fun SimilarPage(
                     ) {
                         item(key = "empty") {
                             Text(
-                                text = "Chưa có nội dung nào tại đây",
+                                text = "Nothing to show here yet",
                                 style = TrackSubtitleStyle.copy(fontSize = 13.sp),
                                 color = Color.White.copy(alpha = 0.6f),
                                 modifier = Modifier.padding(horizontal = PlaylistInset, vertical = 28.dp),
@@ -487,7 +488,7 @@ internal fun StartOfTheLine(modifier: Modifier = Modifier) {
     ) {
         ReceiptLine()
         Text(
-            text = "BẮT ĐẦU CHUỖI TƯƠNG TỰ",
+            text = "START OF THE LINE",
             style = ReceiptCenterStyle,
             color = Color.White.copy(alpha = 0.78f),
             maxLines = 1,
@@ -622,13 +623,14 @@ internal fun PagedSongGrid(
     ) {
         items(items = songs, key = { it.id }) { song ->
             Box(modifier = Modifier.width(columnWidth)) {
+                val active = song.id == activeId
                 HomeTrackRow(
                     thumbnailUrl = song.thumbnail,
                     songId = song.id,
                     title = song.title,
                     subtitle = song.artists.joinToString { it.name },
-                    isActive = song.id == activeId,
-                    isPlaying = isPlaying,
+                    isActive = active,
+                    isPlaying = active && isPlaying,
                     onClick = { onClick(song) },
                     onLongClick = { onMenu(song) },
                     onMoreClick = { onMenu(song) },

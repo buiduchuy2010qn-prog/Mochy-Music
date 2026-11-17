@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.LocalPlayerConnection
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.db.entities.LyricsEntity
 import com.mochyy.mochymusic.lyrics.LyricsAutoSync
 import com.mochyy.mochymusic.lyrics.LyricsUtils
@@ -118,7 +120,7 @@ fun LyricsOffsetSheet(onDismiss: () -> Unit) {
                 .padding(top = 16.dp, bottom = 24.dp)
         ) {
             Text(
-                text = "Độ trễ lời bài hát",
+                text = stringResource(R.string.ps_offset_title),
                 color = Color.White,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
@@ -166,9 +168,9 @@ fun LyricsOffsetSheet(onDismiss: () -> Unit) {
 
             PillButton(
                 label = when (autoHere) {
-                    is LyricsAutoSync.State.Listening -> "listening… ${(autoHere.progress * 100).roundToInt()}%"
-                    is LyricsAutoSync.State.Matching -> "đang khớp lời…"
-                    else -> "tự động căn lời"
+                    is LyricsAutoSync.State.Listening -> stringResource(R.string.ps_offset_listening, (autoHere.progress * 100).roundToInt())
+                    is LyricsAutoSync.State.Matching -> stringResource(R.string.ps_offset_matching)
+                    else -> stringResource(R.string.ps_offset_auto)
                 },
                 enabled = timedLines != null && !autoRunning,
                 onClick = {
@@ -178,7 +180,7 @@ fun LyricsOffsetSheet(onDismiss: () -> Unit) {
                 },
             )
             Spacer(modifier = Modifier.height(8.dp))
-            PillButton(label = "xong", onClick = closeSheet)
+            PillButton(label = stringResource(R.string.ps_offset_done), onClick = closeSheet)
         }
     }
 }
@@ -190,12 +192,12 @@ fun LyricsOffsetSheet(onDismiss: () -> Unit) {
 @Composable
 private fun AutoSyncStatus(state: LyricsAutoSync.State?, timed: Boolean, onUndo: (Int) -> Unit) {
     val text = when {
-        !timed -> "Tự động căn lời cần lời bài hát có mốc thời gian theo câu hoặc từng từ. Lời văn bản thuần không có mốc thời gian để dịch chuyển."
-        state is LyricsAutoSync.State.Listening -> "Đang lắng nghe vị trí giọng hát bắt đầu và kết thúc…"
-        state is LyricsAutoSync.State.Matching -> "Đang căn chỉnh từng câu khớp với giọng hát…"
+        !timed -> stringResource(R.string.ps_offset_needs_timed)
+        state is LyricsAutoSync.State.Listening -> stringResource(R.string.ps_offset_status_listening)
+        state is LyricsAutoSync.State.Matching -> stringResource(R.string.ps_offset_status_matching)
         state is LyricsAutoSync.State.Synced -> syncedText(state)
         state is LyricsAutoSync.State.Failed -> state.message
-        else -> "Lắng nghe bài hát và tự động căn chỉnh lời khớp với giọng hát."
+        else -> stringResource(R.string.ps_offset_status_idle)
     }
     Text(
         text = text,
@@ -205,7 +207,7 @@ private fun AutoSyncStatus(state: LyricsAutoSync.State?, timed: Boolean, onUndo:
     )
     if (state is LyricsAutoSync.State.Synced && state.previousOffsetMs != state.offsetMs) {
         Text(
-            text = "Hoàn tác",
+            text = stringResource(R.string.undo),
             color = Color.White,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
@@ -220,16 +222,17 @@ private fun AutoSyncStatus(state: LyricsAutoSync.State?, timed: Boolean, onUndo:
     }
 }
 
+@Composable
 private fun syncedText(state: LyricsAutoSync.State.Synced): String {
     val moved = state.offsetMs - state.previousOffsetMs
     val change = when {
-        abs(moved) < 20 -> "Lời bài hát đã khớp chuẩn với giọng hát."
-        moved > 0 -> "Đã đẩy lời bài hát sớm hơn ${moved} ms để khớp với giọng hát."
-        else -> "Đã lùi lời bài hát trễ hơn ${-moved} ms để khớp với giọng hát."
+        abs(moved) < 20 -> stringResource(R.string.ps_offset_already_in_time)
+        moved > 0 -> stringResource(R.string.ps_offset_moved_earlier, moved)
+        else -> stringResource(R.string.ps_offset_moved_later, -moved)
     }
-    val guess = if (state.sure) "" else " Đây là mức ước lượng tốt nhất, bạn hãy nghe thử để kiểm tra lại."
+    val guess = if (state.sure) "" else " " + stringResource(R.string.ps_offset_best_guess)
     val drift = state.driftMs?.let {
-        " Nhịp bài hát cũng lệch khoảng ${"%.1f".format(abs(it) / 1_000f)} giây suốt bài, nên đã được căn khớp nhất ở đoạn giữa."
+        " " + stringResource(R.string.ps_offset_drift, "%.1f".format(abs(it) / 1_000f))
     }.orEmpty()
     return change + guess + drift
 }
@@ -299,7 +302,8 @@ private fun NudgeLabel(symbol: String, onClick: () -> Unit) {
 @Composable
 private fun OffsetTrack(offset: Int, onOffsetChange: (Int) -> Unit) {
     var widthPx by remember { mutableIntStateOf(0) }
-    val fraction = (offset + MaxOffsetMs) / (2f * MaxOffsetMs)
+    // the edit sheet allows minutes either way, past this bar's ten seconds, so it stops at the ends
+    val fraction = ((offset + MaxOffsetMs) / (2f * MaxOffsetMs)).coerceIn(0f, 1f)
 
     fun valueAt(x: Float): Int {
         if (widthPx <= 0) return offset

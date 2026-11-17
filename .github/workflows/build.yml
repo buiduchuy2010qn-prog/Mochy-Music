@@ -70,7 +70,7 @@ jobs:
           echo "Changed files since ${BASE:-start}:"
           echo "$CHANGED"
 
-          if echo "$CHANGED" | grep -qE '^(app/|gradle/|build\.gradle|settings\.gradle|all$)'; then
+          if echo "$CHANGED" | grep -qE '^(app/|gradle/|providers/|modules/|build\.gradle|settings\.gradle|all$)'; then
             echo "android_changed=true" >> $GITHUB_OUTPUT
           else
             echo "android_changed=false" >> $GITHUB_OUTPUT
@@ -125,7 +125,7 @@ jobs:
           fi
           echo "Restored persistent signing keystore with alias androiddebugkey."
 
-      - name: Build Arm64 Release APK & Versioned Artifact
+      - name: Build Arm64 & Universal Release APKs & Versioned Artifacts
         env:
           APP_VER: ${{ needs.detect-changes.outputs.app_ver }}
           BUILD_NUM: ${{ needs.detect-changes.outputs.build_num }}
@@ -133,12 +133,18 @@ jobs:
           MOCHY_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MOCHY_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           export MOCHY_APP_VERSION="$APP_VER"
-          ./gradlew assembleArm64GmsRelease -PmochyAppVersion="$APP_VER" -PmochyBuildNumber="$BUILD_NUM" --no-configuration-cache --no-daemon
+          ./gradlew assembleArm64GmsRelease assembleUniversalGmsRelease -PmochyAppVersion="$APP_VER" -PmochyBuildNumber="$BUILD_NUM" --no-configuration-cache --no-daemon
           mkdir -p dist-android
-          REL_APK=$(find app/build/outputs/apk -name "*arm64*release*.apk" | head -n 1)
-          cp "$REL_APK" "dist-android/Mochy-Music-v${APP_VER}-vi-arm64.apk"
+          ARM64_APK=$(find app/build/outputs/apk -name "*arm64*release*.apk" | head -n 1)
+          UNI_APK=$(find app/build/outputs/apk -name "*universal*release*.apk" | head -n 1)
+          if [ -z "$ARM64_APK" ] || [ -z "$UNI_APK" ]; then
+            echo "ERROR: Expected both arm64 and universal release APKs. Found arm64='$ARM64_APK' universal='$UNI_APK'"
+            exit 1
+          fi
+          cp "$ARM64_APK" "dist-android/Mochy-Music-v${APP_VER}-vi-arm64.apk"
+          cp "$UNI_APK" "dist-android/Mochy-Music-v${APP_VER}-vi-universal.apk"
 
-      - name: Upload Android APK Artifact
+      - name: Upload Android APK Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
@@ -274,12 +280,13 @@ jobs:
           TAG="v${APP_VER}-b${BUILD_NUM}"
           TITLE="Mochy Music v${APP_VER} (build#${BUILD_NUM}) — Bản Việt Hóa Toàn Diện (Android • Windows • Linux)"
 
-          # If Android was not built in this run (PC-only release), keep the previous APK with its ORIGINAL filename
+          # If Android was not built in this run (PC-only release), keep the previous APKs with their ORIGINAL filenames
           if ! ls release-assets/*.apk >/dev/null 2>&1; then
             mkdir -p tmp-prev-apk
             if gh release download --repo "${{ github.repository }}" --pattern "*.apk" --dir tmp-prev-apk >/dev/null 2>&1; then
-              PREV_APK=$(ls tmp-prev-apk/*.apk | head -n 1)
-              cp "$PREV_APK" "release-assets/$(basename "$PREV_APK")"
+              for f in tmp-prev-apk/*.apk; do
+                [ -e "$f" ] && cp "$f" "release-assets/$(basename "$f")"
+              done
             fi
           fi
 
@@ -293,8 +300,10 @@ jobs:
             fi
           fi
 
-          APK_FILE=$(ls release-assets/*.apk 2>/dev/null | xargs -n 1 basename | head -n 1)
-          APK_FILE=${APK_FILE:-Mochy-Music-v${APP_VER}-vi-arm64.apk}
+          APK_ARM64_FILE=$(find release-assets -maxdepth 1 -name "*arm64*.apk" -printf "%f\n" | head -n 1)
+          APK_ARM64_FILE=${APK_ARM64_FILE:-Mochy-Music-v${APP_VER}-vi-arm64.apk}
+          APK_UNI_FILE=$(find release-assets -maxdepth 1 -name "*universal*.apk" -printf "%f\n" | head -n 1)
+          APK_UNI_FILE=${APK_UNI_FILE:-Mochy-Music-v${APP_VER}-vi-universal.apk}
           WIN_SETUP_FILE=$(ls release-assets/*Setup*.exe 2>/dev/null | xargs -n 1 basename | head -n 1)
           WIN_SETUP_FILE=${WIN_SETUP_FILE:-Mochy-Music-v${APP_VER}-Windows-x64-Setup.exe}
           WIN_PORT_FILE=$(ls release-assets/*Portable*.exe 2>/dev/null | xargs -n 1 basename | head -n 1)
@@ -304,11 +313,13 @@ jobs:
           LIN_DEB_FILE=$(ls release-assets/*.deb 2>/dev/null | xargs -n 1 basename | head -n 1)
           LIN_DEB_FILE=${LIN_DEB_FILE:-Mochy-Music-v${APP_VER}-Linux-amd64.deb}
 
-          # ---- changelog: the commits since the last release, grouped by their conventional-commit type ----
+          # ---- changelog: first-parent commits since the last release, grouped by conventional-commit type ----
           if [ -n "$LAST_TAG" ] && git cat-file -e "${LAST_TAG}^{commit}" 2>/dev/null; then
-            git log --no-merges --pretty='%s' "${LAST_TAG}..HEAD" > commits.txt
+            git log --first-parent --pretty='%s' "${LAST_TAG}..HEAD" > commits.txt
+            EXTRA_NOTES=$(git log --first-parent --pretty='%b' "${LAST_TAG}..HEAD" | grep -E '^- ' || true)
           else
-            git log --no-merges --pretty='%s' -n 30 > commits.txt
+            git log --first-parent --pretty='%s' -n 30 > commits.txt
+            EXTRA_NOTES=""
           fi
           STRIP='s/^[A-Za-z]+(\([^)]*\))?!?:[[:space:]]*//'
           FEAT=$(grep -E '^feat(\([^)]*\))?!?:' commits.txt | sed -E "$STRIP" | sed 's/^/- /' || true)
@@ -325,15 +336,21 @@ jobs:
             echo "- 📱 **Android:** ${ANDROID_LINE}"
             echo "- 💻 **Máy tính (Windows / Linux):** ${DESKTOP_LINE}"
             echo ""
-            if [ -n "$FEAT" ]; then echo "#### ✨ Tính năng mới"; echo "$FEAT"; echo ""; fi
+            if [ -n "$FEAT" ] || [ -n "$EXTRA_NOTES" ]; then
+              echo "#### ✨ Tính năng mới"
+              [ -n "$FEAT" ] && echo "$FEAT"
+              [ -n "$EXTRA_NOTES" ] && echo "$EXTRA_NOTES"
+              echo ""
+            fi
             if [ -n "$FIX" ]; then echo "#### 🐞 Sửa lỗi"; echo "$FIX"; echo ""; fi
             if [ -n "$OTHER" ]; then echo "#### 🔧 Cải thiện khác"; echo "$OTHER"; echo ""; fi
             echo "#### 📥 Danh sách tệp cài đặt chính thức:"
-            echo "1. 📱 **Android (APK arm64 — Hỗ trợ cài đè OTA):** **${APK_FILE}**"
-            echo "2. 🪟 **Windows Bộ cài đặt (.exe — Hỗ trợ cài đè OTA):** **${WIN_SETUP_FILE}**"
-            echo "3. 🪟 **Windows Bản chạy ngay (Portable .exe):** **${WIN_PORT_FILE}**"
-            echo "4. 🐧 **Linux Mọi bản phân phối (.AppImage):** **${LIN_APPIMAGE_FILE}**"
-            echo "5. 🐧 **Ubuntu / Debian / Linux Mint (.deb):** **${LIN_DEB_FILE}**"
+            echo "1. 📱 **Android 64-bit ARM64 (Khuyên dùng cho máy đời mới — Hỗ trợ cài đè OTA):** **${APK_ARM64_FILE}**"
+            echo "2. 📱 **Android Universal 32-bit/64-bit (Tương thích mọi máy kể cả ARMv7 / Android 8.1+):** **${APK_UNI_FILE}**"
+            echo "3. 🪟 **Windows Bộ cài đặt (.exe — Hỗ trợ cài đè OTA):** **${WIN_SETUP_FILE}**"
+            echo "4. 🪟 **Windows Bản chạy ngay (Portable .exe):** **${WIN_PORT_FILE}**"
+            echo "5. 🐧 **Linux Mọi bản phân phối (.AppImage):** **${LIN_APPIMAGE_FILE}**"
+            echo "6. 🐧 **Ubuntu / Debian / Linux Mint (.deb):** **${LIN_DEB_FILE}**"
             echo ""
             echo "---"
             echo "#### 📜 Bản quyền & Tác giả (GPL-3.0)"

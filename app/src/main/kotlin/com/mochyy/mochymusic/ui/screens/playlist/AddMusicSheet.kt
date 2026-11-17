@@ -81,13 +81,14 @@ fun PopupSheetState.showAddMusicSheet(playlistId: String, startInLibrary: Boolea
         buttonBar = {
             val database = LocalDatabase.current
             val scope = rememberCoroutineScope()
+            val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
             val count = picks.songs.size
             SheetPillButton(
                 text = when {
-                    picks.saving -> "Đang thêm…"
-                    count == 0 -> "Xong"
-                    count == 1 -> "Thêm 1 bài hát"
-                    else -> "Thêm $count bài hát"
+                    picks.saving -> "Adding…"
+                    count == 0 -> "Done"
+                    count == 1 -> "Add 1 song"
+                    else -> "Add $count songs"
                 },
                 enabled = !picks.saving,
                 onClick = {
@@ -101,13 +102,13 @@ fun PopupSheetState.showAddMusicSheet(playlistId: String, startInLibrary: Boolea
                     val chosen = picks.songs.toList()
                     scope.launch(Dispatchers.IO) {
                         try {
-                            addPicksToPlaylist(database, playlistId, chosen)
+                            addPicksToPlaylist(database, playlistId, chosen, appContext)
                             withContext(Dispatchers.Main) { sheet?.dismiss() }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
                             Timber.tag("AddMusicSheet").e(e, "Adding songs to the playlist failed")
-                            TopToaster.error("Không thể thêm các bài hát này. Vui lòng thử lại.")
+                            TopToaster.error("Couldn't add those songs. Try again.")
                             picks.saving = false
                             sheet?.setLocked(false)
                         }
@@ -186,7 +187,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
             .fillMaxHeight(),
     ) {
         Text(
-            text = "Thêm nhạc",
+            text = "Add music",
             color = Color.White,
             fontSize = 26.sp,
             fontWeight = FontWeight.Bold,
@@ -199,7 +200,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
         SheetSearchField(
             value = query,
             onValueChange = { query = it },
-            placeholder = "Tìm trong tất cả bài hát",
+            placeholder = "Search all songs",
         )
 
         Spacer(Modifier.height(12.dp))
@@ -212,7 +213,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
                 .horizontalScroll(rememberScrollState()),
         ) {
             AddMusicChip(
-                text = "Đề xuất cho danh sách phát này",
+                text = "Recommended for this playlist",
                 selected = needle.isEmpty() && tab == AddMusicTab.Suggested,
                 onClick = {
                     query = ""
@@ -220,7 +221,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
                 },
             )
             AddMusicChip(
-                text = "Trong thư viện",
+                text = "In library",
                 selected = needle.isEmpty() && tab == AddMusicTab.Library,
                 onClick = {
                     query = ""
@@ -257,7 +258,7 @@ private fun LazyListScope.searchResults(
     }
 
     if (results.library.isNotEmpty()) {
-        item(key = "library-label") { SheetLabel("trong thư viện của bạn", Modifier.padding(bottom = 6.dp)) }
+        item(key = "library-label") { SheetLabel("in your library", Modifier.padding(bottom = 6.dp)) }
         librarySongRows("library-hit", results.library, added, picks)
         item(key = "library-gap") { Spacer(Modifier.height(14.dp)) }
     }
@@ -265,15 +266,15 @@ private fun LazyListScope.searchResults(
     val online = results.online
     when {
         online == null -> {
-            item(key = "online-label") { SheetLabel("tất cả bài hát", Modifier.padding(bottom = 6.dp)) }
+            item(key = "online-label") { SheetLabel("all songs", Modifier.padding(bottom = 6.dp)) }
             item(key = "online-bones") { PickRowBones(rows = 4) }
         }
         online.isNotEmpty() -> {
-            item(key = "online-label") { SheetLabel("tất cả bài hát", Modifier.padding(bottom = 6.dp)) }
+            item(key = "online-label") { SheetLabel("all songs", Modifier.padding(bottom = 6.dp)) }
             onlineSongRows("online", online, added, picks)
         }
         results.onlineFailed -> item(key = "online-failed") {
-            SheetNote("Không thể tìm kiếm trực tuyến. Hãy kiểm tra kết nối mạng và thử lại.")
+            SheetNote("Couldn't search online. Check your connection and try again.")
         }
         results.library.isEmpty() -> item(key = "nothing") {
             SheetNote("Nothing found for “${results.query}”.")
@@ -290,10 +291,10 @@ private fun LazyListScope.suggestedSongs(
         suggestions == null -> item(key = "suggested-bones") { PickRowBones() }
         suggestions.isNotEmpty() -> onlineSongRows("suggested", suggestions, inPlaylist.orEmpty(), picks)
         inPlaylist?.isEmpty() == true -> item(key = "suggested-empty") {
-            SheetNote("Hãy thêm vài bài hát trước, Mochy sẽ gợi ý thêm các bài phù hợp.")
+            SheetNote("Add a few songs first and we'll suggest more that fit.")
         }
         else -> item(key = "suggested-failed") {
-            SheetNote("Chưa có gợi ý lúc này. Hãy kiểm tra kết nối mạng hoặc tìm bài hát ở ô phía trên.")
+            SheetNote("No suggestions right now. Check your connection, or search for a song above.")
         }
     }
 }
@@ -302,7 +303,7 @@ private fun LazyListScope.librarySongs(library: List<Song>?, added: Set<String>,
     when {
         library == null -> item(key = "library-bones") { PickRowBones() }
         library.isEmpty() -> item(key = "library-empty") {
-            SheetNote("Thư viện của bạn đang trống. Hãy tìm bài hát ở ô phía trên.")
+            SheetNote("Your library is empty. Search above to find any song.")
         }
         else -> librarySongRows("library", library, added, picks)
     }

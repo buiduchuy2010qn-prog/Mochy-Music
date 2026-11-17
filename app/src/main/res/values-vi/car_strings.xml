@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="car_tab_home">Trang chủ</string>
+    <string name="car_tab_remote">Điều khiển</string>
+    <string name="car_tab_recent">Gần đây</string>
+    <string name="car_tab_library">Thư viện</string>
+    <string name="car_quick_picks">Chọn nhanh</string>
+    <string name="car_categories">Thể loại</string>
+    <string name="car_home_empty">Hãy phát vài bài hát trên điện thoại để gợi ý chọn nhanh hiện ở đây!</string>
+    <string name="car_recent_songs">Bài hát</string>
+    <string name="car_recent_lists">Album và danh sách phát</string>
+    <string name="car_recent_empty">Các bài hát bạn phát sẽ hiện ở đây.</string>
+    <string name="car_liked">Bài hát đã thích</string>
+    <string name="car_downloaded">Đã tải xuống</string>
+    <string name="car_playlists">Danh sách phát</string>
+    <string name="car_albums">Album</string>
+    <string name="car_artists">Nghệ sĩ</string>
+    <string name="car_list_empty">Chưa có gì ở đây cả.</string>
+    <string name="car_couldnt_load">Không thể tải mục này. Hãy kiểm tra kết nối và thử lại.</string>
+    <string name="car_shuffle">Trộn bài</string>
+    <string name="car_lyrics">Lời bài hát</string>
+    <string name="car_lyrics_on_player">Trên trình phát</string>
+    <string name="car_lyrics_none">Không có lời cho bài hát này.</string>
+    <string name="car_lyrics_player_on">Lời bài hát giờ có thể hiện trên trình phát khi bạn lái xe, này, tính năng đang thử nghiệm đấy!</string>
+    <string name="car_lyrics_player_off">Lời bài hát trên trình phát đang tắt.</string>
+    <string name="car_pair_code">Mã ghép đôi</string>
+    <string name="car_pair_status">Trạng thái</string>
+    <string name="car_pair_how">Cách ghép đôi</string>
+    <string name="car_pair_steps">Trên điện thoại còn lại, mở Mochy rồi vào Cài đặt › Kết nối thiết bị › Thêm thiết bị và nhập mã này. Cả hai điện thoại cần dùng chung Wi-Fi.</string>
+    <string name="car_pair_waiting">Chưa kết nối. Đang chờ ghép đôi với điện thoại.</string>
+    <string name="car_pair_connected">Đã kết nối với %1$s</string>
+    <string name="car_pair_getting_code">Đang chuẩn bị mã…</string>
+    <plurals name="car_pair_connected_more">
+        <item quantity="other">Đã kết nối với %1$s và %2$d điện thoại khác</item>
+    </plurals>
+</resources>

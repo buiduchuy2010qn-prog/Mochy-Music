@@ -15,7 +15,6 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
-import com.mochyy.mochymusic.ui.player.share.song.ShareAspect
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
@@ -30,30 +29,27 @@ private const val FadeOutMs = 700L
 
 // what this phone's h264 encoders can take; videos encode on their side, so 9:16 is asked as 16:9
 internal object ShareEncoders {
-    private val cache = HashMap<Triple<ShareQuality, ShareAspect, Int>, Boolean>()
+    private val cache = HashMap<Pair<ShareQuality, Int>, Boolean>()
 
     @Synchronized
-    fun canEncode(quality: ShareQuality, fps: Int, aspect: ShareAspect = ShareAspect.Story): Boolean =
-        cache.getOrPut(Triple(quality, aspect, fps)) {
-            val h = quality.heightFor(aspect)
-            runCatching {
-                MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
-                    info.isEncoder && info.supportedTypes.any { it.equals(MimeTypes.VIDEO_H264, ignoreCase = true) } &&
-                        runCatching {
-                            val video = info.getCapabilitiesForType(MimeTypes.VIDEO_H264).videoCapabilities
-                            video.areSizeAndRateSupported(h, quality.width, fps.toDouble()) ||
-                                video.areSizeAndRateSupported(quality.width, h, fps.toDouble())
-                        }.getOrDefault(false)
-                }
-            }.getOrDefault(false)
-        }
+    fun canEncode(quality: ShareQuality, fps: Int): Boolean = cache.getOrPut(quality to fps) {
+        runCatching {
+            MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
+                info.isEncoder && info.supportedTypes.any { it.equals(MimeTypes.VIDEO_H264, ignoreCase = true) } &&
+                    runCatching {
+                        // an audio-only or odd codec has no video capabilities; it just can't encode this
+                        val video = info.getCapabilitiesForType(MimeTypes.VIDEO_H264).videoCapabilities ?: return@runCatching false
+                        video.areSizeAndRateSupported(quality.height, quality.width, fps.toDouble()) ||
+                            video.areSizeAndRateSupported(quality.width, quality.height, fps.toDouble())
+                    }.getOrDefault(false)
+            }
+        }.getOrDefault(false)
+    }
 
     // 4k when the phone can encode it at all, the smoothest frame rate it can manage at that size
-    fun bestVideoQuality(aspect: ShareAspect = ShareAspect.Story): ShareQuality =
-        if (canEncode(ShareQuality.UltraHd, 30, aspect)) ShareQuality.UltraHd else ShareQuality.FullHd
+    fun bestVideoQuality(): ShareQuality = if (canEncode(ShareQuality.UltraHd, 30)) ShareQuality.UltraHd else ShareQuality.FullHd
 
-    fun frameRateFor(quality: ShareQuality, aspect: ShareAspect = ShareAspect.Story): Int =
-        if (canEncode(quality, 60, aspect)) 60 else 30
+    fun frameRateFor(quality: ShareQuality): Int = if (canEncode(quality, 60)) 60 else 30
 
     fun bitrateFor(quality: ShareQuality, fps: Int): Int = when (quality) {
         ShareQuality.UltraHd -> if (fps >= 60) 60_000_000 else 45_000_000

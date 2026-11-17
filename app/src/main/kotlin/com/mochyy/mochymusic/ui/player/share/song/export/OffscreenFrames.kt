@@ -74,11 +74,7 @@ internal class OffscreenFrames(
     private val view = ComposeView(host.context).apply {
         setParentCompositionContext(recomposer)
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-        setContent {
-            com.mochyy.mochymusic.ui.theme.MochyTheme(darkTheme = true) {
-                content()
-            }
-        }
+        setContent(content)
     }
 
     init {

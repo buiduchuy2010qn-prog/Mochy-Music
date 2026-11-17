@@ -18,23 +18,29 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.db.entities.Playlist
 import com.mochyy.mochymusic.db.entities.PlaylistSong
+import com.mochyy.mochymusic.playback.AutoDownloads
+import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.component.Material3MenuGroup
 import com.mochyy.mochymusic.ui.component.Material3MenuItemData
 import com.mochyy.mochymusic.ui.component.SheetActionCard
 import com.mochyy.mochymusic.ui.component.SheetActionCardRow
 import com.mochyy.mochymusic.ui.component.SheetDownloadCard
 import com.mochyy.mochymusic.ui.component.SheetSearchLauncher
+import kotlinx.coroutines.launch
 
 /**
  * The menu behind a playlist screen's "more" button, laid out as in the mock: a search that opens
@@ -91,7 +97,7 @@ fun LocalPlaylistMenu(
             .padding(bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()),
     ) {
         SheetSearchLauncher(
-            placeholder = "Tìm bài hát trong danh sách phát",
+            placeholder = stringResource(R.string.pc_search_playlist_songs),
             onClick = {
                 onDismiss()
                 onSearch()
@@ -117,7 +123,7 @@ fun LocalPlaylistMenu(
             // Over this menu rather than closing it: Done comes back here.
             SheetActionCard(
                 icon = R.drawable.edit,
-                title = "Sửa danh sách phát",
+                title = stringResource(R.string.edit_playlist),
                 onClick = onEdit,
                 modifier = Modifier.weight(1f),
             )
@@ -133,10 +139,14 @@ fun LocalPlaylistMenu(
 
         Spacer(Modifier.height(10.dp))
 
+        AutoDownloadRow(playlist.id)
+
+        Spacer(Modifier.height(10.dp))
+
         Material3MenuGroup(
             items = listOfNotNull(
                 Material3MenuItemData(
-                    title = { Text("Phát tiếp theo") },
+                    title = { Text(stringResource(R.string.play_next)) },
                     icon = {
                         Icon(
                             painter = painterResource(R.drawable.playlist_play),
@@ -151,7 +161,7 @@ fun LocalPlaylistMenu(
                     } else null,
                 ),
                 Material3MenuItemData(
-                    title = { Text("Sắp xếp theo") },
+                    title = { Text(stringResource(R.string.menu_sort_by)) },
                     icon = {
                         Icon(
                             painter = painterResource(R.drawable.drag_handle),
@@ -165,7 +175,7 @@ fun LocalPlaylistMenu(
                 ),
                 if (playlist.playlist.isEditable) {
                     Material3MenuItemData(
-                        title = { Text(if (locked) "Sửa thứ tự" else "Khóa thứ tự") },
+                        title = { Text(stringResource(if (locked) R.string.pc_mode_edit_order else R.string.pc_lock_order)) },
                         icon = {
                             Icon(
                                 painter = painterResource(if (locked) R.drawable.lock_open else R.drawable.lock),
@@ -179,7 +189,7 @@ fun LocalPlaylistMenu(
                     )
                 } else null,
                 Material3MenuItemData(
-                    title = { Text("Thêm vào danh sách phát") },
+                    title = { Text(stringResource(R.string.add_to_playlist)) },
                     icon = {
                         Icon(
                             painter = painterResource(R.drawable.playlist_add),
@@ -290,7 +300,9 @@ fun AutoPlaylistMenu(
     onDismiss: () -> Unit,
     /** opens the list's own song search, as on a playlist's menu */
     onSearch: (() -> Unit)? = null,
-) = QueueAndDownloadCards(downloadState, onQueue, onDownload, onDismiss, onSearch)
+    // the list whose new songs can download by themselves (liked songs), or none
+    autoDownloadId: String? = null,
+) = QueueAndDownloadCards(downloadState, onQueue, onDownload, onDismiss, onSearch, autoDownloadId)
 
 @Composable
 fun TopPlaylistMenu(
@@ -320,10 +332,12 @@ private fun QueueAndDownloadCards(
     onDownload: () -> Unit,
     onDismiss: () -> Unit,
     onSearch: (() -> Unit)? = null,
+    autoDownloadId: String? = null,
 ) {
+    val bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
     if (onSearch != null) {
         SheetSearchLauncher(
-            placeholder = "Tìm bài hát tại đây",
+            placeholder = stringResource(R.string.pc_search_songs_here),
             onClick = {
                 onDismiss()
                 onSearch()
@@ -332,7 +346,7 @@ private fun QueueAndDownloadCards(
         Spacer(Modifier.height(16.dp))
     }
     SheetActionCardRow(
-        modifier = Modifier.padding(bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()),
+        modifier = Modifier.padding(bottom = if (autoDownloadId != null) 10.dp else bottom),
     ) {
         SheetActionCard(
             icon = R.drawable.queue_music,
@@ -357,4 +371,33 @@ private fun QueueAndDownloadCards(
             modifier = Modifier.weight(1f),
         )
     }
+    if (autoDownloadId != null) {
+        AutoDownloadRow(autoDownloadId)
+        Spacer(Modifier.height(bottom))
+    }
+}
+
+// "download new songs": songs added to this list from now on download by themselves
+@Composable
+private fun AutoDownloadRow(playlistId: String) {
+    val context = LocalContext.current
+    val database = LocalDatabase.current
+    val scope = rememberCoroutineScope()
+    val enabled = AutoDownloads.rememberEnabled(playlistId)
+    val toggle = { scope.launch { AutoDownloads.setEnabled(context, database, playlistId, !enabled) } }
+    Material3MenuGroup(
+        items = listOf(
+            Material3MenuItemData(
+                title = { Text(stringResource(R.string.auto_download_new_songs)) },
+                icon = {
+                    Icon(
+                        painter = painterResource(R.drawable.download),
+                        contentDescription = null,
+                    )
+                },
+                onClick = { toggle() },
+                trailingContent = { AppSwitch(checked = enabled, onCheckedChange = { toggle() }) },
+            ),
+        ),
+    )
 }

@@ -6,6 +6,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +27,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -135,13 +138,13 @@ import com.mochyy.mochymusic.ui.utils.stableStatusBars
  * so the same 64dp lift dragged the title, timestamps and seek bar back up onto the cover - the
  * overlap that showed up once SQUARED became the default on devices without blur.
  */
-private val ControlsDrawShift = 64.dp
+internal val ControlsDrawShift = 64.dp
 
 /** Small upward nudge for the seek bar and its timestamps, so they sit off the controls below. */
-private val SeekBarLift = 6.dp
+internal val SeekBarLift = 6.dp
 
 /** the Turntable's controls stand this far above the card, as in its frame */
-private val TurntableControlsLift = 44.dp
+internal val TurntableControlsLift = 44.dp
 
 /** The queue page's third button (autoplay) and the gap above it, on top of the lyrics pair. */
 private val QueueButtonExtraHeight = 41.dp
@@ -186,7 +189,7 @@ private val PlayerCloseStrip = 64.dp
 private const val StyleHiddenBelow = 0.25f
 
 /** The old gap from the seek bar down to the buttons (24dp plus the bar's lift). */
-private val TransportGapAboveRow = 24.dp + SeekBarLift
+internal val TransportGapAboveRow = 24.dp + SeekBarLift
 
 /** From the top of the page column's chevron to the top of the button under it (34dp + a 7dp gap). */
 private val PageButtonStep = 41.dp
@@ -467,9 +470,37 @@ private fun PlayerSheet(
     }
     // the song's whole lyrics, opened over an alternate style from its ••• menu
     var styleLyricsOpen by remember { mutableStateOf(false) }
-    // that page fully up: the style under it stops drawing, and its clocks stop with it
+    // the queue, opened over the poster from its chevron menu
+    var styleQueueOpen by remember { mutableStateOf(false) }
+    // either page fully up: the style under it stops drawing, and its clocks stop with it
     var styleCovered by remember { mutableStateOf(false) }
-    val styleCoveredNow = remember { { styleCovered } }
+    var styleQueueCovered by remember { mutableStateOf(false) }
+    val styleCoveredNow = remember { { styleCovered || styleQueueCovered } }
+    // the rotate button on the styles' menus, each style remembering its own; never on a tv, which doesn't turn
+    val styleCanTurn = playerStyle.turnable && !onTv
+    val (styleTurnedSaved, setStyleTurned) = rememberPreference(
+        com.mochyy.mochymusic.constants.playerStyleRotatedKey(playerStyle),
+        defaultValue = playerStyle.startsSideways,
+    )
+    val styleTurned = styleCanTurn && styleTurnedSaved
+    val styleTurnedNow by androidx.compose.runtime.rememberUpdatedState(styleTurned)
+    val setStyleTurnedNow by androidx.compose.runtime.rememberUpdatedState(setStyleTurned)
+    val styleTurn = remember {
+        com.mochyy.mochymusic.ui.player.styles.StyleTurn(isTurned = { styleTurnedNow }, toggle = { setStyleTurnedNow(!styleTurnedNow) })
+    }
+    // the window turns once the player is all the way open and stays turned until it's back down to the mini player, like the full video mode
+    var playerFullyOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(state) {
+        snapshotFlow { state.isExpanded to (state.isCollapsed || state.isDismissed) }.collect { (open, closed) ->
+            if (open) playerFullyOpen = true else if (closed) playerFullyOpen = false
+        }
+    }
+    // user landscape keeps to the phone's rotation lock; the sensor one ignored it and flipped the player whenever the phone tilted
+    com.mochyy.mochymusic.ui.utils.HoldOrientation(
+        orientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE,
+        active = styleTurned && playerFullyOpen,
+    )
+
     val styleActions = remember(openStudio) {
         com.mochyy.mochymusic.ui.player.styles.StyleActions(
             onOtherMenu = {
@@ -494,6 +525,8 @@ private fun PlayerSheet(
                 state.collapseSoft()
             },
             onClose = { state.collapseSoft() },
+            onQueue = { styleQueueOpen = true },
+            turn = if (onTv) null else styleTurn,
         )
     }
 
@@ -842,16 +875,13 @@ private fun PlayerSheet(
             playerConnection = playerConnection,
             openLyrics = { if (transition.page != PlayerPage.LYRICS) transition.open(PlayerPage.LYRICS) },
         )
-        val (canvasEnabledPref, setCanvasEnabledPref) = rememberPreference(com.mochyy.mochymusic.constants.CanvasThumbnailAnimationKey, defaultValue = false)
-        val (playVideoBgPref, setPlayVideoBgPref) = rememberPreference(com.mochyy.mochymusic.constants.PlayVideoBackgroundKey, defaultValue = false)
-        val (disableAutoVideoPref, setDisableAutoVideoPref) = rememberPreference(com.mochyy.mochymusic.constants.DisableVideoAutoplayKey, defaultValue = true)
-        val anyVideoOrCanvasActive = seeVideo || canvasEnabledPref || playVideoBgPref || !disableAutoVideoPref
         fun menuActionActive(action: com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction): Boolean = when (action) {
             com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.LIKE -> trackInfo.liked
             com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SLEEP_TIMER -> playerConnection.service.sleepTimer.isActive
-            com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO -> anyVideoOrCanvasActive
+            com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO -> seeVideo
             com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.REPEAT -> transportState.repeatMode != Player.REPEAT_MODE_OFF
             com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHUFFLE -> transportState.shuffleModeEnabled
+            com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.ROTATE -> styleTurned
             else -> menuExtras.isActive(action)
         }
         val onMenuAction: (com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction) -> Unit = { action ->
@@ -864,13 +894,7 @@ private fun PlayerSheet(
                     showActionMenu = true
                 }
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SLEEP_TIMER -> showSleepTimer = true
-                com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO -> {
-                    val next = !anyVideoOrCanvasActive
-                    seeVideo = next
-                    setCanvasEnabledPref(next)
-                    setPlayVideoBgPref(next)
-                    setDisableAutoVideoPref(!next)
-                }
+                com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO -> seeVideo = !seeVideo
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.REPEAT -> playerConnection.player.toggleRepeatMode()
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHUFFLE ->
                     playerConnection.player.shuffleModeEnabled = !playerConnection.player.shuffleModeEnabled
@@ -880,6 +904,7 @@ private fun PlayerSheet(
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.EQUALIZER -> openEqualizer()
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.OUTPUT -> showDeviceOutput = true
                 com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.FULL_VIDEO -> enterVideoMode()
+                com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.ROTATE -> styleTurn.toggle()
                 else -> menuExtras.run(action)
             }
         }
@@ -965,6 +990,10 @@ private fun PlayerSheet(
                             likeBurst.likeFromDoubleTap(position, trackInfo.liked, playerConnection::toggleLike)
                         }
                     },
+                    // tapping the art opens the song details like the title does, not on the turntable since its record has its own taps
+                    onTapCover = if (playerStyle.flagshipFamily && !isTurntable && !landscapeFlagship) {
+                        { if (!studioEngaged) showSongDetails = true }
+                    } else null,
                     onArtBoundsChanged = { rects.cover = it },
                     onVideoShowingChange = { videoShowing = it },
                     ambient = if (isFlagship || backgroundStyle == PlayerBackgroundStyle.AMBIENT) ambient else null,
@@ -1047,18 +1076,28 @@ private fun PlayerSheet(
                             // under a lyrics page that fills the screen it needn't be drawn
                             modifier = Modifier
                                 .fillMaxSize()
-                                .graphicsLayer { alpha = if (styleCovered) 0f else 1f },
+                                .graphicsLayer { alpha = if (styleCovered || styleQueueCovered) 0f else 1f },
                         )
                     }
                 }
                 // closed with the player, so it isn't still up the next time it opens
-                LaunchedEffect(styleOpen) { if (!styleOpen) styleLyricsOpen = false }
+                LaunchedEffect(styleOpen) {
+                    if (!styleOpen) {
+                        styleLyricsOpen = false
+                        styleQueueOpen = false
+                    }
+                }
                 com.mochyy.mochymusic.ui.player.styles.StyleLyricsPage(
                     open = styleLyricsOpen && styleOpen,
                     onClose = { styleLyricsOpen = false },
                     screenHeight = screenHeight,
                     onCoveredChange = { styleCovered = it },
                     onSwitchSource = { showLyricsSource = true },
+                )
+                com.mochyy.mochymusic.ui.player.styles.StyleQueuePage(
+                    open = styleQueueOpen && styleOpen,
+                    onClose = { styleQueueOpen = false },
+                    onCoveredChange = { styleQueueCovered = it },
                 )
                 // the ipod, the full video mode and the bedside each have their own close, a bar over them would just be in the way
                 if (!onTv && playerStyle != PlayerStyle.IPOD && playerStyle != PlayerStyle.VIDEO && !playerStyle.isBedside) PlayerHandle(
@@ -1077,6 +1116,7 @@ private fun PlayerSheet(
                 }
                 FlagshipLandscape(
                     pages = transition,
+                    turntable = isTurntable,
                     sheetShowing = sheetShowing,
                     interactive = remember(state) { { landscapeOpen } },
                     expanded = remember(state) { { state.isExpanded } },
@@ -1086,8 +1126,16 @@ private fun PlayerSheet(
                     onSongInfo = { if (!studioEngaged) showSongDetails = true },
                     onSwitchLyricsSource = { showLyricsSource = true },
                     transport = { transportModifier ->
-                        if (isFlagship) FlagshipTransportRow(layout = transportLayout, modifier = transportModifier)
-                        else PlayerTransportRow(modifier = transportModifier, flagshipGlyph = isTurntable)
+                        if (isFlagship) {
+                            FlagshipTransportRow(
+                                layout = transportLayout,
+                                queueOpen = showQueue,
+                                onQueue = { if (showQueue) transition.close() else transition.open(PlayerPage.QUEUE) },
+                                modifier = transportModifier,
+                            )
+                        } else {
+                            PlayerTransportRow(modifier = transportModifier, flagshipGlyph = isTurntable)
+                        }
                     },
                     bottom = { barModifier ->
                         when {
@@ -1256,7 +1304,7 @@ private fun PlayerSheet(
 
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-
+                        .widthIn(max = 600.dp)
                         .padding(horizontal = 26.dp)
                         .then(Modifier.studioAnchor(studioAnchors) { it.card })
                         .then(Modifier.studioBarLayer(studioParts) { it.card })
@@ -1273,6 +1321,7 @@ private fun PlayerSheet(
             if ((showVolumeBar || barLifted) && deckMounted) {
                 val volumeBarModifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .widthIn(max = 600.dp)
                     .padding(
                         bottom = if (newBottomBar) flagshipBarFootprint() - FlagshipBarHeight
                         else playerVolumeBarFootprint() - PlayerVolumeBarHeight
@@ -1347,6 +1396,7 @@ private fun PlayerSheet(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .widthIn(max = 600.dp)
                     .fillMaxWidth()
                     .padding(bottom = belowControls + transportGap.coerceAtLeast(0.dp))
                     // where the editor's hold put them; only placed, so a drag never recomposes
@@ -1638,7 +1688,12 @@ private fun PlayerSheet(
                     .studioTransportLayer(studioParts)
                     .studioPiece(studioPieces, StudioPieces.TRANSPORT)
                 if (isFlagship) {
-                    FlagshipTransportRow(layout = transportLayout, modifier = transportModifier)
+                    FlagshipTransportRow(
+                        layout = transportLayout,
+                        queueOpen = showQueue,
+                        onQueue = { if (showQueue) transition.close() else transition.open(PlayerPage.QUEUE) },
+                        modifier = transportModifier,
+                    )
                 } else {
                     PlayerTransportRow(modifier = transportModifier, flagshipGlyph = isTurntable)
                 }
@@ -1658,6 +1713,7 @@ private fun PlayerSheet(
                     onStreamInfoClick = { if (!studioEngaged) showStreamInfo = true },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        .widthIn(max = 600.dp)
                         .padding(bottom = belowControls + TurntableControlsLift)
                         .graphicsLayer {
                             alpha = (1f - controlsHidden) * (1f - turntablePageProgress)
@@ -1698,8 +1754,9 @@ private fun PlayerSheet(
                 } else {
                     menuLayout.slots
                 }
+                // with a youtube video on the cover, the full video mode goes on top unless it's already one of the four
                 val shareAction = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHARE
-                val withShare = if (shareAction !in set) {
+                val withShare = if (shareAction !in set && menuLayout.side != shareAction) {
                     val otherIdx = set.indexOf(com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.OTHER_MENU)
                     if (otherIdx >= 0) {
                         set.toMutableList().apply { add(otherIdx + 1, shareAction) }
@@ -1720,9 +1777,10 @@ private fun PlayerSheet(
                 } else {
                     withShare
                 }
-                // with a youtube video on the cover, the full video mode goes on top unless it's already one of the four
                 val fullVideo = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.FULL_VIDEO
-                if (videoShowing && fullVideo !in withLocket) listOf(fullVideo) + withLocket else withLocket
+                val withVideo = if (videoShowing && fullVideo !in withLocket) listOf(fullVideo) + withLocket else withLocket
+                // the turntable's rotate button sits last, the way the other styles keep theirs at the end
+                if (isTurntable && styleCanTurn) withVideo + com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.ROTATE else withVideo
             },
             isActive = ::menuActionActive,
             onAction = onMenuAction,
@@ -1734,11 +1792,10 @@ private fun PlayerSheet(
             controlsDrawShift = controlsDrawShift,
         )
 
-        // Pulling down at the top of the queue list stretches the list instead of closing the
-        // player. (Lyrics keep the pull-to-close.)
+        // pulling past the top of the queue or lyrics only stretches the list, scrolling back to the song's start kept closing the player
         // the full video mode's pane is a side panel turned sideways: past its top it only stretches, the player stays open
-        androidx.compose.runtime.DisposableEffect(state, showQueue, playerStyle) {
-            state.collapseOnNestedOverscroll = !showQueue && playerStyle != PlayerStyle.VIDEO
+        androidx.compose.runtime.DisposableEffect(state, showQueue, showLyrics, playerStyle) {
+            state.collapseOnNestedOverscroll = !showQueue && !showLyrics && playerStyle != PlayerStyle.VIDEO
             onDispose { state.collapseOnNestedOverscroll = true }
         }
 
@@ -1980,7 +2037,8 @@ private fun ExpandMenuOverlay(
     controlsDrawShift: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier
 ) {
-    val menuItems = remember(slots) { slots.map { it.label to it.icon } }
+    val menuLabels = slots.map { stringResource(it.labelRes) }
+    val menuItems = slots.mapIndexed { i, action -> menuLabels[i] to action.icon }
 
     val density = LocalDensity.current
     // one per item, so a style that adds items gets its own set instead of reading past the end
@@ -2110,6 +2168,14 @@ private fun ExpandMenuOverlay(
                                 .align(Alignment.BottomEnd)
                                 .padding(end = chevronEndDp, bottom = menuBottomDp)
                         }
+                    )
+                    // only a list too tall for the room above the chevron scrolls, from its end; a scroll would clip the rows sliding in
+                    .then(
+                        if ((34.dp + MenuItemBlurRoom * 2 + 16.dp) * menuItems.size > screenHeight - menuBottomDp) {
+                            Modifier.verticalScroll(rememberScrollState(), reverseScrolling = true)
+                        } else {
+                            Modifier
+                        }
                     ),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = if (fromLeft) Alignment.Start else Alignment.End
@@ -2146,12 +2212,12 @@ private fun ExpandMenuOverlay(
                         ) {
                             val action = slots[index]
                             val isToggled = isActive(action)
-                            // a downloaded song's button deletes it, so the words say that instead of download
+                            // a downloaded song's button deletes it, and a turned turntable's turns it back, so the words say that
                             val labelText = when {
                                 action == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.DOWNLOAD && isToggled ->
                                     stringResource(R.string.player_menu_delete_download)
-                                action == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SEE_VIDEO ->
-                                    if (isToggled) stringResource(R.string.bsp_video_off) else stringResource(R.string.bsp_video_on)
+                                action == com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.ROTATE && isToggled ->
+                                    stringResource(R.string.player_turn_upright)
                                 else -> item.first
                             }
                             val label: @Composable () -> Unit = {

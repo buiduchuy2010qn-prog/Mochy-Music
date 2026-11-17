@@ -40,11 +40,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.LocalPlayerConnection
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.AudioQuality
 import com.mochyy.mochymusic.constants.AudioQualityKey
 import com.mochyy.mochymusic.module.StreamOption
@@ -59,6 +61,13 @@ import kotlinx.coroutines.delay
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 
 private val YouTubeQualities = listOf(AudioQuality.AUTO, AudioQuality.HIGH, AudioQuality.MEDIUM, AudioQuality.LOW)
+
+private fun qualityLabelRes(quality: AudioQuality): Int = when (quality) {
+    AudioQuality.HIGH -> R.string.aq_quality_high
+    AudioQuality.MEDIUM -> R.string.aq_quality_medium
+    AudioQuality.LOW -> R.string.aq_quality_low
+    else -> R.string.aq_quality_auto
+}
 
 /** "force change": plays this song from another of the providers that are switched on, at the quality picked */
 @Composable
@@ -90,10 +99,10 @@ fun ForceProviderSheet(currentProviderId: String?, onDismiss: () -> Unit) {
             modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
         ) {
             InfoColumn(modifier = Modifier.widthIn(max = 600.dp)) {
-                InfoSheetTitle("Phát nhạc từ")
+                InfoSheetTitle(stringResource(R.string.pc_force_title))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Bài hát sẽ tạm dừng trong lúc tải lại từ nguồn bạn chọn.",
+                    text = stringResource(R.string.pc_force_hint),
                     color = InfoMuted,
                     fontSize = 13.sp,
                 )
@@ -110,7 +119,7 @@ fun ForceProviderSheet(currentProviderId: String?, onDismiss: () -> Unit) {
                         busy = state is ProviderSwitchState.Working,
                         options = when {
                             choice != null -> choice.options
-                            id == SourceModules.YouTubeId -> YouTubeQualities.map { StreamOption(it.name, it.name.lowercase().replaceFirstChar(Char::uppercase), "") }
+                            id == SourceModules.YouTubeId -> YouTubeQualities.map { StreamOption(it.name, stringResource(qualityLabelRes(it)), "") }
                             else -> emptyList()
                         },
                         selectedOption = if (id == SourceModules.YouTubeId) youTubeQuality else picked,
@@ -145,8 +154,8 @@ private fun SwitchStatus(state: ProviderSwitchState, nameOf: (String) -> String)
         ) {
             when (state) {
                 is ProviderSwitchState.Working -> {
-                    Text("Đang tải từ ${nameOf(state.providerId)}…", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text("Lần thử ${state.attempt} / ${state.of}, tối đa một phút", color = InfoMuted, fontSize = 12.sp)
+                    Text(stringResource(R.string.pc_force_fetching, nameOf(state.providerId)), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.pc_force_try_of, state.attempt, state.of), color = InfoMuted, fontSize = 12.sp)
                     Spacer(Modifier.height(10.dp))
                     val progress by animateFloatAsState(state.attempt / state.of.toFloat(), label = "switchTries")
                     Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.12f))) {
@@ -154,15 +163,15 @@ private fun SwitchStatus(state: ProviderSwitchState, nameOf: (String) -> String)
                     }
                 }
                 is ProviderSwitchState.Failed -> {
-                    Text("Nguồn phát không khả dụng", color = Color(0xFFFF7A7A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.pc_force_unavailable), color = Color(0xFFFF7A7A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "${nameOf(state.providerId)} không phản hồi sau ${ProviderSwitch.MaxTries} lần thử, nên bài hát tiếp tục phát ở nguồn hiện tại. Hãy thử nguồn khác.",
+                        stringResource(R.string.pc_force_failed, nameOf(state.providerId), ProviderSwitch.MaxTries),
                         color = InfoMuted,
                         fontSize = 12.sp,
                     )
                 }
                 is ProviderSwitchState.Done -> {
-                    Text("Đang phát từ ${nameOf(state.providerId)}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.pc_force_now_playing, nameOf(state.providerId)), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
                 ProviderSwitchState.Idle -> Unit
             }
@@ -199,7 +208,7 @@ private fun ProviderChoiceRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = name, color = Color.White, fontSize = 15.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    text = if (isCurrent) "Đang phát từ nguồn này" else "Chạm để phát từ nguồn này",
+                    text = stringResource(if (isCurrent) R.string.pc_force_playing_here else R.string.pc_force_tap_here),
                     color = InfoMuted,
                     fontSize = 12.sp,
                 )

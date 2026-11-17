@@ -7,6 +7,7 @@
 
 package com.mochyy.mochymusic.ui.screens.library
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -46,6 +47,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -92,15 +95,20 @@ fun PopupSheetState.showAddLocalMusicSheet(viewModel: LibraryImportViewModel, on
         buttonBar = {
             val scan by viewModel.scan.collectAsState()
             val count = selection.keys.size
+            val stillRunning = stringResource(R.string.lib_import_still_running)
             SheetPillButton(
-                text = if (count == 0) "Xong" else "Thêm ${songCount(count)}",
+                text = if (count == 0) {
+                    stringResource(R.string.lib_picker_done)
+                } else {
+                    pluralStringResource(R.plurals.lib_picker_add_songs, count, count)
+                },
                 onClick = {
                     val found = (scan as? DeviceScan.Found)?.songs.orEmpty()
                     val picked = found.filter { it.uri.toString() in selection.keys }
                     sheet?.dismiss()
                     if (picked.isEmpty()) return@SheetPillButton
                     if (!viewModel.importDeviceSongs(picked)) {
-                        TopToaster.show("Đang có tiến trình nhập nhạc chạy. Vui lòng thử lại khi hoàn tất.", iconRes = R.drawable.library_music)
+                        TopToaster.show(stillRunning, iconRes = R.drawable.library_music)
                     }
                     onStarted()
                 },
@@ -118,11 +126,11 @@ fun PopupSheetState.showAddLocalMusicSheet(viewModel: LibraryImportViewModel, on
             }
         }
         SongPickerContent(
-            title = "Thêm nhạc",
+            title = stringResource(R.string.lib_picker_add_music),
             songs = songs,
             selection = selection,
-            loadingText = "Đang quét nhạc trên điện thoại của bạn…",
-            emptyText = "Mọi bài hát trên điện thoại đều đã có trong thư viện của bạn.",
+            loadingText = stringResource(R.string.lib_picker_looking),
+            emptyText = stringResource(R.string.lib_picker_all_in_library),
         )
     }
 }
@@ -131,9 +139,9 @@ fun PopupSheetState.showAddLocalMusicSheet(viewModel: LibraryImportViewModel, on
 fun PopupSheetState.showRemoveLocalSheet(localFiles: List<Song>, viewModel: LibraryImportViewModel) =
     showRemoveSongsSheet(
         songs = localFiles,
-        title = "Xóa khỏi danh sách",
-        emptyText = "Chưa có tệp nhạc nào từ điện thoại trong thư viện của bạn.",
-        hint = "Tệp nhạc gốc trên điện thoại vẫn được giữ nguyên.",
+        title = R.string.lib_picker_remove_from_list,
+        emptyText = R.string.lib_picker_no_local_files,
+        hint = R.string.lib_picker_files_stay,
         onRemove = { viewModel.removeLocalSongs(it) },
     )
 
@@ -141,17 +149,17 @@ fun PopupSheetState.showRemoveLocalSheet(localFiles: List<Song>, viewModel: Libr
 fun PopupSheetState.showRemoveCachedSheet(cachedSongs: List<Song>, onRemove: (Set<String>) -> Unit) =
     showRemoveSongsSheet(
         songs = cachedSongs,
-        title = "Xóa khỏi bộ nhớ đệm",
-        emptyText = "Chưa có bài hát nào trong bộ nhớ đệm.",
-        hint = "Bài hát sẽ phát trực tuyến lại khi bạn nghe lần sau.",
+        title = R.string.lib_picker_remove_from_cache,
+        emptyText = R.string.lib_picker_nothing_cached,
+        hint = R.string.lib_picker_cache_hint,
         onRemove = onRemove,
     )
 
 private fun PopupSheetState.showRemoveSongsSheet(
     songs: List<Song>,
-    title: String,
-    emptyText: String,
-    hint: String,
+    @StringRes title: Int,
+    @StringRes emptyText: Int,
+    @StringRes hint: Int,
     onRemove: (Set<String>) -> Unit,
 ) {
     val selection = PickerSelection()
@@ -161,7 +169,11 @@ private fun PopupSheetState.showRemoveSongsSheet(
         buttonBar = {
             val count = selection.keys.size
             SheetPillButton(
-                text = if (count == 0) "Chọn bài hát để xóa" else "Xóa ${songCount(count)}",
+                text = if (count == 0) {
+                    stringResource(R.string.lib_picker_pick_to_remove)
+                } else {
+                    pluralStringResource(R.plurals.lib_picker_remove_songs, count, count)
+                },
                 enabled = count > 0,
                 onClick = {
                     onRemove(selection.keys)
@@ -171,17 +183,15 @@ private fun PopupSheetState.showRemoveSongsSheet(
         },
     ) {
         SongPickerContent(
-            title = title,
+            title = stringResource(title),
             songs = pickerSongs,
             selection = selection,
             loadingText = "",
-            emptyText = emptyText,
-            hint = hint,
+            emptyText = stringResource(emptyText),
+            hint = stringResource(hint),
         )
     }
 }
-
-private fun songCount(count: Int) = "$count bài hát"
 
 /** Title, search, then the songs with their checkboxes. A null [songs] is still loading. */
 @Composable
@@ -213,7 +223,7 @@ private fun ColumnScope.SongPickerContent(
         if (!songs.isNullOrEmpty()) {
             val allTicked = selection.keys.size == songs.size
             Text(
-                text = if (allTicked) "Bỏ chọn tất cả" else "Chọn tất cả",
+                text = stringResource(if (allTicked) R.string.lib_picker_select_none else R.string.lib_picker_select_all),
                 color = SearchColors.Secondary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -230,13 +240,13 @@ private fun ColumnScope.SongPickerContent(
         Text(text = hint, color = SearchColors.Secondary, fontSize = 13.sp)
     }
     Spacer(Modifier.height(14.dp))
-    SheetSearchField(value = query, onValueChange = { query = it }, placeholder = "Tìm kiếm")
+    SheetSearchField(value = query, onValueChange = { query = it }, placeholder = stringResource(R.string.search))
     Spacer(Modifier.height(14.dp))
 
     val message = when {
         songs == null -> loadingText
         songs.isEmpty() -> emptyText
-        shown.isEmpty() -> "Không có kết quả khớp với \"${query.trim()}\""
+        shown.isEmpty() -> stringResource(R.string.lib_picker_nothing_matches, query.trim())
         else -> null
     }
     if (message != null) {

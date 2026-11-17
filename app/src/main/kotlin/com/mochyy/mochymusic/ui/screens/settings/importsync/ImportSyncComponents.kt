@@ -35,11 +35,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.InnerTubeCookieKey
 import com.mochyy.mochymusic.importer.LinkSource
 import com.mochyy.mochymusic.importer.ParsedImport
@@ -93,20 +95,25 @@ fun LinkInputDialog(
     DefaultDialog(
         onDismiss = onDismiss,
         horizontalAlignment = Alignment.Start,
-        title = { Text("Nhập từ ${source.label}") },
+        title = { Text(stringResource(R.string.import_component_from_source, source.label)) },
         buttons = {
             TextButton(onClick = {
-                clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let { link = it }
-            }) { Text("Dán") }
-            TextButton(onClick = onDismiss) { Text("Hủy") }
+                clipboard
+                    .getText()
+                    ?.text
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { link = it }
+            }) { Text(stringResource(R.string.import_component_paste)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.yt_sync_cancel)) }
             TextButton(
                 enabled = link.isNotBlank(),
                 onClick = { onSubmit(link.trim()) },
-            ) { Text("Tiếp tục") }
+            ) { Text(stringResource(R.string.import_component_continue)) }
         },
     ) {
         Text(
-            text = "Dán liên kết tới danh sách phát hoặc album công khai. Chia sẻ từ ${source.label} bằng nút \"Sao chép liên kết\".",
+            text = stringResource(R.string.import_component_link_prompt, source.label),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -118,9 +125,10 @@ fun LinkInputDialog(
             placeholder = { Text(source.example, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { if (link.isNotBlank()) onSubmit(link.trim()) }),
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
         )
     }
 }
@@ -136,38 +144,49 @@ fun PendingImportHost(
     val signedIn = rememberYouTubeSignedIn()
 
     when (val state = pending) {
-        PendingImport.Idle -> Unit
-        is PendingImport.Loading -> DefaultDialog(
-            onDismiss = viewModel::dismissPending,
-            buttons = { TextButton(onClick = viewModel::dismissPending) { Text("Hủy") } },
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
-                Spacer(Modifier.width(16.dp))
-                Text(state.label, style = MaterialTheme.typography.bodyLarge)
+        PendingImport.Idle -> {
+            Unit
+        }
+
+        is PendingImport.Loading -> {
+            DefaultDialog(
+                onDismiss = viewModel::dismissPending,
+                buttons = { TextButton(onClick = viewModel::dismissPending) { Text(stringResource(R.string.yt_sync_cancel)) } },
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+                    Spacer(Modifier.width(16.dp))
+                    Text(state.label, style = MaterialTheme.typography.bodyLarge)
+                }
             }
         }
-        is PendingImport.Failed -> DefaultDialog(
-            onDismiss = viewModel::dismissPending,
-            horizontalAlignment = Alignment.Start,
-            title = { Text("Không thể nhập") },
-            buttons = { TextButton(onClick = viewModel::dismissPending) { Text("OK") } },
-        ) {
-            Text(state.message, style = MaterialTheme.typography.bodyMedium)
+
+        is PendingImport.Failed -> {
+            DefaultDialog(
+                onDismiss = viewModel::dismissPending,
+                horizontalAlignment = Alignment.Start,
+                title = { Text(stringResource(R.string.import_component_failed_title)) },
+                buttons = { TextButton(onClick = viewModel::dismissPending) { Text(stringResource(R.string.import_sync_btn_ok)) } },
+            ) {
+                Text(state.message, style = MaterialTheme.typography.bodyMedium)
+            }
         }
-        is PendingImport.Ready -> ImportReviewDialog(
-            parsed = state.parsed,
-            sourceLabel = state.sourceLabel,
-            signedIn = signedIn,
-            onDismiss = viewModel::dismissPending,
-            onImport = { mirror ->
-                if (!viewModel.startImport(state.parsed, mirror)) {
-                    Toast.makeText(context, "Đang có một tiến trình nhập khác chạy", Toast.LENGTH_SHORT).show()
-                    viewModel.dismissPending()
-                }
-                navController.navigate(ImportProgressRoute) { launchSingleTop = true }
-            },
-        )
+
+        is PendingImport.Ready -> {
+            ImportReviewDialog(
+                parsed = state.parsed,
+                sourceLabel = state.sourceLabel,
+                signedIn = signedIn,
+                onDismiss = viewModel::dismissPending,
+                onImport = { mirror ->
+                    if (!viewModel.startImport(state.parsed, mirror)) {
+                        Toast.makeText(context, context.getString(R.string.import_component_already_running), Toast.LENGTH_SHORT).show()
+                        viewModel.dismissPending()
+                    }
+                    navController.navigate(ImportProgressRoute) { launchSingleTop = true }
+                },
+            )
+        }
     }
 }
 
@@ -187,29 +206,41 @@ private fun ImportReviewDialog(
         horizontalAlignment = Alignment.Start,
         title = {
             Text(
-                text = names.singleOrNull()?.takeIf { parsed.likedSongs.isEmpty() } ?: "Nhập từ $sourceLabel",
+                text =
+                    names.singleOrNull()?.takeIf { parsed.likedSongs.isEmpty() }
+                        ?: stringResource(R.string.import_component_from_source, sourceLabel),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         },
         buttons = {
-            TextButton(onClick = onDismiss) { Text("Hủy") }
-            TextButton(onClick = { onImport(mirror && signedIn) }) { Text("Nhập") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.yt_sync_cancel)) }
+            TextButton(onClick = { onImport(mirror && signedIn) }) { Text(stringResource(R.string.import_sync_import_title)) }
         },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (parsed.likedSongs.isNotEmpty()) {
-                Text("${parsed.likedSongs.size} bài hát đã thích", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.import_component_liked_songs_count, parsed.likedSongs.size),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
             if (names.isNotEmpty()) {
                 val songCount = parsed.playlists.values.sumOf { it.size }
                 Text(
-                    "${names.size} danh sách phát · $songCount bài hát",
+                    text =
+                        if (names.size == 1) {
+                            stringResource(R.string.import_component_playlists_summary_single, songCount)
+                        } else {
+                            stringResource(R.string.import_component_playlists_summary_multiple, names.size, songCount)
+                        },
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 if (names.size > 1) {
                     Text(
-                        text = names.take(6).joinToString(", ") + if (names.size > 6) " và ${names.size - 6} mục khác" else "",
+                        text =
+                            names.take(6).joinToString(", ") +
+                                if (names.size > 6) stringResource(R.string.import_component_and_more, names.size - 6) else "",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 4,
@@ -217,10 +248,11 @@ private fun ImportReviewDialog(
                     )
                 }
             }
-            val needsSearch = parsed.likedSongs.any { it.videoId == null } || parsed.playlists.values.any { list -> list.any { it.videoId == null } }
+            val needsSearch =
+                parsed.likedSongs.any { it.videoId == null } || parsed.playlists.values.any { list -> list.any { it.videoId == null } }
             if (needsSearch) {
                 Text(
-                    "Mỗi bài hát sẽ được tìm trên YouTube Music. Thư viện lớn có thể mất vài phút; bạn có thể rời khỏi trang này trong khi ứng dụng xử lý.",
+                    stringResource(R.string.import_component_search_notice),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -233,9 +265,9 @@ private fun ImportReviewDialog(
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Đồng thời tạo trên YouTube", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.import_component_mirror_yt_title), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Danh sách phát và bài hát đã thích cũng sẽ được thêm vào tài khoản YouTube của bạn.",
+                            stringResource(R.string.import_component_mirror_yt_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -245,7 +277,7 @@ private fun ImportReviewDialog(
                 }
                 if (!mirror && parsed.likedSongs.isNotEmpty()) {
                     Text(
-                        "Đồng bộ YouTube giúp đồng nhất các bài hát đã thích ở cả hai nơi, nên chúng vẫn sẽ được thêm vào YouTube ở lần đồng bộ tiếp theo.",
+                        stringResource(R.string.import_component_mirror_yt_sync_likes),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -2,8 +2,6 @@
 
 package com.mochyy.mochymusic.ui.player.info
 
-import com.mochyy.mochymusic.ui.theme.InterFontFamily
-
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -103,26 +101,26 @@ fun AboutSongSheet(
             ) {
                 // a tablet or a phone on its side keeps the column readable instead of stretching it
                 InfoColumn(modifier = Modifier.widthIn(max = 600.dp)) {
-                    InfoSheetTitle("Thông tin bài hát")
+                    InfoSheetTitle(stringResource(R.string.ps_details_about_song))
                     Spacer(Modifier.height(16.dp))
                     SongHeader(song)
                     InfoDivider()
                     GeneralInformation(about)
                     InfoDivider()
-                    InfoSectionTitle("Giới thiệu") {
+                    InfoSectionTitle(stringResource(R.string.pc_about)) {
                         SourceChip(source) { showSources = true }
                     }
                     Spacer(Modifier.height(12.dp))
                     AboutCard(about, source, onSwitch = { setSourceId(it.id) })
                     if (about.artists.isNotEmpty()) {
                         InfoDivider()
-                        InfoSectionTitle("Nghệ sĩ")
+                        InfoSectionTitle(stringResource(R.string.pc_about_by))
                         Spacer(Modifier.height(14.dp))
                         ArtistRow(about.artists, onOpenArtist)
                     }
                     if (about.links.isNotEmpty()) {
                         InfoDivider()
-                        InfoSectionTitle("Cũng có trên")
+                        InfoSectionTitle(stringResource(R.string.pc_about_also_on))
                         Spacer(Modifier.height(14.dp))
                         StoreRow(about.links)
                     }
@@ -143,20 +141,22 @@ fun AboutSongSheet(
 
 @Composable
 private fun GeneralInformation(about: SongAbout) {
-    InfoSectionTitle("Thông tin chung")
+    InfoSectionTitle(stringResource(R.string.pc_about_general))
     Spacer(Modifier.height(8.dp))
     // a fact still on its way gets a placeholder; one nobody had is left out rather than shown as "-"
     val waiting = !about.factsDone
+    val genreLabel = stringResource(R.string.pc_about_genre)
+    val releasedLabel = stringResource(R.string.pc_about_released)
     val genre = about.genre
-    if (genre != null) InfoBullet("Thể loại", genre) else if (waiting) LoadingBullet("Thể loại")
+    if (genre != null) InfoBullet(genreLabel, genre) else if (waiting) LoadingBullet(genreLabel)
     val released = about.released
-    if (released != null) InfoBullet("Ngày phát hành", released) else if (waiting) LoadingBullet("Ngày phát hành")
-    about.album?.let { InfoBullet("Album", it) }
-    about.artist?.let { InfoBullet("Nghệ sĩ", it) }
-    about.writtenBy?.let { InfoBullet("Sáng tác", it) }
-    about.producedBy?.let { InfoBullet("Sản xuất", it) }
-    about.label?.let { InfoBullet("Hãng đĩa", it) }
-    about.lengthSeconds?.let { InfoBullet("Thời lượng", makeTimeString(it * 1000L)) }
+    if (released != null) InfoBullet(releasedLabel, released) else if (waiting) LoadingBullet(releasedLabel)
+    about.album?.let { InfoBullet(stringResource(R.string.pc_about_album), it) }
+    about.artist?.let { InfoBullet(stringResource(R.string.pc_about_artist), it) }
+    about.writtenBy?.let { InfoBullet(stringResource(R.string.pc_about_written_by), it) }
+    about.producedBy?.let { InfoBullet(stringResource(R.string.pc_about_produced_by), it) }
+    about.label?.let { InfoBullet(stringResource(R.string.pc_about_label), it) }
+    about.lengthSeconds?.let { InfoBullet(stringResource(R.string.pc_about_length), makeTimeString(it * 1000L)) }
 }
 
 @Composable
@@ -188,7 +188,7 @@ private fun SourceChip(source: AboutSource, onClick: () -> Unit) {
     ) {
         Text(text = source.label, color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.width(6.dp))
-        Icon(Icons.Rounded.SwapVert, contentDescription = "Đổi nguồn", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
+        Icon(Icons.Rounded.SwapVert, contentDescription = stringResource(R.string.pc_about_change_source), tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
     }
 }
 
@@ -233,7 +233,7 @@ private fun AboutCard(about: SongAbout, source: AboutSource, onSwitch: (AboutSou
                             val other = AboutSource.entries.firstOrNull { it != shownSource && textFor(about, it) != null }
                             if (other != null) {
                                 Spacer(Modifier.height(12.dp))
-                                InfoPill(text = "Đọc trên ${other.label}", filled = true, onClick = { onSwitch(other) })
+                                InfoPill(text = stringResource(R.string.pc_about_read_on, other.label), filled = true, onClick = { onSwitch(other) })
                             }
                         }
                     }

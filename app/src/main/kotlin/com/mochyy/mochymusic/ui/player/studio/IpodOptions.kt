@@ -1,5 +1,6 @@
 package com.mochyy.mochymusic.ui.player.studio
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.IpodShadowKey
@@ -36,34 +38,42 @@ internal fun ColumnScope.IpodOptions() {
     var theme by rememberEnumPreference(IpodThemeKey, IpodTheme.SILVER)
     var wheel by rememberEnumPreference(IpodWheelColorKey, IpodWheelColor.THEME)
     var tall by rememberPreference(IpodTallScreenKey, defaultValue = false)
-    OptionSheet(title = "Giao diện iPod") {
+    OptionSheet(title = stringResource(R.string.ps_ipod_title)) {
         IpodTheme.entries.forEachIndexed { index, option ->
             OptionRow(
                 selected = theme == option,
                 onClick = { theme = option },
-                caption = if (index == 0) "Thân máy" else null,
+                caption = if (index == 0) stringResource(R.string.ps_ipod_body) else null,
                 compact = true,
             ) {
-                Swatch(lookOf(option, wheel, shadow = true, tall = false), option.title, option.description)
+                Swatch(lookOf(option, wheel, shadow = true, tall = false), stringResource(option.title), stringResource(option.description))
             }
         }
         IpodWheelColor.entries.forEachIndexed { index, option ->
             OptionRow(
                 selected = wheel == option,
                 onClick = { wheel = option },
-                caption = if (index == 0) "Vòng xoay" else null,
+                caption = if (index == 0) stringResource(R.string.ps_ipod_click_wheel) else null,
                 compact = true,
             ) {
-                Swatch(lookOf(theme, option, shadow = true, tall = false), option.title, option.description)
+                Swatch(lookOf(theme, option, shadow = true, tall = false), stringResource(option.title), stringResource(option.description))
             }
         }
-        OptionRow(selected = !tall, onClick = { tall = false }, caption = "Màn hình", compact = true) {
-            TwoLines("Cổ điển", "tỷ lệ nguyên bản, vòng xoay ở giữa")
+        OptionRow(selected = !tall, onClick = { tall = false }, caption = stringResource(R.string.ps_ipod_screen), compact = true) {
+            TwoLines(stringResource(R.string.ps_ipod_classic), stringResource(R.string.ps_ipod_classic_desc))
         }
         OptionRow(selected = tall, onClick = { tall = true }, compact = true) {
-            TwoLines("Màn hình dài", "màn hình kéo dài xuống sát vòng xoay")
+            TwoLines(stringResource(R.string.ps_ipod_tall), stringResource(R.string.ps_ipod_tall_desc))
         }
-        SwitchRow(IpodShadowOption)
+        SwitchRow(
+            CoverOption.Switch(
+                title = stringResource(R.string.ps_ipod_shadow),
+                description = stringResource(R.string.ps_ipod_shadow_desc),
+                icon = R.drawable.contrast,
+                key = IpodShadowKey,
+                default = true,
+            ),
+        )
     }
 }
 
@@ -86,42 +96,34 @@ private fun Swatch(look: IpodLook, title: String, description: String) {
     }
 }
 
-private val IpodTheme.title: String
-    get() = when (this) {
-        IpodTheme.SILVER -> "Bạc (Silver)"
-        IpodTheme.BLACK -> "Đen (Black)"
-        IpodTheme.U2 -> "Phiên bản U2"
-        IpodTheme.TRUE_DARK -> "Đen tuyền (OLED)"
+private val IpodTheme.title: Int
+    @StringRes get() = when (this) {
+        IpodTheme.SILVER -> R.string.ps_ipod_theme_silver
+        IpodTheme.BLACK -> R.string.ps_ipod_theme_black
+        IpodTheme.U2 -> R.string.ps_ipod_theme_u2
+        IpodTheme.TRUE_DARK -> R.string.ps_ipod_theme_true_dark
     }
 
-private val IpodTheme.description: String
-    get() = when (this) {
-        IpodTheme.SILVER -> "trắng và xám cổ điển"
-        IpodTheme.BLACK -> "xám chuyển sắc xuống đen"
-        IpodTheme.U2 -> "thân đen với vòng xoay đỏ"
-        IpodTheme.TRUE_DARK -> "đen hoàn toàn cả màn hình"
+private val IpodTheme.description: Int
+    @StringRes get() = when (this) {
+        IpodTheme.SILVER -> R.string.ps_ipod_theme_silver_desc
+        IpodTheme.BLACK -> R.string.ps_ipod_theme_black_desc
+        IpodTheme.U2 -> R.string.ps_ipod_theme_u2_desc
+        IpodTheme.TRUE_DARK -> R.string.ps_ipod_theme_true_dark_desc
     }
 
-private val IpodWheelColor.title: String
-    get() = when (this) {
-        IpodWheelColor.THEME -> "Theo màu thân máy"
-        IpodWheelColor.WHITE -> "Trắng"
-        IpodWheelColor.BLACK -> "Đen"
-        IpodWheelColor.RED -> "Đỏ"
+private val IpodWheelColor.title: Int
+    @StringRes get() = when (this) {
+        IpodWheelColor.THEME -> R.string.ps_ipod_wheel_theme
+        IpodWheelColor.WHITE -> R.string.ps_ipod_wheel_white
+        IpodWheelColor.BLACK -> R.string.ps_ipod_wheel_black
+        IpodWheelColor.RED -> R.string.ps_ipod_wheel_red
     }
 
-private val IpodWheelColor.description: String
-    get() = when (this) {
-        IpodWheelColor.THEME -> "dùng màu vòng xoay mặc định của thân máy"
-        IpodWheelColor.WHITE -> "vòng trắng với ký hiệu xám"
-        IpodWheelColor.BLACK -> "xám đậm với ký hiệu trắng"
-        IpodWheelColor.RED -> "vòng đỏ với ký hiệu trắng"
+private val IpodWheelColor.description: Int
+    @StringRes get() = when (this) {
+        IpodWheelColor.THEME -> R.string.ps_ipod_wheel_theme_desc
+        IpodWheelColor.WHITE -> R.string.ps_ipod_wheel_white_desc
+        IpodWheelColor.BLACK -> R.string.ps_ipod_wheel_black_desc
+        IpodWheelColor.RED -> R.string.ps_ipod_wheel_red_desc
     }
-
-private val IpodShadowOption = CoverOption.Switch(
-    title = "Đổ bóng",
-    description = "đổ bóng mềm quanh viền thân máy",
-    icon = R.drawable.contrast,
-    key = IpodShadowKey,
-    default = true,
-)

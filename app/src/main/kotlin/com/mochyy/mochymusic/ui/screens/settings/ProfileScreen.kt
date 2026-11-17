@@ -37,6 +37,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,6 +53,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -191,14 +195,21 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
 import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.rememberResourcePainter
 
 private object MochyGreeting {
-    private fun pick() = listOf("Xin chào", "Chào bạn", "Chào mừng trở lại", "Rất vui được gặp lại").random()
+    private fun pick() = listOf(
+        R.string.profile_greeting_hello_again,
+        R.string.profile_greeting_hey,
+        R.string.profile_greeting_welcome_back,
+        R.string.profile_greeting_good_to_see_you,
+    ).random()
 
-    private val greetingState = mutableStateOf("Xin chào")
+    // a string id, so the greeting follows the app language
+    private val greetingState = mutableIntStateOf(R.string.profile_greeting_hello_again)
     private var wasBackgrounded = false
 
-    val current: String get() = greetingState.value
+    val currentRes: Int get() = greetingState.intValue
 
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(
@@ -206,7 +217,7 @@ private object MochyGreeting {
                 when (event) {
                     Lifecycle.Event.ON_STOP -> wasBackgrounded = true
                     Lifecycle.Event.ON_START -> if (wasBackgrounded) {
-                        greetingState.value = pick()
+                        greetingState.intValue = pick()
                         wasBackgrounded = false
                     }
                     else -> Unit
@@ -259,7 +270,7 @@ fun ProfileScreen(navController: NavController) {
         com.music.innertube.YouTube.accountInfo().onSuccess { liveAccountName = it.name }
     }
     val accountName = localUsername.ifBlank { liveAccountName.orEmpty() }
-    val totalListeningMs by database.totalListeningTimeMs().collectAsState(initial = 0L)
+    val totalListeningMs by remember(database) { database.totalListeningTimeMs() }.collectAsState(initial = 0L)
 
     // the onboarding writes the card's number and join date; an install from before it gets them once, here
     LaunchedEffect(cardNumberPref, joinedEpochDay) {
@@ -268,7 +279,7 @@ fun ProfileScreen(navController: NavController) {
     }
     val cardNumber = cardNumberPref.ifBlank { "00000000000" }
     val joinedDate = if (joinedEpochDay >= 0L) LocalDate.ofEpochDay(joinedEpochDay) else LocalDate.now()
-    val joinedText = "tham gia ngày " + joinedDate.format(DateLong)
+    val joinedText = stringResource(R.string.profile_joined_at, joinedDate.format(DateLong)) + joinedDate.format(DateLong)
     val photo: Any? = profilePicUri.takeIf { it.isNotBlank() }?.let { if (it.contains("://")) it else "file://$it" }
 
     // ---- header state -------------------------------------------------------------------------
@@ -417,8 +428,24 @@ fun ProfileScreen(navController: NavController) {
 
     BackHandler(enabled = stage == HeaderStage.Expanded || stage == HeaderStage.Invalid || stage == HeaderStage.Pulling) { collapse() }
 
+    // on its side the card sits at the left and the cards at the right; the recap only plays upright
+    val landscape = com.mochyy.mochymusic.ui.utils.isLandscapeLayout()
+    // the recap asked for from the sideways page: the window turns upright first, then the card flips
+    var recapAsked by remember { mutableStateOf(false) }
+    com.mochyy.mochymusic.ui.utils.HoldOrientation(
+        orientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+        active = recapAsked || stage != HeaderStage.Collapsed || story != null,
+    )
+    LaunchedEffect(recapAsked, landscape) {
+        if (recapAsked && !landscape) {
+            recapAsked = false
+            expandFully()
+        }
+    }
+
     val scrollState = rememberScrollState()
     val glassState = remember { GlassState() }
+    val bottomBarInset = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
 
     // the Mochy page, and over it the profile page when the card has been tapped
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -439,10 +466,24 @@ fun ProfileScreen(navController: NavController) {
         ) {
             val viewportH = constraints.maxHeight.toFloat()
             val inset = with(density) { HomeContentInset.toPx() }
-            val cardW = constraints.maxWidth - 2 * inset
+            // on its side the header is the left pane, the card as big as fits between the logo and the bottom bar
+            // upright on a tablet the id card stops at 380dp instead of stretching across the screen
+            val maxCardW = with(density) { 380.dp.toPx() }
+            val paneW = if (landscape) constraints.maxWidth * LandscapePaneShare else constraints.maxWidth.toFloat()
+            val landscapeTop = topPx + with(density) { LandscapeCardTop.toPx() }
+            val landscapeBottom = viewportH - with(density) { (bottomBarInset + LandscapeHintRoom).toPx() }
+            val cardW = if (landscape) {
+                minOf(paneW - 2 * inset, (landscapeBottom - landscapeTop).coerceAtLeast(1f) * IdCardAspect)
+            } else {
+                minOf(constraints.maxWidth - 2 * inset, maxCardW)
+            }
             val cardH = cardW / IdCardAspect
-            val collapsedH = collapsedHeaderPx(topPx, cardH, density.density)
-            val cardTopCollapsed = topPx + with(density) { CardTopDp.dp.toPx() }
+            val collapsedH = if (landscape) viewportH else collapsedHeaderPx(topPx, cardH, density.density)
+            val cardTopCollapsed = if (landscape) {
+                landscapeTop + ((landscapeBottom - landscapeTop - cardH) / 2f).coerceAtLeast(0f)
+            } else {
+                topPx + with(density) { CardTopDp.dp.toPx() }
+            }
             val cardTopExpanded = viewportH * 0.49f - cardH / 2f
             val pullRange = (viewportH - collapsedH).coerceAtLeast(1f)
             val collapseProgress by remember { derivedStateOf { (scrollState.value / with(density) { 120.dp.toPx() }).coerceIn(0f, 1f) } }
@@ -481,16 +522,17 @@ fun ProfileScreen(navController: NavController) {
                     .fillMaxSize()
                     .glassRoot(glassState, isActive = { collapseProgress > 0f && stage == HeaderStage.Collapsed }),
             ) {
-                Column(
-                    modifier = Modifier
+                ProfilePageLayout(
+                    landscape = landscape,
+                    pageModifier = Modifier
                         .fillMaxSize()
-                        .nestedScroll(pullConnection)
-                        .verticalScroll(scrollState, enabled = stage == HeaderStage.Collapsed || stage == HeaderStage.Pulling),
-                ) {
+                        .nestedScroll(pullConnection),
+                    scroll = Modifier.verticalScroll(scrollState, enabled = stage == HeaderStage.Collapsed || stage == HeaderStage.Pulling),
+                    header = {
                     // header: grows to the viewport as it's pulled
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .then(if (landscape) Modifier.width(with(density) { paneW.toDp() }) else Modifier.fillMaxWidth())
                             .layout { measurable, constraints ->
                                 val h = lerpF(collapsedH, viewportH, expand).roundToInt()
                                 val p = measurable.measure(Constraints.fixed(constraints.maxWidth, h))
@@ -533,14 +575,14 @@ fun ProfileScreen(navController: NavController) {
                                     expand = (1f + dy.coerceAtMost(0f) / pullRange * 0.8f).coerceIn(0.4f, 1f)
                                 }
                             }
-                            .clipBottomRounded { cornerPx * (1f - expand) }
+                            .then(if (landscape) Modifier.clipEndRounded(cornerPx) else Modifier.clipBottomRounded { cornerPx * (1f - expand) })
                             .drawBehind { drawRect(lerp(HeaderGrey, StoryDark, expand)) }
                             .giantText(giant, time, measurer, centerY = { windowHeight / 2f - rootOnScreen.y })
                             .recapDots(color = { lerp(HeaderDots, StoryDots, expand) }),
                     ) {
-                        // greeting (in the header; its scrolled-away twin lives in the top bar)
-                        Text(
-                            text = "${MochyGreeting.current}, ${accountName.ifBlank { "bạn" }}!",
+                        // greeting (in the header; its scrolled-away twin lives in the top bar); on its side it heads the cards at the right
+                        if (!landscape) Text(
+                            text = stringResource(R.string.profile_greeting_format, stringResource(MochyGreeting.currentRes), accountName.ifBlank { stringResource(R.string.profile_greeting_fallback) }),
                             style = PageTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -557,8 +599,19 @@ fun ProfileScreen(navController: NavController) {
                         val coatingGone by remember(scratch) { derivedStateOf { scratch.dissolve.value >= 1f } }
                         Box(
                             modifier = Modifier
-                                .padding(horizontal = HomeContentInset)
-                                .fillMaxWidth()
+                                .then(
+                                    if (landscape) {
+                                        Modifier
+                                            .padding(start = with(density) { ((paneW - cardW) / 2f).toDp() })
+                                            .width(with(density) { cardW.toDp() })
+                                    } else {
+                                        Modifier
+                                            .align(Alignment.TopCenter)
+                                            .widthIn(max = 380.dp + HomeContentInset * 2)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = HomeContentInset)
+                                    }
+                                )
                                 .aspectRatio(IdCardAspect)
                                 .offset { androidx.compose.ui.unit.IntOffset(0, lerpF(cardTopCollapsed, cardTopExpanded, expand).roundToInt()) }
                                 .onPlaced { profile.cardSlot = it }
@@ -627,13 +680,23 @@ fun ProfileScreen(navController: NavController) {
                             }
                         }
 
-                        // pull hint: a chevron that, with a recap waiting, turns into words now and then
+                        // pull hint: a chevron that, with a recap waiting, turns into words now and then; on its side
+                        // there's nothing to pull, so a tap turns the phone upright and opens the recap
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .offset { androidx.compose.ui.unit.IntOffset(0, (cardTopCollapsed + cardH + 14.dp.toPx()).roundToInt()) }
                                 .height(30.dp)
+                                .then(
+                                    if (landscape) {
+                                        Modifier.clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = RemoteFocus,
+                                            enabled = stage == HeaderStage.Collapsed,
+                                        ) { recapAsked = true }
+                                    } else Modifier
+                                )
                                 .graphicsLayer {
                                     alpha = (1f - expand * 4f).coerceIn(0f, 1f) * contentIn.value
                                     translationY = ((sin(time.sway * 2.4f) + 1f) / 2f) * 4.dp.toPx()
@@ -641,7 +704,7 @@ fun ProfileScreen(navController: NavController) {
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.expand_more),
-                                contentDescription = "Pull down",
+                                contentDescription = stringResource(R.string.profile_pull_down_cd),
                                 tint = Color.White.copy(alpha = 0.35f),
                                 modifier = Modifier
                                     .size(30.dp)
@@ -655,7 +718,7 @@ fun ProfileScreen(navController: NavController) {
                             )
                             if (recapWaiting) {
                                 Text(
-                                    text = "vuốt xuống tại đây!!",
+                                    text = if (landscape) stringResource(R.string.recap_tap_hint) else stringResource(R.string.profile_swipe_down_hint),
                                     style = MonoSmall.copy(color = Color.White.copy(alpha = 0.6f)),
                                     maxLines = 1,
                                     modifier = Modifier.graphicsLayer {
@@ -683,7 +746,9 @@ fun ProfileScreen(navController: NavController) {
                         ) {
                             val invalid = stage == HeaderStage.Invalid
                             Text(
-                                text = if (invalid) "quay lại sau nhé" else "cào ngay!",
+                                text = if (invalid) stringResource(
+                                            R.string.profile_come_back_later,
+                                        ) else stringResource(R.string.profile_scratch_hint),
                                 style = PageTitle.copy(fontSize = 20.sp, textAlign = TextAlign.Center),
                                 modifier = Modifier.graphicsLayer { alpha = if (invalid) 1f else 1f - scratch.dissolve.value },
                             )
@@ -694,7 +759,7 @@ fun ProfileScreen(navController: NavController) {
                                     modifier = Modifier.padding(top = 6.dp),
                                 )
                                 Text(
-                                    text = "vuốt lên để đóng",
+                                    text = stringResource(R.string.profile_swipe_up_to_close),
                                     style = MonoSmall.copy(color = Color.White.copy(alpha = 0.35f)),
                                     modifier = Modifier.padding(top = 26.dp),
                                 )
@@ -702,7 +767,9 @@ fun ProfileScreen(navController: NavController) {
                         }
                     }
 
-                    // ---- everything under the header ----
+                    },
+                    content = {
+                    // ---- everything under the header (beside it, on its side) ----
                     Column(
                         modifier = Modifier
                             .padding(horizontal = 20.dp)
@@ -711,6 +778,16 @@ fun ProfileScreen(navController: NavController) {
                                 translationY = (1f - contentIn.value) * 60.dp.toPx()
                             },
                     ) {
+                        if (landscape) {
+                            Spacer(Modifier.height(statusBarTop + 30.dp))
+                            Text(
+                                text = stringResource(R.string.profile_greeting_format, stringResource(MochyGreeting.currentRes), accountName.ifBlank { stringResource(R.string.profile_greeting_fallback) }),
+                                style = PageTitle,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.graphicsLayer { alpha = 1f - collapseProgress },
+                            )
+                        }
                         Spacer(Modifier.height(24.dp))
                         ListeningTimeCard(totalListeningMs, onViewStats = { navController.navigate("stats") })
                         Spacer(Modifier.height(16.dp))
@@ -735,11 +812,12 @@ fun ProfileScreen(navController: NavController) {
                         Spacer(Modifier.height(16.dp))
                         DiscordCard(onClick = { context.openDevUrl(DiscordUrl) })
                         Spacer(Modifier.height(28.dp))
-                        Text("Cài đặt", style = PageTitle.copy(fontSize = 15.sp), modifier = Modifier.padding(start = 2.dp, bottom = 10.dp))
+                        Text(stringResource(R.string.profile_settings_title), style = PageTitle.copy(fontSize = 15.sp), modifier = Modifier.padding(start = 2.dp, bottom = 10.dp))
                         OpenSettingsRow(onClick = { navController.navigate("mochy_settings") })
                         Spacer(Modifier.height(180.dp))
                     }
-                }
+                    },
+                )
             }
 
             // ---- the glass top bar, a sibling of the glassRoot box (never inside it) ------------------
@@ -794,7 +872,7 @@ fun ProfileScreen(navController: NavController) {
             )
             if (collapseProgress > 0.01f) {
                 Text(
-                    text = "${MochyGreeting.current}, ${accountName.ifBlank { "bạn" }}!",
+                    text = stringResource(R.string.profile_greeting_format, stringResource(MochyGreeting.currentRes), accountName.ifBlank { stringResource(R.string.profile_greeting_fallback) }),
                     style = PageTitle.copy(fontSize = 18.sp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -855,6 +933,47 @@ fun ProfileScreen(navController: NavController) {
 }
 
 private const val CardTopDp = 130f
+
+// on its side: the card's pane takes this share of the width, the card starts under the logo and keeps room under it for the hint
+private const val LandscapePaneShare = 0.46f
+private val LandscapeCardTop = 92.dp
+private val LandscapeHintRoom = 50.dp
+
+// upright the header and the cards scroll as one column; on its side the header stands still at the left and the cards scroll beside it
+@Composable
+private fun ProfilePageLayout(
+    landscape: Boolean,
+    pageModifier: Modifier,
+    scroll: Modifier,
+    header: @Composable () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    if (landscape) {
+        Row(modifier = pageModifier) {
+            header()
+            Column(modifier = Modifier.weight(1f).fillMaxHeight().then(scroll)) { content() }
+        }
+    } else {
+        Column(modifier = pageModifier.then(scroll)) {
+            header()
+            content()
+        }
+    }
+}
+
+// the header pane on its side: rounded on the side that faces the cards
+private fun Modifier.clipEndRounded(radius: Float): Modifier = drawWithCache {
+    val path = Path().apply {
+        addRoundRect(
+            RoundRect(
+                rect = Rect(0f, 0f, size.width, size.height),
+                topRight = CornerRadius(radius),
+                bottomRight = CornerRadius(radius),
+            ),
+        )
+    }
+    onDrawWithContent { clipPath(path) { this@onDrawWithContent.drawContent() } }
+}
 
 /** The logo's top below the status bar: Settings and Library centre a 32dp mark in a 62dp block 18dp down. */
 private val TopBarLogoTop = 32.dp
@@ -919,7 +1038,7 @@ private fun ListeningTimeCard(totalMs: Long, onViewStats: () -> Unit) {
             // long hour counts ("1234h") shrink the figures a step so the label keeps its room
             val k = widthScale(maxWidth.value + 40f) * if (hours >= 1000) 0.8f else if (hours >= 100) 0.9f else 1f
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TimeValue(hours.toString(), "h", k)
+                TimeValue(hours.toString(), stringResource(R.string.profile_unit_hour_short), k)
                 Box(
                     modifier = Modifier
                         .padding(horizontal = (14 * k).dp)
@@ -927,10 +1046,10 @@ private fun ListeningTimeCard(totalMs: Long, onViewStats: () -> Unit) {
                         .height((34 * k).dp)
                         .background(Color.White.copy(alpha = 0.4f)),
                 )
-                TimeValue((totalMinutes % 60).toString(), "m", k)
+                TimeValue((totalMinutes % 60).toString(), stringResource(R.string.profile_unit_minute_short), k)
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "Tổng thời gian\nnghe nhạc",
+                    stringResource(R.string.profile_total_listening_time),
                     style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 18.sp, color = Color(0xFF8A8A8A), textAlign = TextAlign.End),
                     modifier = Modifier.weight(1f),
                 )
@@ -940,7 +1059,7 @@ private fun ListeningTimeCard(totalMs: Long, onViewStats: () -> Unit) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF474747)))
         Spacer(Modifier.height(12.dp))
         Text(
-            "Xem thống kê  >",
+            stringResource(R.string.profile_view_stats),
             style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF8A8A8A)),
         )
     }
@@ -983,7 +1102,7 @@ private fun VersionCard(
                 .padding(CardPadding),
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Phiên bản & giới thiệu", style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF9A9A9A)))
+                Text(stringResource(R.string.profile_version_about_app), style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF9A9A9A)))
                 Text(
                     // "7.1.1 build#1093" -> "7.1.1"
                     BuildConfig.VERSION_NAME.substringBefore(' '),
@@ -1002,13 +1121,13 @@ private fun VersionCard(
 }
 
 /**
- * The version card's capsule: "About app", or "Update" once one is out. The swap pops - the
+ * The version card's capsule: "About app", or stringResource(R.string.profile_capsule_update) once one is out. The swap pops - the
  * capsule squashes and springs back past its size while the new word grows in on a bounce and
  * the width springs to fit it.
  */
 @Composable
 private fun VersionCapsule(update: Boolean, onAbout: () -> Unit) {
-    val shown = if (update) "Cập nhật" else "Giới thiệu"
+    val shown = if (update) "Update" else stringResource(R.string.profile_capsule_about)
 
     // the pop: a quick squash, then a spring that carries past full size and settles
     val pop = remember { Animatable(1f) }
@@ -1102,7 +1221,7 @@ private fun DeveloperCard(onClick: () -> Unit) {
         }
         Spacer(Modifier.width(12.dp))
         Text(
-            "gặp gỡ nhà phát triển & cộng tác viên :3",
+            stringResource(R.string.profile_meet_dev_contributors),
             style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = (-0.6).sp, color = Color(0xFF9A9A9A)),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -1124,8 +1243,8 @@ private fun DiscordCard(onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Image(
-            painter = painterResource(R.drawable.mochy_discord),
-            contentDescription = "Discord",
+            painter = rememberResourcePainter(R.drawable.mochy_discord),
+            contentDescription = stringResource(R.string.profile_discord_cd),
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(face)
@@ -1134,7 +1253,7 @@ private fun DiscordCard(onClick: () -> Unit) {
         )
         Spacer(Modifier.width(12.dp))
         Text(
-            "Tham gia máy chủ Discord của Mochy!",
+            stringResource(R.string.profile_join_discord),
             style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = (-0.6).sp, color = Color.White),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -1165,6 +1284,6 @@ private fun OpenSettingsRow(onClick: () -> Unit) {
         ) {
             Icon(painterResource(R.drawable.settings), contentDescription = null, tint = Color(0xFF232323), modifier = Modifier.size(18.dp))
         }
-        Text("Mở cài đặt", style = PageTitle.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold))
+        Text(stringResource(R.string.profile_open_settings), style = PageTitle.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold))
     }
 }

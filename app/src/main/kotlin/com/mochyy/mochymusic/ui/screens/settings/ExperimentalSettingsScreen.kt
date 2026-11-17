@@ -18,6 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
@@ -30,7 +31,6 @@ import com.mochyy.mochymusic.constants.HapticFocusKey
 import com.mochyy.mochymusic.constants.HapticSensitivity
 import com.mochyy.mochymusic.constants.MusicHapticsEnabledKey
 import com.mochyy.mochymusic.constants.MusicHapticsSensitivityKey
-import com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey
 import com.mochyy.mochymusic.constants.SetupCompletedKey
 import com.mochyy.mochymusic.ui.component.SettingsGroup
 import com.mochyy.mochymusic.ui.component.SettingsGroupStyle
@@ -67,12 +67,23 @@ fun ExperimentalSettingsScreen(navController: NavController) {
     val crossmixTools = crossmixTestItems(isVisible = crossmixTestTools)
     val (sourceBanner, onSourceBannerChange) = rememberPreference(ShowStreamSourceToastKey, defaultValue = false)
     val (forcePlayback, onForcePlaybackChange) = rememberPreference(ForcePlaybackKey, defaultValue = false)
+    val (streamBackend, onStreamBackendChange) = rememberEnumPreference(
+        com.mochyy.mochymusic.constants.StreamBackendKey,
+        defaultValue = com.mochyy.mochymusic.constants.StreamBackend.INNERTUBEX,
+    )
+    val streamBackendTitle = stringResource(R.string.experimental_stream_backend)
+    // off by default: the whole app stays upright until the wide layout is ready
+    val (landscapeUnlocked, onLandscapeUnlockedChange) = rememberPreference(
+        com.mochyy.mochymusic.constants.LandscapeUnlockedKey,
+        defaultValue = false,
+    )
+    val unlockLandscapeTitle = stringResource(R.string.experimental_unlock_landscape)
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     SubSettingsScaffold(
-        title = "Thử nghiệm",
+        title = stringResource(R.string.experimental_settings_title),
         onBack = { navController.navigateUp() },
     ) {
             SettingsGroup(
@@ -80,9 +91,23 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                 items = buildList {
                     add(
                         SettingsItem(
-                            title = { Text("Nhập & đồng bộ") },
+                            title = { Text(unlockLandscapeTitle) },
+                            highlightKey = unlockLandscapeTitle,
+                            descriptionText = stringResource(R.string.experimental_unlock_landscape_desc),
+                            detail = stringResource(R.string.experimental_unlock_landscape_detail),
+                            icon = painterResource(R.drawable.screen_rotation),
+                            iconShape = androidx.compose.foundation.shape.CircleShape,
+                            onClick = { onLandscapeUnlockedChange(!landscapeUnlocked) },
+                            trailingContent = {
+                                AppSwitch(checked = landscapeUnlocked, onCheckedChange = onLandscapeUnlockedChange)
+                            }
+                        )
+                    )
+                    add(
+                        SettingsItem(
+                            title = { Text(stringResource(R.string.experimental_import_sync_title)) },
                             highlightKey = "Import & sync",
-                            descriptionText = "Đưa danh sách phát từ dịch vụ khác về, đồng bộ với YouTube, xuất bản sao lưu",
+                            descriptionText = stringResource(R.string.experimental_import_sync_desc),
                             icon = painterResource(R.drawable.sync),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { navController.navigate(com.mochyy.mochymusic.ui.screens.settings.importsync.ImportSyncRoute) }
@@ -90,10 +115,10 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Công cụ thử nghiệm Crossmix") },
+                            title = { Text(stringResource(R.string.experimental_crossmix_tools_title)) },
                             highlightKey = "Crossmix test tools",
-                            descriptionText = "Trạng thái trực tiếp và nút tua tới điểm trộn bài",
-                            detail = "Hiển thị trạng thái trực tiếp và nút tua nhanh tới ngay trước lần trộn bài tiếp theo",
+                            descriptionText = stringResource(R.string.experimental_crossmix_tools_desc),
+                            detail = stringResource(R.string.experimental_crossmix_tools_detail),
                             icon = painterResource(R.drawable.graphic_eq),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { onCrossmixTestToolsChange(!crossmixTestTools) },
@@ -108,10 +133,10 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     crossmixTools.forEach { add(it.copy(isSubOption = true)) }
                     add(
                         SettingsItem(
-                            title = { Text("Hiển thị nguồn phát bài hát") },
+                            title = { Text(stringResource(R.string.experimental_show_stream_source_title)) },
                             highlightKey = "Show where songs play from",
-                            descriptionText = "Biểu ngữ hiển thị nguồn phát và chất lượng của mỗi bài hát",
-                            detail = "Biểu ngữ ở phía trên hiển thị nguồn của bài hát: Apple Music, Monochrome hoặc YouTube cùng chất lượng âm thanh",
+                            descriptionText = stringResource(R.string.experimental_show_stream_source_desc),
+                            detail = stringResource(R.string.experimental_show_stream_source_detail),
                             icon = painterResource(R.drawable.info),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { onSourceBannerChange(!sourceBanner) },
@@ -122,10 +147,37 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Buộc phát nhạc") },
+                            title = { Text(streamBackendTitle) },
+                            highlightKey = streamBackendTitle,
+                            description = {
+                                Text(
+                                    stringResource(
+                                        when (streamBackend) {
+                                            com.mochyy.mochymusic.constants.StreamBackend.INNERTUBEX -> R.string.experimental_stream_backend_innertubex
+                                            com.mochyy.mochymusic.constants.StreamBackend.CLASSIC -> R.string.experimental_stream_backend_classic
+                                        }
+                                    )
+                                )
+                            },
+                            detail = stringResource(R.string.experimental_stream_backend_detail),
+                            icon = painterResource(R.drawable.key),
+                            iconShape = androidx.compose.foundation.shape.CircleShape,
+                            onClick = {
+                                onStreamBackendChange(
+                                    when (streamBackend) {
+                                        com.mochyy.mochymusic.constants.StreamBackend.INNERTUBEX -> com.mochyy.mochymusic.constants.StreamBackend.CLASSIC
+                                        com.mochyy.mochymusic.constants.StreamBackend.CLASSIC -> com.mochyy.mochymusic.constants.StreamBackend.INNERTUBEX
+                                    }
+                                )
+                            }
+                        )
+                    )
+                    add(
+                        SettingsItem(
+                            title = { Text(stringResource(R.string.experimental_force_playback_title)) },
                             highlightKey = "Force playback",
-                            descriptionText = "Nếu một nguồn phát bị lỗi, tự động thử nguồn tiếp theo",
-                            detail = "Không bao giờ dừng lại: nếu một nguồn không phát được, nguồn tiếp theo sẽ tự động thay thế; nếu không nguồn nào phát được, bài hát sẽ được bỏ qua",
+                            descriptionText = stringResource(R.string.experimental_force_playback_desc),
+                            detail = stringResource(R.string.experimental_force_playback_detail),
                             icon = painterResource(R.drawable.play),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { onForcePlaybackChange(!forcePlayback) },
@@ -136,9 +188,9 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Buộc làm mờ ảnh YouTube 1500 px") },
+                            title = { Text(stringResource(R.string.experimental_force_yt_blur_title)) },
                             highlightKey = "Force 1500 px YouTube blur",
-                            descriptionText = "Ghi đè mức mặc định 120 px; có thể làm tăng tải GPU",
+                            descriptionText = stringResource(R.string.experimental_force_yt_blur_desc),
                             icon = painterResource(R.drawable.tune),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { onForceYtBackdropBlur1500Change(!forceYtBackdropBlur1500) },
@@ -152,10 +204,10 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Buộc hiển thị tổng kết tháng") },
+                            title = { Text(stringResource(R.string.experimental_force_recap_title)) },
                             highlightKey = "Force show monthly recap",
-                            descriptionText = "Mở khóa sớm bản tổng kết tháng",
-                            detail = "Mở khóa ngay bản tổng kết tháng phía sau thẻ Mochy mà không cần đợi",
+                            descriptionText = stringResource(R.string.experimental_force_recap_desc),
+                            detail = stringResource(R.string.experimental_force_recap_detail),
                             icon = painterResource(R.drawable.history),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { onForceRecapChange(!forceRecap) },
@@ -169,9 +221,9 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Kiểu bìa đĩa nhạc cỡ lớn") },
+                            title = { Text(stringResource(R.string.experimental_big_disc_title)) },
                             highlightKey = "Big disc cover styles",
-                            descriptionText = "Unfinished — oversized discs that bleed off screen",
+                            descriptionText = stringResource(R.string.experimental_big_disc_desc),
                             icon = painterResource(R.drawable.album),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { onShowBigDiscStylesChange(!showBigDiscStyles) },
@@ -185,9 +237,9 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Rung phản hồi theo nhạc") },
+                            title = { Text(stringResource(R.string.experimental_music_haptics_title)) },
                             highlightKey = "Music haptics",
-                            descriptionText = "Vibrate to the beat — uses battery",
+                            descriptionText = stringResource(R.string.experimental_music_haptics_desc),
                             icon = painterResource(R.drawable.music_note),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { onMusicHapticsEnabledChange(!musicHapticsEnabled) },
@@ -198,13 +250,13 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Độ nhạy rung") },
+                            title = { Text(stringResource(R.string.experimental_haptic_sensitivity_title)) },
                             description = {
                                 Text(
                                     when (musicHapticsSensitivity) {
-                                        HapticSensitivity.LOW -> "Thấp"
-                                        HapticSensitivity.MEDIUM -> "Trung bình"
-                                        HapticSensitivity.HIGH -> "Cao"
+                                        HapticSensitivity.LOW -> stringResource(R.string.experimental_haptic_sensitivity_low)
+                                        HapticSensitivity.MEDIUM -> stringResource(R.string.experimental_haptic_sensitivity_medium)
+                                        HapticSensitivity.HIGH -> stringResource(R.string.experimental_haptic_sensitivity_high)
                                     }
                                 )
                             },
@@ -224,14 +276,14 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Trọng tâm nhịp rung") },
+                            title = { Text(stringResource(R.string.experimental_haptic_focus_title)) },
                             description = {
                                 Text(
                                     when (hapticFocus) {
-                                        HapticFocus.BALANCE -> "Cân bằng"
-                                        HapticFocus.VOCAL -> "Tập trung giọng hát"
-                                        HapticFocus.VIBE -> "Tập trung giai điệu"
-                                        HapticFocus.BASS -> "Tập trung âm trầm"
+                                        HapticFocus.BALANCE -> stringResource(R.string.experimental_haptic_focus_balance)
+                                        HapticFocus.VOCAL -> stringResource(R.string.experimental_haptic_focus_vocal)
+                                        HapticFocus.VIBE -> stringResource(R.string.experimental_haptic_focus_vibe)
+                                        HapticFocus.BASS -> stringResource(R.string.experimental_haptic_focus_bass)
                                     }
                                 )
                             },
@@ -252,9 +304,9 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Cipher") },
+                            title = { Text(stringResource(R.string.experimental_cipher_title)) },
                             highlightKey = "Cipher",
-                            descriptionText = "Trạng thái mã trình phát, bộ đếm ngược và làm mới",
+                            descriptionText = stringResource(R.string.experimental_cipher_desc),
                             icon = painterResource(R.drawable.key),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { navController.navigate("cipher_settings") }
@@ -262,9 +314,9 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Chẩn đoán phát nhạc") },
+                            title = { Text(stringResource(R.string.experimental_playback_diagnostics_title)) },
                             highlightKey = "Playback diagnostics",
-                            descriptionText = "Xem máy khách nào đã phục vụ từng bài hát và trạng thái PoToken",
+                            descriptionText = stringResource(R.string.experimental_playback_diagnostics_desc),
                             icon = painterResource(R.drawable.info),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = { navController.navigate("playback_diagnostics") }
@@ -272,9 +324,9 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                     )
                     add(
                         SettingsItem(
-                            title = { Text("Chạy lại thiết lập ban đầu") },
+                            title = { Text(stringResource(R.string.experimental_repeat_setup_title)) },
                             highlightKey = "Repeat initial setup",
-                            descriptionText = "Mở lại trình hướng dẫn thiết lập",
+                            descriptionText = stringResource(R.string.experimental_repeat_setup_desc),
                             icon = painterResource(R.drawable.restore),
                             iconShape = androidx.compose.foundation.shape.CircleShape,
                             onClick = {
@@ -282,7 +334,6 @@ fun ExperimentalSettingsScreen(navController: NavController) {
                                     context.dataStore.updateData { prefs ->
                                         prefs.toMutablePreferences().apply {
                                             set(SetupCompletedKey, false)
-                                            set(MochyCloudWelcomeSeenKey, false)
                                         }
                                     }
                                 }

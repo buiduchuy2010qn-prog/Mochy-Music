@@ -13,8 +13,10 @@ import com.mochyy.mochymusic.importer.DeviceSong
 import com.mochyy.mochymusic.importer.ImportHistory
 import com.mochyy.mochymusic.importer.ImportSource
 import com.mochyy.mochymusic.importer.LocalArtwork
+import com.mochyy.mochymusic.importer.LocalFile
 import com.mochyy.mochymusic.importer.LocalFolders
 import com.mochyy.mochymusic.importer.LocalImportService
+import com.mochyy.mochymusic.importer.LocalSongRepair
 import androidx.media3.exoplayer.offline.DownloadService
 import com.mochyy.mochymusic.models.TransferBatch
 import com.mochyy.mochymusic.models.TransferState
@@ -92,44 +94,53 @@ class LibraryImportViewModel @Inject constructor(
      * the library yet are imported now. Returns false when there was nothing to start.
      */
     suspend fun addFolder(tree: Uri): Boolean {
-        val files = withContext(Dispatchers.IO) {
+        val scanned = withContext(Dispatchers.IO) {
             runCatching { LocalFolders.add(context, tree) }.getOrNull() ?: return@withContext null
-            LocalFolders.newAudioFiles(context, tree, knownLocalUris(withMediaStore = false))
+            LocalFolders.scan(context, tree)
         }
-        if (files == null) {
-            TopToaster.show("Không thể giữ quyền truy cập thư mục đó. Hãy thử chọn lại.", iconRes = R.drawable.library_music)
+        if (scanned == null) {
+            TopToaster.show("Couldn't keep access to that folder. Try picking it again.", iconRes = R.drawable.library_music)
             return false
         }
-        return startFolderImport(files, emptyMessage = "Mọi bài hát trong thư mục đó đều đã có trong thư viện của bạn")
+        // picking a folder again also brings the lyrics and covers beside its songs to the ones already in
+        reportRepaired(LocalSongRepair.repair(context, database, scanned))
+        val files = withContext(Dispatchers.IO) { LocalFolders.onlyNew(context, scanned, knownLocalUris(withMediaStore = false)) }
+        return startFolderImport(files, emptyMessage = "Every song in that folder is already in your library")
     }
 
     /**
-     * Re-scan: brings back covers that went missing, then reads the saved music folders again
-     * for new files. Returns true when an import started.
+     * Re-scan: brings back covers that went missing, gives songs in the saved music folders the
+     * lyrics and covers sitting beside them, then imports new files. Returns true when an import started.
      */
     suspend fun refreshLocal(): Boolean {
-        val (fixedCovers, files) = withContext(Dispatchers.IO) {
+        val (fixedCovers, scanned) = withContext(Dispatchers.IO) {
             val fixed = LocalArtwork.repair(context, database, includeMissing = true)
-            val known = knownLocalUris(withMediaStore = false)
-            fixed to LocalFolders.read(context).flatMap { LocalFolders.newAudioFiles(context, it, known) }.distinct()
+            fixed to LocalFolders.scanSaved(context)
         }
         if (fixedCovers > 0) {
-            TopToaster.show("Đã khôi phục $fixedCovers ảnh bìa", iconRes = R.drawable.library_music)
+            TopToaster.show(if (fixedCovers == 1) "Brought back 1 cover" else "Brought back $fixedCovers covers", iconRes = R.drawable.library_music)
         }
+        reportRepaired(LocalSongRepair.repair(context, database, scanned))
+        val files = withContext(Dispatchers.IO) { LocalFolders.onlyNew(context, scanned, knownLocalUris(withMediaStore = false)) }
         if (files.isEmpty()) return false
         return startFolderImport(files, emptyMessage = null)
+    }
+
+    private fun reportRepaired(count: Int) {
+        if (count == 0) return
+        TopToaster.show(context.resources.getQuantityString(R.plurals.lib_local_repaired, count, count), iconRes = R.drawable.library_music)
     }
 
     /** True if Mochy has music folders the user picked. */
     fun hasFolders(): Boolean = LocalFolders.read(context).isNotEmpty()
 
-    private fun startFolderImport(files: List<Uri>, emptyMessage: String?): Boolean {
+    private fun startFolderImport(files: List<LocalFile>, emptyMessage: String?): Boolean {
         if (files.isEmpty()) {
             emptyMessage?.let { TopToaster.show(it, iconRes = R.drawable.library_music) }
             return false
         }
         if (!localImport.importFolderFiles(files)) {
-            TopToaster.show("Đang có tiến trình nhập nhạc chạy. Vui lòng thử lại khi hoàn tất.", iconRes = R.drawable.library_music)
+            TopToaster.show("An import is still running. Try again once it's done.", iconRes = R.drawable.library_music)
             return false
         }
         return true
@@ -148,33 +159,33 @@ class LibraryImportViewModel @Inject constructor(
             DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, item.key, false)
         }
         TopToaster.show(
-            "Đã hủy ${running.size} lượt tải xuống",
+            if (running.size == 1) "Cancelled 1 download" else "Cancelled ${running.size} downloads",
             iconRes = R.drawable.library_music,
         )
     }
 
     // ---- Manage imports ----
 
-    fun deleteAllImports() = report { "Đã gỡ ${songs(history.deleteAllImports())} đã nhập" }
+    fun deleteAllImports() = report { "Removed ${songs(history.deleteAllImports())} you imported" }
 
     fun undoLatestImport() = report {
-        history.undoLatestImport()?.let { "Đã hoàn tác lần nhập gần nhất: gỡ ${songs(it)}" } ?: "Không có lần nhập nào để hoàn tác"
+        history.undoLatestImport()?.let { "Undid your last import: ${songs(it)} removed" } ?: "There's no import to undo"
     }
 
     fun deleteImportsFrom(source: ImportSource) = report {
-        "Đã gỡ ${songs(history.deleteImportsFrom(source))} nhập từ ${source.label}"
+        "Removed ${songs(history.deleteImportsFrom(source))} imported from ${source.label}"
     }
 
     // ---- Manage local ----
 
     fun undoLatestLocalImport() = report {
-        history.undoLatestLocalImport()?.let { "Đã hoàn tác lần nhập nhạc trên máy: gỡ ${songs(it)}" }
-            ?: "Không có lần nhập nhạc trên máy nào để hoàn tác"
+        history.undoLatestLocalImport()?.let { "Undid your last local import: ${songs(it)} removed" }
+            ?: "There's no local import to undo"
     }
 
     fun removeLocalSongs(songIds: Collection<String>) = report {
         history.removeLocalSongs(songIds)
-        "Đã gỡ ${songs(songIds.size)} khỏi thư viện. Tệp gốc vẫn còn trên điện thoại."
+        "Removed ${songs(songIds.size)}. The files are still on your phone."
     }
 
     /**
@@ -196,5 +207,5 @@ class LibraryImportViewModel @Inject constructor(
         }
     }
 
-    private fun songs(count: Int) = "$count bài hát"
+    private fun songs(count: Int) = if (count == 1) "1 song" else "$count songs"
 }

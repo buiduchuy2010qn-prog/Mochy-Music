@@ -41,11 +41,15 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -75,6 +79,7 @@ import com.mochyy.mochymusic.ui.component.detail.PlaylistSectionTitle
 import com.mochyy.mochymusic.ui.component.detail.PlaylistStatsStyle
 import com.mochyy.mochymusic.ui.component.detail.PlaylistTrackBones
 import com.mochyy.mochymusic.ui.component.detail.PlaylistModeBar
+import com.mochyy.mochymusic.ui.component.detail.PlaylistSearchBar
 import com.mochyy.mochymusic.ui.component.detail.PlaylistSelectTick
 import com.mochyy.mochymusic.ui.component.detail.PlaylistTrackRow
 import com.mochyy.mochymusic.ui.component.detail.featuredArtistsOf
@@ -126,6 +131,29 @@ fun AlbumScreen(
         songs
     }
 
+    // the album's own song search, from the round button beside shuffle
+    var isSearching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+    val focusRequester = remember { FocusRequester() }
+    val shownSongs = remember(filteredSongs, isSearching, query.text) {
+        val typed = query.text.trim()
+        if (!isSearching || typed.isEmpty()) {
+            filteredSongs
+        } else {
+            filteredSongs.filter { song ->
+                song.song.title.contains(typed, ignoreCase = true) ||
+                    song.artists.any { it.name.contains(typed, ignoreCase = true) }
+            }
+        }
+    }
+    val closeSearch = {
+        isSearching = false
+        query = TextFieldValue()
+    }
+    if (isSearching) {
+        BackHandler(onBack = closeSearch)
+    }
+
     var inSelectMode by rememberSaveable { mutableStateOf(false) }
     val selection = rememberSaveable(
         saver = listSaver<MutableList<String>, String>(
@@ -160,6 +188,14 @@ fun AlbumScreen(
         featuredArtistsOf(filteredSongs.flatMap { it.artists }, id = { it.id }, name = { it.name })
     }
     val mainArtistName = album?.artists?.firstOrNull()?.name
+    // the shelves are built outside composition, so their titles are read here first
+    val moreByArtistTitle = if (mainArtistName != null) {
+        stringResource(R.string.album_more_by_artist, mainArtistName)
+    } else {
+        stringResource(R.string.album_more_by_this_artist)
+    }
+    val otherVersionsTitle = stringResource(R.string.album_other_versions)
+    val releasesForYouTitle = stringResource(R.string.album_releases_for_you)
 
     fun play(startIndex: Int = 0, shuffled: Boolean = false) {
         val current = album ?: return
@@ -191,6 +227,17 @@ fun AlbumScreen(
                 }
             }
         },
+        topBarOverride = if (isSearching) {
+            {
+                PlaylistSearchBar(
+                    query = query,
+                    onQueryChange = { query = it },
+                    placeholder = stringResource(R.string.search_in_album),
+                    focusRequester = focusRequester,
+                    onClose = closeSearch,
+                )
+            }
+        } else null,
         modeBar = if (inSelectMode) {
             PlaylistModeBar.Select(
                 count = selection.size,
@@ -223,19 +270,21 @@ fun AlbumScreen(
             return@PlaylistDetailScaffold
         }
 
-        item(key = "album_header", contentType = "header") {
+        if (!isSearching) item(key = "album_header", contentType = "header") {
             // read here, not at the top of the screen: a track change then only redraws the header
             val isThisAlbum = mediaMetadata?.album?.id == album.album.id
             PlaylistHeader(
+                onSearchClick = { isSearching = true },
                 title = album.album.title,
                 creators = album.artists.map { CreatorUi(name = it.name, avatarUrl = it.thumbnailUrl, artistId = it.id) },
                 // the description takes the stats' place, and the stats move under it
                 description = description?.takeIf { it.isNotBlank() },
                 stats = albumStats(
                     year = album.album.year,
-                    songCount = filteredSongs.size,
+                    songCountText = pluralStringResource(R.plurals.n_song, filteredSongs.size, filteredSongs.size),
                     totalSeconds = totalSeconds,
                     explicit = album.album.explicit,
+                    explicitTag = stringResource(R.string.album_explicit_tag),
                     format = format?.let { f ->
                         val codec = f.codecs.substringBefore('.').uppercase().ifBlank { null }
                         listOfNotNull(codec, (f.bitrate / 1000).takeIf { it > 0 }?.let { "$it kbps" }).joinToString(" ")
@@ -257,7 +306,7 @@ fun AlbumScreen(
         }
 
         itemsIndexed(
-            items = filteredSongs,
+            items = shownSongs,
             key = { _, song -> song.id },
             contentType = { _, _ -> "track" },
         ) { position, song ->
@@ -270,13 +319,14 @@ fun AlbumScreen(
                 library = { librarySwipeAction(song.song) },
                 queue = { queueSwipeAction { song.toMediaItem() } },
             ) {
+                val active = song.id == mediaMetadata?.id
                 PlaylistTrackRow(
                     thumbnailUrl = song.song.thumbnailUrl,
                     songId = song.id,
                     title = song.song.title,
                     subtitle = "${song.artists.joinToString { it.name }} • ${makeTimeString(song.song.duration * 1000L)}",
-                    isActive = song.id == mediaMetadata?.id,
-                    isPlaying = isPlaying,
+                    isActive = active,
+                    isPlaying = active && isPlaying,
                     modifier = Modifier.revealOnAppear(
                         key = "track_${song.id}",
                         seenState = revealSeen,
@@ -318,6 +368,14 @@ fun AlbumScreen(
             }
         }
 
+        // while searching only the matching songs show, as on a playlist
+        if (isSearching) {
+            item(key = "bottom_spacer") {
+                Spacer(Modifier.height(50.dp))
+            }
+            return@PlaylistDetailScaffold
+        }
+
         item(key = "end_of_line") {
             PlaylistEndOfLine(songCount = filteredSongs.size, totalSeconds = totalSeconds)
         }
@@ -336,7 +394,7 @@ fun AlbumScreen(
 
         albumShelf(
             key = "more_by_artist",
-            title = if (mainArtistName != null) "Thêm từ $mainArtistName" else "Thêm từ nghệ sĩ này",
+            title = moreByArtistTitle,
             albums = moreByArtist,
             onTitleClick = album.artists.firstOrNull()?.id?.let { id -> { navController.navigate("artist/$id") } },
             navController = navController,
@@ -349,7 +407,7 @@ fun AlbumScreen(
         )
         albumShelf(
             key = "other_versions",
-            title = "Phiên bản khác",
+            title = otherVersionsTitle,
             albums = otherVersions,
             navController = navController,
             onLongClick = { item ->
@@ -361,7 +419,7 @@ fun AlbumScreen(
         )
         albumShelf(
             key = "releases_for_you",
-            title = "Phát hành dành cho bạn",
+            title = releasesForYouTitle,
             albums = releasesForYou,
             navController = navController,
             onLongClick = { item ->
@@ -379,14 +437,14 @@ fun AlbumScreen(
 }
 
 /** "2016 · 14 songs · 52m · Explicit · OPUS 160 kbps" */
-private fun albumStats(year: Int?, songCount: Int, totalSeconds: Int, explicit: Boolean, format: String?): String {
+private fun albumStats(year: Int?, songCountText: String, totalSeconds: Int, explicit: Boolean, explicitTag: String, format: String?): String {
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60
     return listOfNotNull(
         year?.toString(),
-        "$songCount bài hát",
+        songCountText,
         (if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m").takeIf { totalSeconds > 0 },
-        "Explicit".takeIf { explicit },
+        explicitTag.takeIf { explicit },
         format?.ifBlank { null },
     ).joinToString(" · ")
 }
@@ -445,7 +503,7 @@ private fun AlbumRetry(onRetry: () -> Unit) {
             .padding(top = 24.dp)
     ) {
         Text(
-            text = "Không thể tải album này. Chạm để thử lại",
+            text = stringResource(R.string.album_load_failed),
             style = PlaylistStatsStyle,
             color = Color.White.copy(alpha = 0.7f),
             modifier = Modifier

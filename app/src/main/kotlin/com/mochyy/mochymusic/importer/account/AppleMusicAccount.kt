@@ -83,7 +83,7 @@ private class AppleMusicLibrary(private val headers: Map<String, String>) : Acco
                 id = LIBRARY_SONGS_ID,
                 name = "Library songs",
                 trackCount = null,
-                subtitle = "Mọi bài hát trong thư viện của bạn, vào Thư viện → Bài hát",
+                subtitle = "Every song in your library, into Library → Songs",
                 isLibrary = true,
             ),
         )

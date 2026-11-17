@@ -112,12 +112,8 @@ import com.mochyy.mochymusic.ui.player.flagship.AnimatedSkipGlyph
 import com.mochyy.mochymusic.ui.player.flagship.SkipCycleState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import com.mochyy.mochymusic.canvas.CanvasArtwork
-import com.mochyy.mochymusic.canvas.MonochromeApiCanvas
-import com.mochyy.mochymusic.applecanvas.AppleMusicCanvasProvider
 import com.mochyy.mochymusic.LocalGlassState
 import com.mochyy.mochymusic.constants.CanvasThumbnailAnimationKey
 import com.mochyy.mochymusic.constants.CanvasWifiOnlyKey
@@ -417,6 +413,9 @@ fun MorphingCover(
     /** Double tap on the full-size cover, with where it landed in root coordinates (the like heart starts there). */
     onDoubleTapCover: ((androidx.compose.ui.geometry.Offset) -> Unit)? = null,
 
+    // a single tap on the full-size cover: the same sheet a tap on the song's title opens
+    onTapCover: (() -> Unit)? = null,
+
     onArtBoundsChanged: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
 
     /** The player studio's hold on the art: where it's measured, and the layer that moves it into the editor. */
@@ -458,7 +457,7 @@ fun MorphingCover(
     // data saver turns video backgrounds and auto-playing videos off; the full video mode still plays when asked for
     val dataSaving = com.mochyy.mochymusic.utils.rememberDataSaverActive()
     val playVideoPref = rememberPreference(PlayVideoBackgroundKey, defaultValue = false).value && !dataSaving
-    val disableVideoAutoplay = rememberPreference(DisableVideoAutoplayKey, defaultValue = true).value || dataSaving
+    val disableVideoAutoplay = rememberPreference(DisableVideoAutoplayKey, defaultValue = false).value || dataSaving
     val currentMetadata by (playerConnection?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) })
         .collectAsState()
     // a track that is a video itself (a music video or live row, the Videos search tab) plays that
@@ -472,7 +471,7 @@ fun MorphingCover(
         mediaId = trackInfo.mediaId,
         title = trackInfo.title,
         artist = trackInfo.artist,
-        isVideoSong = if (miniVideo) songIsVideo else trackIsVideo,
+        isVideoSong = if (miniVideo || forceVideoBackground) songIsVideo else trackIsVideo,
         enabled = playVideoBackground,
     )
     // with the full video mode opening over it, the mini player's copy steps aside so the mode takes the picture
@@ -492,26 +491,28 @@ fun MorphingCover(
     }
     val currentOnVideoShowing by androidx.compose.runtime.rememberUpdatedState(onVideoShowingChange)
     LaunchedEffect(isVideoActive) { currentOnVideoShowing(isVideoActive) }
-    val targetMiniArtWidth = if (isVideoActive) (48.dp * 16f / 9f) else 48.dp
+    // where the pill sits across the screen: the phone's full width, or the wide bar's left part
+    val pillFrame = com.mochyy.mochymusic.ui.component.LocalMiniPillFrame.current
+    // the wide bar's pill shrinks on a short screen, and the mini player's cover and buttons with it
+    val miniScale = pillFrame.height / com.mochyy.mochymusic.constants.MiniPlayerHeight
+    val targetMiniArtWidth = if (isVideoActive) (48.dp * miniScale * 16f / 9f) else 48.dp * miniScale
     val animatedMiniArtWidth by animateDpAsState(
         targetValue = targetMiniArtWidth,
         animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
         label = "miniArtWidth"
     )
 
-    // where the pill sits across the screen: the phone's full width, or the wide bar's left part
-    val pillFrame = com.mochyy.mochymusic.ui.component.LocalMiniPillFrame.current
     val endpoints = remember(maxWidth, maxHeight, statusBarTop, coverStyle, animatedMiniArtWidth, pillFrame) {
-        val miniHeight = 64.dp
+        val miniHeight = pillFrame.height
         val miniArtWidth = animatedMiniArtWidth
-        val miniArtHeight = 48.dp
+        val miniArtHeight = 48.dp * miniScale
         // 8dp in from the pill's edge, as from its top and bottom, so the cover lines up with the
         // nav bar's first tab highlight right under it
         val miniArtX = pillFrame.start + 8.dp
         val miniArtY = (miniHeight - miniArtHeight) / 2
 
-        val miniPlaySize = 36.dp
-        val miniSkipSize = 36.dp
+        val miniPlaySize = 36.dp * miniScale
+        val miniSkipSize = 36.dp * miniScale
         val miniSkipX = maxWidth - pillFrame.end - 12.dp - miniSkipSize
         val miniSkipY = (miniHeight - miniSkipSize) / 2
         val miniPlayX = miniSkipX - 8.dp - miniPlaySize
@@ -594,7 +595,7 @@ fun MorphingCover(
         }
     }
 
-    val miniPlaySize = 36.dp
+    val miniPlaySize = 36.dp * miniScale
 
     val longPressEnabled by remember {
         derivedStateOf { progressProvider() > 0.9f && lyricsProgressProvider() < 0.1f }
@@ -604,6 +605,7 @@ fun MorphingCover(
     // the second tap of a double tap.
     val currentOnLongPress by androidx.compose.runtime.rememberUpdatedState(onLongPressCover)
     val currentOnDoubleTap by androidx.compose.runtime.rememberUpdatedState(onDoubleTapCover)
+    val currentOnTap by androidx.compose.runtime.rememberUpdatedState(onTapCover)
     val artCoordinates = remember { arrayOfNulls<androidx.compose.ui.layout.LayoutCoordinates>(1) }
 
     val discSpinActive by remember(editMode) {
@@ -871,7 +873,7 @@ fun MorphingCover(
                     }
                     .then(
 
-                        if (longPressEnabled && (onLongPressCover != null || onDoubleTapCover != null)) {
+                        if (longPressEnabled && (onLongPressCover != null || onDoubleTapCover != null || onTapCover != null)) {
                             Modifier
                                 .pointerInput(isDiscStyle) {
                                     val likeAt: (Offset) -> Unit = { position ->
@@ -891,6 +893,8 @@ fun MorphingCover(
                                         )
                                     } else {
                                         detectTapGestures(
+                                            // the cover opens the song's details, like its title does
+                                            onTap = { currentOnTap?.invoke() },
                                             onLongPress = { currentOnLongPress?.invoke() },
                                             onDoubleTap = likeAt,
                                         )
@@ -1434,6 +1438,8 @@ private fun PlayerBackdropCrossfade(
     warpShader: Any?,
     warpTimeState: androidx.compose.runtime.MutableFloatState,
     lyricsProgressProvider: () -> Float = { 0f },
+    // false while the sheet is collapsed: the backdrop is invisible then, but its blurs still re-rendered on every video frame
+    sheetShown: () -> Boolean = { true },
     modifier: Modifier = Modifier,
 ) {
     // The video's backdrop is a blurred reflection of it. Without blur there's nothing to draw it
@@ -1450,10 +1456,11 @@ private fun PlayerBackdropCrossfade(
     // closing, and read in composition it recomposed the whole backdrop on each of them
     val currentLyricsProgress = androidx.compose.runtime.rememberUpdatedState(lyricsProgressProvider)
     val effectiveVideoAlpha = { (videoAlpha.value * (1f - currentLyricsProgress.value())).coerceIn(0f, 1f) }
-    val videoShown by remember { derivedStateOf { effectiveVideoAlpha() > 0.005f } }
+    val currentSheetShown = androidx.compose.runtime.rememberUpdatedState(sheetShown)
+    val videoShown by remember { derivedStateOf { effectiveVideoAlpha() > 0.005f && currentSheetShown.value() } }
     val currentCanvasAlpha = androidx.compose.runtime.rememberUpdatedState(canvasMirrorAlpha)
     val effectiveCanvasAlpha = { (currentCanvasAlpha.value() * (1f - currentLyricsProgress.value())).coerceIn(0f, 1f) }
-    val canvasShown by remember { derivedStateOf { effectiveCanvasAlpha() > 0.005f } }
+    val canvasShown by remember { derivedStateOf { effectiveCanvasAlpha() > 0.005f && currentSheetShown.value() } }
 
     Box(modifier = modifier) {
         Box(
@@ -1461,7 +1468,7 @@ private fun PlayerBackdropCrossfade(
                 .fillMaxSize()
                 .graphicsLayer { alpha = (1f - effectiveVideoAlpha()) * (1f - effectiveCanvasAlpha()) }
         ) {
-            if (ambient != null && backgroundStyle == PlayerBackgroundStyle.AMBIENT) {
+            if (ambient != null) {
                 // one for every song: its colours drift to the next song's by themselves, on the player's clock
                 AmbientBackdrop(
                     colors = ambient,
@@ -1703,10 +1710,10 @@ private fun Modifier.coverMorphFade(
  */
 private object CoverFadeMask {
     val paint = android.graphics.Paint().apply {
-        val steps = 8
+        val steps = 16
         val colors = IntArray(steps + 1) { i ->
             val t = i / steps.toFloat()
-            val eased = t * t * (3f - 2f * t)
+            val eased = t * t * t * (t * (t * 6f - 15f) + 10f)
             android.graphics.Color.argb(((1f - eased) * 255f).roundToInt(), 0, 0, 0)
         }
         val positions = FloatArray(steps + 1) { it / steps.toFloat() }
@@ -1731,7 +1738,7 @@ private object CoverFadeMask {
 private val NoCoverFade: () -> Float = { 0f }
 
 /** How much of the cover, from its bottom up, [coverMorphFade] fades without blur. */
-private const val CoverEdgeFadeFraction = 0.3f
+private const val CoverEdgeFadeFraction = 0.2f
 
 // the new flagship's sharp cover fades from the middle of the title down (this much of its bottom), into its blurred copy behind it
 private const val FrostedEdgeFadeFraction = 0.13f
@@ -1861,6 +1868,7 @@ private fun SheetPillGlass(
             pureBlack = pureBlack,
             accentWash = accentWash,
             modifier = Modifier.fillMaxSize(),
+            surface = com.mochyy.mochymusic.ui.component.ChromeSurface.MiniPlayer,
         )
     }
 }
@@ -1943,6 +1951,8 @@ private fun SheetBackdrop(
                 warpShader = warpShader,
                 warpTimeState = warpTimeState,
                 lyricsProgressProvider = lyricsProgressProvider,
+                // the collapsed mini player keeps playing the video, and this full-screen blur of it sat at alpha 0 re-blurring every frame
+                sheetShown = { progressProvider() > 0f },
                 modifier = Modifier.fillMaxSize()
             )
             // the Turntable sits in a dim room: the cover's colours only as a glow
@@ -2002,7 +2012,7 @@ private fun CoverCanvasLayer(
     val context = LocalContext.current
     val playerConnection = LocalPlayerConnection.current
     var canvasArtwork by remember(trackInfo.mediaId) { mutableStateOf<CanvasArtwork?>(null) }
-    val canvasEnabled = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = false).value && !alternateStyle
+    val canvasEnabled = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true).value && !alternateStyle
     val canvasWifiOnly by rememberPreference(CanvasWifiOnlyKey, defaultValue = true)
     LaunchedEffect(trackInfo.mediaId, trackInfo.title, trackInfo.artist, canvasEnabled, canvasWifiOnly) {
         val mediaId = trackInfo.mediaId
@@ -2028,12 +2038,7 @@ private fun CoverCanvasLayer(
         val durationSec = playerConnection?.mediaMetadata?.value
             ?.takeIf { it.id == mediaId }?.duration?.takeIf { it > 0 }
 
-        val res = withContext(Dispatchers.IO) {
-            MonochromeApiCanvas.getBySongArtist(normTitle, normArtist, null, durationSec)
-                ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-            ?: AppleMusicCanvasProvider.getBySongArtist(normTitle, normArtist, null, "us", durationSec)
-                ?.takeIf { !it.preferredAnimationUrl.isNullOrBlank() }
-        }
+        val res = findCanvas(context, normTitle, normArtist, durationSec = durationSec)
         if (res != null) {
             CanvasArtworkPlaybackCache.put(mediaId, res)
             canvasArtwork = res

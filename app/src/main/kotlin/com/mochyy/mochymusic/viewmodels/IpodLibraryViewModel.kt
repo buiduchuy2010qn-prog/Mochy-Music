@@ -101,7 +101,7 @@ class IpodLibraryViewModel @Inject constructor(
                     art = it.thumbnails.firstOrNull()?.resize(RowPx, RowPx),
                 )
             },
-            "Chưa có danh sách phát",
+            "No playlists yet",
         )
         IpodPage.Artists -> withArt(
             database.artists(ArtistSortType.NAME, false).first().map {
@@ -114,7 +114,7 @@ class IpodLibraryViewModel @Inject constructor(
                     roundArt = true,
                 )
             },
-            "Chưa có nghệ sĩ",
+            "No artists yet",
         )
         IpodPage.Albums -> withArt(
             albums().map {
@@ -126,7 +126,7 @@ class IpodLibraryViewModel @Inject constructor(
                     art = it.album.thumbnailUrl?.resize(RowPx, RowPx),
                 )
             },
-            "Chưa có album",
+            "No albums yet",
         )
         IpodPage.Songs -> songs(database.songs(SongSortType.NAME, false).first(), art = true)
         IpodPage.LikedSongs -> songs(database.likedSongs(SongSortType.NAME, false).first(), art = true)
@@ -173,7 +173,7 @@ class IpodLibraryViewModel @Inject constructor(
         val stored = database.albumWithSongs(id).first()?.songs.orEmpty()
         if (stored.isNotEmpty()) return songs(stored, art = false)
         val page = withTimeoutOrNull(FetchTimeoutMs) { YouTube.album(id).getOrNull() }
-            ?: return IpodList(listOf(IpodRow("empty", "Không thể tải album này, hãy kiểm tra kết nối", null)))
+            ?: return IpodList(listOf(IpodRow("empty", "Couldn't load this album, check your connection", null)))
         val existing = database.album(id).first()
         database.withTransaction {
             if (existing == null) insert(page) else update(existing.album, page, existing.artists)
@@ -185,7 +185,7 @@ class IpodLibraryViewModel @Inject constructor(
         if (rows.isEmpty()) IpodList(listOf(IpodRow("empty", emptyText, null))) else IpodList(rows, art = true)
 
     private fun songs(songs: List<Song>, art: Boolean): IpodList {
-        if (songs.isEmpty()) return IpodList(listOf(IpodRow("empty", "Chưa có bài hát nào", null)))
+        if (songs.isEmpty()) return IpodList(listOf(IpodRow("empty", "No songs yet", null)))
         val rows = songs.mapIndexed { index, song ->
             IpodRow(
                 key = "${song.id}#$index",
@@ -198,7 +198,7 @@ class IpodLibraryViewModel @Inject constructor(
         return IpodList(rows, songs, art = art)
     }
 
-    private fun songCount(count: Int) = "$count bài hát"
+    private fun songCount(count: Int) = if (count == 1) "1 song" else "$count songs"
 
     private companion object {
         const val CoverPx = 400

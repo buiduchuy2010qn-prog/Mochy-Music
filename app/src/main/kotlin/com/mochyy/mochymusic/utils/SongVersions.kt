@@ -138,24 +138,9 @@ object SongVersions {
         video.copy(thumbnail = cover, musicVideoType = MUSIC_VIDEO_TYPE_ATV)
     }
 
-    // "Artist - Title (Official MV)" is how most video titles read; clean both ends for accurate album lookup
+    // "Artist - Title" is how most video titles read
     private fun stripArtistPrefix(title: String, artist: String): String =
-        title
-            .replace(Regex("^\\s*${Regex.escape(artist)}\\s*[-–—|:]\\s*", RegexOption.IGNORE_CASE), "")
-            .replace(TrailingVideoTagRegex, "")
-            .trim()
-
-    fun looksLikeMusicVideoTitle(title: String): Boolean = VideoMarkerRegex.containsMatchIn(title)
-
-    private val VideoMarkerRegex = Regex(
-        "\\b(?:official\\s*(?:music\\s*)?video|music\\s*video|m/v|\\bmv\\b|visualizer|performance\\s*video|lyric(?:s)?\\s*video|special\\s*clip|track\\s*video)\\b",
-        RegexOption.IGNORE_CASE,
-    )
-
-    private val TrailingVideoTagRegex = Regex(
-        "\\s*(?:[\\(\\[【][^)\\]】]*(?:official\\s*(?:music\\s*)?video|music\\s*video|m/v|\\bmv\\b|visualizer|performance\\s*video|lyric(?:s)?\\s*video)[^)\\]】]*[\\)\\]】]|[-–—|]\\s*(?:official\\s*(?:music\\s*)?video|m/v|visualizer|lyric(?:s)?\\s*video))\\s*$",
-        RegexOption.IGNORE_CASE,
-    )
+        title.replace(Regex("^\\s*${Regex.escape(artist)}\\s*[-–—|:]\\s*", RegexOption.IGNORE_CASE), "")
 
     private fun sameTitle(a: String, b: String) =
         a.equals(b, ignoreCase = true) ||

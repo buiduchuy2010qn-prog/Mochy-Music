@@ -5,6 +5,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -51,6 +53,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -441,7 +444,15 @@ class StyleActions(
     val onOpenRoute: (String) -> Unit = {},
     // folds the player down to the mini player, for a module's close button
     val onClose: () -> Unit = {},
+    // opens the queue over the style, for the styles whose menu offers it (the poster)
+    val onQueue: (() -> Unit)? = null,
+    // the rotate item; none in the selector's cards or on a tv
+    val turn: StyleTurn? = null,
 )
+
+// whether the style on now is turned sideways and the switch for it, read as lambdas since the actions are built once
+@Stable
+class StyleTurn(val isTurned: () -> Boolean, val toggle: () -> Unit)
 
 /**
  * Double tap plays or pauses; a sideways swipe slides the player's row of songs under the finger
@@ -531,7 +542,19 @@ fun BoxScope.StyleMenu(
     /** the button and the menu's circles dressed as the Turntable's pills */
     pill: Boolean = false,
     extras: List<StyleMenuExtra> = emptyList(),
+    // a queue row under lyrics, opening the queue page over the style
+    queue: Boolean = false,
+    /** the button and its menu at the start edge instead of the end; [end] is then the room from the start */
+    atStart: Boolean = false,
+    /** the chevron's own fill and ink, when a module dresses it apart from the menu's circles */
+    buttonTones: StyleTones = tones,
 ) {
+    val corner = when {
+        atStart && atBottom -> Alignment.BottomStart
+        atStart -> Alignment.TopStart
+        atBottom -> Alignment.BottomEnd
+        else -> Alignment.TopEnd
+    }
     val reveal = remember { Animatable(0f) }
     LaunchedEffect(open) {
         reveal.animateTo(if (open) 1f else 0f, spring(dampingRatio = 0.72f, stiffness = 420f))
@@ -547,37 +570,55 @@ fun BoxScope.StyleMenu(
         val transport = connection?.uiState?.transportState?.collectAsState()?.value
         // the styles have no shuffle or repeat buttons of their own, so each is a row of the list here, staying open when tapped so the change shows
         val shuffleAndRepeat = if (connection != null && transport != null) listOf(
-            MenuItem("Phát ngẫu nhiên", R.drawable.shuffle, active = transport.shuffleModeEnabled) {
+            MenuItem(androidx.compose.ui.res.stringResource(R.string.shuffle), R.drawable.shuffle, active = transport.shuffleModeEnabled) {
                 connection.player.shuffleModeEnabled = !connection.player.shuffleModeEnabled
             },
             MenuItem(
-                label = if (transport.repeatMode == Player.REPEAT_MODE_ONE) "Lặp một bài" else "Lặp lại",
+                label = androidx.compose.ui.res.stringResource(if (transport.repeatMode == Player.REPEAT_MODE_ONE) R.string.ps_style_repeat_one else R.string.repeat),
                 icon = if (transport.repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat,
                 active = transport.repeatMode != Player.REPEAT_MODE_OFF,
             ) { connection.player.toggleRepeatMode() },
         ) else emptyList()
-        val rows = listOfNotNull(
-            actions.onLyrics?.let { open -> MenuItem("Lời bài hát", R.drawable.lyrics) { onOpenChange(false); open() } },
+        val queueLabel = androidx.compose.ui.res.stringResource(R.string.queue)
+        val turnLabel = androidx.compose.ui.res.stringResource(
+            if (actions.turn?.isTurned?.invoke() == true) R.string.player_turn_upright else R.string.player_rotate,
+        )
+        val lyricsLabel = androidx.compose.ui.res.stringResource(R.string.lyrics)
+        val otherMenuLabel = androidx.compose.ui.res.stringResource(R.string.ps_action_other_menu)
+        val editPlayerLabel = androidx.compose.ui.res.stringResource(R.string.menu_edit_player)
+        val menu = listOfNotNull(
+            actions.onLyrics?.let { open -> MenuItem(lyricsLabel, R.drawable.lyrics) { onOpenChange(false); open() } },
+            actions.onQueue?.takeIf { queue }?.let { open -> MenuItem(queueLabel, R.drawable.queue_music) { onOpenChange(false); open() } },
         ) + shuffleAndRepeat + extras.map { extra ->
             MenuItem(extra.label, extra.icon, extra.active, extra.picture) {
                 if (!extra.keepsOpen) onOpenChange(false)
                 extra.onClick()
             }
         } + listOf(
-            MenuItem("Chia sẻ bài hát", R.drawable.share) { onOpenChange(false); connection?.mediaMetadata?.value?.let { com.mochyy.mochymusic.ui.player.share.song.SongShare.open(it) } },
-            MenuItem("Menu khác", R.drawable.more_horiz) { onOpenChange(false); actions.onOtherMenu() },
-            MenuItem("Tùy chỉnh trình phát", R.drawable.tune) { onOpenChange(false); actions.onEditPlayer() },
+            MenuItem(otherMenuLabel, R.drawable.more_horiz) { onOpenChange(false); actions.onOtherMenu() },
         )
+        val turnItem = actions.turn?.let { turn -> MenuItem(turnLabel, R.drawable.screen_rotation) { onOpenChange(false); turn.toggle() } }
+        val editItem = MenuItem(editPlayerLabel, R.drawable.tune) { onOpenChange(false); actions.onEditPlayer() }
+        // turned sideways the screen is short, so the way back upright sits right by the button instead of at the far end of the list
+        val rows = when {
+            turnItem == null -> menu + editItem
+            actions.turn?.isTurned?.invoke() == true -> if (atBottom) menu + editItem + turnItem else listOf(turnItem) + menu + editItem
+            else -> menu + turnItem + editItem
+        }
         val itemGap = 10.dp
+        val roomForRows = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp - edge - buttonSize - itemGap
         Column(
             modifier = Modifier
-                .align(if (atBottom) Alignment.BottomEnd else Alignment.TopEnd)
+                .align(corner)
                 .padding(
-                    end = end - 3.dp,
+                    start = if (atStart) end - 3.dp else 0.dp,
+                    end = if (atStart) 0.dp else end - 3.dp,
                     top = if (atBottom) 0.dp else edge + buttonSize + itemGap,
                     bottom = if (atBottom) edge + buttonSize + itemGap else 0.dp,
-                ),
-            horizontalAlignment = Alignment.End,
+                )
+                // only a list too tall for the screen scrolls, from the button's end; a scroll would clip the rows sliding in
+                .then(if ((buttonSize + 6.dp + itemGap) * rows.size > roomForRows) Modifier.verticalScroll(rememberScrollState(), reverseScrolling = atBottom) else Modifier),
+            horizontalAlignment = if (atStart) Alignment.Start else Alignment.End,
             verticalArrangement = Arrangement.spacedBy(itemGap),
         ) {
             rows.forEachIndexed { index, item ->
@@ -595,11 +636,16 @@ fun BoxScope.StyleMenu(
                         val s = 0.7f + 0.3f * p
                         scaleX = s
                         scaleY = s
-                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0.5f)
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(if (atStart) 0f else 1f, 0.5f)
                     },
                 ) {
-                    Text(text = item.label, style = com.mochyy.mochymusic.ui.player.chevronMenuLabelStyle(if (pill) Color.White else tones.ink, 13.sp))
+                    // the circle stays nearest the edge the button sits on, the words face into the screen
+                    val label = @Composable {
+                        Text(text = item.label, style = com.mochyy.mochymusic.ui.player.chevronMenuLabelStyle(if (pill) Color.White else tones.ink, 13.sp))
+                    }
+                    if (!atStart) label()
                     StyleCircle(icon = item.icon, tones = tones, size = buttonSize + 6.dp, onClick = item.onClick, pill = pill, active = item.active, picture = item.picture)
+                    if (atStart) label()
                 }
             }
         }
@@ -607,10 +653,15 @@ fun BoxScope.StyleMenu(
     if (showButton) {
         Box(
             modifier = Modifier
-                .align(if (atBottom) Alignment.BottomEnd else Alignment.TopEnd)
-                .padding(end = end, top = if (atBottom) 0.dp else edge, bottom = if (atBottom) edge else 0.dp),
+                .align(corner)
+                .padding(
+                    start = if (atStart) end else 0.dp,
+                    end = if (atStart) 0.dp else end,
+                    top = if (atBottom) 0.dp else edge,
+                    bottom = if (atBottom) edge else 0.dp,
+                ),
         ) {
-            MenuChevron(open, tones, buttonSize, pill, opensDown = !atBottom, onOpenChange)
+            MenuChevron(open, buttonTones, buttonSize, pill, opensDown = !atBottom, onOpenChange)
         }
     }
 }

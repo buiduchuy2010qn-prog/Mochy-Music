@@ -27,7 +27,7 @@ internal fun resolveUiLocale(selection: String?, system: Locale): Locale {
         ?.takeUnless { it.isBlank() || it == SYSTEM_DEFAULT }
         ?.let(Locale::forLanguageTag)
         ?.takeIf { it.language.isNotBlank() }
-    return selected ?: system.takeIf { it.language.isNotBlank() } ?: Locale.ENGLISH
+    return selected ?: Locale.forLanguageTag("vi-VN")
 }
 
 /** Put English before any other device language when a string is missing. */
@@ -58,15 +58,17 @@ object AppLanguage {
         }
     }
 
-    private fun configuration(context: Context): Configuration {
+    private fun uiLocales(context: Context): LocaleList {
         val locale = resolveUiLocale(selection(context), systemLocale(context))
-        return Configuration(context.resources.configuration).apply {
-            setLocales(LocaleList(*uiLocaleFallbacks(locale).toTypedArray()))
-        }
+        return LocaleList(*uiLocaleFallbacks(locale).toTypedArray())
     }
 
-    /** Called before Activity inflation so resources (including Compose) use the chosen locale. */
-    fun wrapActivityContext(base: Context): Context = base.createConfigurationContext(configuration(base))
+    private fun configuration(context: Context): Configuration =
+        Configuration(context.resources.configuration).apply { setLocales(uiLocales(context)) }
+
+    // before the activity inflates, so compose reads the chosen language; only the language, a full copy pinned the window's size and the app stayed upright after a turn
+    fun wrapActivityContext(base: Context): Context =
+        base.createConfigurationContext(Configuration().apply { setLocales(uiLocales(base)) })
 
     /**
      * Migrate a legacy pre-Android-13 choice once, unless the platform already has an override.

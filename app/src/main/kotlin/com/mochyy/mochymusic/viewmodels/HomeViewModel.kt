@@ -257,8 +257,8 @@ class HomeViewModel @Inject constructor(
                             is com.mochyy.mochymusic.db.entities.Playlist -> com.music.innertube.models.PlaylistItem(
                                 id = item.id,
                                 title = item.title,
-                                author = Artist(name = "Danh sách trên máy", id = null),
-                                songCountText = item.songCount.toString() + " bài hát",
+                                author = Artist(name = "Local Playlist", id = null),
+                                songCountText = item.songCount.toString() + " songs",
                                 thumbnail = item.thumbnails.firstOrNull() ?: "",
                                 playEndpoint = null,
                                 shuffleEndpoint = null,
@@ -289,8 +289,8 @@ class HomeViewModel @Inject constructor(
                             is com.mochyy.mochymusic.db.entities.Playlist -> com.music.innertube.models.PlaylistItem(
                                 id = item.id,
                                 title = item.title,
-                                author = Artist(name = "Danh sách trên máy", id = null),
-                                songCountText = item.songCount.toString() + " bài hát",
+                                author = Artist(name = "Local Playlist", id = null),
+                                songCountText = item.songCount.toString() + " songs",
                                 thumbnail = item.thumbnails.firstOrNull() ?: "",
                                 playEndpoint = null,
                                 shuffleEndpoint = null,
@@ -328,8 +328,8 @@ class HomeViewModel @Inject constructor(
                         is com.mochyy.mochymusic.db.entities.Playlist -> otherSources.add(com.music.innertube.models.PlaylistItem(
                             id = item.id,
                             title = item.title,
-                            author = Artist(name = "Danh sách trên máy", id = null),
-                            songCountText = item.songCount.toString() + " bài hát",
+                            author = Artist(name = "Local Playlist", id = null),
+                            songCountText = item.songCount.toString() + " songs",
                             thumbnail = item.thumbnails.firstOrNull() ?: "",
                             playEndpoint = null,
                             shuffleEndpoint = null,
@@ -377,7 +377,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    val accountName = MutableStateFlow("Khách")
+    val accountName = MutableStateFlow("Guest")
     val accountImageUrl = MutableStateFlow<String?>(null)
 
     fun togglePin(item: YTItem) {
@@ -592,7 +592,7 @@ class HomeViewModel @Inject constructor(
         if (System.currentTimeMillis() - lastPlayedLikedSongs < 86400000L * 7) {
             val likedCount = database.likedSongsCount().first()
             val likedPlaylistEntity = com.mochyy.mochymusic.db.entities.Playlist(
-                playlist = com.mochyy.mochymusic.db.entities.PlaylistEntity(id = "liked", name = context.getString(R.string.liked)),
+                playlist = com.mochyy.mochymusic.db.entities.PlaylistEntity(id = "liked", name = context.getString(R.string.liked), thumbnailUrl = likedCoverImage()),
                 songCount = likedCount,
                 songThumbnails = listOf()
             )
@@ -764,7 +764,7 @@ class HomeViewModel @Inject constructor(
         if (System.currentTimeMillis() - lastPlayedLikedSongs < 86400000L * 7) {
             val likedCount = database.likedSongsCount().first()
             val likedPlaylistEntity = com.mochyy.mochymusic.db.entities.Playlist(
-                playlist = com.mochyy.mochymusic.db.entities.PlaylistEntity(id = "liked", name = context.getString(R.string.liked)),
+                playlist = com.mochyy.mochymusic.db.entities.PlaylistEntity(id = "liked", name = context.getString(R.string.liked), thumbnailUrl = likedCoverImage()),
                 songCount = likedCount,
                 songThumbnails = listOf()
             )
@@ -1311,7 +1311,7 @@ class HomeViewModel @Inject constructor(
                         // the first load() fetches these itself, a later sign-in has to do it here
                         if (signedInLater) loadAccountPlaylists()
                     } else {
-                        accountName.value = "Khách"
+                        accountName.value = "Guest"
                         accountImageUrl.value = null
                         accountPlaylists.value = null
                     }
@@ -1328,6 +1328,15 @@ class HomeViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    // liked songs' cover as a picture, so home's cards, their colours and the see-all list show it like any playlist's
+    private suspend fun likedCoverImage(): String? = try {
+        com.mochyy.mochymusic.ui.component.LikedCoverImage.url(context, database.likedCovers().first())
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 }
 

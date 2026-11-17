@@ -125,7 +125,7 @@ internal object RecapRepository {
             val stats = load(db, range)
             if (stats.songCount > 0) return RecapAvailability.Ready(stats, progressOf(range, today))
         }
-        return RecapAvailability.NotYet("sau khi bạn nghe một bài hát")
+        return RecapAvailability.NotYet("once you've played a song")
     }
 
     private fun progressOf(range: StatsRange, today: LocalDate): Int = when {
@@ -145,7 +145,7 @@ internal object RecapRepository {
             val unlock = today.withDayOfMonth(RecapFirstDay)
             return RecapAvailability.NotYet(
                 "on ${unlock.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} $RecapFirstDay, " +
-                    "sau khi bạn nghe đủ $RecapMinSongs bài hát",
+                    "once you've played $RecapMinSongs songs",
             )
         }
         val stats = load(db, thisMonth)
@@ -155,7 +155,7 @@ internal object RecapRepository {
         }
         val missing = RecapMinSongs - stats.songCount
         return RecapAvailability.NotYet(
-            "khi bạn nghe thêm $missing bài hát nữa trong tháng này",
+            "when you've played $missing more ${if (missing == 1) "song" else "songs"} this month",
         )
     }
 
@@ -191,7 +191,7 @@ internal object RecapRepository {
             return RecapSong(
                 id = id,
                 title = song.song.title,
-                artistName = song.artists.joinToString(", ") { it.name }.ifBlank { song.song.albumName ?: "Nghệ sĩ không xác định" },
+                artistName = song.artists.joinToString(", ") { it.name }.ifBlank { song.song.albumName ?: "Unknown artist" },
                 artistThumbnailUrl = song.artists.firstNotNullOfOrNull { it.thumbnailUrl },
                 thumbnailUrl = song.song.thumbnailUrl,
                 playTimeMs = acc.ms,
@@ -279,8 +279,8 @@ internal fun formatHoursDecimal(ms: Long): String {
 
 /** Morning / afternoon / evening / night, for the hour a peak falls in. */
 internal fun timeOfDayName(hour: Int): String = when (hour) {
-    in 5..11 -> "buổi sáng"
-    in 12..16 -> "buổi chiều"
-    in 17..21 -> "buổi tối"
-    else -> "ban đêm"
+    in 5..11 -> "mornings"
+    in 12..16 -> "afternoons"
+    in 17..21 -> "evenings"
+    else -> "nights"
 }

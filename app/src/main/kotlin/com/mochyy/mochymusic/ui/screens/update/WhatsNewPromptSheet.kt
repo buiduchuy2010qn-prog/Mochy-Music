@@ -50,26 +50,26 @@ private data class WhatsNewHighlight(
     val summary: String,
 )
 
-private val V104Highlights = listOf(
+private val V110Highlights = listOf(
     WhatsNewHighlight(
-        icon = R.drawable.cloud,
-        title = "Sửa lỗi Mochy Cloud & Avatar",
-        summary = "Khắc phục lỗi đồng bộ mã 400 và tự đẩy avatar hiện có của bạn lên Cloud.",
+        icon = R.drawable.lyrics,
+        title = "Hợp nhất Mochy 8.4.2 gốc mới nhất",
+        summary = "Lời bài hát nổi (Floating Lyrics), nền động Spotify Canvas, hàng đợi kiểu Spotify (FIFO), kết nối tới 10 thiết bị & ý nghĩa bài hát.",
     ),
     WhatsNewHighlight(
-        icon = R.drawable.refresh,
-        title = "Nhận diện cập nhật nhanh hơn",
-        summary = "Kiểm tra OTA mỗi 15 phút, so khớp cả số build -bXXXX và nhớ 6 giờ khi chọn Để sau.",
+        icon = R.drawable.equalizer,
+        title = "Android Auto, TV, Xuất FLAC & Tối ưu RAM",
+        summary = "Hỗ trợ Android Auto + Hey Google, sửa metadata & nhập lời bài hát, xuất nhạc lossless FLAC, chọn thư mục lưu, Innertube X & giảm RAM chạy nền.",
+    ),
+    WhatsNewHighlight(
+        icon = R.drawable.smartphone,
+        title = "Hỗ trợ đầy đủ máy 32-bit & 64-bit",
+        summary = "Bổ sung gói Universal (armeabi-v7a) cho Android 7.0+ như Samsung Galaxy J6 và tự động chọn đúng bản chip khi cập nhật OTA.",
     ),
     WhatsNewHighlight(
         icon = R.drawable.ic_duchi_locket,
-        title = "Kết nối Duchi Locket",
-        summary = "Tự nhận diện Duchi Locket đã cài và hỗ trợ cập nhật OTA trực tiếp trong Cài đặt.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.music_note,
-        title = "Đăng bài hát lên Duchi Locket",
-        summary = "Nút 1 chạm trong trình phát & menu bài hát để phát ngay và mở khung Nhạc bên Locket.",
+        title = "Mochy Cloud & Duchi Locket",
+        summary = "Giữ nguyên giao diện Mochy gốc 100%, đồng bộ đám mây Yêu thích/Playlist/Lịch sử/Avatar & chia sẻ 1 chạm sang Duchi Locket.",
     ),
 )
 
@@ -133,7 +133,7 @@ fun WhatsNewPromptSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                V104Highlights.forEach { item ->
+                V110Highlights.forEach { item ->
                     Row(
                         verticalAlignment = Alignment.Top,
                         modifier = Modifier

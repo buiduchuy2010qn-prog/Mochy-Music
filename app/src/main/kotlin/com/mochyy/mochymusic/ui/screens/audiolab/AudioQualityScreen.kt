@@ -4,6 +4,7 @@ package com.mochyy.mochymusic.ui.screens.audiolab
 
 import android.content.Context
 import android.net.ConnectivityManager
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -62,13 +63,18 @@ import kotlin.math.exp
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-private class QualityOption(val quality: AudioQuality, val title: String, val description: String, val format: String)
+private class QualityOption(
+    val quality: AudioQuality,
+    @StringRes val title: Int,
+    @StringRes val description: Int,
+    @StringRes val format: Int,
+)
 
 private val YouTubeOptions = listOf(
-    QualityOption(AudioQuality.AUTO, "Tự động", "Cao khi dùng Wi-Fi, Trung bình khi dùng dữ liệu di động", "Thích ứng"),
-    QualityOption(AudioQuality.HIGH, "Cao", "Chất lượng cao nhất từ nguồn phát: ít nén hơn, rõ nét hơn", "~160 kbps · Opus"),
-    QualityOption(AudioQuality.MEDIUM, "Trung bình", "Khoảng 128 kbps, cân bằng và tiết kiệm dung lượng", "~128 kbps · AAC"),
-    QualityOption(AudioQuality.LOW, "Thấp", "Luồng âm thanh nhỏ nhất cho kết nối mạng chậm", "~50–70 kbps · Opus"),
+    QualityOption(AudioQuality.AUTO, R.string.aq_quality_auto, R.string.aq_desc_auto, R.string.aq_fmt_adaptive),
+    QualityOption(AudioQuality.HIGH, R.string.aq_quality_high, R.string.aq_desc_high, R.string.aq_fmt_high),
+    QualityOption(AudioQuality.MEDIUM, R.string.aq_quality_medium, R.string.aq_desc_medium, R.string.aq_fmt_medium),
+    QualityOption(AudioQuality.LOW, R.string.aq_quality_low, R.string.aq_desc_low, R.string.aq_fmt_low),
 )
 
 /** what the picture shows: the quality of whichever provider plays first */
@@ -88,6 +94,19 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
     val downloadOrder by modules.downloadOrder.collectAsState()
     val youTubeOn by modules.youTubeEnabled.collectAsState()
     val context = LocalContext.current
+    val statusSignIn = stringResource(R.string.aq_status_sign_in)
+    val statusSignInAgain = stringResource(R.string.aq_status_sign_in_again)
+    val statusOn = stringResource(R.string.aq_status_on)
+    val statusOffTap = stringResource(R.string.aq_status_off_tap)
+    val statusNotInstalled = stringResource(R.string.aq_status_not_installed)
+    val moduleStatus = { entry: com.mochyy.mochymusic.modules.ModuleEntry ->
+        when {
+            entry.account is AccountState.SignedOut -> statusSignIn
+            entry.account is AccountState.Expired -> statusSignInAgain
+            entry.enabled -> statusOn
+            else -> statusOffTap
+        }
+    }
     val metered = remember { (context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager)?.isActiveNetworkMetered == true }
 
     val usable = { id: String ->
@@ -101,7 +120,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
     // the first provider in the order that's on plays everything it has
     val first = order.firstOrNull(usable)
     val effective = when (first) {
-        null -> Effective(AudioQuality.LOW, "Chưa bật nguồn phát", "Hãy bật ít nhất một nguồn phát")
+        null -> Effective(AudioQuality.LOW, stringResource(R.string.aq_nothing_on), stringResource(R.string.aq_turn_provider_on))
         MonochromeModule.Id -> Effective(AudioQuality.LOSSLESS, "Monochrome", "FLAC · lossless")
         AppleMusicModule.Id -> {
             val pick = entries.firstOrNull { it.module.info.id == first }?.picks?.get(AppleMusicModule.ChoiceQuality)
@@ -115,7 +134,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
         SourceModules.YouTubeId -> {
             val tier = if (quality == AudioQuality.AUTO) (if (metered) AudioQuality.MEDIUM else AudioQuality.HIGH) else quality
             val option = YouTubeOptions.first { it.quality == tier }
-            Effective(tier, "YouTube · ${option.title}", option.format)
+            Effective(tier, stringResource(R.string.aq_youtube_tier, stringResource(option.title)), stringResource(option.format))
         }
         // a module added from a link: its name, and the stream it picked when it offers a choice
         else -> {
@@ -127,24 +146,24 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
     }
 
     AudioLabPage(
-        title = LabTitle("Chất lượng", "Âm thanh", firstSize = 36.sp, secondSize = 54.sp),
+        title = LabTitle(stringResource(R.string.aq_title_first), stringResource(R.string.aq_title_second), firstSize = 40.sp, secondSize = 64.sp),
         onBack = { navController.navigateUp() },
         subtitle = "${effective.title} · ${effective.format}",
     ) {
-        LabSheetTitle("Phát trực tuyến")
+        LabSheetTitle(stringResource(R.string.aq_section_streaming))
         LabGroup {
             ProviderCaption(
                 logo = R.drawable.provider_youtube_music,
                 name = "YouTube Music",
                 status = when {
-                    youTubeOn -> "Phát các bài hát không có trên nguồn khác"
-                    order.none(usable) -> "Đã tắt và chưa có nguồn nào khác bật, nhạc sẽ không thể phát"
-                    else -> "Đã tắt: các bài không có trên nguồn khác sẽ được bỏ qua"
+                    youTubeOn -> stringResource(R.string.aq_youtube_status_on)
+                    order.none(usable) -> stringResource(R.string.aq_youtube_status_off_none)
+                    else -> stringResource(R.string.aq_youtube_status_off)
                 },
                 on = youTubeOn,
             )
             YouTubeOptions.forEach { option ->
-                QualityRow(option.title, option.description, selected = quality == option.quality, enabled = youTubeOn) { onQuality(option.quality) }
+                QualityRow(stringResource(option.title), stringResource(option.description), selected = quality == option.quality, enabled = youTubeOn) { onQuality(option.quality) }
             }
 
             // each module's own qualities, under its name
@@ -163,9 +182,9 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
                         }
                     }
                 } else if (id == MonochromeModule.Id) {
-                    QualityRow("Lossless", "FLAC nguyên bản từ Monochrome: chất lượng CD trở lên", selected = true, enabled = active) {}
+                    QualityRow(stringResource(R.string.aq_quality_lossless), stringResource(R.string.aq_desc_monochrome_lossless), selected = true, enabled = active) {}
                 }
-                LabTextAction("Cài đặt ${entry.module.info.name}", R.drawable.navigate_next) {
+                LabTextAction(stringResource(R.string.aq_module_settings, entry.module.info.name), R.drawable.navigate_next) {
                     navController.navigate(com.mochyy.mochymusic.ui.screens.settings.modules.moduleRoute(id))
                 }
             }
@@ -173,10 +192,15 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
 
         // what a download from youtube is saved as; the download order below picks where each download comes from
         Spacer(Modifier.height(24.dp))
-        LabSheetTitle("Tải xuống")
+        LabSheetTitle(stringResource(R.string.aq_section_download))
         LabGroup {
             com.mochyy.mochymusic.constants.DownloadQuality.entries.forEach { option ->
-                QualityRow(option.title, option.description, selected = downloadQuality == option, enabled = true) {
+                val (titleRes, descRes) = when (option) {
+                    com.mochyy.mochymusic.constants.DownloadQuality.HIGH -> R.string.aq_quality_high to R.string.aq_dl_desc_high
+                    com.mochyy.mochymusic.constants.DownloadQuality.MEDIUM -> R.string.aq_quality_medium to R.string.aq_dl_desc_medium
+                    com.mochyy.mochymusic.constants.DownloadQuality.LOW -> R.string.aq_quality_low to R.string.aq_dl_desc_low
+                }
+                QualityRow(stringResource(titleRes), stringResource(descRes), selected = downloadQuality == option, enabled = true) {
                     onDownloadQuality(option)
                 }
             }
@@ -184,7 +208,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
         Footnote(stringResource(R.string.quality_download_footnote))
 
         Spacer(Modifier.height(24.dp))
-        LabSheetTitle("Nguồn phát")
+        LabSheetTitle(stringResource(R.string.aq_section_provider))
         ProviderOrder(
             order = shownOrder,
             name = modules::nameOf,
@@ -192,9 +216,9 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
             usable = usable,
             status = { id ->
                 if (id == SourceModules.YouTubeId) {
-                    if (youTubeOn) "Đang bật" else "Đã tắt, chạm để bật"
+                    if (youTubeOn) statusOn else statusOffTap
                 } else {
-                    entries.firstOrNull { it.module.info.id == id }?.let(::moduleStatus) ?: "Chưa cài đặt"
+                    entries.firstOrNull { it.module.info.id == id }?.let(moduleStatus) ?: statusNotInstalled
                 }
             },
             onTap = { id ->
@@ -221,7 +245,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
                 if (id == SourceModules.YouTubeId) {
                     youTubeForDownloads
                 } else {
-                    entries.firstOrNull { it.module.info.id == id }?.let(::moduleStatus) ?: "Chưa cài đặt"
+                    entries.firstOrNull { it.module.info.id == id }?.let(moduleStatus) ?: statusNotInstalled
                 }
             },
             // youtube is always there for downloads, so only a module's row has somewhere to go
@@ -232,13 +256,6 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
         )
         Footnote(stringResource(R.string.quality_download_order_footnote))
     }
-}
-
-private fun moduleStatus(entry: com.mochyy.mochymusic.modules.ModuleEntry): String = when {
-    entry.account is AccountState.SignedOut -> "Đăng nhập để phát từ nguồn này"
-    entry.account is AccountState.Expired -> "Đăng nhập lại"
-    entry.enabled -> "Đang bật"
-    else -> "Đã tắt, chạm để bật"
 }
 
 @Composable

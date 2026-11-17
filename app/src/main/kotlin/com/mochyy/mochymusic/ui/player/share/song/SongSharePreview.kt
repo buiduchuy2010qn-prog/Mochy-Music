@@ -59,21 +59,15 @@ internal fun PopupSheetState.rememberIsFront(): Boolean {
     return frames.count { !it.closing } <= depth
 }
 
-// the picture shrunk to fit the box: laid out at a smaller density instead of scaled, so the card's glass lines up by plain positions
+// the 360 x 640 picture shrunk to fit the box: laid out at a smaller density instead of scaled, so the card's glass lines up by plain positions
 @Composable
-internal fun SharePictureFit(
-    modifier: Modifier,
-    corner: Dp = 26.dp,
-    fill: Boolean = false,
-    canvasHeight: Dp = ShareHeight,
-    content: @Composable () -> Unit,
-) {
+internal fun SharePictureFit(modifier: Modifier, corner: Dp = 26.dp, fill: Boolean = false, content: @Composable () -> Unit) {
     BoxWithConstraints(modifier.then(if (fill) Modifier.clipToBounds() else Modifier), contentAlignment = Alignment.Center) {
         // fill crops the picture to the box, for the small tiles; otherwise it fits whole
-        val k = if (fill) max(maxWidth / ShareWidth, maxHeight / canvasHeight) else min(maxWidth / ShareWidth, maxHeight / canvasHeight)
+        val k = if (fill) max(maxWidth / ShareWidth, maxHeight / ShareHeight) else min(maxWidth / ShareWidth, maxHeight / ShareHeight)
         val density = LocalDensity.current
         // a moving picture repaints only its own box, not the whole sheet with it
-        Box(Modifier.requiredSize(ShareWidth * k, canvasHeight * k).clip(RoundedCornerShape(corner)).damageBoundary()) {
+        Box(Modifier.requiredSize(ShareWidth * k, ShareHeight * k).clip(RoundedCornerShape(corner)).damageBoundary()) {
             CompositionLocalProvider(LocalDensity provides Density(density.density * k, fontScale = 1f)) { content() }
         }
     }
@@ -91,7 +85,7 @@ internal fun SongSharePreview(
     overlay: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val resting = remember(session) { { session.windowStartMs } }
-    SharePictureFit(modifier, canvasHeight = session.aspect.heightDp) {
+    SharePictureFit(modifier) {
         Box {
             SongSharePicture(
                 session = session,

@@ -33,7 +33,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,10 +45,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,7 +64,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -80,7 +74,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -133,6 +126,7 @@ import com.mochyy.mochymusic.ui.component.detail.FeaturedArtistsRow
 import com.mochyy.mochymusic.ui.component.detail.PlaylistDetailScaffold
 import com.mochyy.mochymusic.ui.component.detail.PlaylistEndOfLine
 import com.mochyy.mochymusic.ui.component.detail.PlaylistHeader
+import com.mochyy.mochymusic.ui.component.detail.PlaylistSearchBar
 import com.mochyy.mochymusic.ui.component.detail.PlaylistModeBar
 import com.mochyy.mochymusic.ui.component.detail.PlaylistSectionTitle
 import com.mochyy.mochymusic.ui.component.detail.PlaylistSelectTick
@@ -504,17 +498,17 @@ fun LocalPlaylistScreen(
         lazyListState = lazyListState,
         onBackClick = { navController.navigateUp() },
         onBackLongClick = { navController.backToMain() },
-        showCover = !isSearching,
         contentPadding = LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom)
             .union(WindowInsets.ime).asPaddingValues(),
         onMoreClick = openPlaylistMenu,
         topBarOverride = if (isSearching) {
             {
-                LocalPlaylistSearchBar(
+                PlaylistSearchBar(
                     query = query,
                     onQueryChange = { query = it },
+                    placeholder = stringResource(R.string.search_in_playlist),
                     focusRequester = focusRequester,
-                    onBack = {
+                    onClose = {
                         isSearching = false
                         query = TextFieldValue()
                     },
@@ -588,6 +582,7 @@ fun LocalPlaylistScreen(
                 val isThisQueue = queueTitle == currentPlaylist.playlist.name
                 val savedRemote = currentPlaylist.playlist.browseId != null && !currentPlaylist.playlist.isEditable
                 PlaylistHeader(
+                    onSearchClick = { isSearching = true },
                     title = currentPlaylist.playlist.name,
                     creators = if (accountName.isNotBlank()) listOf(CreatorUi(name = accountName, avatarUrl = creatorAvatar)) else emptyList(),
                     stats = playlistStats(
@@ -650,7 +645,11 @@ fun LocalPlaylistScreen(
                     deleteFromPlaylist()
                     val browseId = playlist?.playlist?.browseId
                     com.mochyy.mochymusic.ui.component.TopToaster.show(
-                        text = "Removed ${removed.song.song.title} from ${playlist?.playlist?.name ?: "playlist"}",
+                        text = context.getString(
+                            R.string.playlist_removed_song_from,
+                            removed.song.song.title,
+                            playlist?.playlist?.name ?: context.getString(R.string.playlist_fallback_name),
+                        ),
                         thumbnail = removed.song.song.thumbnailUrl,
                         iconRes = R.drawable.playlist_add,
                         actionLabel = context.getString(R.string.undo),
@@ -672,13 +671,14 @@ fun LocalPlaylistScreen(
                 }
 
                 val content: @Composable () -> Unit = {
+                    val active = song.song.id == mediaMetadata?.id
                     PlaylistTrackRow(
                         thumbnailUrl = song.song.song.thumbnailUrl,
                         songId = song.song.id,
                         title = song.song.song.title,
                         subtitle = "${song.song.artists.joinToString { it.name }} • ${makeTimeString(song.song.song.duration * 1000L)}",
-                        isActive = song.song.id == mediaMetadata?.id,
-                        isPlaying = isPlaying,
+                        isActive = active,
+                        isPlaying = active && isPlaying,
                         modifier = Modifier.revealOnAppear(
                             key = "track_${song.map.id}",
                             seenState = revealSeen,
@@ -725,7 +725,7 @@ fun LocalPlaylistScreen(
                                     ) {
                                         Icon(
                                             painter = painterResource(R.drawable.drag_handle),
-                                            contentDescription = "Drag to move",
+                                            contentDescription = stringResource(R.string.playlist_drag_to_move),
                                             tint = Color.White.copy(alpha = 0.78f),
                                         )
                                     }
@@ -812,7 +812,7 @@ fun LocalPlaylistScreen(
 
         if (!isSearching) {
             item(key = "related_playlists") {
-                val allPlaylists by database.playlists(PlaylistSortType.CREATE_DATE, true).collectAsState(initial = emptyList())
+                val allPlaylists by remember(database) { database.playlists(PlaylistSortType.CREATE_DATE, true) }.collectAsState(initial = emptyList())
                 val relatedPlaylists = remember(allPlaylists, playlist) {
                     allPlaylists.filter { it.id != playlist?.id }.shuffled().take(5)
                 }
@@ -823,7 +823,7 @@ fun LocalPlaylistScreen(
                             .fillMaxWidth()
                             .padding(top = 28.dp)
                     ) {
-                        PlaylistSectionTitle(title = "Danh sách phát liên quan")
+                        PlaylistSectionTitle(title = stringResource(R.string.playlist_related))
                         Spacer(Modifier.height(9.dp))
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 36.dp),
@@ -898,7 +898,7 @@ fun LocalPlaylistScreen(
     if (showSortDialog) {
         AlertDialog(
             onDismissRequest = { showSortDialog = false },
-            title = { Text("Thứ tự sắp xếp") },
+            title = { Text(stringResource(R.string.playlist_sort_order)) },
             text = {
                 Column {
                     PlaylistSongSortType.entries.forEach { type ->
@@ -922,7 +922,9 @@ fun LocalPlaylistScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = stringResource(playlistSortLabel(type)) +
-                                    if (sortType == type) (if (sortDescending) " (Desc)" else " (Asc)") else "",
+                                    if (sortType == type) (if (sortDescending) stringResource(
+                                                        R.string.playlist_sort_desc,
+                                                    ) else stringResource(R.string.playlist_sort_asc)) else "",
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -944,49 +946,4 @@ private fun playlistSortLabel(type: PlaylistSongSortType): Int = when (type) {
     PlaylistSongSortType.NAME -> R.string.sort_by_name
     PlaylistSongSortType.ARTIST -> R.string.sort_by_artist
     PlaylistSongSortType.PLAY_TIME -> R.string.sort_by_play_time
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LocalPlaylistSearchBar(
-    query: TextFieldValue,
-    onQueryChange: (TextFieldValue) -> Unit,
-    focusRequester: FocusRequester,
-    onBack: () -> Unit,
-) {
-    TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
-        title = {
-            TextField(
-                value = query,
-                onValueChange = onQueryChange,
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.search),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.titleLarge,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester)
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(painter = painterResource(R.drawable.arrow_back_ios), contentDescription = null)
-            }
-        },
-    )
 }

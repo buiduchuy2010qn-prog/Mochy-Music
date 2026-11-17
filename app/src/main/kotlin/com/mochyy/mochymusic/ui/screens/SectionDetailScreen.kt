@@ -219,7 +219,7 @@ fun SectionDetailScreen(
     GeneratedPlaylistPage(
         title = title,
         coverUrl = coverUrl,
-        stats = if (songCount > 0) generatedStats(songCount, totalSeconds) else "${items.size} mục",
+        stats = if (songCount > 0) generatedStats(songCount, totalSeconds) else "${items.size} items",
         lazyListState = lazyListState,
         contentPadding = LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom)
             .union(WindowInsets.ime).asPaddingValues(),
@@ -228,7 +228,7 @@ fun SectionDetailScreen(
         onShuffleClick = { playAll(shuffled = true) },
         query = query,
         onQueryChange = { query = it },
-        searchPlaceholder = "Tìm trong $title",
+        searchPlaceholder = "Search in $title",
         onBackClick = { navController.navigateUp() },
         onBackLongClick = { navController.backToMain() },
         creator = accountName,
@@ -245,13 +245,14 @@ fun SectionDetailScreen(
             val (name, sub) = rowText(item)
             val id = rowKey(item)
             val row: @Composable () -> Unit = {
+                val active = id == mediaMetadata?.id || (item is AlbumItem && item.id == mediaMetadata?.album?.id)
                 PlaylistTrackRow(
                     thumbnailUrl = rowThumbnail(item),
                     songId = id.takeIf { item is Song || item is SongItem },
                     title = name,
                     subtitle = sub,
-                    isActive = id == mediaMetadata?.id || (item is AlbumItem && item.id == mediaMetadata?.album?.id),
-                    isPlaying = isPlaying,
+                    isActive = active,
+                    isPlaying = active && isPlaying,
                     coverShape = if (item is ArtistItem || item is Artist) CircleShape else com.mochyy.mochymusic.ui.component.detail.TrackShape,
                     // albums and playlists open growing out of their cover, as from Home
                     coverModifier = Modifier.containerTransformSource(
@@ -349,7 +350,7 @@ private fun rowText(item: Any): Pair<String, String> = when (item) {
         item.artists.joinToString { it.name }.ifBlank { null },
         item.album.year?.toString(),
     ).joinToString(" • ")
-    is Playlist -> item.playlist.name to "${item.songCount} bài hát"
+    is Playlist -> item.playlist.name to "${item.songCount} songs"
     is Artist -> item.title to "Artist"
     is AlbumItem -> item.title to listOfNotNull(
         item.artists?.joinToString { it.name }?.ifBlank { null },

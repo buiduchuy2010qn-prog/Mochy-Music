@@ -2,8 +2,12 @@
 
 package com.mochyy.mochymusic.ui.screens.settings.integrations.discord
 
+import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -103,7 +107,7 @@ fun DiscordScreen(
                 context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             } catch (e: android.content.ActivityNotFoundException) {
                 viewModel.cancelWaiting()
-                Toast.makeText(context, "Không tìm thấy trình duyệt để mở trang đăng nhập Discord.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.discord_no_browser_toast), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -117,14 +121,14 @@ fun DiscordScreen(
 
     Box(Modifier.fillMaxSize()) {
         SubSettingsScaffold(
-            title = "Discord",
+            title = stringResource(R.string.discord_settings_title),
             onBack = { navController.navigateUp() },
         ) {
-            IntegrationPageSubtitle("Hiển thị trạng thái nghe nhạc trên hồ sơ Discord")
+            IntegrationPageSubtitle(stringResource(R.string.discord_subtitle_rich_presence))
             DiscordToggleCard(
                 checked = settings.enabled,
                 onCheckedChange = { on -> viewModel.edit { copy(enabled = on) } },
-                status = statusLine(viewModel.isConfigured, signedIn, settings.enabled, connection, login),
+                status = statusLine(context, viewModel.isConfigured, signedIn, settings.enabled, connection, login),
                 enabled = signedIn,
             )
             Spacer(Modifier.height(12.dp))
@@ -142,7 +146,17 @@ fun DiscordScreen(
                 onLogin = ::openLogin,
                 onLogOut = viewModel::logOut,
             )
-            CustomizeSection(settings = settings, edit = viewModel::edit)
+            CustomizeSection(
+                settings = settings,
+                edit = viewModel::edit,
+                onPickCustom = { large, picked ->
+                    scope.launch {
+                        if (!viewModel.pickCustomPicture(large, picked)) {
+                            Toast.makeText(context, context.getString(R.string.discord_custom_failed), Toast.LENGTH_LONG).show()
+                        }
+                    }
+                },
+            )
             // room for the floating preview over the last card
             Spacer(Modifier.height(220.dp))
         }
@@ -160,20 +174,21 @@ fun DiscordScreen(
 }
 
 private fun statusLine(
+    context: Context,
     configured: Boolean,
     signedIn: Boolean,
     enabled: Boolean,
     connection: PresenceConnection,
     login: DiscordLogin,
 ): String = when {
-    !configured -> "Chưa cấu hình trong bản dựng này"
-    login == DiscordLogin.Finishing -> "Đang đăng nhập…"
-    !signedIn -> "Đăng nhập bên dưới để bật"
-    !enabled -> "Đang tắt, hồ sơ của bạn không hiển thị trạng thái từ Mochy"
-    connection == PresenceConnection.Live -> "Đang hiển thị trên hồ sơ của bạn"
-    connection == PresenceConnection.Connecting -> "Đang kết nối tới Discord…"
-    connection == PresenceConnection.Retrying -> "Không thể kết nối Discord. Đang thử lại…"
-    else -> "Sẽ hiển thị khi bạn phát nhạc"
+    !configured -> context.getString(R.string.discord_status_not_configured)
+    login == DiscordLogin.Finishing -> context.getString(R.string.discord_status_signing_in)
+    !signedIn -> context.getString(R.string.discord_status_login_below)
+    !enabled -> context.getString(R.string.discord_status_off)
+    connection == PresenceConnection.Live -> context.getString(R.string.discord_status_live)
+    connection == PresenceConnection.Connecting -> context.getString(R.string.discord_status_connecting)
+    connection == PresenceConnection.Retrying -> context.getString(R.string.discord_status_retrying)
+    else -> context.getString(R.string.discord_status_idle_playing)
 }
 
 @Composable
@@ -185,11 +200,11 @@ private fun AccountButton(
     onLogOut: () -> Unit,
 ) {
     val (text, action) = when {
-        !configured -> "Discord chưa được cấu hình" to null
-        signedIn -> "Đăng xuất khỏi Discord" to onLogOut
-        login == DiscordLogin.Finishing -> "Đang đăng nhập…" to null
-        login == DiscordLogin.InBrowser -> "Đang chờ Discord… Chạm để mở lại" to onLogin
-        else -> "Đăng nhập bằng Discord" to onLogin
+        !configured -> stringResource(R.string.discord_btn_not_configured) to null
+        signedIn -> stringResource(R.string.discord_btn_logout) to onLogOut
+        login == DiscordLogin.Finishing -> stringResource(R.string.discord_status_signing_in) to null
+        login == DiscordLogin.InBrowser -> stringResource(R.string.discord_btn_waiting_browser) to onLogin
+        else -> stringResource(R.string.discord_btn_login) to onLogin
     }
     val inviting = configured && !signedIn
     Box(
@@ -209,31 +224,48 @@ private fun AccountButton(
         )
     }
     if (inviting) {
-        Text(
-            text = "Mở trang đăng nhập chính thức của Discord trong trình duyệt. Mật khẩu của bạn được bảo mật bởi Discord.",
-            color = DiscordColors.Secondary,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        )
+        LoginNote(stringResource(R.string.discord_login_note), Modifier.padding(top = 8.dp))
+        // discord's consent page lists the whole presence bundle, so say up front what mochy really uses
+        LoginNote(stringResource(R.string.discord_permissions_note), Modifier.padding(top = 4.dp, bottom = 8.dp))
     }
+}
+
+@Composable
+private fun LoginNote(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        color = DiscordColors.Secondary,
+        fontSize = 12.sp,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+    )
 }
 
 @Composable
 private fun CustomizeSection(
     settings: PresenceSettings,
     edit: (PresenceSettings.() -> PresenceSettings) -> Unit,
+    // a picture picked for the big (true) or small slot's "your own picture"
+    onPickCustom: (large: Boolean, picked: android.net.Uri) -> Unit,
 ) {
+    val context = LocalContext.current
     val gap = Modifier.height(12.dp)
+    val pickSmall = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
+        if (picked != null) onPickCustom(false, picked)
+    }
+    val pickLarge = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
+        if (picked != null) onPickCustom(true, picked)
+    }
+    val imagesOnly = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
 
-    DiscordSectionTitle("TÙY CHỈNH")
+    DiscordSectionTitle(stringResource(R.string.discord_section_customize))
     DiscordPlaceholderCard()
 
-    DiscordSectionTitle("Tùy chọn")
+    DiscordSectionTitle(stringResource(R.string.discord_section_options))
     DiscordCard {
-        DiscordCardTitle("Chu kỳ làm mới")
+        DiscordCardTitle(stringResource(R.string.discord_refresh_interval))
         Spacer(Modifier.height(4.dp))
         DiscordStepSlider(
             value = settings.refreshSeconds,
@@ -251,54 +283,70 @@ private fun CustomizeSection(
         onCheckedChange = { on -> edit { copy(clearOnPause = on) } },
     )
 
-    DiscordSectionTitle("Hoạt động")
+    DiscordSectionTitle(stringResource(R.string.discord_section_activity))
     DiscordCard {
-        DiscordCardTitle("Chọn loại hoạt động")
+        DiscordCardTitle(stringResource(R.string.discord_select_activity_type))
         Spacer(Modifier.height(10.dp))
         DiscordSegmented(
             options = PresenceKind.entries,
             selected = settings.kind,
-            label = { it.label },
+            label = {
+                when (it) {
+                    PresenceKind.LISTENING -> context.getString(R.string.discord_kind_listening)
+                    PresenceKind.PLAYING -> context.getString(R.string.discord_kind_playing)
+                }
+            },
             onSelect = { kind -> edit { copy(kind = kind) } },
         )
     }
     Spacer(gap)
-    DiscordTextCard("Tên hoạt động", settings.name, { text -> edit { copy(name = text) } }, hint = "Mochy")
+    DiscordTextCard(stringResource(R.string.discord_activity_name_title), settings.name, { text -> edit { copy(name = text) } }, hint = "Mochy")
 
-    DiscordSectionTitle("Tùy chỉnh văn bản")
-    DiscordNoticeCard("Để trống ô bất kỳ nếu muốn ẩn dòng đó")
+    DiscordSectionTitle(stringResource(R.string.discord_section_strings))
+    DiscordNoticeCard(stringResource(R.string.discord_empty_to_hide))
     Spacer(gap)
-    DiscordTextCard("Dòng chi tiết (Details)", settings.details, { text -> edit { copy(details = text) } })
+    DiscordTextCard(stringResource(R.string.discord_details_string), settings.details, { text -> edit { copy(details = text) } })
     Spacer(gap)
-    DiscordTextCard("Dòng trạng thái (State)", settings.state, { text -> edit { copy(state = text) } })
+    DiscordTextCard(stringResource(R.string.discord_state_string), settings.state, { text -> edit { copy(state = text) } })
     Spacer(gap)
-    DiscordTextCard("Chú thích ảnh lớn", settings.largeText, { text -> edit { copy(largeText = text) } })
+    DiscordTextCard(stringResource(R.string.discord_large_image_hover), settings.largeText, { text -> edit { copy(largeText = text) } })
     Spacer(gap)
-    DiscordTextCard("Chú thích ảnh nhỏ", settings.smallText, { text -> edit { copy(smallText = text) } })
+    DiscordTextCard(stringResource(R.string.discord_small_image_hover), settings.smallText, { text -> edit { copy(smallText = text) } })
 
-    DiscordSectionTitle("Tùy chỉnh hình ảnh")
+    DiscordSectionTitle(stringResource(R.string.discord_section_image_customisation))
     DiscordImageSourceCard(
-        title = "Nguồn ảnh nhỏ",
+        title = stringResource(R.string.discord_small_image_source),
         selected = settings.smallImage,
         options = PresenceImage.ForSmall,
-        onSelect = { image -> edit { copy(smallImage = image) } },
+        // "your own picture" with none picked yet opens the picker first, and only switches once one is chosen
+        onSelect = { image ->
+            if (image == PresenceImage.CUSTOM && settings.smallCustomImage.isBlank()) pickSmall.launch(imagesOnly)
+            else edit { copy(smallImage = image) }
+        },
         spin = settings.spin,
         onSpinChange = { spin -> edit { copy(spinSeconds = spin.secondsPerTurn, spinFps = spin.fps) } },
+        customPicture = settings.smallCustomImage,
+        onPickCustom = { pickSmall.launch(imagesOnly) },
     )
     Spacer(gap)
     DiscordImageSourceCard(
-        title = "Nguồn ảnh lớn",
+        title = stringResource(R.string.discord_big_image_source),
         selected = settings.largeImage,
         options = PresenceImage.ForLarge,
-        onSelect = { image -> edit { copy(largeImage = image) } },
+        onSelect = { image ->
+            if (image == PresenceImage.CUSTOM && settings.largeCustomImage.isBlank()) pickLarge.launch(imagesOnly)
+            else edit { copy(largeImage = image) }
+        },
+        customPicture = settings.largeCustomImage,
+        onPickCustom = { pickLarge.launch(imagesOnly) },
     )
 
-    DiscordSectionTitle("Nút bấm")
-    DiscordButtonCard("Nút thứ 1", settings.button1) { button -> edit { copy(button1 = button) } }
+    DiscordSectionTitle(stringResource(R.string.discord_section_buttons))
+    DiscordButtonCard(stringResource(R.string.discord_first_button), settings.button1) { button -> edit { copy(button1 = button) } }
     Spacer(gap)
-    DiscordButtonCard("Nút thứ 2", settings.button2) { button -> edit { copy(button2 = button) } }
+    DiscordButtonCard(stringResource(R.string.discord_second_button), settings.button2) { button -> edit { copy(button2 = button) } }
     Text(
-        text = "Discord chỉ hiển thị các nút bấm này cho người khác xem hồ sơ của bạn.",
+        text = stringResource(R.string.discord_buttons_note),
         color = DiscordColors.Secondary,
         fontSize = 12.sp,
         modifier = Modifier.padding(start = 4.dp, top = 10.dp),

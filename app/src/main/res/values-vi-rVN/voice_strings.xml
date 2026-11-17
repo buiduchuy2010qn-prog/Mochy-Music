@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_nothing_found">Không tìm thấy gì cho “%1$s”. Hãy thử nói theo cách khác.</string>
+    <string name="voice_nothing_to_play">Chưa có gì để phát. Hãy yêu cầu một bài hát, nghệ sĩ hoặc danh sách phát.</string>
+    <string name="voice_offline">Không thể kết nối tới YouTube Music. Hãy kiểm tra kết nối mạng và thử lại.</string>
+</resources>

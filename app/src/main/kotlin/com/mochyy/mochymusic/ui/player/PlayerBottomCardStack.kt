@@ -55,6 +55,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -64,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.LocalPlayerConnection
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.mochyy.mochymusic.lyrics.LyricsUtils
 import com.mochyy.mochymusic.ui.component.GlassState
@@ -539,6 +541,34 @@ private fun QueueCardContent(
     }
 }
 
+// the deck as the player shows it at rest, for the selector's cards: the front card running off the bottom edge and the one behind peeking over it
+@Composable
+internal fun PlayerDeckPreview(look: PlayerCardLook, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(PlayerDeckHeight),
+    ) {
+        val cardHeight = PlayerCardHeight.toPx()
+        val bleed = BottomBleed.toPx()
+        val corner = CornerRadius(look.corner.toPx())
+        val border = look.borderWidth.toPx()
+        val frontTop = size.height - cardHeight
+        // the back card, scaled from the bottom and lifted by the peek, only where it shows over the front one
+        val inset = PeekInset.toPx()
+        val backTop = size.height - cardHeight * BackCardScale - PeekOffset.toPx()
+        clipRect(bottom = frontTop) {
+            val left = inset * BackCardScale + (size.width - size.width * BackCardScale) / 2f
+            val width = (size.width - inset * 2f) * BackCardScale
+            val backCorner = CornerRadius(look.corner.toPx() * BackCardScale)
+            drawRoundRect(Color.White.copy(alpha = look.backFill), Offset(left, backTop), Size(width, cardHeight + bleed), backCorner)
+            drawRoundRect(Color.White.copy(alpha = look.backBorder), Offset(left, backTop), Size(width, cardHeight + bleed), backCorner, style = Stroke(border * BackCardScale))
+        }
+        drawRoundRect(Color.White.copy(alpha = look.frontFill), Offset(0f, frontTop), Size(size.width, cardHeight + bleed), corner)
+        drawRoundRect(Color.White.copy(alpha = look.frontBorder), Offset(0f, frontTop), Size(size.width, cardHeight + bleed), corner, style = Stroke(border))
+    }
+}
+
 /** the queue card's own row: the next song's artwork, and its title and artist */
 @Composable
 private fun NextSongRow(
@@ -574,7 +604,7 @@ private fun NextSongRow(
         Column(modifier = Modifier.weight(1f).fadingRightEdge()) {
 
             Text(
-                text = "Bài tiếp theo",
+                text = stringResource(R.string.pc_next_song),
                 style = MaterialTheme.typography.labelSmall.copy(lineHeight = 11.sp),
                 color = Color.White.copy(alpha = 0.5f),
             )
@@ -583,7 +613,7 @@ private fun NextSongRow(
                     listOfNotNull(nextTitle, nextArtist?.takeIf { it.isNotBlank() })
                         .joinToString(" - ")
                 } else {
-                    "Cuối danh sách phát"
+                    stringResource(R.string.pc_end_of_queue)
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 15.sp),
                 fontWeight = FontWeight.SemiBold,
