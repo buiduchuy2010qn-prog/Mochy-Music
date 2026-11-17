@@ -259,7 +259,7 @@ private fun ColumnScope.UpdateSheetContent(
 
             Spacer(Modifier.height(14.dp))
             Text(
-                text = branding.displayName(stringResource(R.string.app_name)),
+                text = "Mochy",
                 fontFamily = InterFontFamily,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
