@@ -116,7 +116,7 @@ fun SongDetailsSheet(
                             )
                         }
                     }
-                    song.album?.let { album ->
+                    song.album?.takeIf { it.id.isNotBlank() }?.let { album ->
                         DetailRow(
                             title = stringResource(R.string.ps_details_view, album.title),
                             onClick = { onOpenAlbum(album.id) },

@@ -668,9 +668,7 @@ private fun MochyCloudSheetContent(
                                                     .map { MediaMetadata.Artist(id = null, name = it) },
                                                 duration = shownResume.durationSec,
                                                 thumbnailUrl = shownResume.thumbnailUrl,
-                                                album = shownResume.albumName
-                                                    ?.takeIf { it.isNotBlank() }
-                                                    ?.let { MediaMetadata.Album(id = "", title = it) },
+                                                album = null,
                                             ).toMediaItem()
                                             val upcomingItems = shownResume.queueTracks
                                                 .filter { it.songId != shownResume.songId }
@@ -685,9 +683,7 @@ private fun MochyCloudSheetContent(
                                                             .map { MediaMetadata.Artist(id = null, name = it) },
                                                         duration = track.duration,
                                                         thumbnailUrl = track.thumbnailUrl,
-                                                        album = track.albumName
-                                                            ?.takeIf { it.isNotBlank() }
-                                                            ?.let { MediaMetadata.Album(id = "", title = it) },
+                                                        album = null,
                                                     ).toMediaItem()
                                                 }
                                             val allItems = listOf(primaryItem) + upcomingItems

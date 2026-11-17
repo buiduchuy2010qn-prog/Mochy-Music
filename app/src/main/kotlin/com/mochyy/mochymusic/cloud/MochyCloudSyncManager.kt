@@ -16,6 +16,7 @@ import com.mochyy.mochymusic.db.entities.AlbumArtistMap
 import com.mochyy.mochymusic.db.entities.AlbumEntity
 import com.mochyy.mochymusic.db.entities.ArtistEntity
 import com.mochyy.mochymusic.db.entities.Event
+import com.mochyy.mochymusic.db.entities.Playlist
 import com.mochyy.mochymusic.db.entities.PlaylistEntity
 import com.mochyy.mochymusic.db.entities.PlaylistSongMap
 import com.mochyy.mochymusic.db.entities.SongArtistMap
@@ -154,6 +155,7 @@ object MochyCloudSyncManager {
             }
             startObservers(app, scope)
             scope.launch(Dispatchers.IO) {
+                runCatching { database(app).purgeBlankAlbumRows() }
                 readLocalAvatarFile(app)?.let { local ->
                     _state.value = _state.value.copy(avatarLocalPath = local.absolutePath)
                 }
@@ -162,6 +164,7 @@ object MochyCloudSyncManager {
             }
         } else {
             scope.launch(Dispatchers.IO) {
+                runCatching { database(app).purgeBlankAlbumRows() }
                 refreshLocalStats(app)
             }
         }
@@ -330,6 +333,7 @@ object MochyCloudSyncManager {
                 MochyCloudVault.saveSyncedArtistIds(app, session.userId, emptySet())
                 MochyCloudVault.saveSyncedEqDigest(app, session.userId, null)
                 MochySupabaseClient.wipeCloudData(app, session)
+                ProfileStore.clearPhoto(app)
                 ProfileStore.save(app, session.displayName, null, syncToCloud = false)
                 _state.value = _state.value.copy(
                     avatarLocalPath = null,
@@ -476,7 +480,7 @@ object MochyCloudSyncManager {
             val plCount = db.playlistsByCreateDateAsc().first().count { isSyncablePlaylist(it.playlist) }
             val albCount = db.albumsLikedByCreateDateAsc().first().count { !it.album.isLocal && it.album.id.isNotBlank() }
             val artCount = db.artistsBookmarkedByCreateDateAsc().first().count { !it.artist.isLocal && it.artist.id.isNotBlank() }
-            val histCount = db.recentEvents(500).first().distinctBy { it.song.id }.size
+            val histCount = db.events().first().distinctBy { it.song.id }.size
             _state.value = _state.value.copy(
                 favoritesCount = favCount,
                 playlistsCount = plCount,
@@ -522,6 +526,7 @@ object MochyCloudSyncManager {
         val app = context.applicationContext
         val scope = appScope ?: return
         if (!MochyCloudVault.isConfigured(app) || MochyCloudVault.loadSession(app) == null) return
+        if (favoritesObserverJob?.isActive == true) return
         favoriteToggleSyncJob?.cancel()
         favoriteToggleSyncJob = scope.launch(Dispatchers.IO) {
             delay(1_500L)
@@ -632,6 +637,10 @@ object MochyCloudSyncManager {
                     if (System.currentTimeMillis() < suppressObserverUntilMs) return@collectLatest
                     val prevSynced = MochyCloudVault.loadSyncedFavoriteIds(app, session.userId) ?: return@collectLatest
                     if (currentIds == prevSynced) return@collectLatest
+                    delay(1_200L)
+                    if (System.currentTimeMillis() < suppressObserverUntilMs) return@collectLatest
+                    val latestSynced = MochyCloudVault.loadSyncedFavoriteIds(app, session.userId) ?: return@collectLatest
+                    if (currentIds == latestSynced) return@collectLatest
                     syncNowInternal(app, fromUser = false)
                 }
         }
@@ -640,11 +649,7 @@ object MochyCloudSyncManager {
         playlistsObserverJob = scope.launch(Dispatchers.IO) {
             val db = database(app)
             db.playlistsByCreateDateAsc()
-                .map { list ->
-                    list.filter { isSyncablePlaylist(it.playlist) }
-                        .take(25)
-                        .map { Triple(it.id, it.playlist.name, it.songCount) }
-                }
+                .map { list -> buildPlaylistDigestEntries(db, list) }
                 .distinctUntilChanged()
                 .collectLatest { items ->
                     val session = MochyCloudVault.loadSession(app) ?: return@collectLatest
@@ -782,13 +787,30 @@ object MochyCloudSyncManager {
                 }
             }
 
-            val finalSyncedIds = (localById.keys + toImportLocal.map { it.songId }) - toDeleteRemote.toSet()
+            val unlikedRemotely = if (prevSynced != null) {
+                (prevSynced intersect localById.keys) - remoteById.keys
+            } else {
+                emptySet()
+            }
+            if (unlikedRemotely.isNotEmpty()) {
+                suppressObserverUntilMs = System.currentTimeMillis() + 2_500L
+                for (songId in unlikedRemotely) {
+                    localById[songId]?.song?.takeIf(::isCloudTrackEligible)?.let { songEntity ->
+                        db.update(songEntity.copy(liked = false, likedDate = null))
+                    }
+                }
+            }
+
+            val finalSyncedIds = ((localById.keys - unlikedRemotely) + toImportLocal.map { it.songId }) - toDeleteRemote.toSet()
             MochyCloudVault.saveSyncedFavoriteIds(app, activeSession.userId, finalSyncedIds)
 
             // 3. Lịch sử nghe (gộp mới nhất, tối đa 500 bài)
             val remoteHistory = MochySupabaseClient.fetchHistory(app, activeSession)
             val remoteHistoryMap = remoteHistory.associateBy { it.songId }
-            val localEvents = db.recentEvents(300).first()
+            val localEvents = db.events().first()
+            val existingEventKeys = localEvents.mapTo(HashSet()) {
+                it.song.id to it.event.timestamp.atZone(ZoneId.systemDefault()).toEpochSecond()
+            }
             val groupedLocal = localEvents.groupBy { it.song.id }
             val toPushHistory = mutableListOf<CloudHistoryRecord>()
 
@@ -830,7 +852,7 @@ object MochyCloudSyncManager {
             for (rh in remoteHistory) {
                 historyPlayCountCache.putIfAbsent(rh.songId, rh.playCount to rh.totalPlayMs)
                 if (!groupedLocal.containsKey(rh.songId)) {
-                    ensureSongHistoryInLocalDb(db, rh)
+                    ensureSongHistoryInLocalDb(db, rh, existingEventKeys)
                 }
             }
 
@@ -943,6 +965,18 @@ object MochyCloudSyncManager {
         val localMap = initialLocal.associateBy { it.id }
         val prevSyncedPlIds = MochyCloudVault.loadSyncedPlaylistIds(app, session.userId)
         val removedLocally = if (prevSyncedPlIds != null) prevSyncedPlIds - localMap.keys else emptySet()
+        val remoteIds = remotePlaylists.map { it.id }.toSet()
+
+        if (prevSyncedPlIds != null && remotePlaylists.size < 25) {
+            val deletedRemotely = (prevSyncedPlIds intersect localMap.keys) - remoteIds
+            if (deletedRemotely.isNotEmpty()) {
+                suppressObserverUntilMs = System.currentTimeMillis() + 3_000L
+                for (delId in deletedRemotely) {
+                    db.clearPlaylist(delId)
+                    localMap[delId]?.playlist?.let { db.delete(it) }
+                }
+            }
+        }
 
         for (remotePl in remotePlaylists) {
             if (remotePl.id in removedLocally) continue
@@ -969,8 +1003,11 @@ object MochyCloudSyncManager {
                     .atZone(ZoneId.systemDefault())
                     .toEpochSecond()
                 val existingTracks = db.playlistSongs(remotePl.id).first()
+                val existingTrackIds = existingTracks.take(200).map { it.song.id }
+                val remoteTrackIds = remotePl.tracks.map { it.songId }
                 val remoteIsNewer = remotePl.updatedEpochSec > localEpochSec + 2L ||
-                    (existingTracks.isEmpty() && remotePl.tracks.isNotEmpty())
+                    (existingTracks.isEmpty() && remotePl.tracks.isNotEmpty()) ||
+                    (remotePl.updatedEpochSec >= localEpochSec && (existing.playlist.name != remotePl.name || existingTrackIds != remoteTrackIds))
                 if (remoteIsNewer) {
                     suppressObserverUntilMs = System.currentTimeMillis() + 3_000L
                     db.update(
@@ -1024,9 +1061,7 @@ object MochyCloudSyncManager {
             }.onFailure { err -> if (err is MochyCloudAuthExpiredException) throw err }
         }
         MochyCloudVault.saveSyncedPlaylistIds(app, session.userId, finalLocal.map { it.id }.toSet())
-        val finalDigest = computePlaylistsDigest(
-            finalLocal.map { Triple(it.id, it.playlist.name, it.songCount) },
-        )
+        val finalDigest = computePlaylistsDigest(buildPlaylistDigestEntries(db, finalLocal))
         MochyCloudVault.saveSyncedPlaylistsDigest(app, session.userId, finalDigest)
         return finalLocal.size
     }
@@ -1136,21 +1171,46 @@ object MochyCloudSyncManager {
         val audioLab = audioLab(app)
         val initialEq = audioLab.eq.value
         val initialEqJson = audioLabJson.encodeToString(EqSettings.serializer(), initialEq)
-        val initialEqDigest = sha256Hex(initialEqJson)
+        val initialPrefs = app.dataStore.data.first()
+        val initialAudioDigest = sha256Hex(
+            canonicalAudioConfig(
+                eqJson = initialEqJson,
+                norm = initialPrefs[AudioNormalizationKey],
+                quality = initialPrefs[AudioQualityKey],
+            ),
+        )
         val prevEqDigest = MochyCloudVault.loadSyncedEqDigest(app, session.userId)
         val remoteAudio = remoteExtra?.audio
         val remoteEqJson = remoteAudio?.eqSettingsJson
-        val remoteEqDigest = remoteEqJson?.let(::sha256Hex)
 
-        if (!remoteEqJson.isNullOrBlank()) {
-            val shouldApplyRemote = when {
-                prevEqDigest == null -> initialEq == EqSettings()
-                else -> initialEqDigest == prevEqDigest && remoteEqDigest != prevEqDigest
-            }
-            if (shouldApplyRemote) {
-                runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), remoteEqJson) }
-                    .getOrNull()
-                    ?.let { decodedEq -> audioLab.updateEq { decodedEq } }
+        if (remoteAudio != null) {
+            val remoteAudioDigest = sha256Hex(
+                canonicalAudioConfig(
+                    eqJson = remoteEqJson ?: initialEqJson,
+                    norm = remoteAudio.audioNormalization ?: initialPrefs[AudioNormalizationKey],
+                    quality = remoteAudio.audioQuality ?: initialPrefs[AudioQualityKey],
+                ),
+            )
+            if (prevEqDigest == null) {
+                if (!remoteEqJson.isNullOrBlank() && initialEq == EqSettings()) {
+                    runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), remoteEqJson) }
+                        .getOrNull()
+                        ?.let { decodedEq -> audioLab.updateEq { decodedEq } }
+                }
+                app.dataStore.edit { p ->
+                    if (p[AudioNormalizationKey] == null) {
+                        remoteAudio.audioNormalization?.let { p[AudioNormalizationKey] = it }
+                    }
+                    if (p[AudioQualityKey].isNullOrBlank()) {
+                        remoteAudio.audioQuality?.takeIf { it.isNotBlank() }?.let { p[AudioQualityKey] = it }
+                    }
+                }
+            } else if (initialAudioDigest == prevEqDigest && remoteAudioDigest != prevEqDigest) {
+                if (!remoteEqJson.isNullOrBlank()) {
+                    runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), remoteEqJson) }
+                        .getOrNull()
+                        ?.let { decodedEq -> audioLab.updateEq { decodedEq } }
+                }
                 app.dataStore.edit { p ->
                     remoteAudio.audioNormalization?.let { p[AudioNormalizationKey] = it }
                     remoteAudio.audioQuality?.takeIf { it.isNotBlank() }?.let { p[AudioQualityKey] = it }
@@ -1163,7 +1223,7 @@ object MochyCloudSyncManager {
             .filter { !it.album.isLocal && it.album.id.isNotBlank() }
         val finalArtists = db.artistsBookmarkedByCreateDateAsc().first()
             .filter { !it.artist.isLocal && it.artist.id.isNotBlank() }
-        val prefs = app.dataStore.data.first()
+        val finalPrefs = app.dataStore.data.first()
         val finalEqJson = audioLabJson.encodeToString(EqSettings.serializer(), audioLab.eq.value)
         val extraPayload = CloudLibraryExtra(
             albums = finalAlbums.take(MaxCloudExtraItems).map { alb ->
@@ -1198,8 +1258,8 @@ object MochyCloudSyncManager {
             },
             audio = CloudAudioConfig(
                 eqSettingsJson = finalEqJson,
-                audioNormalization = prefs[AudioNormalizationKey],
-                audioQuality = prefs[AudioQualityKey],
+                audioNormalization = finalPrefs[AudioNormalizationKey],
+                audioQuality = finalPrefs[AudioQualityKey],
             ),
         )
         val encodedExtra = MochyLibraryExtraCodec.encode(extraPayload)
@@ -1216,7 +1276,14 @@ object MochyCloudSyncManager {
 
         MochyCloudVault.saveSyncedAlbumIds(app, session.userId, finalAlbums.map { it.album.id }.toSet())
         MochyCloudVault.saveSyncedArtistIds(app, session.userId, finalArtists.map { it.artist.id }.toSet())
-        MochyCloudVault.saveSyncedEqDigest(app, session.userId, sha256Hex(finalEqJson))
+        val finalAudioDigest = sha256Hex(
+            canonicalAudioConfig(
+                eqJson = finalEqJson,
+                norm = finalPrefs[AudioNormalizationKey],
+                quality = finalPrefs[AudioQualityKey],
+            ),
+        )
+        MochyCloudVault.saveSyncedEqDigest(app, session.userId, finalAudioDigest)
         return finalAlbums.size to finalArtists.size
     }
 
@@ -1301,12 +1368,23 @@ object MochyCloudSyncManager {
         )
     }
 
-    private fun computePlaylistsDigest(items: List<Triple<String, String, Int>>): String {
-        val canonical = items
-            .sortedBy { it.first }
-            .joinToString("\n") { (id, name, count) -> "$id\u0000$name\u0000$count" }
-        return sha256Hex(canonical)
-    }
+    private suspend fun buildPlaylistDigestEntries(db: MusicDatabase, playlists: List<Playlist>): List<String> =
+        playlists.filter { isSyncablePlaylist(it.playlist) }
+            .take(25)
+            .map { pl ->
+                val trackIds = db.playlistSongs(pl.id).first().take(200).joinToString(",") { it.song.id }
+                val updatedSec = (pl.playlist.lastUpdateTime ?: pl.playlist.createdAt)
+                    ?.atZone(ZoneId.systemDefault())
+                    ?.toEpochSecond()
+                    ?: 0L
+                "${pl.id}\u0000${pl.playlist.name}\u0000$updatedSec\u0000$trackIds"
+            }
+
+    private fun computePlaylistsDigest(items: List<String>): String =
+        sha256Hex(items.sorted().joinToString("\n"))
+
+    private fun canonicalAudioConfig(eqJson: String?, norm: Boolean?, quality: String?): String =
+        "${eqJson.orEmpty()}\u0000${norm?.toString().orEmpty()}\u0000${quality.orEmpty()}"
 
     private fun sha256Hex(input: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
@@ -1343,7 +1421,11 @@ object MochyCloudSyncManager {
         )
     }
 
-    private fun ensureSongHistoryInLocalDb(db: MusicDatabase, record: CloudHistoryRecord) {
+    private fun ensureSongHistoryInLocalDb(
+        db: MusicDatabase,
+        record: CloudHistoryRecord,
+        existingEventKeys: MutableSet<Pair<String, Long>>,
+    ) {
         if (db.getSongByIdBlocking(record.songId) == null) {
             insertSkeletonSong(
                 db = db,
@@ -1361,13 +1443,16 @@ object MochyCloudSyncManager {
             ?.atZone(ZoneId.systemDefault())
             ?.toLocalDateTime()
             ?: LocalDateTime.now()
-        db.insert(
-            Event(
-                songId = record.songId,
-                timestamp = ts,
-                playTime = record.totalPlayMs.coerceAtLeast(30_000L),
-            ),
-        )
+        val epochSec = ts.atZone(ZoneId.systemDefault()).toEpochSecond()
+        if (existingEventKeys.add(record.songId to epochSec)) {
+            db.insert(
+                Event(
+                    songId = record.songId,
+                    timestamp = ts,
+                    playTime = record.totalPlayMs.coerceAtLeast(30_000L),
+                ),
+            )
+        }
     }
 
     private fun insertSkeletonSong(

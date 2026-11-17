@@ -69,6 +69,7 @@ class Audioscrobbler(
     private val secret: String,
     /** libre.fm only takes the old md5 login token on sign-in, it turns a plain password away */
     private val signsInWithToken: Boolean = false,
+    private val httpClientProvider: (() -> HttpClient)? = null,
 ) {
     /** false in a build made without this service's api key, which can't sign anyone in */
     val isConfigured: Boolean get() = apiKey.isNotBlank() && secret.isNotBlank()
@@ -83,6 +84,7 @@ class Audioscrobbler(
                 apiKey = trimmedKey,
                 secret = trimmedSecret,
                 signsInWithToken = signsInWithToken,
+                httpClientProvider = httpClientProvider,
             )
         } else {
             this
@@ -131,7 +133,8 @@ class Audioscrobbler(
             sessionKey?.let { put("sk", it) }
             putAll(params)
         }
-        val response = client.post(apiRoot) {
+        val http = httpClientProvider?.invoke() ?: client
+        val response = http.post(apiRoot) {
             userAgent(USER_AGENT)
             setBody(
                 FormDataContent(

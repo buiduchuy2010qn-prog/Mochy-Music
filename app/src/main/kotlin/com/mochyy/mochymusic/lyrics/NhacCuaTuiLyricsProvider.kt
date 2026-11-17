@@ -3,10 +3,7 @@
 package com.mochyy.mochymusic.lyrics
 
 import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import com.mochyy.mochymusic.utils.dataStore
 import com.mochyy.mochymusic.utils.followAppProxy
-import com.mochyy.mochymusic.utils.get
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -38,12 +35,9 @@ object NhacCuaTuiLyricsProvider : LyricsProvider {
 
     private const val BaseUrl = "https://www.nhaccuatui.com"
     private const val DefaultDecryptKey = "Lyr1cjust4nct"
-    private const val MaxCandidatesToFetch = 2
+    private const val MaxCandidatesToFetch = 4
 
-    private val EnableNhacCuaTuiLyricsKey = booleanPreferencesKey("enableNhacCuaTuiLyrics")
-
-    override fun isEnabled(context: Context): Boolean =
-        runCatching { context.dataStore[EnableNhacCuaTuiLyricsKey] ?: true }.getOrDefault(true)
+    override fun isEnabled(context: Context): Boolean = true
 
     override suspend fun getLyrics(
         id: String,
@@ -55,9 +49,15 @@ object NhacCuaTuiLyricsProvider : LyricsProvider {
         if (title.isBlank()) return Result.failure(IllegalArgumentException("Blank song title"))
         return try {
             withTimeoutOrNull(VietnameseLyricsCommon.TIMEOUT_MS) {
-                fetchLyricsList(title, artist, duration, limit = 1)
-                    .firstOrNull()
-                    ?.let { Result.success(it) }
+                VietnameseLyricsCommon.fetchRankedLyrics(
+                    title = title,
+                    artist = artist,
+                    durationSec = duration,
+                    maxFetches = MaxCandidatesToFetch,
+                    preferSyncedOnly = true,
+                    search = ::searchSongs,
+                    fetchOne = ::fetchSongLyrics,
+                ).firstOrNull()?.let { Result.success(it) }
                     ?: Result.failure(IllegalStateException("No matching NhacCuaTui lyrics"))
             } ?: Result.failure(IOException("NhacCuaTui lyrics request timed out"))
         } catch (e: CancellationException) {
@@ -78,48 +78,20 @@ object NhacCuaTuiLyricsProvider : LyricsProvider {
         if (title.isBlank()) return
         try {
             withTimeoutOrNull(VietnameseLyricsCommon.TIMEOUT_MS) {
-                fetchLyricsList(title, artist, duration, limit = MaxCandidatesToFetch)
-                    .forEach(callback)
+                VietnameseLyricsCommon.fetchRankedLyrics(
+                    title = title,
+                    artist = artist,
+                    durationSec = duration,
+                    maxFetches = MaxCandidatesToFetch,
+                    preferSyncedOnly = false,
+                    search = ::searchSongs,
+                    fetchOne = ::fetchSongLyrics,
+                ).forEach(callback)
             }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
         }
-    }
-
-    private suspend fun fetchLyricsList(
-        title: String,
-        artist: String,
-        duration: Int,
-        limit: Int,
-    ): List<String> {
-        val queries = VietnameseLyricsCommon.buildSearchQueries(title, artist)
-        if (queries.isEmpty()) return emptyList()
-
-        val matchedCandidates = mutableListOf<VnTrackCandidate<String>>()
-        for (query in queries) {
-            val searched = searchSongs(query)
-            val ranked = VietnameseLyricsCommon.rankCandidates(searched, title, artist, duration)
-            if (ranked.isNotEmpty()) {
-                matchedCandidates.addAll(ranked)
-                break
-            }
-        }
-        if (matchedCandidates.isEmpty()) return emptyList()
-
-        val results = mutableListOf<String>()
-        val seenKeys = HashSet<String>()
-        for (candidate in matchedCandidates.take(MaxCandidatesToFetch)) {
-            if (!seenKeys.add(candidate.ref)) continue
-            val lyrics = VietnameseLyricsCommon.catchingNonCancel {
-                fetchSongLyrics(candidate.ref)
-            } ?: continue
-            if (lyrics !in results) {
-                results += lyrics
-                if (results.size >= limit) break
-            }
-        }
-        return results
     }
 
     private suspend fun searchSongs(query: String): List<VnTrackCandidate<String>> {
@@ -661,14 +633,18 @@ internal object VietnameseLyricsCommon {
                 val min = tag.groupValues[1].toLongOrNull() ?: continue
                 val sec = tag.groupValues[2].toLongOrNull() ?: continue
                 val fracRaw = tag.groupValues[3]
-                val normalizedFrac = when {
-                    fracRaw.isEmpty() -> if (preferThreeDigits) "000" else "00"
-                    preferThreeDigits -> fracRaw.padStart(3, '0')
-                    fracRaw.length == 1 -> fracRaw.padEnd(2, '0')
-                    else -> fracRaw
+                val fracMillis = when (fracRaw.length) {
+                    0 -> 0L
+                    1 -> (fracRaw.toLongOrNull() ?: 0L) * 100L
+                    2 -> (fracRaw.toLongOrNull() ?: 0L) * 10L
+                    else -> fracRaw.take(3).toLongOrNull() ?: 0L
                 }
-                val millis = if (normalizedFrac.length == 3) normalizedFrac.toLong() else normalizedFrac.toLong() * 10L
-                val timeMs = min * 60_000L + sec * 1_000L + millis
+                val normalizedFrac = when {
+                    preferThreeDigits -> fracMillis.toString().padStart(3, '0')
+                    fracMillis % 10L == 0L -> (fracMillis / 10L).toString().padStart(2, '0')
+                    else -> fracMillis.toString().padStart(3, '0')
+                }
+                val timeMs = min * 60_000L + sec * 1_000L + fracMillis
                 if (timeMs < minTimeMs) minTimeMs = timeMs
                 distinctTimestamps += timeMs
                 formattedTags.append('[')
@@ -698,6 +674,61 @@ internal object VietnameseLyricsCommon {
             return normalizePlainLyrics(plain)
         }
         return outLines.joinToString("\n")
+    }
+
+    fun isSyncedLrc(text: String): Boolean =
+        text.lineSequence().any { LrcTimedLineRegex.matches(it.trim()) }
+
+    suspend fun fetchRankedLyrics(
+        title: String,
+        artist: String,
+        durationSec: Int,
+        maxFetches: Int = 4,
+        preferSyncedOnly: Boolean,
+        search: suspend (String) -> List<VnTrackCandidate<String>>,
+        fetchOne: suspend (String) -> String?,
+    ): List<String> {
+        val queries = buildSearchQueries(title, artist)
+        if (queries.isEmpty()) return emptyList()
+
+        val synced = mutableListOf<String>()
+        val plain = mutableListOf<String>()
+        val seenRefs = HashSet<String>()
+        val seenLyrics = HashSet<String>()
+        val deferred = mutableListOf<VnTrackCandidate<String>>()
+        var fetchCount = 0
+        val perQueryFirstPass = if (queries.size > 1) 2 else maxFetches
+
+        suspend fun inspect(candidate: VnTrackCandidate<String>): Boolean {
+            if (fetchCount >= maxFetches || !seenRefs.add(candidate.ref)) return false
+            fetchCount++
+            val lyrics = catchingNonCancel { fetchOne(candidate.ref) } ?: return false
+            if (!seenLyrics.add(lyrics)) return false
+            if (isSyncedLrc(lyrics)) {
+                synced += lyrics
+                if (preferSyncedOnly) return true
+            } else {
+                plain += lyrics
+            }
+            return false
+        }
+
+        for (query in queries) {
+            if (fetchCount >= maxFetches) break
+            val searched = catchingNonCancel { search(query) }.orEmpty()
+            val ranked = rankCandidates(searched, title, artist, durationSec)
+            ranked.forEachIndexed { idx, candidate ->
+                if (idx >= perQueryFirstPass) deferred += candidate
+            }
+            for (candidate in ranked.take(perQueryFirstPass)) {
+                if (inspect(candidate)) return synced
+            }
+        }
+        for (candidate in deferred) {
+            if (fetchCount >= maxFetches) break
+            if (inspect(candidate)) return synced
+        }
+        return synced + plain
     }
 
     fun normalizePlainLyrics(raw: String): String? {

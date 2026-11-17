@@ -10,6 +10,7 @@ import android.media.MediaFormat
 import android.net.Uri
 import android.os.Build
 import com.mochyy.mochymusic.importer.LinkImporter
+import com.mochyy.mochymusic.utils.followAppProxy
 import com.music.innertube.YouTube
 import com.music.innertube.models.YouTubeClient
 import com.music.shazamkit.models.RecognitionStatus
@@ -54,7 +55,7 @@ data class ResolvedVideoMusic(
  * như "nhạc nền", "âm thanh gốc", "original sound", "original audio", "suara asli".
  * Bước 2: Nếu chỉ là âm thanh gốc hoặc thiếu tên bài, bóc URL stream phát kèm header/cookie,
  * tải tối đa ~800 KB / 10 giây đầu vào file tạm trong cacheDir, giải mã PCM 16-bit bằng
- * MediaExtractor + MediaCodec rồi nhận diện qua MusicRecognitionService.recognizePcmBytes().
+ * MediaExtractor + MediaCodec rồi nhận diện qua MusicRecognitionService.recognizeFromPcmStream().
  */
 object TikTokMediaResolver {
 
@@ -65,12 +66,14 @@ object TikTokMediaResolver {
     private const val DESKTOP_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
-    private const val MAX_DOWNLOAD_BYTES = 850 * 1024L
+    private const val INITIAL_RANGE_BYTES = 1_572_864L
+    private const val MAX_FULL_DOWNLOAD_BYTES = 12L * 1024L * 1024L
     private const val MAX_DECODE_DURATION_US = 10_000_000L
     private const val CODEC_DECODE_TIMEOUT_MS = 15_000L
 
     private val baseHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .followAppProxy()
             .followRedirects(true)
             .followSslRedirects(true)
             .connectTimeout(12, TimeUnit.SECONDS)
@@ -187,12 +190,14 @@ object TikTokMediaResolver {
 
             val html = page?.body.orEmpty()
             val streamCandidates = LinkedHashSet<StreamCandidate>()
+            var fallbackMetadata: ResolvedVideoMusic? = null
 
             // Bước 1: Đọc JSON nhúng / oEmbed / OpenGraph
             when (platform) {
                 VideoPlatform.TIKTOK -> {
                     val tkData = parseTikTokPage(html)
                     tkData.cleanMusic?.let { return@withContext Result.success(it) }
+                    if (fallbackMetadata == null) fallbackMetadata = tkData.fallbackMusic
                     streamCandidates.addAll(tkData.streams)
 
                     // Thử lại với mobile UA hoặc embed v2 nếu trang chính không có dữ liệu
@@ -201,6 +206,7 @@ object TikTokMediaResolver {
                         if (mobilePage != null && mobilePage.body.isNotBlank()) {
                             val mobileTk = parseTikTokPage(mobilePage.body)
                             mobileTk.cleanMusic?.let { return@withContext Result.success(it) }
+                            if (fallbackMetadata == null) fallbackMetadata = mobileTk.fallbackMusic
                             streamCandidates.addAll(mobileTk.streams)
                         }
                     }
@@ -211,13 +217,14 @@ object TikTokMediaResolver {
                             fetchPage(client, embedUrl, DESKTOP_USER_AGENT)?.let { embedPage ->
                                 val embedTk = parseTikTokPage(embedPage.body)
                                 embedTk.cleanMusic?.let { return@withContext Result.success(it) }
+                                if (fallbackMetadata == null) fallbackMetadata = embedTk.fallbackMusic
                                 streamCandidates.addAll(embedTk.streams)
                             }
                         }
                     }
 
                     // oEmbed / OpenGraph dự phòng cho TikTok nếu có dạng "Bài hát - Ca sĩ" sạch
-                    if (streamCandidates.isEmpty()) {
+                    if (streamCandidates.isEmpty() && fallbackMetadata == null) {
                         resolveTikTokOembedOrOg(client, resolvedUrl, html)?.let {
                             return@withContext Result.success(it)
                         }
@@ -227,34 +234,40 @@ object TikTokMediaResolver {
                 VideoPlatform.INSTAGRAM_REELS -> {
                     val igData = parseInstagramPage(html)
                     igData.cleanMusic?.let { return@withContext Result.success(it) }
+                    if (fallbackMetadata == null) fallbackMetadata = igData.fallbackMusic
                     streamCandidates.addAll(igData.streams)
                 }
 
                 VideoPlatform.FACEBOOK_REELS -> {
                     val fbData = parseFacebookPage(html)
                     fbData.cleanMusic?.let { return@withContext Result.success(it) }
+                    if (fallbackMetadata == null) fallbackMetadata = fbData.fallbackMusic
                     streamCandidates.addAll(fbData.streams)
                 }
 
                 VideoPlatform.YOUTUBE_SHORTS -> Unit
             }
 
-            // Bước 2: Fallback sang Shazam từ ~800 KB / 10s đầu audio của video
+            // Bước 2: Fallback sang Shazam từ luồng âm thanh của video
+            if (streamCandidates.isNotEmpty()) {
+                onShazamFallback()
+                val shazamTrack = recognizeFromStreamCandidates(
+                    context = context,
+                    client = client,
+                    candidates = streamCandidates.toList(),
+                    sourceLabel = platform.label,
+                )
+                if (shazamTrack != null) {
+                    return@withContext Result.success(shazamTrack)
+                }
+            }
+
+            fallbackMetadata?.let { return@withContext Result.success(it) }
+
             if (streamCandidates.isEmpty()) {
                 return@withContext Result.failure(
                     IllegalStateException("Không tìm thấy tên nhạc hoặc luồng âm thanh công khai từ ${platform.label}."),
                 )
-            }
-
-            onShazamFallback()
-            val shazamTrack = recognizeFromStreamCandidates(
-                context = context,
-                client = client,
-                candidates = streamCandidates.toList(),
-                sourceLabel = platform.label,
-            )
-            if (shazamTrack != null) {
-                return@withContext Result.success(shazamTrack)
             }
 
             Result.failure(
@@ -368,6 +381,7 @@ object TikTokMediaResolver {
     private data class PageParseResult(
         val cleanMusic: ResolvedVideoMusic?,
         val streams: List<StreamCandidate>,
+        val fallbackMusic: ResolvedVideoMusic? = null,
     )
 
     private data class StreamCandidate(
@@ -384,6 +398,7 @@ object TikTokMediaResolver {
     private fun parseTikTokPage(html: String): PageParseResult {
         if (html.isBlank()) return PageParseResult(null, emptyList())
         val streams = mutableListOf<StreamCandidate>()
+        var originalFallback: ResolvedVideoMusic? = null
         val tikTokHeaders = mapOf(
             "User-Agent" to DESKTOP_USER_AGENT,
             "Referer" to "https://www.tiktok.com/",
@@ -420,18 +435,20 @@ object TikTokMediaResolver {
 
                 if (rawTitle.isNotBlank() && !isGenericSoundLabel(rawTitle, rawAuthor)) {
                     val cleanedArtist = if (isGenericSoundLabel(rawAuthor)) "" else rawAuthor
-                    // Nếu đánh dấu original=true mà title có chứa tên tác giả kiểu "nhạc của X" thì bỏ qua để Shazam kiểm tra
-                    val looksLikeGenericAuthorTag = isOriginalFlag && cleanedArtist.isBlank()
-                    if (!looksLikeGenericAuthorTag) {
+                    val candidateMeta = ResolvedVideoMusic(
+                        title = rawTitle,
+                        artist = cleanedArtist,
+                        sourceLabel = VideoPlatform.TIKTOK.label,
+                        resolvedByShazam = false,
+                    )
+                    // Khi TikTok đánh dấu original=true, vẫn ưu tiên bóc stream gửi Shazam kiểm tra trước
+                    if (!isOriginalFlag) {
                         return PageParseResult(
-                            cleanMusic = ResolvedVideoMusic(
-                                title = rawTitle,
-                                artist = cleanedArtist,
-                                sourceLabel = VideoPlatform.TIKTOK.label,
-                                resolvedByShazam = false,
-                            ),
+                            cleanMusic = candidateMeta,
                             streams = streams,
                         )
+                    } else {
+                        originalFallback = candidateMeta
                     }
                 }
             }
@@ -461,7 +478,7 @@ object TikTokMediaResolver {
         val metaArtist = extractMetaContent(html, "music:musician")
             ?: extractMetaContent(html, "og:audio:artist")
             .orEmpty()
-        if (!metaSong.isNullOrBlank() && !isGenericSoundLabel(metaSong, metaArtist)) {
+        if (originalFallback == null && !metaSong.isNullOrBlank() && !isGenericSoundLabel(metaSong, metaArtist)) {
             return PageParseResult(
                 cleanMusic = ResolvedVideoMusic(
                     title = metaSong,
@@ -473,7 +490,7 @@ object TikTokMediaResolver {
             )
         }
 
-        return PageParseResult(null, streams)
+        return PageParseResult(cleanMusic = null, streams = streams, fallbackMusic = originalFallback)
     }
 
     private fun resolveTikTokOembedOrOg(
@@ -616,13 +633,35 @@ object TikTokMediaResolver {
             coroutineContext.ensureActive()
             val tempFile = File.createTempFile("mochy_shazam_", candidate.extensionHint, context.cacheDir)
             try {
-                val downloaded = downloadStreamPrefix(client, candidate, tempFile)
-                if (!downloaded || tempFile.length() < 2048L) continue
+                val initial = downloadStream(
+                    client = client,
+                    candidate = candidate,
+                    destFile = tempFile,
+                    maxBytes = INITIAL_RANGE_BYTES,
+                    useRangeHeader = true,
+                )
+                if (!initial.ok || tempFile.length() < 2048L) continue
 
-                val decoded = decodeFirstSecondsToMonoPcm16(tempFile) ?: continue
-                if (decoded.pcm.size < decoded.sampleRate) continue
+                var decoded = runCatching { decodeFirstSecondsToMonoPcm16(tempFile) }.getOrNull()
+                if (decoded == null &&
+                    initial.isPartial &&
+                    (initial.totalSizeBytes == null || initial.totalSizeBytes <= MAX_FULL_DOWNLOAD_BYTES)
+                ) {
+                    // MP4 đặt moov atom cuối file không giải mã được từ prefix: tải trọn video (<= 12 MB) rồi thử lại
+                    val full = downloadStream(
+                        client = client,
+                        candidate = candidate,
+                        destFile = tempFile,
+                        maxBytes = MAX_FULL_DOWNLOAD_BYTES,
+                        useRangeHeader = false,
+                    )
+                    if (full.ok && tempFile.length() >= 2048L) {
+                        decoded = runCatching { decodeFirstSecondsToMonoPcm16(tempFile) }.getOrNull()
+                    }
+                }
+                if (decoded == null || decoded.pcm.size < decoded.sampleRate) continue
 
-                val status = MusicRecognitionService.recognizePcmBytes(
+                val status = MusicRecognitionService.recognizeFromPcmStream(
                     pcmData = decoded.pcm,
                     sampleRate = decoded.sampleRate,
                     channelCount = 1,
@@ -650,41 +689,72 @@ object TikTokMediaResolver {
         return null
     }
 
-    private fun downloadStreamPrefix(
+    private data class StreamDownloadResult(
+        val ok: Boolean,
+        val isPartial: Boolean = false,
+        val totalSizeBytes: Long? = null,
+    )
+
+    private fun parseContentRangeTotal(contentRange: String?): Long? {
+        val raw = contentRange?.substringAfter('/')?.trim() ?: return null
+        if (raw == "*") return null
+        return raw.toLongOrNull()?.takeIf { it > 0L }
+    }
+
+    private fun downloadStream(
         client: OkHttpClient,
         candidate: StreamCandidate,
         destFile: File,
-    ): Boolean {
+        maxBytes: Long,
+        useRangeHeader: Boolean,
+    ): StreamDownloadResult {
         val reqBuilder = Request.Builder()
             .url(candidate.url)
             .header("Accept", "*/*")
-            .header("Range", "bytes=0-${MAX_DOWNLOAD_BYTES - 1}")
+        if (useRangeHeader) {
+            reqBuilder.header("Range", "bytes=0-${maxBytes - 1}")
+        }
         for ((k, v) in candidate.headers) {
             reqBuilder.header(k, v)
         }
         client.newCall(reqBuilder.build()).execute().use { response ->
-            if (!response.isSuccessful && response.code != 206) return false
+            if (!response.isSuccessful && response.code != 206) {
+                return StreamDownloadResult(ok = false)
+            }
             val contentType = response.header("Content-Type").orEmpty().lowercase()
             if (contentType.contains("text/html") || contentType.contains("application/json")) {
-                return false
+                return StreamDownloadResult(ok = false)
             }
-            val body = response.body ?: return false
+            val totalFromRange = parseContentRangeTotal(response.header("Content-Range"))
+            val totalFromLength = response.header("Content-Length")?.trim()?.toLongOrNull()?.takeIf { it > 0L }
+            val knownTotal = totalFromRange ?: if (response.code == 200) totalFromLength else null
+            val body = response.body ?: return StreamDownloadResult(ok = false)
             body.byteStream().use { input ->
                 destFile.outputStream().use { output ->
                     val buf = ByteArray(16 * 1024)
                     var total = 0L
-                    while (total < MAX_DOWNLOAD_BYTES) {
-                        val toRead = minOf(buf.size.toLong(), MAX_DOWNLOAD_BYTES - total).toInt()
+                    while (total < maxBytes) {
+                        val toRead = minOf(buf.size.toLong(), maxBytes - total).toInt()
                         val n = input.read(buf, 0, toRead)
                         if (n <= 0) break
                         output.write(buf, 0, n)
                         total += n
                     }
-                    return total > 2048L
+                    val partial = response.code == 206 || total >= maxBytes
+                    return StreamDownloadResult(
+                        ok = total > 2048L,
+                        isPartial = partial,
+                        totalSizeBytes = knownTotal,
+                    )
                 }
             }
         }
     }
+
+    private fun targetPcmBytes(sampleRate: Int, channelCount: Int): Int =
+        (sampleRate.coerceAtLeast(8_000).toLong() * channelCount.coerceIn(1, 2).toLong() * 2L * 11L)
+            .coerceAtMost(4_000_000L)
+            .toInt()
 
     private class DecodedMonoPcm(
         val pcm: ByteArray,
@@ -732,7 +802,7 @@ object TikTokMediaResolver {
             var inputDone = false
             var outputDone = false
             val startedAtMs = System.currentTimeMillis()
-            val maxDecodedBytes = (sampleRate.toLong() * channelCount * 2L * 11L).toInt()
+            var maxDecodedBytes = targetPcmBytes(sampleRate, channelCount)
 
             while (!outputDone) {
                 coroutineContext.ensureActive()
@@ -772,6 +842,7 @@ object TikTokMediaResolver {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && outFormat.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
                             pcmEncoding = outFormat.getInteger(MediaFormat.KEY_PCM_ENCODING)
                         }
+                        maxDecodedBytes = targetPcmBytes(sampleRate, channelCount)
                     }
                     outIndex >= 0 -> {
                         val outBuf = codec.getOutputBuffer(outIndex)

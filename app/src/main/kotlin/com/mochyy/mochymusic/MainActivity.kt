@@ -296,8 +296,8 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var phoneLink: dagger.Lazy<com.mochyy.mochymusic.link.phone.PhoneLinkHost>
 
-    private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
+    private var hasNewIntentListener = false
 
     private var playerConnection by mutableStateOf<PlayerConnection?>(null)
 
@@ -404,18 +404,20 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
         if (intent.action == com.mochyy.mochymusic.ui.screens.update.ActionOpenUpdate) {
+            intent.action = null
             openUpdateRequests++
+            super.onNewIntent(intent)
             return
         }
         if (intent.action == ACTION_RECOGNIZE) {
+            intent.action = null
             openRecognizeRequests++
+            super.onNewIntent(intent)
             return
         }
-        if (::navController.isInitialized) {
-            handleDeepLinkIntent(intent, navController)
-        } else {
+        super.onNewIntent(intent)
+        if (!hasNewIntentListener) {
             pendingIntent = intent
         }
     }
@@ -915,12 +917,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 DisposableEffect(Unit) {
-                    val listener = Consumer<Intent> { intent ->
-                        handleDeepLinkIntent(intent, navController)
+                    val listener = Consumer<Intent> { incomingIntent ->
+                        handleDeepLinkIntent(incomingIntent, navController)
                     }
 
+                    hasNewIntentListener = true
                     addOnNewIntentListener(listener)
-                    onDispose { removeOnNewIntentListener(listener) }
+                    onDispose {
+                        hasNewIntentListener = false
+                        removeOnNewIntentListener(listener)
+                    }
                 }
 
                 val currentTitleRes = remember(navBackStackEntry) {
@@ -1604,14 +1610,33 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun isAudioImportUri(uri: android.net.Uri, intentType: String?): Boolean {
+        val resolvedMime = (applicationContext.contentResolver.getType(uri) ?: intentType)?.lowercase().orEmpty()
+        if (resolvedMime.startsWith("audio/") || resolvedMime == "application/ogg") return true
+        val audioExtensions = listOf(
+            ".mp3", ".flac", ".m4a", ".wav", ".ogg", ".oga", ".opus",
+            ".aac", ".wma", ".amr", ".aiff", ".alac", ".ape", ".wv", ".webm",
+        )
+        val candidates = listOfNotNull(
+            com.mochyy.mochymusic.importer.LocalFileNames.of(applicationContext, uri),
+            uri.lastPathSegment,
+            uri.path,
+        )
+        return candidates.any { raw ->
+            val lower = raw.trim().lowercase()
+            audioExtensions.any { lower.endsWith(it) }
+        }
+    }
+
     /** Audio files shared to Mochy from another app or a file manager are imported as local songs. */
     private fun importSharedAudio(intent: Intent): Boolean {
         if (intent.action != Intent.ACTION_SEND && intent.action != Intent.ACTION_SEND_MULTIPLE) return false
-        val uris = if (intent.action == Intent.ACTION_SEND) {
+        val rawUris = if (intent.action == Intent.ACTION_SEND) {
             listOfNotNull(androidx.core.content.IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, android.net.Uri::class.java))
         } else {
             androidx.core.content.IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, android.net.Uri::class.java).orEmpty()
         }
+        val uris = rawUris.filter { isAudioImportUri(it, intent.type) }
         if (uris.isEmpty()) return false
         // handled once: the activity being recreated would otherwise import them again
         intent.action = null
@@ -1635,33 +1660,76 @@ class MainActivity : ComponentActivity() {
         return true
     }
 
-    private fun isMochyPlaylistUri(uri: android.net.Uri, mimeType: String? = null): Boolean {
-        if (mimeType.equals("application/x-mochy-playlist", ignoreCase = true)) return true
-        val displayName = com.mochyy.mochymusic.importer.LocalFileNames.of(applicationContext, uri)
-        if (displayName?.trim()?.lowercase()?.endsWith(".mochypl") == true) return true
-        val path = uri.path?.lowercase().orEmpty()
-        val lastSeg = uri.lastPathSegment?.lowercase().orEmpty()
-        return path.endsWith(".mochypl") || lastSeg.endsWith(".mochypl")
-    }
-
-    private fun importSharedMochyPlaylist(intent: Intent, navController: NavHostController): Boolean {
-        val uris: List<android.net.Uri> = when (intent.action) {
-            Intent.ACTION_VIEW -> listOfNotNull(intent.data)
-            Intent.ACTION_SEND -> listOfNotNull(
-                androidx.core.content.IntentCompat.getParcelableExtra(
-                    intent,
-                    Intent.EXTRA_STREAM,
-                    android.net.Uri::class.java,
-                ),
-            )
-            Intent.ACTION_SEND_MULTIPLE -> androidx.core.content.IntentCompat.getParcelableArrayListExtra(
+    private fun extractIntentUris(intent: Intent): List<android.net.Uri> = when (intent.action) {
+        Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+        Intent.ACTION_SEND -> listOfNotNull(
+            androidx.core.content.IntentCompat.getParcelableExtra(
                 intent,
                 Intent.EXTRA_STREAM,
                 android.net.Uri::class.java,
-            ).orEmpty()
-            else -> emptyList()
+            ),
+        )
+        Intent.ACTION_SEND_MULTIPLE -> androidx.core.content.IntentCompat.getParcelableArrayListExtra(
+            intent,
+            Intent.EXTRA_STREAM,
+            android.net.Uri::class.java,
+        ).orEmpty()
+        else -> emptyList()
+    }
+
+    private fun peekMochyArchiveFormat(uri: android.net.Uri, mimeType: String? = null): String? {
+        val resolvedMime = (applicationContext.contentResolver.getType(uri) ?: mimeType)?.lowercase().orEmpty()
+        if (resolvedMime.startsWith("audio/") ||
+            resolvedMime.startsWith("video/") ||
+            resolvedMime.startsWith("image/") ||
+            resolvedMime.startsWith("text/") ||
+            resolvedMime == "application/ogg"
+        ) {
+            return null
         }
-        val playlistUris = uris.filter { isMochyPlaylistUri(it, intent.type) }
+        return runCatching {
+            applicationContext.contentResolver.openInputStream(uri)?.use { raw ->
+                java.util.zip.GZIPInputStream(raw).use { gz ->
+                    val buf = ByteArray(512)
+                    var offset = 0
+                    while (offset < buf.size) {
+                        val n = gz.read(buf, offset, buf.size - offset)
+                        if (n <= 0) break
+                        offset += n
+                    }
+                    val head = String(buf, 0, offset, Charsets.UTF_8)
+                    when {
+                        head.contains("\"mochy-single-playlist\"") -> "mochy-single-playlist"
+                        head.contains("\"mochy-cloud-backup\"") -> "mochy-cloud-backup"
+                        else -> null
+                    }
+                }
+            }
+        }.getOrNull()
+    }
+
+    private fun hasUriExtension(uri: android.net.Uri, ext: String): Boolean {
+        val displayName = com.mochyy.mochymusic.importer.LocalFileNames.of(applicationContext, uri)
+        if (displayName?.trim()?.lowercase()?.endsWith(ext) == true) return true
+        val path = uri.path?.lowercase().orEmpty()
+        val lastSeg = uri.lastPathSegment?.lowercase().orEmpty()
+        return path.endsWith(ext) || lastSeg.endsWith(ext)
+    }
+
+    private fun isMochyPlaylistUri(uri: android.net.Uri, mimeType: String? = null): Boolean {
+        if (mimeType.equals("application/x-mochy-playlist", ignoreCase = true)) return true
+        if (hasUriExtension(uri, ".mochypl")) return true
+        return peekMochyArchiveFormat(uri, mimeType) == "mochy-single-playlist"
+    }
+
+    private fun isMochyBackupUri(uri: android.net.Uri, mimeType: String? = null): Boolean {
+        if (mimeType.equals("application/x-mochy-backup", ignoreCase = true)) return true
+        if (hasUriExtension(uri, ".mochy.gz")) return true
+        return peekMochyArchiveFormat(uri, mimeType) == "mochy-cloud-backup"
+    }
+
+    private fun importSharedMochyPlaylist(intent: Intent, navController: NavHostController): Boolean {
+        val playlistUris = extractIntentUris(intent).filter { isMochyPlaylistUri(it, intent.type) }
         if (playlistUris.isEmpty()) return false
 
         intent.action = null
@@ -1716,6 +1784,37 @@ class MainActivity : ComponentActivity() {
         return true
     }
 
+    private fun importSharedMochyBackup(intent: Intent): Boolean {
+        val backupUri = extractIntentUris(intent).firstOrNull { isMochyBackupUri(it, intent.type) }
+            ?: return false
+
+        intent.action = null
+        intent.data = null
+        intent.removeExtra(Intent.EXTRA_STREAM)
+
+        lifecycle.coroutineScope.launch {
+            com.mochyy.mochymusic.ui.component.TopToaster.show(
+                text = "Đang khôi phục bản sao lưu .mochy.gz…",
+                iconRes = R.drawable.cloud,
+                durationMs = 5000L,
+            )
+            val res = com.mochyy.mochymusic.cloud.MochyOfflineBackupCodec
+                .importFromUri(applicationContext, backupUri)
+            res.onSuccess { summary ->
+                com.mochyy.mochymusic.ui.component.TopToaster.show(
+                    text = "Đã khôi phục ${summary.playlistsCount} playlist, ${summary.favoritesCount} bài yêu thích",
+                    iconRes = R.drawable.cloud,
+                )
+            }.onFailure { err ->
+                reportException(err)
+                com.mochyy.mochymusic.ui.component.TopToaster.error(
+                    err.message ?: "Không thể khôi phục tệp sao lưu .mochy.gz này.",
+                )
+            }
+        }
+        return true
+    }
+
     private fun handleDeepLinkIntent(intent: Intent, navController: NavHostController) {
         // the device link's notification opens its sheet
         if (intent.action == com.mochyy.mochymusic.link.phone.PhoneLinkService.ActionOpenTvLink) {
@@ -1731,6 +1830,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (importSharedMochyPlaylist(intent, navController)) return
+        if (importSharedMochyBackup(intent)) return
         if (importSharedAudio(intent)) return
         val rawSharedText = intent.extras?.getString(Intent.EXTRA_TEXT)
         val rawUrl = intent.dataString?.takeIf { it.isNotBlank() }
@@ -1943,11 +2043,9 @@ class MainActivity : ComponentActivity() {
                 val query = trackInfo?.query?.takeIf { it.isNotBlank() }
                 if (query == null) {
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(
-                            applicationContext,
+                        com.mochyy.mochymusic.ui.component.TopToaster.error(
                             "Không đọc được thông tin bài hát từ liên kết chia sẻ.",
-                            android.widget.Toast.LENGTH_SHORT,
-                        ).show()
+                        )
                     }
                     return@launch
                 }
@@ -1959,28 +2057,32 @@ class MainActivity : ComponentActivity() {
 
                 if (topSong == null) {
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(
-                            applicationContext,
+                        com.mochyy.mochymusic.ui.component.TopToaster.error(
                             "Không tìm thấy bài hát phù hợp cho \"$query\".",
-                            android.widget.Toast.LENGTH_SHORT,
-                        ).show()
+                        )
                     }
                     return@launch
                 }
 
                 val conn = awaitPlayerConnection()
                 withContext(Dispatchers.Main) {
-                    conn?.playQueue(
+                    if (conn == null) {
+                        com.mochyy.mochymusic.ui.component.TopToaster.error("Không thể kết nối trình phát nhạc.")
+                        return@withContext
+                    }
+                    conn.playQueue(
                         YouTubeQueue(
                             WatchEndpoint(videoId = topSong.id),
                             topSong.toMediaMetadata(),
                         ),
                     )
-                    android.widget.Toast.makeText(
-                        applicationContext,
-                        if (conn != null) "Đang phát: ${topSong.title}" else "Không thể kết nối trình phát nhạc.",
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
+                    com.mochyy.mochymusic.ui.component.TopToaster.show(
+                        text = "Đang phát: ${topSong.title}",
+                        thumbnail = topSong.thumbnail,
+                        iconRes = R.drawable.music_note,
+                        actionLabel = "Yêu thích",
+                        onAction = { likeSharedSong(topSong) },
+                    )
                 }
                 return@launch
             }
@@ -1991,22 +2093,19 @@ class MainActivity : ComponentActivity() {
                     val started = musicImportService.startImport(parsed)
                     withContext(Dispatchers.Main) {
                         if (started) {
-                            android.widget.Toast.makeText(
-                                applicationContext,
-                                "Đang nhập playlist từ chia sẻ…",
-                                android.widget.Toast.LENGTH_SHORT,
-                            ).show()
+                            com.mochyy.mochymusic.ui.component.TopToaster.show(
+                                text = "Đang nhập playlist từ chia sẻ…",
+                                iconRes = R.drawable.playlist_add,
+                            )
                             if (navController.currentDestination?.route != "setup") {
                                 navController.navigate(com.mochyy.mochymusic.ui.screens.settings.importsync.ImportProgressRoute) {
                                     launchSingleTop = true
                                 }
                             }
                         } else {
-                            android.widget.Toast.makeText(
-                                applicationContext,
+                            com.mochyy.mochymusic.ui.component.TopToaster.error(
                                 "Đang có tiến trình nhập khác đang chạy.",
-                                android.widget.Toast.LENGTH_SHORT,
-                            ).show()
+                            )
                         }
                     }
                 } catch (e: kotlinx.coroutines.CancellationException) {
@@ -2014,11 +2113,9 @@ class MainActivity : ComponentActivity() {
                 } catch (e: Exception) {
                     reportException(e)
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(
-                            applicationContext,
+                        com.mochyy.mochymusic.ui.component.TopToaster.error(
                             e.message ?: "Không đọc được playlist từ liên kết chia sẻ.",
-                            android.widget.Toast.LENGTH_SHORT,
-                        ).show()
+                        )
                     }
                 }
             }

@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.importer
 
+import com.mochyy.mochymusic.utils.followAppProxy
 import com.music.innertube.YouTube
 import com.music.innertube.models.AlbumItem
 import com.music.innertube.models.PlaylistItem
@@ -55,6 +56,9 @@ object LinkImporter {
                 socketTimeoutMillis = 30_000
             }
             expectSuccess = false
+            engine {
+                preconfigured = okhttp3.OkHttpClient.Builder().followAppProxy().build()
+            }
         }
     }
 

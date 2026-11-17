@@ -3,9 +3,6 @@
 package com.mochyy.mochymusic.lyrics
 
 import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import com.mochyy.mochymusic.utils.dataStore
-import com.mochyy.mochymusic.utils.get
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
@@ -25,12 +22,9 @@ object ZingLyricsProvider : LyricsProvider {
     private const val MobileBaseUrl = "https://m.zingmp3.vn"
     private const val DesktopBaseUrl = "https://zingmp3.vn"
     private const val SearchLimit = 15
-    private const val MaxCandidatesToFetch = 2
+    private const val MaxCandidatesToFetch = 4
 
-    private val EnableZingMp3LyricsKey = booleanPreferencesKey("enableZingMp3Lyrics")
-
-    override fun isEnabled(context: Context): Boolean =
-        runCatching { context.dataStore[EnableZingMp3LyricsKey] ?: true }.getOrDefault(true)
+    override fun isEnabled(context: Context): Boolean = true
 
     override suspend fun getLyrics(
         id: String,
@@ -42,9 +36,15 @@ object ZingLyricsProvider : LyricsProvider {
         if (title.isBlank()) return Result.failure(IllegalArgumentException("Blank song title"))
         return try {
             withTimeoutOrNull(VietnameseLyricsCommon.TIMEOUT_MS) {
-                fetchLyricsList(title, artist, duration, limit = 1)
-                    .firstOrNull()
-                    ?.let { Result.success(it) }
+                VietnameseLyricsCommon.fetchRankedLyrics(
+                    title = title,
+                    artist = artist,
+                    durationSec = duration,
+                    maxFetches = MaxCandidatesToFetch,
+                    preferSyncedOnly = true,
+                    search = ::searchSongs,
+                    fetchOne = ::fetchSongLyrics,
+                ).firstOrNull()?.let { Result.success(it) }
                     ?: Result.failure(IllegalStateException("No matching Zing MP3 lyrics"))
             } ?: Result.failure(IOException("Zing MP3 lyrics request timed out"))
         } catch (e: CancellationException) {
@@ -65,48 +65,20 @@ object ZingLyricsProvider : LyricsProvider {
         if (title.isBlank()) return
         try {
             withTimeoutOrNull(VietnameseLyricsCommon.TIMEOUT_MS) {
-                fetchLyricsList(title, artist, duration, limit = MaxCandidatesToFetch)
-                    .forEach(callback)
+                VietnameseLyricsCommon.fetchRankedLyrics(
+                    title = title,
+                    artist = artist,
+                    durationSec = duration,
+                    maxFetches = MaxCandidatesToFetch,
+                    preferSyncedOnly = false,
+                    search = ::searchSongs,
+                    fetchOne = ::fetchSongLyrics,
+                ).forEach(callback)
             }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
         }
-    }
-
-    private suspend fun fetchLyricsList(
-        title: String,
-        artist: String,
-        duration: Int,
-        limit: Int,
-    ): List<String> {
-        val queries = VietnameseLyricsCommon.buildSearchQueries(title, artist)
-        if (queries.isEmpty()) return emptyList()
-
-        val matchedCandidates = mutableListOf<VnTrackCandidate<String>>()
-        for (query in queries) {
-            val searched = searchSongs(query)
-            val ranked = VietnameseLyricsCommon.rankCandidates(searched, title, artist, duration)
-            if (ranked.isNotEmpty()) {
-                matchedCandidates.addAll(ranked)
-                break
-            }
-        }
-        if (matchedCandidates.isEmpty()) return emptyList()
-
-        val results = mutableListOf<String>()
-        val seenIds = HashSet<String>()
-        for (candidate in matchedCandidates.take(MaxCandidatesToFetch)) {
-            if (!seenIds.add(candidate.ref)) continue
-            val lyrics = VietnameseLyricsCommon.catchingNonCancel {
-                fetchSongLyrics(candidate.ref)
-            } ?: continue
-            if (lyrics !in results) {
-                results += lyrics
-                if (results.size >= limit) break
-            }
-        }
-        return results
     }
 
     private suspend fun searchSongs(query: String): List<VnTrackCandidate<String>> {

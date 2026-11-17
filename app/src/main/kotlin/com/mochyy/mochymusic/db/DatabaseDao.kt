@@ -1097,7 +1097,7 @@ interface DatabaseDao {
     @Query(
         "INSERT OR IGNORE INTO album (id, title, thumbnailUrl, songCount, duration, lastUpdateTime) " +
             "SELECT albumId, albumName, thumbnailUrl, 0, 0, :now FROM song " +
-            "WHERE (inLibrary IS NOT NULL OR liked) AND albumId IS NOT NULL AND albumName IS NOT NULL AND albumName != '' " +
+            "WHERE (inLibrary IS NOT NULL OR liked) AND albumId IS NOT NULL AND albumId != '' AND albumName IS NOT NULL AND albumName != '' " +
             "GROUP BY albumId"
     )
     fun addMissingAlbumRows(now: LocalDateTime)
@@ -1109,13 +1109,35 @@ interface DatabaseDao {
             "JOIN song_artist_map ON song_artist_map.songId = song.id AND song_artist_map.position = 0 " +
             "JOIN album ON album.id = song.albumId " +
             "WHERE (song.inLibrary IS NOT NULL OR song.liked) " +
+            "AND song.albumId IS NOT NULL AND song.albumId != '' " +
             "AND NOT EXISTS(SELECT 1 FROM album_artist_map WHERE album_artist_map.albumId = song.albumId) " +
             "GROUP BY song.albumId"
     )
     fun addMissingAlbumArtists()
 
+    @Query("UPDATE song SET albumId = NULL WHERE albumId = ''")
+    fun clearBlankSongAlbumIds()
+
+    @Query("DELETE FROM album_artist_map WHERE albumId = ''")
+    fun deleteBlankAlbumArtistMaps()
+
+    @Query("DELETE FROM song_album_map WHERE albumId = ''")
+    fun deleteBlankSongAlbumMaps()
+
+    @Query("DELETE FROM album WHERE id = ''")
+    fun deleteBlankAlbumRows()
+
+    @Transaction
+    fun purgeBlankAlbumRows() {
+        clearBlankSongAlbumIds()
+        deleteBlankAlbumArtistMaps()
+        deleteBlankSongAlbumMaps()
+        deleteBlankAlbumRows()
+    }
+
     @Transaction
     fun addMissingLibraryAlbums() {
+        purgeBlankAlbumRows()
         addMissingAlbumRows(LocalDateTime.now())
         addMissingAlbumArtists()
     }
@@ -1224,9 +1246,18 @@ interface DatabaseDao {
         songIds: List<String>,
     ): List<String>
 
-    /** Takes back songs just appended to a playlist (they sit at [fromPosition] or later). */
+    @Query("UPDATE playlist SET lastUpdateTime = :now WHERE id = :playlistId")
+    fun touchPlaylistUpdated(playlistId: String, now: LocalDateTime)
+
     @Query("DELETE FROM playlist_song_map WHERE playlistId = :playlistId AND songId IN (:songIds) AND position >= :fromPosition")
-    fun removeAddedSongs(playlistId: String, songIds: List<String>, fromPosition: Int)
+    fun removeAddedSongsRaw(playlistId: String, songIds: List<String>, fromPosition: Int)
+
+    /** Takes back songs just appended to a playlist (they sit at [fromPosition] or later). */
+    @Transaction
+    fun removeAddedSongs(playlistId: String, songIds: List<String>, fromPosition: Int) {
+        removeAddedSongsRaw(playlistId, songIds, fromPosition)
+        touchPlaylistUpdated(playlistId, LocalDateTime.now())
+    }
 
     @Query("UPDATE playlist_song_map SET position = position + :by WHERE playlistId = :playlistId")
     fun shiftPlaylistPositions(playlistId: String, by: Int)
@@ -1238,6 +1269,7 @@ interface DatabaseDao {
         songIds.forEachIndexed { index, id ->
             insert(PlaylistSongMap(songId = id, playlistId = playlist.id, position = index))
         }
+        touchPlaylistUpdated(playlist.id, LocalDateTime.now())
     }
 
     @Transaction
@@ -1252,6 +1284,7 @@ interface DatabaseDao {
                 )
             )
         }
+        touchPlaylistUpdated(playlist.id, LocalDateTime.now())
     }
 
     fun downloadedSongs(
@@ -1436,6 +1469,10 @@ interface DatabaseDao {
     @Query("UPDATE recognition_history SET liked = :liked WHERE id = :id")
     fun updateRecognitionHistoryLiked(id: Long, liked: Boolean)
 
+    @Transaction
+    @Query("UPDATE recognition_history SET youtubeVideoId = :youtubeVideoId WHERE id = :id")
+    fun updateRecognitionHistoryYoutubeId(id: Long, youtubeVideoId: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(recognitionHistory: RecognitionHistory): Long
 
@@ -1501,7 +1538,6 @@ interface DatabaseDao {
     )
     fun relatedSongs(songId: String): List<Song>
 
-    @Transaction
     @Query(
         """
         UPDATE playlist_song_map SET position =
@@ -1513,15 +1549,30 @@ interface DatabaseDao {
         WHERE playlistId = :playlistId AND position BETWEEN MIN(:fromPosition, :toPosition) AND MAX(:fromPosition, :toPosition)
     """,
     )
-    fun move(
+    fun moveRaw(
         playlistId: String,
         fromPosition: Int,
         toPosition: Int,
     )
 
     @Transaction
+    fun move(
+        playlistId: String,
+        fromPosition: Int,
+        toPosition: Int,
+    ) {
+        moveRaw(playlistId, fromPosition, toPosition)
+        touchPlaylistUpdated(playlistId, LocalDateTime.now())
+    }
+
     @Query("DELETE FROM playlist_song_map WHERE playlistId = :playlistId")
-    fun clearPlaylist(playlistId: String)
+    fun clearPlaylistRaw(playlistId: String)
+
+    @Transaction
+    fun clearPlaylist(playlistId: String) {
+        clearPlaylistRaw(playlistId)
+        touchPlaylistUpdated(playlistId, LocalDateTime.now())
+    }
 
     @Transaction
     @Query("SELECT * FROM artist WHERE name = :name")
@@ -2059,7 +2110,13 @@ interface DatabaseDao {
     fun delete(playlist: PlaylistEntity)
 
     @Delete
-    fun delete(playlistSongMap: PlaylistSongMap)
+    fun deletePlaylistSongMapRaw(playlistSongMap: PlaylistSongMap)
+
+    @Transaction
+    fun delete(playlistSongMap: PlaylistSongMap) {
+        deletePlaylistSongMapRaw(playlistSongMap)
+        touchPlaylistUpdated(playlistSongMap.playlistId, LocalDateTime.now())
+    }
 
     @Query("DELETE FROM playlist WHERE browseId = :browseId")
     fun deletePlaylistById(browseId: String)

@@ -388,7 +388,7 @@ fun SongMenu(
                             }
                         )
                     } else null,
-                    if (song.song.albumId != null) {
+                    if (!song.song.albumId.isNullOrBlank()) {
                         Material3MenuItemData(
                             title = { Text(text = stringResource(R.string.view_album)) },
                             icon = {

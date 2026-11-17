@@ -62,4 +62,19 @@ object ProfileStore {
         val file = File(path)
         if (file.parentFile == context.filesDir && file.name.startsWith(PhotoPrefix)) file.delete()
     }
+
+    suspend fun clearPhoto(context: Context) = withContext(NonCancellable + Dispatchers.IO) {
+        val app = context.applicationContext
+        var oldPath: String? = null
+        app.dataStore.edit { prefs ->
+            oldPath = prefs[ProfilePicUriKey]
+            prefs.remove(ProfilePicUriKey)
+        }
+        oldPath?.removePrefix("file://")?.let { deleteOldPhoto(app, it) }
+        app.filesDir.listFiles()?.forEach { f ->
+            if (f.isFile && (f.name.startsWith(PhotoPrefix) || f.name.startsWith("cloud_avatar"))) {
+                f.delete()
+            }
+        }
+    }
 }

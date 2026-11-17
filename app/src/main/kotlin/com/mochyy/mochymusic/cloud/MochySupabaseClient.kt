@@ -1,6 +1,7 @@
 package com.mochyy.mochymusic.cloud
 
 import android.content.Context
+import com.mochyy.mochymusic.utils.followAppProxy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -77,6 +78,7 @@ object MochySupabaseClient {
 
     private val http: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .followAppProxy()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)

@@ -208,17 +208,15 @@
                 <data android:mimeType="application/ogg" />
             </intent-filter>
 
-            <!-- Shared .mochypl playlist files -->
+            <!-- Shared .mochypl playlist and .mochy.gz backup files -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
 
                 <category android:name="android.intent.category.DEFAULT" />
 
-                <data android:mimeType="application/octet-stream" />
-                <data android:mimeType="application/gzip" />
-                <data android:mimeType="application/x-gzip" />
                 <data android:mimeType="application/x-mochy-playlist" />
+                <data android:mimeType="application/x-mochy-backup" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -233,6 +231,11 @@
                 <data android:pathPattern=".*\\.mochypl" />
                 <data android:pathPattern=".*\\..*\\.mochypl" />
                 <data android:pathPattern=".*\\..*\\..*\\.mochypl" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.mochypl" />
+                <data android:pathPattern=".*\\.mochy\\.gz" />
+                <data android:pathPattern=".*\\..*\\.mochy\\.gz" />
+                <data android:pathPattern=".*\\..*\\..*\\.mochy\\.gz" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.mochy\\.gz" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -242,10 +245,8 @@
 
                 <data android:scheme="content" />
                 <data android:scheme="file" />
-                <data android:mimeType="application/octet-stream" />
-                <data android:mimeType="application/gzip" />
-                <data android:mimeType="application/x-gzip" />
                 <data android:mimeType="application/x-mochy-playlist" />
+                <data android:mimeType="application/x-mochy-backup" />
             </intent-filter>
 
         </activity>

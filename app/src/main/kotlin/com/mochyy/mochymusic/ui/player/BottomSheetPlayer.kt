@@ -518,8 +518,10 @@ private fun PlayerSheet(
                 state.collapseSoft()
             },
             onOpenAlbum = { albumId ->
-                navController.navigate("album/$albumId")
-                state.collapseSoft()
+                if (albumId.isNotBlank()) {
+                    navController.navigate("album/$albumId")
+                    state.collapseSoft()
+                }
             },
             onOpenRoute = { route ->
                 navController.navigate(route)

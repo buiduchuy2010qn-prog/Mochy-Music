@@ -190,11 +190,16 @@ private fun ColumnScope.RecognitionSheetContent(
             val outcome = MusicRecognitionService.recognize(context)
             if (outcome is RecognitionStatus.Success) {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                val insertedId = withContext(Dispatchers.IO) {
-                    database.insert(outcome.result.toHistoryEntity())
+                val ytId = outcome.result.youtubeVideoId?.takeIf { it.isNotBlank() }
+                val (insertedId, initialLiked) = withContext(Dispatchers.IO) {
+                    val alreadyLiked = ytId?.let { id ->
+                        database.getSongByIdBlocking(id)?.song?.liked == true
+                    } ?: false
+                    val id = database.insert(outcome.result.toHistoryEntity().copy(liked = alreadyLiked))
+                    id to alreadyLiked
                 }
                 latestHistoryId = insertedId
-                latestLiked = false
+                latestLiked = initialLiked
             }
         }
     }
@@ -249,6 +254,7 @@ private fun ColumnScope.RecognitionSheetContent(
         artist: String,
         youtubeVideoId: String?,
         fallbackThumb: String?,
+        historyId: Long? = null,
     ) {
         if (resolvingPlayId != null) return
         scope.launch {
@@ -258,6 +264,11 @@ private fun ColumnScope.RecognitionSheetContent(
                 if (song == null) {
                     TopToaster.error("Không tìm thấy \"$title\" trên YouTube Music.")
                     return@launch
+                }
+                if (historyId != null && youtubeVideoId.isNullOrBlank() && song.id.isNotBlank()) {
+                    withContext(Dispatchers.IO) {
+                        database.updateRecognitionHistoryYoutubeId(historyId, song.id)
+                    }
                 }
                 val conn = playerConnection
                 if (conn == null) {
@@ -304,6 +315,9 @@ private fun ColumnScope.RecognitionSheetContent(
             }
             val song = resolveYouTubeSong(title, artist, youtubeVideoId)
             if (song != null) {
+                if (historyId != null && youtubeVideoId.isNullOrBlank() && song.id.isNotBlank()) {
+                    database.updateRecognitionHistoryYoutubeId(historyId, song.id)
+                }
                 setSongLikedInDatabase(
                     context = context,
                     database = database,
@@ -458,6 +472,7 @@ private fun ColumnScope.RecognitionSheetContent(
                         artist = result.artist,
                         youtubeVideoId = result.youtubeVideoId,
                         fallbackThumb = result.coverArtHqUrl ?: result.coverArtUrl,
+                        historyId = latestHistoryId,
                     )
                 },
                 onFavoriteClick = {
@@ -541,6 +556,7 @@ private fun ColumnScope.RecognitionSheetContent(
                                 artist = item.artist,
                                 youtubeVideoId = item.youtubeVideoId,
                                 fallbackThumb = item.coverArtHqUrl ?: item.coverArtUrl,
+                                historyId = item.id,
                             )
                         },
                         onToggleLike = {
@@ -1040,15 +1056,15 @@ private suspend fun resolveYouTubeSong(
     artist: String,
     youtubeVideoId: String?,
 ): SongItem? = withContext(Dispatchers.IO) {
+    if (!youtubeVideoId.isNullOrBlank()) {
+        YouTube.queue(listOf(youtubeVideoId)).getOrNull()?.firstOrNull()?.let { return@withContext it }
+    }
     val query = listOf(title, artist).filter { it.isNotBlank() }.joinToString(" ").trim()
     if (query.isNotBlank()) {
         YouTube.search(query, YouTube.SearchFilter.FILTER_SONG)
             .getOrNull()?.items?.filterIsInstance<SongItem>()?.firstOrNull()?.let { return@withContext it }
         YouTube.search(query, YouTube.SearchFilter.FILTER_VIDEO)
             .getOrNull()?.items?.filterIsInstance<SongItem>()?.firstOrNull()?.let { return@withContext it }
-    }
-    if (!youtubeVideoId.isNullOrBlank()) {
-        YouTube.queue(listOf(youtubeVideoId)).getOrNull()?.firstOrNull()?.let { return@withContext it }
     }
     null
 }

@@ -875,7 +875,7 @@ object LyricsUtils {
     private fun scriptOf(ch: Char): Script? {
         if (!ch.isLetter()) return null
         return when (ch.code) {
-            in 0x0041..0x024F -> Script.LATIN
+            in 0x0041..0x024F, in 0x1E00..0x1EFF, in 0x2C60..0x2C7F, in 0xA720..0xA7FF -> Script.LATIN
             in 0x0370..0x03FF -> Script.GREEK
             in 0x0400..0x052F -> Script.CYRILLIC
             in 0x0590..0x05FF -> Script.HEBREW

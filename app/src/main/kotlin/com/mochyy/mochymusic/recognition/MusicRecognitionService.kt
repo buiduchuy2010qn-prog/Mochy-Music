@@ -53,11 +53,14 @@ object MusicRecognitionService {
 
         try {
             val audioData = recordAudio()
-            recognizePcmBytes(
+            _recognitionStatus.value = RecognitionStatus.Processing
+            val outcome = recognizeFromPcmStream(
                 pcmData = audioData,
                 sampleRate = RECORDING_SAMPLE_RATE,
                 channelCount = 1,
             )
+            _recognitionStatus.value = outcome
+            outcome
         } catch (e: CancellationException) {
             _recognitionStatus.value = RecognitionStatus.Ready
             throw e
@@ -69,21 +72,17 @@ object MusicRecognitionService {
     }
 
     /**
-     * Nhận diện bài hát trực tiếp từ luồng PCM 16-bit LE (không mở micro),
-     * tự động gộp về mono nếu là đa kênh và chuẩn hóa về 16 kHz cho Shazam.
+     * Nhận diện bài hát thuần túy từ luồng PCM 16-bit LE (không mở micro và không ghi đè
+     * trạng thái UI [_recognitionStatus] dùng cho RecognitionSheet).
      */
-    suspend fun recognizePcmBytes(
+    suspend fun recognizeFromPcmStream(
         pcmData: ByteArray,
-        sampleRate: Int,
-        channelCount: Int,
+        sampleRate: Int = RECORDING_SAMPLE_RATE,
+        channelCount: Int = 1,
     ): RecognitionStatus = withContext(Dispatchers.IO) {
         if (pcmData.size < 2 || sampleRate <= 0 || channelCount <= 0) {
-            val err = RecognitionStatus.Error("Không có dữ liệu âm thanh để nhận diện")
-            _recognitionStatus.value = err
-            return@withContext err
+            return@withContext RecognitionStatus.Error("Không có dữ liệu âm thanh để nhận diện")
         }
-
-        _recognitionStatus.value = RecognitionStatus.Processing
 
         try {
             val monoData = if (channelCount > 1) {
@@ -94,9 +93,7 @@ object MusicRecognitionService {
             }
 
             if (monoData.size < 2) {
-                val err = RecognitionStatus.Error("Đoạn âm thanh quá ngắn để nhận diện")
-                _recognitionStatus.value = err
-                return@withContext err
+                return@withContext RecognitionStatus.Error("Đoạn âm thanh quá ngắn để nhận diện")
             }
 
             val decodedAudio = DecodedAudio(
@@ -110,11 +107,9 @@ object MusicRecognitionService {
                 decodedAudio,
                 VibraSignature.REQUIRED_SAMPLE_RATE,
             ).getOrElse { error ->
-                val err = RecognitionStatus.Error(
+                return@withContext RecognitionStatus.Error(
                     "Không thể xử lý âm thanh: ${error.message ?: "lỗi không xác định"}",
                 )
-                _recognitionStatus.value = err
-                return@withContext err
             }
 
             if (
@@ -125,9 +120,7 @@ object MusicRecognitionService {
                 resampledAudio.data.isEmpty() ||
                 resampledAudio.data.size % 2 != 0
             ) {
-                val err = RecognitionStatus.Error("Định dạng âm thanh không hợp lệ để nhận diện")
-                _recognitionStatus.value = err
-                return@withContext err
+                return@withContext RecognitionStatus.Error("Định dạng âm thanh không hợp lệ để nhận diện")
             }
 
             val signature = try {
@@ -135,11 +128,9 @@ object MusicRecognitionService {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val err = RecognitionStatus.Error(
+                return@withContext RecognitionStatus.Error(
                     "Không thể tạo dấu vân tay âm thanh: ${e.message ?: "lỗi không xác định"}",
                 )
-                _recognitionStatus.value = err
-                return@withContext err
             }
 
             val sampleDurationMs = (resampledAudio.data.size / 2) * 1000L / VibraSignature.REQUIRED_SAMPLE_RATE
@@ -147,26 +138,21 @@ object MusicRecognitionService {
 
             result.fold(
                 onSuccess = { recognitionResult ->
-                    _recognitionStatus.value = RecognitionStatus.Success(recognitionResult)
+                    RecognitionStatus.Success(recognitionResult)
                 },
                 onFailure = { error ->
                     val message = error.message.orEmpty()
-                    _recognitionStatus.value = if (message.contains("No match", ignoreCase = true)) {
+                    if (message.contains("No match", ignoreCase = true)) {
                         RecognitionStatus.NoMatch("Không tìm thấy bài hát phù hợp. Hãy thử lại với âm thanh rõ hơn.")
                     } else {
                         RecognitionStatus.Error(localizeRecognitionError(error))
                     }
                 },
             )
-
-            _recognitionStatus.value
         } catch (e: CancellationException) {
-            _recognitionStatus.value = RecognitionStatus.Ready
             throw e
         } catch (e: Exception) {
-            val status = RecognitionStatus.Error(localizeRecognitionError(e))
-            _recognitionStatus.value = status
-            status
+            RecognitionStatus.Error(localizeRecognitionError(e))
         }
     }
 

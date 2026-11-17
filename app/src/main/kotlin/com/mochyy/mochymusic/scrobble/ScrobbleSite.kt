@@ -12,7 +12,26 @@ import com.mochyy.mochymusic.constants.LastFMSessionKey
 import com.mochyy.mochymusic.constants.LastFMUsernameKey
 import com.mochyy.mochymusic.constants.LibreFmSessionKey
 import com.mochyy.mochymusic.constants.LibreFmUsernameKey
+import com.mochyy.mochymusic.utils.followAppProxy
 import com.music.lastfm.Audioscrobbler
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpTimeout
+import okhttp3.OkHttpClient
+
+private val scrobbleHttpClient: HttpClient by lazy {
+    HttpClient(OkHttp) {
+        install(HttpTimeout) {
+            connectTimeoutMillis = 15_000
+            requestTimeoutMillis = 30_000
+            socketTimeoutMillis = 30_000
+        }
+        expectSuccess = false
+        engine {
+            preconfigured = OkHttpClient.Builder().followAppProxy().build()
+        }
+    }
+}
 
 /**
  * The services Mochy scrobbles to. Both speak Last.fm's API, so one client serves both. Their
@@ -42,6 +61,7 @@ enum class ScrobbleSite(
             apiRoot = "https://ws.audioscrobbler.com/2.0/",
             apiKey = BuildConfig.LASTFM_API_KEY,
             secret = BuildConfig.LASTFM_SECRET,
+            httpClientProvider = { scrobbleHttpClient },
         ),
         createApiKeyUrl = "https://www.last.fm/api/account/create",
     ),
@@ -57,6 +77,7 @@ enum class ScrobbleSite(
             apiKey = BuildConfig.LIBREFM_API_KEY,
             secret = BuildConfig.LIBREFM_SECRET,
             signsInWithToken = true,
+            httpClientProvider = { scrobbleHttpClient },
         ),
     );
 

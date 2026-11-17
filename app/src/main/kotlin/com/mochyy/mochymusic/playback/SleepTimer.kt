@@ -12,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -140,18 +141,25 @@ class SleepTimer(
                 val waitMs = (millis - actualFadeMs).coerceAtLeast(0L)
 
                 if (waitMs > 0L) {
+                    if (isFadingOut || preFadeVolume != null) {
+                        withContext(Dispatchers.Main.immediate) {
+                            restorePreFadeVolumeNow()
+                        }
+                    }
                     delay(waitMs)
                 }
 
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Main.immediate) {
                     if (fadeSteps > 0) {
-                        val baseVol = player.volume.takeIf { it > 0.05f } ?: 1f
+                        val baseVol = (preFadeVolume ?: player.volume).coerceIn(0f, 1f)
                         preFadeVolume = baseVol
                         isFadingOut = true
 
                         for (step in 1..fadeSteps) {
                             val ratio = ((fadeSteps - step).toFloat() / fadeSteps.toFloat()).coerceIn(0f, 1f)
-                            player.volume = baseVol * ratio * ratio
+                            if (baseVol > 0f) {
+                                player.volume = (baseVol * ratio * ratio).coerceIn(0f, baseVol)
+                            }
                             delay(stepMs)
                         }
                         player.pause()
@@ -159,6 +167,7 @@ class SleepTimer(
                         preFadeVolume = null
                         isFadingOut = false
                     } else {
+                        restorePreFadeVolumeNow()
                         player.pause()
                     }
                 }
@@ -167,10 +176,14 @@ class SleepTimer(
                     clear()
                 }
             } catch (t: Throwable) {
-                restorePreFadeVolume()
                 if (t is CancellationException) throw t
             } finally {
-                restorePreFadeVolume()
+                if (sleepTimerJob === currentJob) {
+                    sleepTimerJob = null
+                    withContext(NonCancellable + Dispatchers.Main.immediate) {
+                        restorePreFadeVolumeNow()
+                    }
+                }
             }
         }
     }
