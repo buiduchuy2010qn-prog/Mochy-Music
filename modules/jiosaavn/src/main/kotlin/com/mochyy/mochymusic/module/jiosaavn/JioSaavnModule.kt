@@ -34,7 +34,7 @@ class JioSaavnModule : SourceModule {
         id = Id,
         name = "JioSaavn",
         version = "1.0",
-        description = "JioSaavn's catalog in AAC up to 320 kbps, no account needed. Strongest on Indian music",
+        description = "Kho nhạc JioSaavn định dạng AAC tối đa 320 kbps, không cần tài khoản. Mạnh nhất về nhạc Ấn Độ",
     )
 
     private lateinit var host: ModuleHost
@@ -49,11 +49,11 @@ class JioSaavnModule : SourceModule {
     override val choices = listOf(
         ModuleChoice(
             id = ChoiceQuality,
-            label = "Stream",
+            label = "Luồng phát",
             options = listOf(
-                StreamOption(Option320, "AAC 320", "JioSaavn's best, 160 for the songs that don't have it"),
-                StreamOption(Option160, "AAC 160", "Half the data, still clear"),
-                StreamOption(Option96, "AAC 96", "For slow or metered networks"),
+                StreamOption(Option320, "AAC 320", "Chất lượng cao nhất của JioSaavn, dùng 160 kbps cho bài chưa có 320"),
+                StreamOption(Option160, "AAC 160", "Tiết kiệm một nửa dung lượng, âm thanh vẫn rõ nét"),
+                StreamOption(Option96, "AAC 96", "Dành cho mạng chậm hoặc giới hạn dữ liệu"),
             ),
         ),
     )
@@ -69,9 +69,9 @@ class JioSaavnModule : SourceModule {
         val response = runCatching { host.http(HttpRequest(searchUrl("test", 1), headers = headers)) }.getOrNull()
         return if (response?.ok == true) {
             host.storage.set("unreachable", null)
-            AccountState.SignedIn("$NO_ACCOUNT_LABEL · server reachable")
+            AccountState.SignedIn("$NO_ACCOUNT_LABEL · máy chủ phản hồi tốt")
         } else {
-            val reason = "JioSaavn didn't answer (${response?.code ?: "offline"})"
+            val reason = "JioSaavn không phản hồi (${response?.code ?: "ngoại tuyến"})"
             markUnreachable(reason)
             AccountState.Expired(reason)
         }
@@ -89,21 +89,21 @@ class JioSaavnModule : SourceModule {
         val key = "${track.title}|${track.artists.joinToString(",")}"
         val missedAt = misses[key]
         if (missedAt != null && System.currentTimeMillis() - missedAt < MissMemoryMs) {
-            report(DiagnosticStep("Find the song", false, "Not on JioSaavn"))
-            return ResolveResult.NotFound("Not on JioSaavn")
+            report(DiagnosticStep("Tìm bài hát", false, "Không có trên JioSaavn"))
+            return ResolveResult.NotFound("Không có trên JioSaavn")
         }
 
-        report(DiagnosticStep("Find the song", null, "Searching JioSaavn…"))
+        report(DiagnosticStep("Tìm bài hát", null, "Đang tìm trên JioSaavn…"))
         val song = matches[key] ?: run {
             val query = "${TrackMatcher.core(track.title)} ${track.artists.firstOrNull().orEmpty()}".trim()
             val response = runCatching { host.http(HttpRequest(searchUrl(query, 10), headers = headers)) }.getOrElse {
-                report(DiagnosticStep("Find the song", false, "JioSaavn didn't answer"))
-                markUnreachable("JioSaavn didn't answer")
-                return ResolveResult.Unavailable("JioSaavn didn't answer")
+                report(DiagnosticStep("Tìm bài hát", false, "JioSaavn không phản hồi"))
+                markUnreachable("JioSaavn không phản hồi")
+                return ResolveResult.Unavailable("JioSaavn không phản hồi")
             }
             if (!response.ok) {
-                report(DiagnosticStep("Find the song", false, "JioSaavn answered ${response.code}"))
-                return ResolveResult.Unavailable("JioSaavn answered ${response.code}")
+                report(DiagnosticStep("Tìm bài hát", false, "JioSaavn phản hồi ${response.code}"))
+                return ResolveResult.Unavailable("JioSaavn phản hồi ${response.code}")
             }
             host.storage.set("unreachable", null)
             val songs = songsIn(response.text)
@@ -111,19 +111,19 @@ class JioSaavnModule : SourceModule {
                 ?.let { scored -> songs.first { it.catalog === scored.track } }
             if (best == null) {
                 misses[key] = System.currentTimeMillis()
-                report(DiagnosticStep("Find the song", false, "No matching recording of “${track.title}”"))
-                return ResolveResult.NotFound("No matching recording on JioSaavn")
+                report(DiagnosticStep("Tìm bài hát", false, "Không tìm thấy bản thu khớp với “${track.title}”"))
+                return ResolveResult.NotFound("Không tìm thấy bản thu khớp trên JioSaavn")
             }
             matches[key] = best
             best
         }
-        report(DiagnosticStep("Find the song", true, "${song.catalog.title} · ${song.catalog.artist}"))
+        report(DiagnosticStep("Tìm bài hát", true, "${song.catalog.title} · ${song.catalog.artist}"))
 
-        report(DiagnosticStep("Stream", null, "Opening the stream…"))
+        report(DiagnosticStep("Luồng phát", null, "Đang mở luồng phát…"))
         val given = decryptMediaUrl(song.encryptedUrl)
         if (given == null) {
-            report(DiagnosticStep("Stream", false, "JioSaavn's link couldn't be read"))
-            return ResolveResult.Unavailable("JioSaavn's link couldn't be read")
+            report(DiagnosticStep("Luồng phát", false, "Không đọc được liên kết từ JioSaavn"))
+            return ResolveResult.Unavailable("Không đọc được liên kết từ JioSaavn")
         }
         val wanted = when (picks[ChoiceQuality] ?: Option320) {
             Option96 -> 96
@@ -131,7 +131,7 @@ class JioSaavnModule : SourceModule {
             else -> if (song.has320) 320 else 160
         }
         val stream = streamAt(given, wanted)
-        report(DiagnosticStep("Stream", true, "AAC ${stream.kbps ?: "?"} kbps"))
+        report(DiagnosticStep("Luồng phát", true, "AAC ${stream.kbps ?: "?"} kbps"))
 
         return ResolveResult.Found(
             SourceStream(

@@ -5,6 +5,7 @@ package com.mochyy.mochymusic.modules.browser
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.edit
+import com.mochyy.mochymusic.utils.followAppProxy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +61,11 @@ class ModuleFeed @Inject constructor(
 ) {
     private val prefs = context.getSharedPreferences("module_browser", Context.MODE_PRIVATE)
     private val client by lazy {
-        OkHttpClient.Builder().connectTimeout(12, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build()
+        OkHttpClient.Builder()
+            .followAppProxy()
+            .connectTimeout(12, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
     }
 
     private val _session = MutableStateFlow(prefs.getString(SessionKey, null))

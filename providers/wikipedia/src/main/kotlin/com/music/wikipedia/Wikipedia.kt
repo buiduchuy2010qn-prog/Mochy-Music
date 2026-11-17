@@ -13,6 +13,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import timber.log.Timber
 import java.net.URLEncoder
+import java.text.Normalizer
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -46,13 +47,20 @@ object Wikipedia {
         data object Missing : Lookup
     }
 
+    private val VietnameseDiacriticsRegex = Regex("[ăĂđĐơƠưƯĩĨũŨ\\u1EA0-\\u1EF9]")
+
+    @Volatile
+    var httpClientProvider: (() -> OkHttpClient)? = null
+
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
-    private val client by lazy {
+    private val defaultClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(12, TimeUnit.SECONDS)
             .build()
     }
+    private val client: OkHttpClient
+        get() = httpClientProvider?.invoke() ?: defaultClient
     private val songs = ConcurrentHashMap<String, Lookup>()
 
     /** the song's facts and article, or null when it has no wikidata item (or couldn't be asked) */
@@ -68,7 +76,7 @@ object Wikipedia {
 
     private fun lookUp(title: String, artist: String, language: String): Lookup? {
         val leadArtist = artist.substringBefore(",").substringBefore("&").trim()
-        val languages = languagesFor(title, language)
+        val languages = languagesFor(title, language, artist)
         val id = findItem(title, leadArtist, languages) ?: return Lookup.Missing
         val entity = get("$Wikidata?action=wbgetentities&ids=$id&props=claims|sitelinks&format=json")
             ?.obj("entities")?.obj(id) ?: return null
@@ -80,8 +88,7 @@ object Wikipedia {
         val labelIds = ids(claims, "P264")
         val labels = labelsOf((genreIds + writerIds + producerIds + labelIds).distinct(), languages)
 
-        val (article, articleLanguage) = articleFor(entity.obj("sitelinks"), languages)
-        val about = article?.let { extract(it, articleLanguage!!) }
+        val (article, articleLanguage, about) = resolveArticle(entity.obj("sitelinks"), languages)
         return Lookup.Found(
             WikiSong(
                 about = about,
@@ -96,15 +103,29 @@ object Wikipedia {
         )
     }
 
-    // the phone's language first, english, then japanese, korean or chinese when the title is written in one
-    private fun languagesFor(title: String, language: String): List<String> {
+    private fun containsVietnameseDiacritics(text: String): Boolean {
+        if (text.isBlank()) return false
+        val nfc = Normalizer.normalize(text, Normalizer.Form.NFC)
+        return VietnameseDiacriticsRegex.containsMatchIn(nfc)
+    }
+
+    // vietnamese first when the locale is vi or the song/artist has vietnamese diacritics; then the phone's language, english, then CJK script
+    private fun languagesFor(title: String, language: String, artist: String = ""): List<String> {
         val script = when {
             title.any { it in '぀'..'ヿ' } -> "ja"
             title.any { it in '가'..'힯' } -> "ko"
             title.any { it in '一'..'鿿' } -> "zh"
             else -> null
         }
-        return listOfNotNull(language.lowercase(), "en", script).distinct()
+        val normalizedLanguage = language.lowercase().takeIf { it.isNotBlank() }
+        val preferVi = normalizedLanguage == "vi" ||
+            containsVietnameseDiacritics(title) ||
+            containsVietnameseDiacritics(artist)
+        return if (preferVi) {
+            listOfNotNull("vi", normalizedLanguage, "en", script).distinct()
+        } else {
+            listOfNotNull(normalizedLanguage, "en", script).distinct()
+        }
     }
 
     // an item whose description names the artist ("2014 single by sia"), or a song-like one whose performer is them
@@ -132,23 +153,34 @@ object Wikipedia {
         }?.first
     }
 
-    private fun articleFor(sitelinks: JsonObject?, languages: List<String>): Pair<String?, String?> {
-        if (sitelinks == null) return null to null
+    private fun resolveArticle(sitelinks: JsonObject?, languages: List<String>): Triple<String?, String?, String?> {
+        if (sitelinks == null) return Triple(null, null, null)
         for (language in languages) {
-            sitelinks.obj("${language}wiki")?.string("title")?.let { return it to language }
+            val title = sitelinks.obj("${language}wiki")?.string("title") ?: continue
+            val about = extract(title, language)
+            if (about != null) return Triple(title, language, about)
         }
-        return null to null
+        return Triple(null, null, null)
     }
 
-    // the article's opening paragraphs as plain text
+    private fun isDisambiguationExtract(text: String): Boolean =
+        text.contains("có thể đề cập đến", ignoreCase = true) ||
+            text.contains("trang định hướng", ignoreCase = true) ||
+            text.contains("may refer to", ignoreCase = true)
+
+    // the article's opening paragraphs as plain text, rejecting disambiguation pages
     private fun extract(title: String, language: String): String? {
-        val url = "https://$language.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1" +
-            "&redirects=1&format=json&titles=${URLEncoder.encode(title, "UTF-8")}"
+        val url = "https://$language.wikipedia.org/w/api.php?action=query&prop=extracts|pageprops&exintro=1&explaintext=1" +
+            "&ppprop=disambiguation&redirects=1&format=json&titles=${URLEncoder.encode(title, "UTF-8")}"
         val pages = get(url)?.obj("query")?.obj("pages") ?: return null
-        return pages.values.firstNotNullOfOrNull { (it as? JsonObject)?.string("extract") }
-            ?.replace(Regex("\n{3,}"), "\n\n")
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
+        return pages.values.firstNotNullOfOrNull { element ->
+            val pageObj = element as? JsonObject ?: return@firstNotNullOfOrNull null
+            if (pageObj.obj("pageprops")?.containsKey("disambiguation") == true) return@firstNotNullOfOrNull null
+            pageObj.string("extract")
+                ?.replace(Regex("\n{3,}"), "\n\n")
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() && !isDisambiguationExtract(it) }
+        }
     }
 
     private fun labelsOf(ids: List<String>, languages: List<String>): Map<String, String> {

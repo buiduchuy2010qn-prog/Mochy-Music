@@ -41,6 +41,7 @@ include(":modules:bridge")
 include(":modules:applemusic")
 include(":modules:monochrome")
 include(":modules:jiosaavn")
+include(":modules:soundcloud")
 
 
 // local newpipe extractor

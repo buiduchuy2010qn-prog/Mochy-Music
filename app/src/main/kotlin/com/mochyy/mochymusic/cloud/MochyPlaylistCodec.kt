@@ -27,13 +27,16 @@ data class CloudPlaylistRecord(
 private const val MaxGzipEncodedChars = 16_384
 private const val MaxGzipDecodedBytes = 512 * 1024
 
-internal fun gzipToBase64(rawUtf8: String): String {
+internal fun gzipBytes(rawUtf8: String): ByteArray {
     val baos = ByteArrayOutputStream()
     GZIPOutputStream(baos).use { gz ->
         gz.write(rawUtf8.toByteArray(Charsets.UTF_8))
     }
-    return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+    return baos.toByteArray()
 }
+
+internal fun gzipToBase64(rawUtf8: String): String =
+    Base64.encodeToString(gzipBytes(rawUtf8), Base64.NO_WRAP)
 
 internal fun gunzipFromBase64(encoded: String): String {
     val compressed = Base64.decode(encoded.trim(), Base64.NO_WRAP)
@@ -190,22 +193,81 @@ data class CloudAudioConfig(
     val audioQuality: String? = null,
 )
 
+data class CloudSpeedDialRecord(
+    val id: String,
+    val secondaryId: String? = null,
+    val title: String,
+    val subtitle: String? = null,
+    val thumbnailUrl: String? = null,
+    val type: String,
+    val explicit: Boolean = false,
+    val createDate: Long = 0L,
+)
+
+data class CloudRecognitionRecord(
+    val trackId: String,
+    val title: String,
+    val artist: String,
+    val album: String? = null,
+    val coverArtUrl: String? = null,
+    val coverArtHqUrl: String? = null,
+    val genre: String? = null,
+    val releaseDate: String? = null,
+    val label: String? = null,
+    val shazamUrl: String? = null,
+    val appleMusicUrl: String? = null,
+    val spotifyUrl: String? = null,
+    val isrc: String? = null,
+    val youtubeVideoId: String? = null,
+    val recognizedAtEpochMs: Long = 0L,
+    val liked: Boolean = false,
+)
+
+data class CloudModulesConfig(
+    val enabled: Map<String, Boolean> = emptyMap(),
+    val picks: Map<String, String> = emptyMap(),
+    val moduleOrder: String? = null,
+    val webModulesJson: String? = null,
+    val monochromeServersJson: String? = null,
+)
+
 data class CloudLibraryExtra(
     val albums: List<CloudAlbumRecord> = emptyList(),
     val artists: List<CloudArtistRecord> = emptyList(),
     val audio: CloudAudioConfig? = null,
     val albumsTruncated: Boolean = false,
     val artistsTruncated: Boolean = false,
+    val speedDial: List<CloudSpeedDialRecord> = emptyList(),
+    val recognitionHistory: List<CloudRecognitionRecord> = emptyList(),
+    val lyricsOffsets: Map<String, Int> = emptyMap(),
+    val modulesConfig: CloudModulesConfig? = null,
+    val speedDialTruncated: Boolean = false,
+    val recognitionHistoryTruncated: Boolean = false,
+    val lyricsOffsetsTruncated: Boolean = false,
 )
 
+typealias MochyLibraryExtraPayload = CloudLibraryExtra
+
 /**
- * Đóng gói Album đã lưu, Nghệ sĩ theo dõi & cài đặt Equalizer bằng JSON + GZIP + Base64
- * vào `user_metadata.library_extra_gz` (luôn <= 16 KB, không cần bảng Supabase mới).
+ * Đóng gói Album đã lưu, Nghệ sĩ theo dõi, Equalizer, Speed Dial, Nhận diện nhạc,
+ * độ lệch lời & cấu hình Module bằng JSON + GZIP + Base64 vào `user_metadata.library_extra_gz`
+ * (giữ gzipped < 24 KB và Base64 <= 16.384 ký tự, không cần bảng Supabase mới).
  */
 object MochyLibraryExtraCodec {
 
     private const val MaxEncodedChars = MaxGzipEncodedChars
+    private const val MaxGzipBytes = 24_576
+    private const val MaxSpeedDialItems = 9
+    private const val MaxRecognitionItems = 35
+    private const val MaxLyricsOffsets = 300
+    private const val MaxWebModulesChars = 16_384
     private val Caps = intArrayOf(200, 140, 90, 50, 25, 10, 0)
+    private val ExtraStepCaps = listOf(
+        MaxRecognitionItems to MaxLyricsOffsets,
+        20 to 150,
+        10 to 60,
+        0 to 0,
+    )
 
     fun encode(extra: CloudLibraryExtra): String {
         val hasAudio = extra.audio != null && (
@@ -213,29 +275,91 @@ object MochyLibraryExtraCodec {
                 extra.audio.audioNormalization != null ||
                 !extra.audio.audioQuality.isNullOrBlank()
             )
-        if (extra.albums.isEmpty() && extra.artists.isEmpty() && !hasAudio) return ""
+        val hasModules = extra.modulesConfig != null && (
+            extra.modulesConfig.enabled.isNotEmpty() ||
+                extra.modulesConfig.picks.isNotEmpty() ||
+                !extra.modulesConfig.moduleOrder.isNullOrBlank() ||
+                !extra.modulesConfig.webModulesJson.isNullOrBlank() ||
+                !extra.modulesConfig.monochromeServersJson.isNullOrBlank()
+            )
+        val cleanOffsets = extra.lyricsOffsets.entries
+            .filter { it.key.isNotBlank() && it.value != 0 }
+        if (extra.albums.isEmpty() &&
+            extra.artists.isEmpty() &&
+            !hasAudio &&
+            extra.speedDial.isEmpty() &&
+            extra.recognitionHistory.isEmpty() &&
+            cleanOffsets.isEmpty() &&
+            !hasModules
+        ) {
+            return ""
+        }
 
-        for (cap in Caps) {
-            val albumsSlice = if (cap == 0) emptyList() else extra.albums.take(cap)
-            val artistsSlice = if (cap == 0) emptyList() else extra.artists.take(cap)
-            val candidate = compressToBase64(
+        val cappedSpeedDial = extra.speedDial.take(MaxSpeedDialItems)
+        val cappedRecs = extra.recognitionHistory.take(MaxRecognitionItems)
+        val cappedOffsets = cleanOffsets.take(MaxLyricsOffsets)
+        val modulesFull = extra.modulesConfig?.let { cfg ->
+            cfg.copy(
+                webModulesJson = cfg.webModulesJson
+                    ?.takeIf { it.isNotBlank() && it.length <= MaxWebModulesChars },
+            )
+        }
+        val modulesNoWeb = modulesFull?.copy(webModulesJson = null)
+
+        fun tryEncode(
+            albumArtistCap: Int,
+            recCap: Int,
+            offsetCap: Int,
+            speedDialList: List<CloudSpeedDialRecord>,
+            modules: CloudModulesConfig?,
+            audio: CloudAudioConfig?,
+        ): String? {
+            val albumsSlice = if (albumArtistCap == 0) emptyList() else extra.albums.take(albumArtistCap)
+            val artistsSlice = if (albumArtistCap == 0) emptyList() else extra.artists.take(albumArtistCap)
+            val recSlice = if (recCap == 0) emptyList() else cappedRecs.take(recCap)
+            val offsetSlice = if (offsetCap == 0) emptyList() else cappedOffsets.take(offsetCap)
+            val raw = buildJsonString(
                 albums = albumsSlice,
                 artists = artistsSlice,
-                audio = extra.audio,
+                audio = audio,
                 albumsTruncated = albumsSlice.size < extra.albums.size,
                 artistsTruncated = artistsSlice.size < extra.artists.size,
+                speedDial = speedDialList,
+                recognitionHistory = recSlice,
+                lyricsOffsets = offsetSlice,
+                modulesConfig = modules,
+                speedDialTruncated = speedDialList.size < extra.speedDial.size,
+                recognitionHistoryTruncated = recSlice.size < extra.recognitionHistory.size,
+                lyricsOffsetsTruncated = offsetSlice.size < cleanOffsets.size,
             )
-            if (candidate.length <= MaxEncodedChars) return candidate
+            val gz = gzipBytes(raw)
+            if (gz.size >= MaxGzipBytes) return null
+            val b64 = Base64.encodeToString(gz, Base64.NO_WRAP)
+            return b64.takeIf { it.length <= MaxEncodedChars }
         }
-        // Trường hợp cực hiếm nếu cả EQ JSON quá dài: chỉ giữ EQ gọn hoặc rỗng
-        val audioOnly = compressToBase64(
-            albums = emptyList(),
-            artists = emptyList(),
-            audio = extra.audio,
-            albumsTruncated = extra.albums.isNotEmpty(),
-            artistsTruncated = extra.artists.isNotEmpty(),
-        )
-        return audioOnly.takeIf { it.length <= MaxEncodedChars }.orEmpty()
+
+        // 1. Giữ nguyên album/artist/speedDial/modules, cắt dần recognitionHistory & lyricsOffsets trước
+        for ((recCap, offsetCap) in ExtraStepCaps) {
+            tryEncode(200, recCap, offsetCap, cappedSpeedDial, modulesFull, extra.audio)?.let { return it }
+        }
+        // 2. Giảm dần album/artist nếu vẫn vượt ngưỡng nén
+        for (cap in Caps.drop(1)) {
+            for ((recCap, offsetCap) in listOf(10 to 60, 0 to 0)) {
+                tryEncode(cap, recCap, offsetCap, cappedSpeedDial, modulesFull, extra.audio)?.let { return it }
+            }
+        }
+        // 3. Nếu webModulesJson quá lớn khiến vượt 16 KB Base64, bỏ webModulesJson nhưng giữ switch/picks/order/monochrome
+        if (modulesFull?.webModulesJson != null) {
+            for ((recCap, offsetCap) in ExtraStepCaps) {
+                tryEncode(200, recCap, offsetCap, cappedSpeedDial, modulesNoWeb, extra.audio)?.let { return it }
+            }
+            for (cap in Caps.drop(1)) {
+                tryEncode(cap, 0, 0, cappedSpeedDial, modulesNoWeb, extra.audio)?.let { return it }
+            }
+        }
+        // 4. Fallback cuối: chỉ giữ cấu hình nhẹ + audio
+        tryEncode(0, 0, 0, emptyList(), modulesNoWeb, extra.audio)?.let { return it }
+        return tryEncode(0, 0, 0, emptyList(), null, extra.audio).orEmpty()
     }
 
     fun decode(libraryExtraGz: String?): CloudLibraryExtra? {
@@ -296,22 +420,142 @@ object MochyLibraryExtraCodec {
                 )
             } else null
 
+            val sdArr = root.optJSONArray("sd") ?: JSONArray()
+            val speedDial = buildList(minOf(sdArr.length(), MaxSpeedDialItems)) {
+                for (i in 0 until minOf(sdArr.length(), MaxSpeedDialItems)) {
+                    val row = sdArr.optJSONArray(i) ?: continue
+                    val id = row.optString(0).trim()
+                    val title = row.optString(2).trim()
+                    val type = row.optString(5).trim()
+                    if (id.isBlank() || title.isBlank() || type.isBlank()) continue
+                    add(
+                        CloudSpeedDialRecord(
+                            id = id,
+                            secondaryId = row.optString(1).takeIf { it.isNotBlank() && it != "null" },
+                            title = title,
+                            subtitle = row.optString(3).takeIf { it.isNotBlank() && it != "null" },
+                            thumbnailUrl = row.optString(4).takeIf { it.isNotBlank() && it != "null" },
+                            type = type,
+                            explicit = row.optBoolean(6, false),
+                            createDate = row.optLong(7, 0L).coerceAtLeast(0L),
+                        ),
+                    )
+                }
+            }
+
+            val recArr = root.optJSONArray("rec") ?: JSONArray()
+            val recognitionHistory = buildList(minOf(recArr.length(), MaxRecognitionItems)) {
+                for (i in 0 until minOf(recArr.length(), MaxRecognitionItems)) {
+                    val row = recArr.optJSONArray(i) ?: continue
+                    val trackId = row.optString(0).trim()
+                    val title = row.optString(1).trim()
+                    val artist = row.optString(2).trim()
+                    if (trackId.isBlank() || title.isBlank()) continue
+                    add(
+                        CloudRecognitionRecord(
+                            trackId = trackId,
+                            title = title,
+                            artist = artist,
+                            album = row.optString(3).takeIf { it.isNotBlank() && it != "null" },
+                            coverArtUrl = row.optString(4).takeIf { it.isNotBlank() && it != "null" },
+                            youtubeVideoId = row.optString(5).takeIf { it.isNotBlank() && it != "null" },
+                            recognizedAtEpochMs = row.optLong(6, 0L).coerceAtLeast(0L),
+                            liked = row.optBoolean(7, false),
+                            genre = row.optString(8).takeIf { it.isNotBlank() && it != "null" },
+                            isrc = row.optString(9).takeIf { it.isNotBlank() && it != "null" },
+                            shazamUrl = row.optString(10).takeIf { it.isNotBlank() && it != "null" },
+                            coverArtHqUrl = row.optString(11).takeIf { it.isNotBlank() && it != "null" },
+                            releaseDate = row.optString(12).takeIf { it.isNotBlank() && it != "null" },
+                            label = row.optString(13).takeIf { it.isNotBlank() && it != "null" },
+                            appleMusicUrl = row.optString(14).takeIf { it.isNotBlank() && it != "null" },
+                            spotifyUrl = row.optString(15).takeIf { it.isNotBlank() && it != "null" },
+                        ),
+                    )
+                }
+            }
+
+            val loObj = root.optJSONObject("lo")
+            val lyricsOffsets = if (loObj != null) {
+                buildMap {
+                    val keys = loObj.keys()
+                    while (keys.hasNext() && size < MaxLyricsOffsets) {
+                        val songId = keys.next().trim()
+                        val offset = loObj.optInt(songId, 0)
+                        if (songId.isNotBlank() && offset != 0) {
+                            put(songId, offset)
+                        }
+                    }
+                }
+            } else emptyMap()
+
+            val modObj = root.optJSONObject("mod")
+            val modulesConfig = if (modObj != null) {
+                val enObj = modObj.optJSONObject("en")
+                val enabled = buildMap {
+                    if (enObj != null) {
+                        val keys = enObj.keys()
+                        while (keys.hasNext()) {
+                            val k = keys.next().trim()
+                            if (k.isNotBlank()) put(k, enObj.optBoolean(k, false))
+                        }
+                    }
+                }
+                val pkObj = modObj.optJSONObject("pk")
+                val picks = buildMap {
+                    if (pkObj != null) {
+                        val keys = pkObj.keys()
+                        while (keys.hasNext()) {
+                            val k = keys.next().trim()
+                            val v = pkObj.optString(k).takeIf { it.isNotBlank() && it != "null" }
+                            if (k.isNotBlank() && v != null) put(k, v)
+                        }
+                    }
+                }
+                val order = modObj.optString("ord").takeIf { it.isNotBlank() && it != "null" }
+                val web = modObj.optString("web")
+                    .takeIf { it.isNotBlank() && it != "null" && it.length <= MaxWebModulesChars }
+                val mono = modObj.optString("mono").takeIf { it.isNotBlank() && it != "null" }
+                if (enabled.isNotEmpty() || picks.isNotEmpty() || order != null || web != null || mono != null) {
+                    CloudModulesConfig(
+                        enabled = enabled,
+                        picks = picks,
+                        moduleOrder = order,
+                        webModulesJson = web,
+                        monochromeServersJson = mono,
+                    )
+                } else null
+            } else null
+
             CloudLibraryExtra(
                 albums = albums,
                 artists = artists,
                 audio = audio,
                 albumsTruncated = root.optBoolean("at", false),
                 artistsTruncated = root.optBoolean("rt", false),
+                speedDial = speedDial,
+                recognitionHistory = recognitionHistory,
+                lyricsOffsets = lyricsOffsets,
+                modulesConfig = modulesConfig,
+                speedDialTruncated = root.optBoolean("sdt", false),
+                recognitionHistoryTruncated = root.optBoolean("rect", false),
+                lyricsOffsetsTruncated = root.optBoolean("lot", false),
             )
         }.getOrNull()
     }
 
-    private fun compressToBase64(
+    private fun buildJsonString(
         albums: List<CloudAlbumRecord>,
         artists: List<CloudArtistRecord>,
         audio: CloudAudioConfig?,
         albumsTruncated: Boolean,
         artistsTruncated: Boolean,
+        speedDial: List<CloudSpeedDialRecord>,
+        recognitionHistory: List<CloudRecognitionRecord>,
+        lyricsOffsets: List<Map.Entry<String, Int>>,
+        modulesConfig: CloudModulesConfig?,
+        speedDialTruncated: Boolean,
+        recognitionHistoryTruncated: Boolean,
+        lyricsOffsetsTruncated: Boolean,
     ): String {
         val albArr = JSONArray()
         for (a in albums) {
@@ -342,7 +586,7 @@ object MochyLibraryExtraCodec {
             )
         }
         val root = JSONObject().apply {
-            put("v", 1)
+            put("v", 2)
             put("alb", albArr)
             put("art", artArr)
             if (albumsTruncated) put("at", true)
@@ -352,7 +596,86 @@ object MochyLibraryExtraCodec {
                 if (audio.audioNormalization != null) put("an", audio.audioNormalization)
                 if (!audio.audioQuality.isNullOrBlank()) put("aq", audio.audioQuality)
             }
+            if (speedDial.isNotEmpty()) {
+                val sdArr = JSONArray()
+                for (sd in speedDial) {
+                    sdArr.put(
+                        JSONArray().apply {
+                            put(sd.id.take(80))
+                            put(sd.secondaryId.orEmpty().take(80))
+                            put(sd.title.take(120))
+                            put(sd.subtitle.orEmpty().take(120))
+                            put(sd.thumbnailUrl.orEmpty().take(320))
+                            put(sd.type.take(16))
+                            put(sd.explicit)
+                            put(sd.createDate.coerceAtLeast(0L))
+                        },
+                    )
+                }
+                put("sd", sdArr)
+            }
+            if (speedDialTruncated) put("sdt", true)
+            if (recognitionHistory.isNotEmpty()) {
+                val recArr = JSONArray()
+                for (r in recognitionHistory) {
+                    recArr.put(
+                        JSONArray().apply {
+                            put(r.trackId.take(64))
+                            put(r.title.take(120))
+                            put(r.artist.take(120))
+                            put(r.album.orEmpty().take(120))
+                            put(r.coverArtUrl.orEmpty().take(320))
+                            put(r.youtubeVideoId.orEmpty().take(32))
+                            put(r.recognizedAtEpochMs.coerceAtLeast(0L))
+                            put(r.liked)
+                            put(r.genre.orEmpty().take(60))
+                            put(r.isrc.orEmpty().take(32))
+                            put(r.shazamUrl.orEmpty().take(240))
+                            put(r.coverArtHqUrl.orEmpty().take(320))
+                            put(r.releaseDate.orEmpty().take(32))
+                            put(r.label.orEmpty().take(80))
+                            put(r.appleMusicUrl.orEmpty().take(240))
+                            put(r.spotifyUrl.orEmpty().take(240))
+                        },
+                    )
+                }
+                put("rec", recArr)
+            }
+            if (recognitionHistoryTruncated) put("rect", true)
+            if (lyricsOffsets.isNotEmpty()) {
+                val loObj = JSONObject()
+                for ((songId, offset) in lyricsOffsets) {
+                    loObj.put(songId.take(64), offset)
+                }
+                put("lo", loObj)
+            }
+            if (lyricsOffsetsTruncated) put("lot", true)
+            if (modulesConfig != null) {
+                val modObj = JSONObject()
+                if (modulesConfig.enabled.isNotEmpty()) {
+                    val enObj = JSONObject()
+                    for ((k, v) in modulesConfig.enabled) enObj.put(k, v)
+                    modObj.put("en", enObj)
+                }
+                if (modulesConfig.picks.isNotEmpty()) {
+                    val pkObj = JSONObject()
+                    for ((k, v) in modulesConfig.picks) pkObj.put(k, v)
+                    modObj.put("pk", pkObj)
+                }
+                if (!modulesConfig.moduleOrder.isNullOrBlank()) {
+                    modObj.put("ord", modulesConfig.moduleOrder)
+                }
+                if (!modulesConfig.webModulesJson.isNullOrBlank() &&
+                    modulesConfig.webModulesJson.length <= MaxWebModulesChars
+                ) {
+                    modObj.put("web", modulesConfig.webModulesJson)
+                }
+                if (!modulesConfig.monochromeServersJson.isNullOrBlank()) {
+                    modObj.put("mono", modulesConfig.monochromeServersJson)
+                }
+                if (modObj.length() > 0) put("mod", modObj)
+            }
         }.toString()
-        return gzipToBase64(root)
+        return root
     }
 }

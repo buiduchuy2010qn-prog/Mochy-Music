@@ -321,12 +321,34 @@ internal object VietnameseLyricsCommon {
             .build()
     }
 
+    internal data class HttpTextResponse(
+        val body: String,
+        val setCookies: List<String>,
+    )
+
     suspend fun httpGetBytes(
         url: String,
         userAgent: String,
         referer: String? = null,
         extraHeaders: Map<String, String> = emptyMap(),
-    ): ByteArray = suspendCancellableCoroutine { cont ->
+    ): ByteArray = httpGetRaw(url, userAgent, referer, extraHeaders).first
+
+    suspend fun httpGetResponse(
+        url: String,
+        userAgent: String,
+        referer: String? = null,
+        extraHeaders: Map<String, String> = emptyMap(),
+    ): HttpTextResponse {
+        val (bytes, cookies) = httpGetRaw(url, userAgent, referer, extraHeaders)
+        return HttpTextResponse(bytes.toString(Charsets.UTF_8), cookies)
+    }
+
+    private suspend fun httpGetRaw(
+        url: String,
+        userAgent: String,
+        referer: String? = null,
+        extraHeaders: Map<String, String> = emptyMap(),
+    ): Pair<ByteArray, List<String>> = suspendCancellableCoroutine { cont ->
         val builder = Request.Builder()
             .url(url)
             .header("User-Agent", userAgent)
@@ -350,8 +372,9 @@ internal object VietnameseLyricsCommon {
                             if (cont.isActive) cont.resumeWithException(IOException("HTTP ${res.code}"))
                             return
                         }
+                        val setCookies = res.headers("Set-Cookie")
                         val bytes = res.body.bytes()
-                        if (cont.isActive) cont.resume(bytes)
+                        if (cont.isActive) cont.resume(bytes to setCookies)
                     }
                 } catch (e: Exception) {
                     if (cont.isActive) cont.resumeWithException(e)
@@ -596,6 +619,26 @@ internal object VietnameseLyricsCommon {
             .trim()
     }
 
+    private fun parseFractionMillis(fracRaw: String): Long =
+        fracRaw.padEnd(3, '0').take(3).toLongOrNull() ?: 0L
+
+    private fun formatTimestampTag(
+        min: Long,
+        sec: Long,
+        fracMillis: Long,
+        preferThreeDigits: Boolean,
+        bracketed: Boolean,
+    ): String {
+        val normalizedFrac = when {
+            preferThreeDigits -> fracMillis.toString().padStart(3, '0')
+            fracMillis % 10L == 0L -> (fracMillis / 10L).toString().padStart(2, '0')
+            else -> fracMillis.toString().padStart(3, '0')
+        }
+        val open = if (bracketed) '[' else '<'
+        val close = if (bracketed) ']' else '>'
+        return "$open${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.$normalizedFrac$close"
+    }
+
     fun normalizeLrc(raw: String): String? {
         val cleaned = raw.removePrefix("\uFEFF")
             .replace("\r\n", "\n")
@@ -606,6 +649,12 @@ internal object VietnameseLyricsCommon {
         var twoDigitCount = 0
         for (line in lines) {
             for (m in TimeTagRegex.findAll(line)) {
+                when (m.groupValues[3].length) {
+                    3 -> threeDigitCount++
+                    2 -> twoDigitCount++
+                }
+            }
+            for (m in WordTimeTagRegex.findAll(line)) {
                 when (m.groupValues[3].length) {
                     3 -> threeDigitCount++
                     2 -> twoDigitCount++
@@ -632,44 +681,41 @@ internal object VietnameseLyricsCommon {
             for (tag in TimeTagRegex.findAll(tagsPart)) {
                 val min = tag.groupValues[1].toLongOrNull() ?: continue
                 val sec = tag.groupValues[2].toLongOrNull() ?: continue
-                val fracRaw = tag.groupValues[3]
-                val fracMillis = when (fracRaw.length) {
-                    0 -> 0L
-                    1 -> (fracRaw.toLongOrNull() ?: 0L) * 100L
-                    2 -> (fracRaw.toLongOrNull() ?: 0L) * 10L
-                    else -> fracRaw.take(3).toLongOrNull() ?: 0L
-                }
-                val normalizedFrac = when {
-                    preferThreeDigits -> fracMillis.toString().padStart(3, '0')
-                    fracMillis % 10L == 0L -> (fracMillis / 10L).toString().padStart(2, '0')
-                    else -> fracMillis.toString().padStart(3, '0')
-                }
+                val fracMillis = parseFractionMillis(tag.groupValues[3])
                 val timeMs = min * 60_000L + sec * 1_000L + fracMillis
                 if (timeMs < minTimeMs) minTimeMs = timeMs
                 distinctTimestamps += timeMs
-                formattedTags.append('[')
-                    .append(min.toString().padStart(2, '0'))
-                    .append(':')
-                    .append(sec.toString().padStart(2, '0'))
-                    .append('.')
-                    .append(normalizedFrac)
-                    .append(']')
+                formattedTags.append(formatTimestampTag(min, sec, fracMillis, preferThreeDigits, bracketed = true))
             }
             if (formattedTags.isEmpty()) continue
 
-            if (minTimeMs <= 10_000L && IntroCreditLineRegex.containsMatchIn(bodyText)) continue
-            if (isPlaceholderLyricLine(bodyText)) return null
+            // Preserve and normalize inline <mm:ss.xx> / <mm:ss.xxx> word-timing tags without stripping them.
+            val normalizedBody = WordTimeTagRegex.replace(bodyText) { wordTag ->
+                val min = wordTag.groupValues[1].toLongOrNull() ?: return@replace wordTag.value
+                val sec = wordTag.groupValues[2].toLongOrNull() ?: return@replace wordTag.value
+                val fracMillis = parseFractionMillis(wordTag.groupValues[3])
+                distinctTimestamps += min * 60_000L + sec * 1_000L + fracMillis
+                formatTimestampTag(min, sec, fracMillis, preferThreeDigits, bracketed = false)
+            }
+            val plainForChecks = InlineVoicePrefixRegex.replace(
+                WordTimeTagRegex.replace(normalizedBody, ""),
+                "",
+            ).trim()
+            if (plainForChecks.isEmpty()) continue
 
-            if (isRealSungLine(bodyText)) {
+            if (minTimeMs <= 10_000L && IntroCreditLineRegex.containsMatchIn(plainForChecks)) continue
+            if (isPlaceholderLyricLine(plainForChecks)) return null
+
+            if (isRealSungLine(plainForChecks)) {
                 sungLineCount++
             }
-            outLines += "$formattedTags$bodyText"
+            outLines += "$formattedTags$normalizedBody"
         }
 
         if (sungLineCount < 2 || outLines.isEmpty()) return null
         if (distinctTimestamps.size <= 1) {
             val plain = outLines.joinToString("\n") { line ->
-                TimeTagRegex.replace(line, "").trim()
+                WordTimeTagRegex.replace(TimeTagRegex.replace(line, ""), "").trim()
             }
             return normalizePlainLyrics(plain)
         }
@@ -823,6 +869,8 @@ internal object VietnameseLyricsCommon {
     )
 
     private val TimeTagRegex = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]""")
+    private val WordTimeTagRegex = Regex("""<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>""")
+    private val InlineVoicePrefixRegex = Regex("""^(?:\{agent:[^}]+\}|\{bg\})+""")
     private val LrcTimedLineRegex = Regex("""^((?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]\s*)+)(.*)$""")
     private val MetaTagLineRegex = Regex("""^\[[a-zA-Z#]+:.*\]$""")
     private val IntroCreditLineRegex = Regex("""^(?:Bài hát|Ca sĩ|Sáng tác|Nhạc sĩ|Album|LRC|Lyric|Upload|Contributor)\s*[:：]""", RegexOption.IGNORE_CASE)

@@ -53,26 +53,31 @@ private data class WhatsNewHighlight(
     val summary: String,
 )
 
-private val V113Highlights = listOf(
+private val V114Highlights = listOf(
     WhatsNewHighlight(
-        icon = R.drawable.music_note,
-        title = "Chia sẻ TikTok / Reels tự bắt nhạc bằng Shazam",
-        summary = "Chia sẻ video TikTok, Reels hay Shorts vào Mochy để tự động tách tên bài hoặc dùng Shazam nhận diện giai điệu và phát ngay.",
+        icon = R.drawable.cloud,
+        title = "Tự động nghe tiếp giữa các thiết bị (Auto-Handoff)",
+        summary = "Khi bạn tạm dừng ở thiết bị này, máy khác cùng tài khoản Mochy Cloud sẽ hiện thẻ nhắc để phát tiếp đúng đoạn nhạc và hàng đợi.",
+    ),
+    WhatsNewHighlight(
+        icon = R.drawable.palette,
+        title = "Nguồn nhạc SoundCloud & 4 giao diện chính thức",
+        summary = "Tích hợp sẵn SoundCloud không cần đăng nhập và bổ sung 4 giao diện Kính Lỏng, Đen OLED, iPod Cổ Điển, Đĩa Than Phòng Thu trong danh mục Module.",
+    ),
+    WhatsNewHighlight(
+        icon = R.drawable.share,
+        title = "Chia sẻ & nhập nhanh mã Playlist mochypl1:",
+        summary = "Sao chép mã chia sẻ Playlist gọn nhẹ để gửi qua tin nhắn hoặc dán vào mục Nhập thư viện, đồng bộ thêm Đĩa quay nhanh và lịch sử nhận diện.",
     ),
     WhatsNewHighlight(
         icon = R.drawable.lyrics,
-        title = "Nhận diện nhạc trên Thanh trạng thái & Lời nhạc Việt .lrc",
-        summary = "Mở nhanh nhận diện nhạc từ ô Thanh trạng thái hay phím tắt biểu tượng app; bổ sung nguồn lời NhacCuaTui và Zing MP3 khớp từng câu.",
+        title = "Karaoke từng chữ & xuất tệp lời .lrc",
+        summary = "Hiển thị lời bài hát tiếng Việt chạy mượt theo từng chữ từ Zing MP3/NhacCuaTui và cho phép xuất tệp .lrc chuẩn kèm mốc thời gian.",
     ),
     WhatsNewHighlight(
-        icon = R.drawable.cloud,
-        title = "Nghe tiếp giữa các máy & Gửi Playlist .mochypl",
-        summary = "Phát tiếp đúng giây đang nghe dở kèm hàng đợi từ thiết bị khác qua Mochy Cloud và chia sẻ từng playlist gọn nhẹ bằng tệp .mochypl.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.sleep_timer,
-        title = "Hẹn giờ giảm êm âm lượng 25s & Hiệu ứng 1:1 Mochy",
-        summary = "Hẹn giờ ngủ hạ dần âm lượng mượt mà trong 25 giây cuối rồi tự trả mức cũ; đồng bộ hiệu ứng nhấn nảy, nghiêng 3D và chuyển động 1:1.",
+        icon = R.drawable.info,
+        title = "Thông tin bài hát bằng Wikipedia Tiếng Việt",
+        summary = "Tự động ưu tiên tra cứu tiểu sử nghệ sĩ và thông tin ca khúc từ Wikipedia Tiếng Việt, lọc bỏ trang định hướng chính xác hơn.",
     ),
 )
 
@@ -175,13 +180,13 @@ private fun WhatsNewSheetContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            V113Highlights.forEachIndexed { index, item ->
+            V114Highlights.forEachIndexed { index, item ->
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
                         .fillMaxWidth()
                         .revealOnAppear(
-                            key = "v113_highlight_$index",
+                            key = "v114_highlight_$index",
                             seenState = revealSeen,
                             cascade = true,
                         )

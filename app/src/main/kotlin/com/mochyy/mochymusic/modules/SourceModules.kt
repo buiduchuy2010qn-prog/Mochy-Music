@@ -3,6 +3,7 @@
 package com.mochyy.mochymusic.modules
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.mochyy.mochymusic.module.AccountState
 import com.mochyy.mochymusic.module.ModuleFeature
@@ -23,6 +24,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
@@ -37,6 +39,28 @@ class SourceModules @Inject constructor(
 
     // where modules look songs up, apart from whoever asked, so a call that won't stop never keeps a song waiting
     private val resolveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val syncPrefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "cloud_sync_stamp") reloadFromPrefs()
+    }
+
+    init {
+        prefs.registerOnSharedPreferenceChangeListener(syncPrefListener)
+        resolveScope.launch {
+            registry.entries.collect { entries ->
+                if (entries.isEmpty()) return@collect
+                val installed = entries.filter { it.adds(ModuleFeature.AudioSource) }.map { it.id }
+                slotIn(installed, _order.value, ::setOrder)
+                slotIn(installed, _downloadOrder.value, ::setDownloadOrder)
+            }
+        }
+    }
+
+    private fun reloadFromPrefs() {
+        _youTubeEnabled.value = isEnabled(YouTubeId)
+        _order.value = readOrder()
+        _downloadOrder.value = readDownloadOrder()
+    }
 
     // ---- provider order -----------------------------------------------------------------------
     //

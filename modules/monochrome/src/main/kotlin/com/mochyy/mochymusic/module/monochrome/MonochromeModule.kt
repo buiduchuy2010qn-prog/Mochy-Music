@@ -41,7 +41,7 @@ class MonochromeModule : SourceModule, ServerListModule {
         id = Id,
         name = "Monochrome",
         version = "2.1",
-        description = "Lossless FLAC for every song Monochrome has, no account needed, with every Audio Lab effect",
+        description = "Nhạc Lossless FLAC cho mọi bài hát Monochrome có sẵn, không cần tài khoản, hỗ trợ đầy đủ hiệu ứng Audio Lab",
         sourceUrl = "https://github.com/monochrome-music/monochrome",
     )
 
@@ -89,8 +89,8 @@ class MonochromeModule : SourceModule, ServerListModule {
         val reachable = all.count { reachable(it) }
         return when {
             reachable == 0 -> accountState()
-            all.size == 1 -> AccountState.SignedIn("$NO_ACCOUNT_LABEL · server reachable")
-            else -> AccountState.SignedIn("$NO_ACCOUNT_LABEL · $reachable of ${all.size} servers reachable")
+            all.size == 1 -> AccountState.SignedIn("$NO_ACCOUNT_LABEL · máy chủ phản hồi tốt")
+            else -> AccountState.SignedIn("$NO_ACCOUNT_LABEL · $reachable/${all.size} máy chủ phản hồi tốt")
         }
     }
 
@@ -105,7 +105,7 @@ class MonochromeModule : SourceModule, ServerListModule {
     override suspend fun diagnose(track: TrackQuery, picks: Map<String, String>, report: (DiagnosticStep) -> Unit): ResolveResult {
         // a server that just failed waits its turn, unless every one of them did
         val usable = all.filter { downReason(it) == null }.ifEmpty { all }
-        var result: ResolveResult = ResolveResult.NotFound("Not on Monochrome")
+        var result: ResolveResult = ResolveResult.NotFound("Không có trên Monochrome")
         for (server in usable) {
             result = resolveOn(server, track, report)
             if (result is ResolveResult.Found) return result
@@ -117,48 +117,48 @@ class MonochromeModule : SourceModule, ServerListModule {
         val key = "${server.url}|${track.title}|${track.artists.joinToString(",")}"
         val missedAt = misses[key]
         if (missedAt != null && System.currentTimeMillis() - missedAt < MissMemoryMs) {
-            report(DiagnosticStep("Find the song", false, "Not on ${server.name}"))
-            return ResolveResult.NotFound("Not on Monochrome")
+            report(DiagnosticStep("Tìm bài hát", false, "Không có trên ${server.name}"))
+            return ResolveResult.NotFound("Không có trên Monochrome")
         }
 
-        report(DiagnosticStep("Find the song", null, "Searching ${server.name}…"))
+        report(DiagnosticStep("Tìm bài hát", null, "Đang tìm trên ${server.name}…"))
         val found = matches[key] ?: run {
             val query = "${track.artists.firstOrNull().orEmpty()} ${TrackMatcher.core(track.title)}".trim()
             val response = runCatching { host.http(searchRequest(server, query, SearchLimit)) }.getOrElse {
-                val reason = "${server.name} didn't answer"
-                report(DiagnosticStep("Find the song", false, reason))
+                val reason = "${server.name} không phản hồi"
+                report(DiagnosticStep("Tìm bài hát", false, reason))
                 markDown(server.url, reason)
                 return ResolveResult.Unavailable(reason)
             }
             if (!response.ok) {
-                report(DiagnosticStep("Find the song", false, "${server.name} answered ${response.code}"))
-                return ResolveResult.Unavailable("${server.name} answered ${response.code}")
+                report(DiagnosticStep("Tìm bài hát", false, "${server.name} phản hồi ${response.code}"))
+                return ResolveResult.Unavailable("${server.name} phản hồi ${response.code}")
             }
             clearDown(server.url)
             val best = TrackMatcher.ranked(track, tracksIn(server.kind, response.text)).firstOrNull()
             if (best == null) {
                 misses[key] = System.currentTimeMillis()
-                report(DiagnosticStep("Find the song", false, "No matching recording of “${track.title}”"))
-                return ResolveResult.NotFound("No matching recording on Monochrome")
+                report(DiagnosticStep("Tìm bài hát", false, "Không tìm thấy bản thu khớp với “${track.title}”"))
+                return ResolveResult.NotFound("Không tìm thấy bản thu khớp trên Monochrome")
             }
             matches[key] = best.track
             best.track
         }
-        report(DiagnosticStep("Find the song", true, "${found.title} · ${found.artist}"))
+        report(DiagnosticStep("Tìm bài hát", true, "${found.title} · ${found.artist}"))
 
         // the head of the file: it should open as flac, and its streaminfo says how fine it is
-        report(DiagnosticStep("Stream", null, "Opening the stream…"))
+        report(DiagnosticStep("Luồng phát", null, "Đang mở luồng phát…"))
         val opened = open(server, found.id)
         if (opened == null) {
-            report(DiagnosticStep("Stream", false, "${server.name} gave no stream"))
-            return ResolveResult.Unavailable("${server.name} gave no stream")
+            report(DiagnosticStep("Luồng phát", false, "${server.name} không trả về luồng phát"))
+            return ResolveResult.Unavailable("${server.name} không trả về luồng phát")
         }
         val info = flacInfo(opened.head)
         if (info == null) {
-            report(DiagnosticStep("Stream", false, "Not a FLAC file"))
-            return ResolveResult.Unavailable("Monochrome's stream isn't FLAC")
+            report(DiagnosticStep("Luồng phát", false, "Không phải tệp FLAC"))
+            return ResolveResult.Unavailable("Luồng phát của Monochrome không phải định dạng FLAC")
         }
-        report(DiagnosticStep("Stream", true, info.label))
+        report(DiagnosticStep("Luồng phát", true, info.label))
 
         return ResolveResult.Found(
             SourceStream(
@@ -332,7 +332,7 @@ class MonochromeModule : SourceModule, ServerListModule {
             clearDown(server.url)
             return true
         }
-        markDown(server.url, "${server.name} didn't answer (${response?.code ?: "offline"})")
+        markDown(server.url, "${server.name} không phản hồi (${response?.code ?: "ngoại tuyến"})")
         return false
     }
 

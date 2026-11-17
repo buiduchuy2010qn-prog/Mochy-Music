@@ -22,6 +22,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.utils.LowEndModeManager
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -87,22 +88,23 @@ internal class PillDropTargets(private val context: Context, private val coverPx
 
     // the pills spring up one after the other while the fade comes in
     fun show(bottomInset: Int) {
+        val lowEnd = LowEndModeManager.isActive
         view.animate().cancel()
         view.layoutParams = layoutParams(bottomInset)
         (row.layoutParams as FrameLayout.LayoutParams).bottomMargin = px(FromBottomDp) + bottomInset
         hovered = null
         targets.forEach { it.reset() }
         view.visibility = View.VISIBLE
-        view.animate().alpha(1f).setDuration(180L).start()
+        view.animate().alpha(1f).setDuration(if (lowEnd) 120L else 180L).start()
         targets.forEachIndexed { i, target ->
-            target.view.translationY = px(72f).toFloat()
+            target.view.translationY = px(if (lowEnd) 36f else 72f).toFloat()
             target.view.alpha = 0f
             target.view.animate()
                 .translationY(0f)
                 .alpha(1f)
-                .setStartDelay(i * 45L)
-                .setDuration(360L)
-                .setInterpolator(OvershootInterpolator(1.4f))
+                .setStartDelay(if (lowEnd) 0L else i * 45L)
+                .setDuration(if (lowEnd) 160L else 360L)
+                .setInterpolator(if (lowEnd) DecelerateInterpolator() else OvershootInterpolator(1.4f))
                 .start()
         }
     }
@@ -168,9 +170,21 @@ internal class PillDropTargets(private val context: Context, private val coverPx
 
     // a little squash as the cover goes in
     fun swallow(drop: PillDrop) {
+        val lowEnd = LowEndModeManager.isActive
         val pill = targets.first { it.drop == drop }.view
-        pill.animate().scaleX(0.92f).scaleY(0.92f).setDuration(110L).setInterpolator(DecelerateInterpolator())
-            .withEndAction { pill.animate().scaleX(1f).scaleY(1f).setDuration(220L).setInterpolator(OvershootInterpolator(2f)).start() }
+        pill.animate()
+            .scaleX(0.92f)
+            .scaleY(0.92f)
+            .setDuration(if (lowEnd) 80L else 110L)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                pill.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(if (lowEnd) 120L else 220L)
+                    .setInterpolator(if (lowEnd) DecelerateInterpolator() else OvershootInterpolator(2f))
+                    .start()
+            }
             .start()
     }
 
@@ -213,10 +227,15 @@ internal class PillDropTargets(private val context: Context, private val coverPx
         }
 
         fun light(on: Boolean) {
+            val lowEnd = LowEndModeManager.isActive
             animator?.cancel()
             animator = ValueAnimator.ofFloat(amount, if (on) 1f else 0f).apply {
-                duration = if (on) 240L else 160L
-                interpolator = if (on) OvershootInterpolator(2.2f) else DecelerateInterpolator()
+                duration = when {
+                    lowEnd -> if (on) 120L else 100L
+                    on -> 240L
+                    else -> 160L
+                }
+                interpolator = if (!lowEnd && on) OvershootInterpolator(2.2f) else DecelerateInterpolator()
                 addUpdateListener { paint(it.animatedValue as Float) }
                 start()
             }

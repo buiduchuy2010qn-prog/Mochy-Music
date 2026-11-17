@@ -24,15 +24,22 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import com.mochyy.mochymusic.ui.component.LocalSharedTransitionScope
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.areNavigationBarsVisible
 import androidx.compose.foundation.layout.areStatusBarsVisible
@@ -48,6 +55,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.systemBarsIgnoringVisibility
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -94,7 +103,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
@@ -105,12 +116,14 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.createLifecycleAwareWindowRecomposer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
@@ -182,18 +195,28 @@ import com.mochyy.mochymusic.constants.SelectedThemeColorKey
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.db.entities.SearchHistory
 import com.mochyy.mochymusic.extensions.toEnum
+import com.mochyy.mochymusic.extensions.toMediaItem
+import com.mochyy.mochymusic.models.MediaMetadata
 import com.mochyy.mochymusic.models.toMediaMetadata
 import com.mochyy.mochymusic.playback.DownloadUtil
 import com.mochyy.mochymusic.playback.MusicService
 import com.mochyy.mochymusic.playback.MusicService.MusicBinder
 import com.mochyy.mochymusic.playback.PlayerConnection
+import com.mochyy.mochymusic.playback.queues.ListQueue
 import com.mochyy.mochymusic.playback.queues.YouTubeQueue
+import com.mochyy.mochymusic.cloud.CloudPlaybackResume
+import com.mochyy.mochymusic.cloud.MochyCloudSyncManager
 import com.mochyy.mochymusic.ui.component.AppNavigationBar
 import com.mochyy.mochymusic.ui.component.onTabTapped
 import com.mochyy.mochymusic.ui.component.LocalBottomSheetPageState
 import com.mochyy.mochymusic.ui.component.LocalMenuState
 import com.mochyy.mochymusic.ui.component.BottomSheetState
+import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.TopToaster
+import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.component.rememberBottomSheetState
+import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.screens.recognition.showRecognitionSheet
 import com.mochyy.mochymusic.ui.component.shimmer.ShimmerTheme
 import com.mochyy.mochymusic.ui.menu.YouTubeSongMenu
@@ -957,6 +980,20 @@ class MainActivity : ComponentActivity() {
                 val setupCompleted by rememberPreference(com.mochyy.mochymusic.constants.SetupCompletedKey, false)
                 val mochyCloudWelcomeSeen by rememberPreference(com.mochyy.mochymusic.constants.MochyCloudWelcomeSeenKey, false)
                 val cloudState by com.mochyy.mochymusic.cloud.MochyCloudSyncManager.state.collectAsState()
+                val isPlayingNow by remember(playerConnection) {
+                    playerConnection?.isPlaying ?: kotlinx.coroutines.flow.MutableStateFlow(false)
+                }.collectAsState()
+                val cloudUiPrefs = remember(context) {
+                    context.getSharedPreferences("mochy_cloud_ui", Context.MODE_PRIVATE)
+                }
+                var localDeviceId by remember { mutableStateOf("") }
+                LaunchedEffect(context) {
+                    localDeviceId = withContext(Dispatchers.IO) {
+                        MochyCloudSyncManager.localDeviceId(context)
+                    }
+                }
+                var autoHandoffResume by remember { mutableStateOf<CloudPlaybackResume?>(null) }
+                val playerOpen by remember { derivedStateOf { playerBottomSheetState.progress > 0.2f } }
                 var forceShowSetup by remember { mutableStateOf(false) }
                 // Seeded once per process: a restored backup can say setup is done on an
                 // install that has never actually shown the wizard. Kept as state because
@@ -1418,10 +1455,79 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                        val anyPopupVisible = LocalMenuState.current.isVisible ||
+                            LocalBottomSheetPageState.current.isVisible ||
+                            com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState.current.isVisible
+                        val canShowHandoffBanner = !fullSetupNeeded &&
+                            !cloudWelcomeLatch &&
+                            !hideAppChrome.value &&
+                            !playerOpen &&
+                            !anyPopupVisible &&
+                            currentRoute != "wrapped" &&
+                            currentRoute != "update"
+
+                        LaunchedEffect(
+                            cloudState.signedIn,
+                            cloudState.remoteResume,
+                            isPlayingNow,
+                            canShowHandoffBanner,
+                            localDeviceId,
+                        ) {
+                            if (isPlayingNow) {
+                                autoHandoffResume = null
+                                return@LaunchedEffect
+                            }
+                            if (!canShowHandoffBanner || !cloudState.signedIn || localDeviceId.isBlank()) return@LaunchedEffect
+                            val resume = cloudState.remoteResume ?: return@LaunchedEffect
+                            if (resume.deviceId.isBlank() || resume.deviceId == localDeviceId) return@LaunchedEffect
+                            if (resume.songId.isBlank() || resume.updatedAtEpochMs <= 0L) return@LaunchedEffect
+                            val ageMs = System.currentTimeMillis() - resume.updatedAtEpochMs
+                            if (ageMs > 24L * 3600_000L) return@LaunchedEffect
+                            val lastPromptedMs = cloudUiPrefs.getLong("last_prompted_resume_ms", 0L)
+                            if (resume.updatedAtEpochMs <= lastPromptedMs) return@LaunchedEffect
+
+                            LaunchGate.awaitIntro()
+                            if (playerConnection?.isPlaying?.value == true) return@LaunchedEffect
+                            cloudUiPrefs.edit().putLong("last_prompted_resume_ms", resume.updatedAtEpochMs).apply()
+                            autoHandoffResume = resume
+                        }
+
+                        LaunchedEffect(autoHandoffResume?.updatedAtEpochMs) {
+                            val active = autoHandoffResume ?: return@LaunchedEffect
+                            delay(8_000L)
+                            if (autoHandoffResume?.updatedAtEpochMs == active.updatedAtEpochMs) {
+                                autoHandoffResume = null
+                            }
+                        }
+
+                        val handoffBottomOffset by animateDpAsState(
+                            targetValue = bottomInset +
+                                (if (shouldShowNavigationBar) navPadding else 0.dp) +
+                                (if (!playerBottomSheetState.isDismissed && !sharedBarRow) MiniPlayerHeight else 0.dp) +
+                                10.dp,
+                            animationSpec = tween(220),
+                            label = "handoffBottomOffset",
+                        )
+
+                        AutoHandoffResumeBanner(
+                            resume = autoHandoffResume.takeIf { canShowHandoffBanner },
+                            bottomOffset = handoffBottomOffset,
+                            onResume = { resume ->
+                                autoHandoffResume = null
+                                coroutineScope.launch {
+                                    val conn = playerConnection ?: awaitPlayerConnection(2_000L)
+                                    if (conn == null) {
+                                        TopToaster.error("Trình phát chưa sẵn sàng.")
+                                    } else {
+                                        resumeFromCloudHandoff(conn, resume)
+                                    }
+                                }
+                            },
+                            onDismiss = { autoHandoffResume = null },
+                        )
                     }
 
                     // "controlling living room tv" sits over the app at the top left, and steps aside while the player is open
-                    val playerOpen by remember { derivedStateOf { playerBottomSheetState.progress > 0.2f } }
                     if (!playerOpen) {
                         Box(Modifier.fillMaxSize()) {
                             com.mochyy.mochymusic.ui.screens.devices.ControllingPill(
@@ -1833,6 +1939,38 @@ class MainActivity : ComponentActivity() {
         if (importSharedMochyBackup(intent)) return
         if (importSharedAudio(intent)) return
         val rawSharedText = intent.extras?.getString(Intent.EXTRA_TEXT)
+        val sharedPlaylistCode = (rawSharedText?.takeIf { it.isNotBlank() } ?: intent.dataString)
+            ?.let { com.mochyy.mochymusic.cloud.MochyOfflineBackupCodec.extractPlaylistCodeFromText(it) }
+        if (sharedPlaylistCode != null) {
+            intent.action = null
+            intent.data = null
+            intent.removeExtra(Intent.EXTRA_TEXT)
+            lifecycle.coroutineScope.launch {
+                com.mochyy.mochymusic.ui.component.TopToaster.show(
+                    text = "Đang nhập playlist từ mã chia sẻ…",
+                    iconRes = R.drawable.playlist_add,
+                    durationMs = 5000L,
+                )
+                when (
+                    val imported = com.mochyy.mochymusic.cloud.MochyOfflineBackupCodec
+                        .importSinglePlaylistFromCode(applicationContext, database, sharedPlaylistCode)
+                ) {
+                    is com.mochyy.mochymusic.cloud.SinglePlaylistImportResult.Success -> {
+                        com.mochyy.mochymusic.ui.component.TopToaster.show(
+                            text = "Đã nhập playlist \"${imported.name}\" (${imported.trackCount} bài hát)",
+                            iconRes = R.drawable.playlist_play,
+                        )
+                        navController.navigate("local_playlist/${imported.playlistId}") {
+                            launchSingleTop = true
+                        }
+                    }
+                    is com.mochyy.mochymusic.cloud.SinglePlaylistImportResult.Failure -> {
+                        com.mochyy.mochymusic.ui.component.TopToaster.error(imported.message)
+                    }
+                }
+            }
+            return
+        }
         val rawUrl = intent.dataString?.takeIf { it.isNotBlank() }
             ?: com.mochyy.mochymusic.importer.LinkImporter.extractUrl(rawSharedText.orEmpty())
             ?: return
@@ -2321,4 +2459,212 @@ private fun android.view.Window.playerNavBarBehavior(): Int {
         }
     }
     return WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+}
+
+@Composable
+private fun AutoHandoffResumeBanner(
+    resume: CloudPlaybackResume?,
+    bottomOffset: androidx.compose.ui.unit.Dp,
+    onResume: (CloudPlaybackResume) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var cachedResume by remember { mutableStateOf<CloudPlaybackResume?>(null) }
+    LaunchedEffect(resume) {
+        if (resume != null) cachedResume = resume
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = resume != null,
+            enter = fadeIn(tween(220)) + slideInVertically(tween(260)) { it / 2 },
+            exit = fadeOut(tween(180)) + slideOutVertically(tween(200)) { it / 2 },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.stableSystemBars.only(WindowInsetsSides.Horizontal))
+                .padding(start = 16.dp, end = 16.dp, bottom = bottomOffset),
+        ) {
+            val shown = resume ?: cachedResume ?: return@AnimatedVisibility
+            val deviceLabel = shown.deviceName.ifBlank { "thiết bị khác" }
+            val haptic = LocalHapticFeedback.current
+            val playInteraction = remember { MutableInteractionSource() }
+            val closeInteraction = remember { MutableInteractionSource() }
+            val shape = RoundedCornerShape(22.dp)
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .widthIn(max = 520.dp)
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = 14.dp,
+                        shape = shape,
+                        clip = false,
+                        ambientColor = Color.Black,
+                        spotColor = Color.Black,
+                    )
+                    .clip(shape)
+                    .background(MenuRowSurface)
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(alpha = 0.1f)),
+                ) {
+                    if (!shown.thumbnailUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = shown.thumbnailUrl,
+                            contentDescription = shown.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.music_note),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Nghe tiếp \"${shown.title}\" từ $deviceLabel",
+                        color = Color.White,
+                        fontFamily = InterFontFamily,
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (shown.positionMs > 0L) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = "Dừng ở ${formatHandoffResumeTime(shown.positionMs)}",
+                            color = Color.White.copy(alpha = 0.65f),
+                            fontFamily = InterFontFamily,
+                            fontSize = 11.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .pressBounce(playInteraction, pressedScale = 0.94f)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.22f))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                        .clickable(
+                            interactionSource = playInteraction,
+                            indication = RemoteFocus,
+                        ) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onResume(shown)
+                        }
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                ) {
+                    Text(
+                        text = "Phát tiếp",
+                        color = Color.White,
+                        fontFamily = InterFontFamily,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .pressBounce(closeInteraction, pressedScale = 0.90f)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.10f))
+                        .clickable(
+                            interactionSource = closeInteraction,
+                            indication = RemoteFocus,
+                        ) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onDismiss()
+                        },
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.close),
+                        contentDescription = stringResource(R.string.close),
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun resumeFromCloudHandoff(
+    conn: PlayerConnection,
+    resume: CloudPlaybackResume,
+) {
+    val deviceLabel = resume.deviceName.ifBlank { "thiết bị khác" }
+    val primaryItem = MediaMetadata(
+        id = resume.songId,
+        title = resume.title,
+        artists = resume.artists
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .map { MediaMetadata.Artist(id = null, name = it) },
+        duration = resume.durationSec,
+        thumbnailUrl = resume.thumbnailUrl,
+        album = null,
+    ).toMediaItem()
+    val upcomingItems = resume.queueTracks
+        .filter { it.songId != resume.songId }
+        .map { track ->
+            MediaMetadata(
+                id = track.songId,
+                title = track.title,
+                artists = track.artists
+                    .split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .map { MediaMetadata.Artist(id = null, name = it) },
+                duration = track.duration,
+                thumbnailUrl = track.thumbnailUrl,
+                album = null,
+            ).toMediaItem()
+        }
+    val allItems = listOf(primaryItem) + upcomingItems
+    conn.playQueue(
+        ListQueue(
+            title = "Nghe tiếp từ $deviceLabel",
+            items = allItems,
+            startIndex = 0,
+            position = resume.positionMs.coerceAtLeast(0L),
+        ),
+    )
+    TopToaster.show(
+        text = "Đang phát tiếp từ $deviceLabel",
+        thumbnail = resume.thumbnailUrl,
+    )
+}
+
+private fun formatHandoffResumeTime(positionMs: Long): String {
+    val totalSec = (positionMs / 1000L).coerceAtLeast(0L)
+    val hours = totalSec / 3600L
+    val minutes = (totalSec % 3600L) / 60L
+    val seconds = totalSec % 60L
+    return if (hours > 0L) {
+        java.lang.String.format(java.util.Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        java.lang.String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
+    }
 }

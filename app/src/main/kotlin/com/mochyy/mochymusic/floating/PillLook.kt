@@ -26,6 +26,7 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.mochyy.mochymusic.ui.theme.extractThemeColor
+import com.mochyy.mochymusic.utils.LowEndModeManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -99,18 +100,34 @@ internal suspend fun coverAccent(context: Context, url: String?): Color? {
 // a wide, soft shadow under one of the pill's rounded shapes; the system's elevation shadow came out tight and dark over other apps
 internal fun Modifier.softShadow(corner: Dp, blur: Dp, offsetY: () -> Dp, alpha: () -> Float): Modifier {
     // a blurred draw only runs on the gpu from android 9, so older phones keep a light elevation shadow
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return shadow(3.dp, RoundedCornerShape(corner), clip = false)
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && !LowEndModeManager.isActive) {
+        return shadow(3.dp, RoundedCornerShape(corner), clip = false)
+    }
     return drawWithCache {
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { maskFilter = BlurMaskFilter(blur.toPx(), BlurMaskFilter.Blur.NORMAL) }
+        val blurFilter = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            BlurMaskFilter(blur.toPx(), BlurMaskFilter.Blur.NORMAL)
+        } else {
+            null
+        }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val radius = corner.toPx().coerceAtMost(size.minDimension / 2f)
         // pulled in a little at the sides, so it reads as a shape resting above the screen instead of a dark outline
         val inset = blur.toPx() * 0.2f
+        val lowEndDropMax = 2.dp.toPx()
         onDrawBehind {
             val strength = alpha()
             if (strength <= 0f) return@onDrawBehind
-            paint.color = android.graphics.Color.argb((strength.coerceIn(0f, 1f) * 255).roundToInt(), 0, 0, 0)
-            val dy = offsetY().toPx()
-            drawIntoCanvas { it.nativeCanvas.drawRoundRect(inset, dy, size.width - inset, size.height + dy, radius, radius, paint) }
+            if (LowEndModeManager.isActive || blurFilter == null) {
+                paint.maskFilter = null
+                paint.color = android.graphics.Color.argb((strength.coerceIn(0f, 1f) * 0.45f * 255).roundToInt(), 0, 0, 0)
+                val dy = minOf(offsetY().toPx(), lowEndDropMax)
+                drawIntoCanvas { it.nativeCanvas.drawRoundRect(0f, dy, size.width, size.height + dy, radius, radius, paint) }
+            } else {
+                paint.maskFilter = blurFilter
+                paint.color = android.graphics.Color.argb((strength.coerceIn(0f, 1f) * 255).roundToInt(), 0, 0, 0)
+                val dy = offsetY().toPx()
+                drawIntoCanvas { it.nativeCanvas.drawRoundRect(inset, dy, size.width - inset, size.height + dy, radius, radius, paint) }
+            }
         }
     }
 }

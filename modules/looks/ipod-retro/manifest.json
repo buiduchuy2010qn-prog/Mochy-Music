@@ -1,0 +1,76 @@
+{
+  "id": "ipod-retro",
+  "name": "Máy Nghe Nhạc iPod Cổ Điển",
+  "version": "1.0.0",
+  "description": "Biến trình phát thành chiếc iPod Classic với bánh xe cảm ứng Click Wheel hoài cổ.",
+  "author": "Mochy Music VN",
+  "look": {
+    "playerStyle": "IPOD",
+    "homeStyle": "HOP_IN",
+    "playlistStyle": "CLASSIC",
+    "thumbnailCornerRadius": "8",
+    "lyricsMotionStyle": "PLAIN",
+    "blurQuality": "LOW",
+    "blurStrengthPx": "18",
+    "enableProgressiveBlur": "false",
+    "elementBlur": "false",
+    "pureBlack": "false",
+    "dynamicTheme": "false",
+    "accentColor": "#A8B2BD",
+    "ipodTheme": "SILVER",
+    "ipodWheelColor": "WHITE",
+    "bottomBar": "FROSTED"
+  },
+  "settings": [
+    {
+      "key": "ipod_body",
+      "label": "Phiên bản vỏ iPod",
+      "type": "select",
+      "default": "silver",
+      "description": "Thay đổi màu thân máy và bánh xe cảm ứng Click Wheel.",
+      "options": [
+        {
+          "value": "silver",
+          "label": "Bạc Cổ Điển",
+          "description": "Mặt nhôm bạc kết hợp bánh xe trắng nguyên bản.",
+          "look": {
+            "ipodTheme": "SILVER",
+            "ipodWheelColor": "WHITE",
+            "pureBlack": "false"
+          }
+        },
+        {
+          "value": "black",
+          "label": "Đen Nhám",
+          "description": "Thân máy đen hiện đại đồng bộ cùng bánh xe đen.",
+          "look": {
+            "ipodTheme": "BLACK",
+            "ipodWheelColor": "BLACK",
+            "pureBlack": "false"
+          }
+        },
+        {
+          "value": "u2",
+          "label": "Đỏ Đen Đặc Biệt",
+          "description": "Thân đen kết hợp vòng xoay đỏ nổi bật.",
+          "look": {
+            "ipodTheme": "U2",
+            "ipodWheelColor": "RED",
+            "accentColor": "#FF453A",
+            "dynamicTheme": "false"
+          }
+        },
+        {
+          "value": "true_dark",
+          "label": "Đêm Thâu OLED",
+          "description": "Màn hình và thân máy tối sâu dành cho ban đêm.",
+          "look": {
+            "ipodTheme": "TRUE_DARK",
+            "ipodWheelColor": "BLACK",
+            "pureBlack": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

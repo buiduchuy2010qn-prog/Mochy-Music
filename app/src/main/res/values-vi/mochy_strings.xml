@@ -267,13 +267,14 @@
     <string name="error_copied">Đã sao chép thông tin lỗi vào bộ nhớ tạm</string>
     <string name="copy_error">Sao chép lỗi</string>
     <string name="error_copy_hint">Sao chép thông tin lỗi để giúp nhà phát triển gỡ lỗi</string>
-    <string name="album_art">Cài đặt widget</string>
+    <string name="album_art">Ảnh bìa album</string>
     <string name="no_song_playing">Không có bài hát đang phát</string>
     <string name="tap_to_open">Chạm để mở mochy</string>
     <string name="previous">Bài trước</string>
     <string name="play_pause">Phát/Tạm dừng</string>
     <string name="next">Bài tiếp</string>
     <string name="like">Thích</string>
+    <string name="widget_unlike">Bỏ thích</string>
     <string name="widget_description">Widget trình phát nhạc với các nút điều khiển</string>
     <string name="player_client_web_remix_desc">Chậm hơn nhưng hỗ trợ các định dạng cao cấp. Sử dụng giải mã chữ ký JavaScript nên thời gian bắt đầu phát tăng khoảng 5–10 giây.</string>
     <string name="decryption_library_newpipe">NewPipe Extractor (Chính thức)</string>
@@ -1133,6 +1134,7 @@
     <string name="floating_lyrics_never">Không hiện lại</string>
     <string name="floating_lyrics_turned_off">Lời bài hát nổi đã tắt. Bạn có thể bật lại trong Cài đặt.</string>
     <string name="floating_lyrics_permission">Cho phép Mochy hiển thị trên ứng dụng khác để lời bài hát có thể nổi</string>
+    <string name="floating_lyrics_window_title">Lời bài hát nổi</string>
     <string name="shortcut_recognize">Nhận diện bài hát</string>
     <string name="shortcut_liked">Bài hát yêu thích</string>
 </resources>

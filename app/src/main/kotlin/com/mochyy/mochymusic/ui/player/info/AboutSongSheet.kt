@@ -63,9 +63,27 @@ import com.mochyy.mochymusic.ui.player.menu.MenuSheetSurface
 import com.mochyy.mochymusic.ui.player.menu.SongHeader
 import com.mochyy.mochymusic.ui.player.menu.rememberMenuSheetStack
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProviderSquircle
+import com.mochyy.mochymusic.utils.followAppProxy
 import com.mochyy.mochymusic.utils.makeTimeString
 import com.mochyy.mochymusic.utils.rememberPreference
 import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.music.wikipedia.Wikipedia as RemoteWikipedia
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
+
+private val wikipediaHttpClient: OkHttpClient by lazy {
+    OkHttpClient.Builder()
+        .followAppProxy()
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
+        .build()
+}
+
+private fun ensureWikipediaProxy() {
+    if (RemoteWikipedia.httpClientProvider == null) {
+        RemoteWikipedia.httpClientProvider = { wikipediaHttpClient }
+    }
+}
 
 /** where the "about" text comes from; the chip beside the title swaps it */
 enum class AboutSource(val id: String, val label: String) {
@@ -85,6 +103,7 @@ fun AboutSongSheet(
     onDismiss: () -> Unit,
     onOpenArtist: (String) -> Unit,
 ) {
+    ensureWikipediaProxy()
     val (sourceId, setSourceId) = rememberPreference(AboutSongSourceKey, AboutSource.Musixmatch.id)
     val source = AboutSource.entries.firstOrNull { it.id == sourceId } ?: AboutSource.Musixmatch
     var showSources by remember { mutableStateOf(false) }
@@ -261,20 +280,26 @@ private fun AboutCard(about: SongAbout, source: AboutSource, onSwitch: (AboutSou
     }
 }
 
-internal fun textFor(about: SongAbout, source: AboutSource): String? = when (source) {
-    AboutSource.Musixmatch -> about.musixmatch?.meaning
-    AboutSource.Genius -> about.genius?.about
-    AboutSource.Wikipedia -> about.wiki?.about
-    AboutSource.YouTube -> about.youtubeDescription
-    AboutSource.Modules -> about.module?.about
+internal fun textFor(about: SongAbout, source: AboutSource): String? {
+    ensureWikipediaProxy()
+    return when (source) {
+        AboutSource.Musixmatch -> about.musixmatch?.meaning
+        AboutSource.Genius -> about.genius?.about
+        AboutSource.Wikipedia -> about.wiki?.about
+        AboutSource.YouTube -> about.youtubeDescription
+        AboutSource.Modules -> about.module?.about
+    }
 }
 
-internal fun doneFor(about: SongAbout, source: AboutSource): Boolean = when (source) {
-    AboutSource.Musixmatch -> about.musixmatchPageDone
-    AboutSource.Genius -> about.geniusDone
-    AboutSource.Wikipedia -> about.wikiDone
-    AboutSource.YouTube -> about.youtubeDone
-    AboutSource.Modules -> about.moduleDone
+internal fun doneFor(about: SongAbout, source: AboutSource): Boolean {
+    ensureWikipediaProxy()
+    return when (source) {
+        AboutSource.Musixmatch -> about.musixmatchPageDone
+        AboutSource.Genius -> about.geniusDone
+        AboutSource.Wikipedia -> about.wikiDone
+        AboutSource.YouTube -> about.youtubeDone
+        AboutSource.Modules -> about.moduleDone
+    }
 }
 
 // where "provided by" leads: the page the text came from (wikipedia's text is shared on the condition it's credited this way)

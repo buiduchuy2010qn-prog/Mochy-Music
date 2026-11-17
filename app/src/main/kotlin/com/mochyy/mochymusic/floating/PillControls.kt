@@ -4,6 +4,7 @@ package com.mochyy.mochymusic.floating
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.LowEndModeManager
 import com.mochyy.mochymusic.utils.makeTimeString
 import kotlinx.coroutines.delay
 import kotlin.math.PI
@@ -110,7 +112,12 @@ internal fun SongProgressTicker(state: PillState, progress: MutableFloatState, e
             elapsed.longValue = position
             if (!state.playing) break
             // about a pixel of ring at a time, so a long song wakes up less often than a short one
-            val ringStep = if (duration > 0L) (duration / ringLength).toLong().coerceIn(300L, 2_000L) else 1_000L
+            val lowEnd = LowEndModeManager.isActive
+            val ringStep = if (duration > 0L) {
+                (duration / ringLength).toLong().coerceIn(if (lowEnd) 700L else 300L, if (lowEnd) 2_500L else 2_000L)
+            } else {
+                1_000L
+            }
             val wait = if (timesShown) minOf(ringStep, 1_000L - position % 1_000L + 8L) else ringStep
             delay((wait / state.speed()).toLong().coerceAtLeast(50L))
         }
@@ -120,11 +127,20 @@ internal fun SongProgressTicker(state: PillState, progress: MutableFloatState, e
 // the light pill the ring turns into: it slides out from behind the cover with play or pause in it
 @Composable
 internal fun PlayButton(state: PillState, host: PillHost, end: Boolean, opened: () -> Float) {
+    val lowEnd = LowEndModeManager.isActive
     val haptics = LocalHapticFeedback.current
     val tint = LocalPillTint.current
-    val playing = animateFloatAsState(if (state.playing) 1f else 0f, PlaySpring, label = "pillPlaying")
+    val playing = animateFloatAsState(
+        if (state.playing) 1f else 0f,
+        if (lowEnd) tween(100) else PlaySpring,
+        label = "pillPlaying",
+    )
     var pressed by remember { mutableStateOf(false) }
-    val press = animateFloatAsState(if (pressed) 0.82f else 1f, spring(dampingRatio = 0.6f, stiffness = 700f), label = "pillPlayPress")
+    val press = animateFloatAsState(
+        if (pressed) 0.82f else 1f,
+        if (lowEnd) tween(60) else spring(dampingRatio = 0.6f, stiffness = 700f),
+        label = "pillPlayPress",
+    )
     // from the cover's middle out past it, so the cover always sits over the pill's rounded end
     Box(
         Modifier
@@ -215,9 +231,10 @@ internal fun ProgressRing(
     coverScale: () -> Float,
     coverAlpha: () -> Float,
 ) {
+    val lowEnd = LowEndModeManager.isActive
     val morph = remember { RingMorph() }
     val grabbing by remember { derivedStateOf { scrub.floatValue >= 0f } }
-    val grab = animateFloatAsState(if (grabbing) 1f else 0f, GrabSpring, label = "pillBarGrab")
+    val grab = animateFloatAsState(if (grabbing) 1f else 0f, if (lowEnd) tween(80) else GrabSpring, label = "pillBarGrab")
     Spacer(
         Modifier
             .fillMaxSize()
@@ -263,6 +280,27 @@ internal fun ProgressRing(
                         drawLine(track, Offset(barLeft, barY), Offset(barRight, barY), thick, StrokeCap.Round)
                         drawLine(head, Offset(barLeft, barY), Offset(headX, barY), thick, StrokeCap.Round)
                         if (grab.value > 0.01f) drawCircle(head, KnobRadius.toPx() * grab.value, Offset(headX, barY))
+                    }
+                    lowEnd -> {
+                        if (t < 0.5f) {
+                            val ringFade = 1f - t * 2f
+                            drawCircle(track.copy(alpha = track.alpha * ringFade), radius, center, style = Stroke(stroke))
+                            drawArc(
+                                color = head.copy(alpha = head.alpha * ringFade),
+                                startAngle = -90f,
+                                sweepAngle = 360f * played,
+                                useCenter = false,
+                                topLeft = Offset(center.x - radius, center.y - radius),
+                                size = Size(radius * 2f, radius * 2f),
+                                style = Stroke(stroke, cap = StrokeCap.Round),
+                            )
+                        } else {
+                            val barFade = (t - 0.5f) * 2f
+                            val thick = stroke + GrabWidth.toPx() * grab.value
+                            val headX = barLeft + (barRight - barLeft) * played
+                            drawLine(track.copy(alpha = track.alpha * barFade), Offset(barLeft, barY), Offset(barRight, barY), thick, StrokeCap.Round)
+                            drawLine(head.copy(alpha = head.alpha * barFade), Offset(barLeft, barY), Offset(headX, barY), thick, StrokeCap.Round)
+                        }
                     }
                     else -> with(morph) {
                         set(center, radius, barLeft, barRight, barY, t)
@@ -385,13 +423,14 @@ internal fun SeekBarTouch(state: PillState, host: PillHost, scrub: MutableFloatS
 // the time gone and the time left at the bar's two ends, rising in once the bar has mostly unrolled
 @Composable
 internal fun SongTimes(state: PillState, elapsed: MutableLongState, scrub: MutableFloatState, opened: () -> Float, body: () -> Float) {
-    val style = remember {
+    val lowEnd = LowEndModeManager.isActive
+    val style = remember(lowEnd) {
         TextStyle(
             fontFamily = InterFontFamily,
             fontWeight = FontWeight.SemiBold,
             fontSize = 11.sp,
             color = Color.White.copy(alpha = 0.86f),
-            shadow = TimesShade,
+            shadow = if (lowEnd) null else TimesShade,
         )
     }
     val timesY: Density.() -> Int = {

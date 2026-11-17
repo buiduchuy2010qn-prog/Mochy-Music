@@ -1,0 +1,73 @@
+{
+  "id": "oled-midnight",
+  "name": "Đen Tuyệt Đối OLED",
+  "version": "1.0.0",
+  "description": "Nền đen thuần tiết kiệm pin tối đa cho màn hình OLED, tương phản sắc nét và gọn gàng.",
+  "author": "Mochy Music VN",
+  "look": {
+    "playerStyle": "TIMELINE",
+    "homeStyle": "LISTEN_NOW",
+    "playlistStyle": "MINIMAL",
+    "thumbnailCornerRadius": "14",
+    "lyricsMotionStyle": "BORING",
+    "blurQuality": "LOW",
+    "blurStrengthPx": "16",
+    "enableProgressiveBlur": "false",
+    "elementBlur": "false",
+    "pureBlack": "true",
+    "dynamicTheme": "false",
+    "accentColor": "#5AC8FA",
+    "flagshipBackground": "SOLID",
+    "playerBackground": "SOLID",
+    "bottomBar": "FROSTED"
+  },
+  "settings": [
+    {
+      "key": "oled_accent",
+      "label": "Màu nhấn tương phản",
+      "type": "select",
+      "default": "ice",
+      "description": "Chọn sắc màu nổi bật trên nền đen tuyệt đối.",
+      "options": [
+        {
+          "value": "ice",
+          "label": "Xanh Băng OLED",
+          "description": "Sắc xanh dịu mắt khi nghe nhạc ban đêm.",
+          "look": {
+            "accentColor": "#5AC8FA",
+            "dynamicTheme": "false"
+          }
+        },
+        {
+          "value": "mint",
+          "label": "Xanh Bạc Hà",
+          "description": "Tươi sáng và giàu năng lượng.",
+          "look": {
+            "accentColor": "#30D158",
+            "dynamicTheme": "false"
+          }
+        },
+        {
+          "value": "mono",
+          "label": "Trắng Tối Giản",
+          "description": "Độ tương phản đen trắng cổ điển.",
+          "look": {
+            "accentColor": "#FFFFFF",
+            "dynamicTheme": "false"
+          }
+        }
+      ]
+    },
+    {
+      "key": "subtle_gradient",
+      "label": "Chuyển sắc tối ở trình phát",
+      "type": "toggle",
+      "default": false,
+      "description": "Thêm dải tối chuyển nhẹ phía sau bìa nhạc thay vì đen phẳng hoàn toàn.",
+      "look": {
+        "flagshipBackground": "DARK_GRADIENT",
+        "playerBackground": "DARK_GRADIENT"
+      }
+    }
+  ]
+}

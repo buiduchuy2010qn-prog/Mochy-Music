@@ -29,6 +29,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.mochyy.mochymusic.R
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -131,7 +132,7 @@ internal class PillWindow(
         gravity = Gravity.TOP or Gravity.START
         // window coordinates are the screen's, navigation bar included, so the full-screen window lines up with the resting one
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) fitInsetsTypes = 0
-        title = "Floating lyrics"
+        title = context.getString(R.string.floating_lyrics_window_title)
     }
 
     init {

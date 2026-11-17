@@ -32,6 +32,7 @@ fun ImportProvidersScreen(
     viewModel: ImportSyncViewModel = hiltViewModel(),
 ) {
     var linkSource by rememberSaveable { mutableStateOf<LinkSource?>(null) }
+    var showCodeDialog by rememberSaveable { mutableStateOf(false) }
 
     // some file managers label .csv as text/plain or octet-stream, so don't filter too hard
     val backupPicker =
@@ -70,6 +71,16 @@ fun ImportProvidersScreen(
             title = stringResource(R.string.import_providers_link_header),
             style = SettingsGroupStyle.Grouped,
             items =
+                listOf(
+                    SettingsItem(
+                        title = { Text("Mã chia sẻ Mochy (mochypl1:)") },
+                        highlightKey = "mochypl1",
+                        descriptionText = "Dán mã chia sẻ Playlist nhận từ tin nhắn hoặc bình luận",
+                        icon = painterResource(R.drawable.playlist_add),
+                        iconShape = CircleShape,
+                        onClick = { showCodeDialog = true },
+                    ),
+                ) +
                 LinkSource.entries.map { source ->
                     SettingsItem(
                         title = { Text(source.label) },
@@ -137,6 +148,17 @@ fun ImportProvidersScreen(
                         onClick = { navController.navigate(ImportTuneMyMusicRoute) },
                     ),
                 ),
+        )
+    }
+
+    if (showCodeDialog) {
+        LinkInputDialog(
+            source = null,
+            onDismiss = { showCodeDialog = false },
+            onSubmit = { link ->
+                showCodeDialog = false
+                viewModel.loadLink(link)
+            },
         )
     }
 

@@ -32,6 +32,7 @@ import kotlinx.serialization.json.put
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.Base64
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -53,7 +54,7 @@ class AppleMusicModule : SourceModule {
         id = Id,
         name = "Apple Music",
         version = "1.0",
-        description = "Plays your Apple Music subscription in Mochy, in AAC 256, with every Audio Lab effect",
+        description = "Phát nhạc từ gói Apple Music của bạn trong Mochy ở chất lượng AAC 256, hỗ trợ đầy đủ hiệu ứng Audio Lab",
     )
 
     private lateinit var host: ModuleHost
@@ -66,28 +67,30 @@ class AppleMusicModule : SourceModule {
     }
 
     override val signIn = SignInSpec(
-        startUrl = "https://music.apple.com/us/library/playlists",
+        startUrl = "https://music.apple.com/vn/library/playlists",
         origins = listOf("https://music.apple.com", "https://idmsa.apple.com", "https://authorize.music.apple.com", "https://www.apple.com"),
         sessionOrigins = setOf("https://music.apple.com"),
         desktopSite = false,
-        title = "Sign in to Apple Music",
-        subtitle = "Your subscription plays in Mochy",
+        title = "Đăng nhập Apple Music",
+        subtitle = "Phát nhạc từ gói đăng ký của bạn ngay trong Mochy",
     )
 
     override val choices = listOf(
         ModuleChoice(
             id = ChoiceQuality,
-            label = "Stream",
+            label = "Luồng phát",
             options = listOf(
-                StreamOption(OptionAac256, "AAC 256", "Apple Music's standard stereo stream"),
-                StreamOption(OptionHe64, "HE-AAC 64", "A quarter of the data, for slow or metered networks"),
+                StreamOption(OptionAac256, "AAC 256", "Chất lượng stereo tiêu chuẩn của Apple Music"),
+                StreamOption(OptionHe64, "HE-AAC 64", "Tiết kiệm 3/4 dung lượng cho mạng chậm hoặc giới hạn dữ liệu"),
             ),
         ),
         ModuleChoice(
             id = ChoiceRegion,
-            label = "Region",
-            options = listOf(StreamOption(RegionAuto, "Your account's", "Searches the catalog of your Apple account's country")) +
-                Regions.map { (code, name) -> StreamOption(code, name, "Searches the $name catalog. Songs your account's country doesn't license may still be refused") },
+            label = "Khu vực",
+            options = listOf(StreamOption(RegionAuto, "Theo tài khoản", "Tìm kiếm danh mục theo quốc gia của tài khoản Apple Music")) +
+                Regions.map { (code, name) ->
+                    StreamOption(code, name, "Tìm kiếm danh mục $name. Bài hát chưa cấp phép tại quốc gia của tài khoản có thể không phát được")
+                },
         ),
     )
 
@@ -108,7 +111,7 @@ class AppleMusicModule : SourceModule {
     override fun accountState(): AccountState = when {
         userToken == null -> AccountState.SignedOut
         host.storage.get("expired") != null -> AccountState.Expired(host.storage.get("expired")!!)
-        else -> AccountState.SignedIn(host.storage.get("account_label") ?: "Signed in")
+        else -> AccountState.SignedIn(host.storage.get("account_label") ?: "Đã đăng nhập")
     }
 
     override fun onSignInHeader(name: String, value: String, url: String): Boolean {
@@ -134,15 +137,15 @@ class AppleMusicModule : SourceModule {
         if (response.code == 401 || response.code == 403) {
             // the developer token may just have rotated; try the current one, once, before giving up
             if (!retried && refreshDeveloperToken()) return verifyAccount(retried = true)
-            host.storage.set("expired", "Apple signed this session out")
-            return AccountState.Expired("Apple signed this session out")
+            host.storage.set("expired", "Phiên đăng nhập Apple đã hết hạn")
+            return AccountState.Expired("Phiên đăng nhập Apple đã hết hạn")
         }
-        if (!response.ok) return AccountState.Expired("Apple Music didn't answer (${response.code})")
+        if (!response.ok) return AccountState.Expired("Apple Music không phản hồi (${response.code})")
         val front = parse(response).array("data")?.firstOrNull()?.jsonObject
         val id = front?.string("id")
         val country = front?.get("attributes")?.jsonObject?.string("name")
         if (id != null) storefront = id
-        val label = "Signed in${country?.let { " · $it" }.orEmpty()}"
+        val label = "Đã đăng nhập${country?.let { " · $it" }.orEmpty()}"
         host.storage.set("account_label", label)
         host.storage.set("expired", null)
         return AccountState.SignedIn(label)
@@ -160,56 +163,57 @@ class AppleMusicModule : SourceModule {
         diagnose(track, picks) {}
 
     override suspend fun diagnose(track: TrackQuery, picks: Map<String, String>, report: (DiagnosticStep) -> Unit): ResolveResult {
-        val token = userToken ?: return ResolveResult.Unavailable("Sign in to Apple Music first").also {
-            report(DiagnosticStep("Account", false, "Not signed in"))
+        val token = userToken ?: return ResolveResult.Unavailable("Vui lòng đăng nhập Apple Music trước").also {
+            report(DiagnosticStep("Tài khoản", false, "Chưa đăng nhập"))
         }
         if (storefront == null) {
-            report(DiagnosticStep("Account", null, "Checking your account…"))
+            report(DiagnosticStep("Tài khoản", null, "Đang kiểm tra tài khoản…"))
             val state = verifyAccount()
             if (state !is AccountState.SignedIn) {
-                report(DiagnosticStep("Account", false, (state as? AccountState.Expired)?.reason ?: "Signed out"))
-                return ResolveResult.Unavailable("Apple Music account isn't signed in")
+                report(DiagnosticStep("Tài khoản", false, (state as? AccountState.Expired)?.reason ?: "Đã đăng xuất"))
+                return ResolveResult.Unavailable("Tài khoản Apple Music chưa được đăng nhập")
             }
         }
-        report(DiagnosticStep("Account", true, host.storage.get("account_label") ?: "Signed in"))
+        report(DiagnosticStep("Tài khoản", true, host.storage.get("account_label") ?: "Đã đăng nhập"))
 
-        val region = picks[ChoiceRegion]?.takeIf { it != RegionAuto } ?: storefront ?: "us"
+        val defaultStorefront = if (Locale.getDefault().language.equals("vi", ignoreCase = true)) "vn" else "us"
+        val region = picks[ChoiceRegion]?.takeIf { it != RegionAuto } ?: storefront ?: defaultStorefront
         val quality = picks[ChoiceQuality] ?: OptionAac256
         val key = "$region|${track.title}|${track.artists.joinToString(",")}"
         val missedAt = misses[key]
         if (missedAt != null && System.currentTimeMillis() - missedAt < MissMemoryMs) {
-            report(DiagnosticStep("Find the song", false, "Not on Apple Music"))
-            return ResolveResult.NotFound("Not on Apple Music")
+            report(DiagnosticStep("Tìm bài hát", false, "Không có trên Apple Music"))
+            return ResolveResult.NotFound("Không có trên Apple Music")
         }
-        report(DiagnosticStep("Find the song", null, "Searching Apple Music ($region)…"))
+        report(DiagnosticStep("Tìm bài hát", null, "Đang tìm trên Apple Music ($region)…"))
         val ranked = matches[key]?.let { listOf(TrackMatcher.Scored(it, 1f)) } ?: match(track, region)
         if (ranked.isEmpty()) {
             misses[key] = System.currentTimeMillis()
-            report(DiagnosticStep("Find the song", false, "No matching recording of “${track.title}” in $region"))
-            return ResolveResult.NotFound("No matching recording on Apple Music")
+            report(DiagnosticStep("Tìm bài hát", false, "Không tìm thấy bản thu khớp với “${track.title}” tại $region"))
+            return ResolveResult.NotFound("Không tìm thấy bản thu khớp trên Apple Music")
         }
         val best = ranked.first()
-        report(DiagnosticStep("Find the song", true, "${best.track.title} · ${best.track.artist}" +
-            if (ranked.size > 1) " (${ranked.size} copies)" else ""))
+        report(DiagnosticStep("Tìm bài hát", true, "${best.track.title} · ${best.track.artist}" +
+            if (ranked.size > 1) " (${ranked.size} bản)" else ""))
 
         // Apple's web-playback stream, the one its web player uses in Chrome. (The enhanced HLS
         // streams list Widevine keys too and even license, but their audio is labelled with an
         // all-zero key id that only FairPlay ignores, so Widevine can't decrypt a sample of it.)
         // The same recording's copies are tried in turn, best match first.
-        report(DiagnosticStep("Stream", null, "Opening the stream…"))
+        report(DiagnosticStep("Luồng phát", null, "Đang mở luồng phát…"))
         val nearEqual = ranked.filter { it.score >= best.score - 0.06f }.take(4)
-        var lastProblem = "No stream for this song in $region"
+        var lastProblem = "Không có luồng phát cho bài hát này tại $region"
         for (candidate in nearEqual) {
             when (val result = webPlaybackStream(candidate.track, quality, token, track)) {
                 is StreamAttempt.Ok -> {
                     matches[key] = candidate.track
-                    report(DiagnosticStep("Stream", true, result.detail))
+                    report(DiagnosticStep("Luồng phát", true, result.detail))
                     return ResolveResult.Found(result.stream)
                 }
                 is StreamAttempt.Problem -> lastProblem = result.reason
             }
         }
-        report(DiagnosticStep("Stream", false, lastProblem))
+        report(DiagnosticStep("Luồng phát", false, lastProblem))
         return ResolveResult.Unavailable(lastProblem)
     }
 
@@ -236,20 +240,20 @@ class AppleMusicModule : SourceModule {
                 contentType = "application/json",
             )
         )
-        if (!response.ok) return StreamAttempt.Problem("Web playback answered ${response.code}")
+        if (!response.ok) return StreamAttempt.Problem("Web playback phản hồi ${response.code}")
         val answer = parse(response)
         val entry = answer.array("songList")?.firstOrNull()?.jsonObject
-            ?: return StreamAttempt.Problem(answer.string("customerMessage") ?: "Web playback has no stream for this song")
+            ?: return StreamAttempt.Problem(answer.string("customerMessage") ?: "Web playback không có luồng phát cho bài hát này")
         val assets = entry.array("assets").orEmpty().map { it.jsonObject }
         val wantedFlavor = if (quality == OptionHe64) "ctrp64" else "ctrp256"
         val asset = assets.firstOrNull { it.string("flavor")?.endsWith(wantedFlavor) == true }
             ?: assets.firstOrNull { it.string("flavor")?.contains("ctrp") == true }
-            ?: return StreamAttempt.Problem("Web playback offers only ${assets.mapNotNull { it.string("flavor") }.joinToString()}")
-        val url = asset.string("URL") ?: return StreamAttempt.Problem("Web playback stream has no address")
+            ?: return StreamAttempt.Problem("Web playback chỉ hỗ trợ ${assets.mapNotNull { it.string("flavor") }.joinToString()}")
+        val url = asset.string("URL") ?: return StreamAttempt.Problem("Luồng phát web playback không có địa chỉ")
         val media = host.http(HttpRequest(url, headers = webHeaders))
-        if (!media.ok) return StreamAttempt.Problem("Web playback playlist answered ${media.code}")
+        if (!media.ok) return StreamAttempt.Problem("Danh sách phát web playback phản hồi ${media.code}")
         val (keyUri, keyId) = AppleHls.legacyKey(media.text)
-            ?: return StreamAttempt.Problem("Web playback stream has no Widevine key")
+            ?: return StreamAttempt.Problem("Luồng phát web playback không có khóa Widevine")
         val pssh = AppleHls.psshFor(keyId)
         val playlist = AppleHls.rewriteLegacy(media.text, url, keyUri, pssh)
         val key = AppleHls.WidevineKey(keyUri, pssh, keyId)
@@ -271,7 +275,7 @@ class AppleMusicModule : SourceModule {
                 // "32:ctrp64" is HE-AAC, which its container reads as plain AAC
                 codec = if (flavor.endsWith("ctrp64")) "HE-AAC" else "AAC",
             ),
-            detail = "$label · ${AppleHls.segmentCount(playlist)} segments",
+            detail = "$label · ${AppleHls.segmentCount(playlist)} phân đoạn",
         )
     }
 
@@ -369,20 +373,22 @@ class AppleMusicModule : SourceModule {
 
     /** reads the token the web player ships in its main script */
     private fun refreshDeveloperToken(): Boolean {
-        val page = runCatching { host.http(HttpRequest("https://music.apple.com/us/browse", headers = webHeaders)) }.getOrNull()
-            ?.takeIf { it.ok } ?: return false
-        val scripts = Regex("""/assets/index(?:-legacy)?[~-][a-zA-Z0-9_-]+\.js""").findAll(page.text).map { it.value }.distinct()
-        for (path in scripts) {
-            val script = runCatching { host.http(HttpRequest("https://music.apple.com$path", headers = webHeaders)) }.getOrNull()
+        for (browseUrl in listOf("https://music.apple.com/vn/browse", "https://music.apple.com/us/browse")) {
+            val page = runCatching { host.http(HttpRequest(browseUrl, headers = webHeaders)) }.getOrNull()
                 ?.takeIf { it.ok } ?: continue
-            val token = Regex("""eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+""").findAll(script.text)
-                .map { it.value }
-                .filter { jwtExpiryMs(it) > System.currentTimeMillis() }
-                .sortedByDescending { jwtPayload(it)?.contains("AMPWebPlay") == true }
-                .firstOrNull()
-            if (token != null) {
-                capturedDeveloperToken = token
-                return true
+            val scripts = Regex("""/assets/index(?:-legacy)?[~-][a-zA-Z0-9_-]+\.js""").findAll(page.text).map { it.value }.distinct()
+            for (path in scripts) {
+                val script = runCatching { host.http(HttpRequest("https://music.apple.com$path", headers = webHeaders)) }.getOrNull()
+                    ?.takeIf { it.ok } ?: continue
+                val token = Regex("""eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+""").findAll(script.text)
+                    .map { it.value }
+                    .filter { jwtExpiryMs(it) > System.currentTimeMillis() }
+                    .sortedByDescending { jwtPayload(it)?.contains("AMPWebPlay") == true }
+                    .firstOrNull()
+                if (token != null) {
+                    capturedDeveloperToken = token
+                    return true
+                }
             }
         }
         return false
@@ -410,9 +416,10 @@ class AppleMusicModule : SourceModule {
         private const val WebPlaybackUrl = "https://play.itunes.apple.com/WebObjects/MZPlay.woa/wa/webPlayback"
 
         private val Regions = listOf(
-            "us" to "United States", "gb" to "United Kingdom", "jp" to "Japan", "kr" to "South Korea",
-            "id" to "Indonesia", "sg" to "Singapore", "my" to "Malaysia", "ph" to "Philippines", "th" to "Thailand",
-            "in" to "India", "au" to "Australia", "ca" to "Canada", "de" to "Germany", "fr" to "France",
+            "vn" to "Việt Nam",
+            "us" to "Hoa Kỳ", "gb" to "Vương quốc Anh", "jp" to "Nhật Bản", "kr" to "Hàn Quốc",
+            "id" to "Indonesia", "sg" to "Singapore", "my" to "Malaysia", "ph" to "Philippines", "th" to "Thái Lan",
+            "in" to "Ấn Độ", "au" to "Úc", "ca" to "Canada", "de" to "Đức", "fr" to "Pháp",
             "br" to "Brazil", "mx" to "Mexico",
         )
         private const val MissMemoryMs = 30L * 60 * 1000

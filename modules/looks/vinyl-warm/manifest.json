@@ -1,0 +1,65 @@
+{
+  "id": "vinyl-warm",
+  "name": "Đĩa Than Phòng Thu",
+  "version": "1.0.0",
+  "description": "Trình phát mâm đĩa than quay nhịp nhàng kèm tông màu hổ phách ấm áp như phòng thu analog.",
+  "author": "Mochy Music VN",
+  "look": {
+    "playerStyle": "TURNTABLE",
+    "homeStyle": "MOCHYY",
+    "playlistStyle": "CLASSIC",
+    "thumbnailCornerRadius": "18",
+    "lyricsMotionStyle": "LEGACY",
+    "blurQuality": "HIGH",
+    "blurStrengthPx": "30",
+    "enableProgressiveBlur": "true",
+    "elementBlur": "true",
+    "pureBlack": "false",
+    "dynamicTheme": "false",
+    "accentColor": "#E89A54",
+    "flagshipBackground": "AMBIENT",
+    "playerBackground": "AMBIENT",
+    "bottomBar": "FROSTED"
+  },
+  "settings": [
+    {
+      "key": "studio_lighting",
+      "label": "Ánh sáng nền phòng thu",
+      "type": "select",
+      "default": "ambient",
+      "description": "Chọn cách ánh sáng nền hắt lên mâm đĩa than khi phát nhạc.",
+      "options": [
+        {
+          "value": "ambient",
+          "label": "Ánh sáng bìa dịu nhẹ",
+          "description": "Màu sắc từ bìa đĩa lan tỏa êm dịu phía sau.",
+          "look": {
+            "flagshipBackground": "AMBIENT",
+            "playerBackground": "AMBIENT",
+            "dynamicTheme": "false"
+          }
+        },
+        {
+          "value": "cover",
+          "label": "Chuyển sắc theo bìa đĩa",
+          "description": "Đồng bộ cả màu nhấn của ứng dụng theo từng bài hát.",
+          "look": {
+            "flagshipBackground": "COVER_GRADIENT",
+            "playerBackground": "COVER_GRADIENT",
+            "dynamicTheme": "true"
+          }
+        },
+        {
+          "value": "dark",
+          "label": "Tối ấm cổ điển",
+          "description": "Giữ nền tối sâu làm nổi bật tay cần và đĩa than.",
+          "look": {
+            "flagshipBackground": "DARK_GRADIENT",
+            "playerBackground": "DARK_GRADIENT",
+            "dynamicTheme": "false"
+          }
+        }
+      ]
+    }
+  ]
+}

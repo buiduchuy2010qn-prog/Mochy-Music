@@ -3,6 +3,7 @@
 package com.mochyy.mochymusic.modules
 
 import com.mochyy.mochymusic.module.ModuleFeature
+import com.mochyy.mochymusic.utils.followAppProxy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -27,7 +28,11 @@ data class CatalogModule(
 @Singleton
 class ModuleCatalog @Inject constructor() {
     private val client by lazy {
-        OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build()
+        OkHttpClient.Builder()
+            .followAppProxy()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
     }
 
     suspend fun load(): Result<List<CatalogModule>> = withContext(Dispatchers.IO) {
@@ -64,6 +69,6 @@ class ModuleCatalog @Inject constructor() {
     }
 
     private companion object {
-        const val CatalogUrl = "https://raw.githubusercontent.com/realidkroo/Mochy-Music/main/modules/catalog.json"
+        const val CatalogUrl = "https://raw.githubusercontent.com/buiduchuy2010qn-prog/Mochy-Music/main/modules/catalog.json"
     }
 }

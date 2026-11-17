@@ -8,6 +8,9 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mochyy.mochymusic.App
+import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.cloud.MochyOfflineBackupCodec
+import com.mochyy.mochymusic.cloud.SinglePlaylistImportResult
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.importer.ImportOptions
 import com.mochyy.mochymusic.importer.ImportProgress
@@ -19,6 +22,7 @@ import com.mochyy.mochymusic.importer.ParsedImport
 import com.mochyy.mochymusic.importer.YouTubeSyncManager
 import com.mochyy.mochymusic.importer.YtSyncState
 import com.mochyy.mochymusic.importer.parseImportCsv
+import com.mochyy.mochymusic.ui.component.TopToaster
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -58,6 +62,39 @@ class ImportSyncViewModel @Inject constructor(
     private var loadJob: Job? = null
 
     fun loadLink(link: String) {
+        val playlistCode = MochyOfflineBackupCodec.extractPlaylistCodeFromText(link)
+        if (playlistCode != null) {
+            loadJob?.cancel()
+            _pending.value = PendingImport.Loading("Đang nhập playlist từ mã chia sẻ…")
+            loadJob = viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    when (
+                        val imported = MochyOfflineBackupCodec.importSinglePlaylistFromCode(
+                            context = context,
+                            database = database,
+                            rawTextOrCode = playlistCode,
+                        )
+                    ) {
+                        is SinglePlaylistImportResult.Success -> {
+                            _pending.value = PendingImport.Idle
+                            TopToaster.show(
+                                text = "Đã nhập playlist \"${imported.name}\" (${imported.trackCount} bài hát)",
+                                iconRes = R.drawable.playlist_play,
+                            )
+                        }
+                        is SinglePlaylistImportResult.Failure -> {
+                            _pending.value = PendingImport.Failed(imported.message)
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.e(e, "Playlist share code import failed")
+                    _pending.value = PendingImport.Failed(e.message ?: "Không thể nhập playlist từ mã chia sẻ này.")
+                }
+            }
+            return
+        }
         val source = LinkImporter.detect(link)?.label ?: "link"
         loadJob?.cancel()
         _pending.value = PendingImport.Loading("Reading the $source playlist…")

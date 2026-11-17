@@ -1760,6 +1760,12 @@ interface DatabaseDao {
     @Query("UPDATE song SET lyricsOffset = :offsetMs WHERE id = :songId")
     fun updateLyricsOffset(songId: String, offsetMs: Int)
 
+    @Query("SELECT * FROM song WHERE lyricsOffset != 0 ORDER BY rowId DESC LIMIT :limit")
+    suspend fun songsWithNonZeroLyricsOffset(limit: Int = 300): List<SongEntity>
+
+    @Query("UPDATE song SET lyricsOffset = :offset WHERE id = :songId")
+    suspend fun updateSongLyricsOffset(songId: String, offset: Int)
+
     // ---- hand edits from the song edit sheet ----
 
     @Query("SELECT * FROM song_edit WHERE songId = :songId")

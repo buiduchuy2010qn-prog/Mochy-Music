@@ -12,6 +12,9 @@ interface SpeedDialDao {
     @Query("SELECT * FROM speed_dial_item ORDER BY createDate DESC")
     fun getAll(): Flow<List<SpeedDialItem>>
 
+    @Query("SELECT * FROM speed_dial_item ORDER BY createDate DESC LIMIT :limit")
+    suspend fun getAllOnce(limit: Int = MaxPinned): List<SpeedDialItem>
+
     @Query("SELECT * FROM speed_dial_item ORDER BY createDate ASC LIMIT 1")
     suspend fun oldest(): SpeedDialItem?
 

@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -65,6 +66,7 @@ import com.mochyy.mochymusic.ui.player.rememberWordMotionModifier
 import com.mochyy.mochymusic.ui.player.sweepHeadX
 import com.mochyy.mochymusic.ui.player.withLetterMotionFeatures
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.LowEndModeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.coroutineScope
@@ -116,19 +118,19 @@ private enum class RowLook { SUNG, SOFT, WAITING }
 @Immutable
 internal class PreparedScript(val script: PillScript, val layouts: List<TextLayoutResult>)
 
-private fun rowStyle(font: FontFamily, small: Boolean) = TextStyle(
+private fun rowStyle(font: FontFamily, small: Boolean, wordMotion: Boolean) = TextStyle(
     fontFamily = font,
     fontWeight = if (small) FontWeight.SemiBold else FontWeight.Bold,
     fontSize = if (small) 13.sp else 15.sp,
     lineHeight = if (small) 17.sp else 19.sp,
     letterSpacing = (-0.03).em,
-).withLetterMotionFeatures(true)
+).withLetterMotionFeatures(wordMotion)
 
 // every row measured once, off the main thread, so a line change never lays text out mid-animation
-private suspend fun prepare(script: PillScript, measurer: TextMeasurer, font: FontFamily): PreparedScript =
+private suspend fun prepare(script: PillScript, measurer: TextMeasurer, font: FontFamily, wordMotion: Boolean): PreparedScript =
     withContext(Dispatchers.Default) {
-        val big = rowStyle(font, small = false)
-        val small = rowStyle(font, small = true)
+        val big = rowStyle(font, small = false, wordMotion = wordMotion)
+        val small = rowStyle(font, small = true, wordMotion = wordMotion)
         val layouts = script.rows.map { row ->
             measurer.measure(
                 text = row.text,
@@ -144,17 +146,18 @@ private suspend fun prepare(script: PillScript, measurer: TextMeasurer, font: Fo
 // the bubble's lyrics: the line being sung on top, what comes next under it, each sliding into its place as the song goes
 @Composable
 internal fun PillLyrics(state: PillState, width: Dp, modifier: Modifier = Modifier) {
+    val lowEnd = LowEndModeManager.isActive
     val song = state.song
     val script = state.script
     val resolver = LocalFontFamilyResolver.current
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
     val font = InterFontFamily
-    val prepared by produceState<PreparedScript?>(null, script, song?.id, font) {
+    val prepared by produceState<PreparedScript?>(null, script, song?.id, font, lowEnd) {
         val shown = script ?: PillScript.info(song?.title.orEmpty(), song?.artists?.joinToString { it.name }.orEmpty())
-        value = prepare(shown, TextMeasurer(resolver, density, direction, 0), font)
+        value = prepare(shown, TextMeasurer(resolver, density, direction, 0), font, wordMotion = !lowEnd)
     }
-    Crossfade(targetState = prepared, animationSpec = tween(320), modifier = modifier, label = "pillLyrics") { ready ->
+    Crossfade(targetState = prepared, animationSpec = tween(if (lowEnd) 140 else 320), modifier = modifier, label = "pillLyrics") { ready ->
         if (ready != null) PillRows(ready, state, width, appRtl = direction == LayoutDirection.Rtl)
     }
 }
@@ -194,6 +197,7 @@ private class RowGeometry(
 
 @Composable
 private fun PillRows(prepared: PreparedScript, state: PillState, width: Dp, appRtl: Boolean) {
+    val lowEnd = LowEndModeManager.isActive
     val script = prepared.script
     var top by remember(script) { mutableIntStateOf(script.stops[script.stopAt(state.lyricsClock())].top) }
     var dotsLit by remember(script) { mutableIntStateOf(-1) }
@@ -214,9 +218,18 @@ private fun PillRows(prepared: PreparedScript, state: PillState, width: Dp, appR
 
     val lead = remember(script) { Animatable(top.toFloat()) }
     val trail = remember(script) { Animatable(top.toFloat()) }
-    LaunchedEffect(script) {
+    LaunchedEffect(script, lowEnd) {
         snapshotFlow { top }.collectLatest { target ->
             val goal = target.toFloat()
+            if (lowEnd) {
+                trail.snapTo(goal)
+                if (abs(goal - lead.value) > 2.5f) {
+                    lead.snapTo(goal)
+                } else {
+                    lead.animateTo(goal, tween(140))
+                }
+                return@collectLatest
+            }
             // a seek far away jumps most of the way, so only the last stretch glides
             if (abs(goal - lead.value) > 2.5f) {
                 val near = goal - sign(goal - lead.value) * 1.5f
@@ -283,7 +296,7 @@ private fun PillRows(prepared: PreparedScript, state: PillState, width: Dp, appR
                 PillLyricRow(
                     row = row,
                     layout = prepared.layouts[index],
-                    position = { index - (lead.value + (trail.value - lead.value) * weight) },
+                    position = { index - (if (lowEnd) lead.value else lead.value + (trail.value - lead.value) * weight) },
                     live = row.sweeps && !showsDots && inLine,
                     look = look,
                     showsDots = showsDots,
@@ -310,17 +323,18 @@ private fun PillLyricRow(
     tint: PillTint,
     state: PillState,
 ) {
+    val lowEnd = LowEndModeManager.isActive
     val slide = remember(row) { mutableFloatStateOf(0f) }
-    val dots = animateFloatAsState(if (showsDots) 1f else 0f, tween(320), label = "dots")
-    val lit = animateFloatAsState(dotsLit.coerceAtLeast(0).toFloat(), tween(420), label = "dotsLit")
+    val dots = animateFloatAsState(if (showsDots) 1f else 0f, tween(if (lowEnd) 140 else 320), label = "dots")
+    val lit = animateFloatAsState(dotsLit.coerceAtLeast(0).toFloat(), tween(if (lowEnd) 160 else 420), label = "dotsLit")
     // a row that stops waiting eases into its colour instead of flicking
-    val waiting = animateFloatAsState(if (look == RowLook.WAITING) 1f else 0f, tween(300), label = "rowWaiting")
+    val waiting = animateFloatAsState(if (look == RowLook.WAITING) 1f else 0f, tween(if (lowEnd) 140 else 300), label = "rowWaiting")
     val rtlText = remember(layout) { row.text.isNotEmpty() && layout.isRtlLine(0) }
     val width = layout.size.width
     val height = layout.size.height
     val next = animateFloatAsState(
         if (look == RowLook.WAITING && (row.kind == PillRowKind.LEAD || row.kind == PillRowKind.TITLE)) 1f else 0f,
-        NextSpring,
+        if (lowEnd) tween(140) else NextSpring,
         label = "rowNext",
     )
     // it shrinks toward its own side, so its edge stays lined up with the line above
@@ -352,7 +366,7 @@ private fun PillLyricRow(
                 scaleX = scale
                 scaleY = scale
                 transformOrigin = TransformOrigin(pivot, 0.5f)
-                compositingStrategy = CompositingStrategy.ModulateAlpha
+                compositingStrategy = if (lowEnd) CompositingStrategy.Auto else CompositingStrategy.ModulateAlpha
             }
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(Constraints.fixed(width, height))
@@ -367,7 +381,7 @@ private fun PillLyricRow(
                     .fillMaxSize()
                     .drawBehind {
                         val d = dots.value
-                        if (d < 1f) drawRestingText(layout, restingColor(tint, look, position(), waiting.value), drop = row.sweeps, waiting.value, alpha = 1f - d)
+                        if (d < 1f) drawRestingText(layout, restingColor(tint, look, position(), waiting.value), drop = row.sweeps && !lowEnd, waiting.value, alpha = 1f - d)
                         if (d > 0f) {
                             val dotsWidth = (DotRadius.toPx() * 2f) * PillDots + DotGap.toPx() * (PillDots - 1)
                             val x = geometry.alignedX(row.side, dotsWidth) - textX()
@@ -420,6 +434,7 @@ private fun SweepText(
     slotWidth: Float,
     rtlText: Boolean,
 ) {
+    val lowEnd = LowEndModeManager.isActive
     val head = remember(row) { karaokeHeadFor(row.text) }
     val timed = remember(row) { karaokeTimedRanges(row.text, row.words.orEmpty()) }
     val holder = remember(layout) { arrayOf<TextLayoutResult?>(layout) }
@@ -427,7 +442,7 @@ private fun SweepText(
     val playing = state.playing
 
     // frames only while the line is being sung or still settling; paused or done, it stops asking
-    LaunchedEffect(head, playing, state.seekTick) {
+    LaunchedEffect(head, playing, state.seekTick, lowEnd) {
         val firstWordMs = timed.firstOrNull()?.let { (it.startTime * 1000).toLong() } ?: row.startMs
         var lastFrame = -1L
         while (true) {
@@ -440,25 +455,30 @@ private fun SweepText(
                 }
             }
             val moving = withFrameNanos { now ->
-                val dt = if (lastFrame < 0L) 0.016f else ((now - lastFrame) / 1_000_000_000f).coerceIn(0f, 0.064f)
+                val dt = if (lastFrame < 0L) 0.016f else ((now - lastFrame) / 1_000_000_000f).coerceIn(0f, if (lowEnd) 0.16f else 0.064f)
                 lastFrame = now
                 val position = state.lyricsClock()
-                val moved = head.advance(timed, position / 1000.0, dt, wordMotion = true)
+                val moved = head.advance(timed, position / 1000.0, dt, wordMotion = !lowEnd)
                 val slid = overflow > 0f && slide.follow(slideTarget(head, layout, row.text.length, slotWidth, overflow, rtlText), dt)
                 moved || slid || (playing && position < row.endMs)
             }
             if (!moving) break
+            if (lowEnd) delay(65L)
         }
     }
 
-    val motion = rememberWordMotionModifier(
-        layoutHolder = holder,
-        head = head,
-        riseAmplitudeProvider = { 1f },
-        fakeGlowProvider = { 0f },
-        motionScale = PillMotionScale,
-    )
-    val brush = remember(layout) { SweepBrush() }
+    val motion = if (lowEnd) {
+        Modifier
+    } else {
+        rememberWordMotionModifier(
+            layoutHolder = holder,
+            head = head,
+            riseAmplitudeProvider = { 1f },
+            fakeGlowProvider = { 0f },
+            motionScale = PillMotionScale,
+        )
+    }
+    val brush = remember(layout, lowEnd) { if (lowEnd) null else SweepBrush() }
     Spacer(
         Modifier
             .fillMaxSize()
@@ -469,6 +489,19 @@ private fun SweepText(
                 when {
                     h <= 0f -> drawText(layout, color = tint.waiting)
                     h >= length -> drawText(layout, color = tint.ink)
+                    lowEnd || brush == null -> {
+                        val x = layout.sweepHeadX(h, h.toInt().coerceIn(0, length), 0, length, rtlText)
+                        drawText(layout, color = tint.waiting)
+                        if (rtlText) {
+                            clipRect(left = x, top = 0f, right = size.width, bottom = size.height) {
+                                drawText(layout, color = tint.ink)
+                            }
+                        } else {
+                            clipRect(left = 0f, top = 0f, right = x, bottom = size.height) {
+                                drawText(layout, color = tint.ink)
+                            }
+                        }
+                    }
                     else -> {
                         val x = layout.sweepHeadX(h, h.toInt().coerceIn(0, length), 0, length, rtlText)
                         val soft = layout.layoutInput.style.fontSize.toPx() * SweepSoftEm

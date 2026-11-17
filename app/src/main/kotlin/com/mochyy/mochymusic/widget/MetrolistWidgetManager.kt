@@ -23,6 +23,7 @@ import coil3.toBitmap
 import com.mochyy.mochymusic.MainActivity
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.db.MusicDatabase
+import com.mochyy.mochymusic.utils.LowEndModeManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
@@ -42,6 +43,7 @@ class MochyWidgetManager @Inject constructor(
     }
 
     private var cachedArtworkUri: String? = null
+    private var cachedArtSize: Int = 0
     private var cachedAlbumArt: Bitmap? = null
     private var cachedCircularAlbumArt: Bitmap? = null
 
@@ -86,17 +88,31 @@ class MochyWidgetManager @Inject constructor(
         val turntableWidgetIds = if (progressOnly) IntArray(0) else appWidgetManager.getAppWidgetIds(turntableComponentName)
         if (widgetIds.isEmpty() && turntableWidgetIds.isEmpty()) return
 
+        val lowEnd = LowEndModeManager.isActive
+        val artSize = if (lowEnd) 200 else 300
+        val cornerRadius = if (lowEnd) 32f else 48f
+
+        val noSongText = context.getString(R.string.no_song_playing)
+        val notPlayingText = context.getString(R.string.not_playing)
+        val hasSong = title.isNotBlank() && title != noSongText && title != notPlayingText
+        val displayTitle = title.ifBlank { noSongText }
+        val displayArtist = if (!hasSong) artist.ifBlank { context.getString(R.string.tap_to_open) } else artist
+        val artDescription = if (hasSong) context.getString(R.string.album_art_for, displayTitle) else context.getString(R.string.album_art)
+        val playPauseDescription = context.getString(if (isPlaying) R.string.pause else R.string.play)
+        val likeDescription = context.getString(if (isLiked) R.string.widget_unlike else R.string.like)
+
         val albumArt: Bitmap?
         val circularAlbumArt: Bitmap?
 
-        if (artworkUri != null && artworkUri == cachedArtworkUri && cachedAlbumArt != null) {
+        if (artworkUri != null && artworkUri == cachedArtworkUri && cachedAlbumArt != null && cachedArtSize == artSize) {
             albumArt = cachedAlbumArt
             circularAlbumArt = cachedCircularAlbumArt
         } else {
-            albumArt = artworkUri?.let { loadAlbumArt(it, 300) }
+            albumArt = artworkUri?.let { loadAlbumArt(it, artSize) }
             circularAlbumArt = albumArt?.let { getCircularBitmap(it) }
 
             cachedArtworkUri = artworkUri
+            cachedArtSize = artSize
             cachedAlbumArt = albumArt
             cachedCircularAlbumArt = circularAlbumArt
         }
@@ -106,9 +122,14 @@ class MochyWidgetManager @Inject constructor(
                 val options = appWidgetManager.getAppWidgetOptions(widgetId)
                 val views = createRemoteViewsForSize(
                     options,
-                    title,
-                    artist,
+                    displayTitle,
+                    displayArtist,
+                    artDescription,
+                    playPauseDescription,
+                    likeDescription,
                     albumArt,
+                    artSize,
+                    cornerRadius,
                     isPlaying,
                     isLiked,
                     duration,
@@ -121,6 +142,9 @@ class MochyWidgetManager @Inject constructor(
         if (turntableWidgetIds.isNotEmpty()) {
             val turntableViews = createTurntableRemoteViews(
                 circularAlbumArt,
+                artSize,
+                artDescription,
+                playPauseDescription,
                 isPlaying,
                 isLiked
             )
@@ -134,7 +158,12 @@ class MochyWidgetManager @Inject constructor(
         options: Bundle,
         title: String,
         artist: String,
+        artDescription: String,
+        playPauseDescription: String,
+        likeDescription: String,
         albumArt: Bitmap?,
+        artSize: Int,
+        cornerRadius: Float,
         isPlaying: Boolean,
         isLiked: Boolean,
         duration: Long,
@@ -146,15 +175,15 @@ class MochyWidgetManager @Inject constructor(
         return when {
             minWidth < 180 && minHeight < 100 -> {
 
-                createCompactSquareRemoteViews(albumArt, isPlaying)
+                createCompactSquareRemoteViews(albumArt, artSize, cornerRadius, artDescription, playPauseDescription, isPlaying)
             }
             minWidth >= 180 && minHeight < 100 -> {
 
-                createCompactWideRemoteViews(title, artist, albumArt, isPlaying, isLiked)
+                createCompactWideRemoteViews(title, artist, artDescription, playPauseDescription, likeDescription, albumArt, artSize, cornerRadius, isPlaying, isLiked)
             }
             else -> {
 
-                createRemoteViews(title, artist, albumArt, isPlaying, isLiked, duration, currentPosition)
+                createRemoteViews(title, artist, artDescription, playPauseDescription, likeDescription, albumArt, artSize, cornerRadius, isPlaying, isLiked, duration, currentPosition)
             }
         }
     }
@@ -162,7 +191,12 @@ class MochyWidgetManager @Inject constructor(
     private fun createRemoteViews(
         title: String,
         artist: String,
+        artDescription: String,
+        playPauseDescription: String,
+        likeDescription: String,
         albumArt: Bitmap?,
+        artSize: Int,
+        cornerRadius: Float,
         isPlaying: Boolean,
         isLiked: Boolean,
         duration: Long = 0,
@@ -174,17 +208,20 @@ class MochyWidgetManager @Inject constructor(
         views.setTextViewText(R.id.widget_artist_name, artist)
 
         if (albumArt != null) {
-            val roundedAlbumArt = getRoundedCornerBitmap(albumArt, 48f)
+            val roundedAlbumArt = getRoundedCornerBitmap(albumArt, cornerRadius)
             views.setImageViewBitmap(R.id.widget_album_art, roundedAlbumArt)
         } else {
-            views.setImageViewBitmap(R.id.widget_album_art, getRoundedDefaultIcon(48f))
+            views.setImageViewBitmap(R.id.widget_album_art, getRoundedDefaultIcon(cornerRadius, artSize))
         }
+        views.setContentDescription(R.id.widget_album_art, artDescription)
 
         val playPauseIcon = if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
         views.setImageViewResource(R.id.widget_play_pause, playPauseIcon)
+        views.setContentDescription(R.id.widget_play_pause, playPauseDescription)
 
         val likeIcon = if (isLiked) R.drawable.ic_widget_heart_nav else R.drawable.ic_widget_heart_outline_nav
         views.setImageViewResource(R.id.widget_like_button, likeIcon)
+        views.setContentDescription(R.id.widget_like_button, likeDescription)
 
         if (duration > 0) {
             val level = ((currentPosition.toDouble() / duration.toDouble()) * 10000).toInt()
@@ -207,7 +244,7 @@ class MochyWidgetManager @Inject constructor(
                     .data(artworkUri)
                     .size(size, size)
                     .allowHardware(false)
-                    .crossfade(300)
+                    .apply { if (!LowEndModeManager.isActive) crossfade(300) }
                     .build()
                 val result = imageLoader.execute(request)
                 result.image?.toBitmap()
@@ -266,19 +303,25 @@ class MochyWidgetManager @Inject constructor(
 
     private fun createCompactSquareRemoteViews(
         albumArt: Bitmap?,
+        artSize: Int,
+        cornerRadius: Float,
+        artDescription: String,
+        playPauseDescription: String,
         isPlaying: Boolean
     ): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_compact_square)
 
         if (albumArt != null) {
-            val roundedAlbumArt = getRoundedCornerBitmap(albumArt, 48f)
+            val roundedAlbumArt = getRoundedCornerBitmap(albumArt, cornerRadius)
             views.setImageViewBitmap(R.id.widget_compact_album_art, roundedAlbumArt)
         } else {
-            views.setImageViewBitmap(R.id.widget_compact_album_art, getRoundedDefaultIcon(48f))
+            views.setImageViewBitmap(R.id.widget_compact_album_art, getRoundedDefaultIcon(cornerRadius, artSize))
         }
+        views.setContentDescription(R.id.widget_compact_album_art, artDescription)
 
         val playPauseIcon = if (isPlaying) R.drawable.ic_widget_pause_low else R.drawable.ic_widget_play_low
         views.setImageViewResource(R.id.widget_compact_play_pause, playPauseIcon)
+        views.setContentDescription(R.id.widget_compact_play_pause, playPauseDescription)
 
         views.setOnClickPendingIntent(R.id.widget_compact_album_art, getOpenAppIntent())
         views.setOnClickPendingIntent(R.id.widget_compact_play_container, getPlayPauseIntent())
@@ -289,7 +332,12 @@ class MochyWidgetManager @Inject constructor(
     private fun createCompactWideRemoteViews(
         title: String,
         artist: String,
+        artDescription: String,
+        playPauseDescription: String,
+        likeDescription: String,
         albumArt: Bitmap?,
+        artSize: Int,
+        cornerRadius: Float,
         isPlaying: Boolean,
         isLiked: Boolean
     ): RemoteViews {
@@ -299,18 +347,21 @@ class MochyWidgetManager @Inject constructor(
         views.setTextViewText(R.id.widget_wide_artist_name, artist)
 
         if (albumArt != null) {
-            val roundedAlbumArt = getRoundedCornerBitmap(albumArt, 48f)
+            val roundedAlbumArt = getRoundedCornerBitmap(albumArt, cornerRadius)
             views.setImageViewBitmap(R.id.widget_wide_album_art, roundedAlbumArt)
         } else {
 
-            views.setImageViewBitmap(R.id.widget_wide_album_art, getRoundedDefaultIcon(48f))
+            views.setImageViewBitmap(R.id.widget_wide_album_art, getRoundedDefaultIcon(cornerRadius, artSize))
         }
+        views.setContentDescription(R.id.widget_wide_album_art, artDescription)
 
         val playPauseIcon = if (isPlaying) R.drawable.ic_widget_pause_low else R.drawable.ic_widget_play_low
         views.setImageViewResource(R.id.widget_wide_play_pause, playPauseIcon)
+        views.setContentDescription(R.id.widget_wide_play_pause, playPauseDescription)
 
         val likeIcon = if (isLiked) R.drawable.ic_widget_heart_nav else R.drawable.ic_widget_heart_outline_nav
         views.setImageViewResource(R.id.widget_wide_like_button, likeIcon)
+        views.setContentDescription(R.id.widget_wide_like_button, likeDescription)
 
         views.setOnClickPendingIntent(R.id.widget_wide_album_art, getOpenAppIntent())
         views.setOnClickPendingIntent(R.id.widget_wide_play_container, getPlayPauseIntent())
@@ -321,6 +372,9 @@ class MochyWidgetManager @Inject constructor(
 
     private fun createTurntableRemoteViews(
         circularAlbumArt: Bitmap?,
+        artSize: Int,
+        artDescription: String,
+        playPauseDescription: String,
         isPlaying: Boolean,
         isLiked: Boolean
     ): RemoteViews {
@@ -330,11 +384,13 @@ class MochyWidgetManager @Inject constructor(
             views.setImageViewBitmap(R.id.widget_turntable_album_art, circularAlbumArt)
         } else {
 
-            views.setImageViewBitmap(R.id.widget_turntable_album_art, getCircularDefaultIcon())
+            views.setImageViewBitmap(R.id.widget_turntable_album_art, getCircularDefaultIcon(artSize))
         }
+        views.setContentDescription(R.id.widget_turntable_album_art, artDescription)
 
         val playPauseIcon = if (isPlaying) R.drawable.ic_widget_pause_secondary else R.drawable.ic_widget_play_secondary
         views.setImageViewResource(R.id.widget_turntable_play_pause, playPauseIcon)
+        views.setContentDescription(R.id.widget_turntable_play_pause, playPauseDescription)
 
         views.setOnClickPendingIntent(R.id.widget_turntable_album_art, getOpenAppIntent())
         views.setOnClickPendingIntent(R.id.widget_turntable_play_container, getTurntablePlayPauseIntent())
@@ -344,10 +400,9 @@ class MochyWidgetManager @Inject constructor(
         return views
     }
 
-    private fun getCircularDefaultIcon(): Bitmap {
+    private fun getCircularDefaultIcon(size: Int = 300): Bitmap {
 
         val drawable = context.packageManager.getApplicationIcon(context.packageName)
-        val size = 300
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         drawable.setBounds(0, 0, size, size)
@@ -355,10 +410,9 @@ class MochyWidgetManager @Inject constructor(
         return getCircularBitmap(bitmap)
     }
 
-    private fun getRoundedDefaultIcon(cornerRadius: Float): Bitmap {
+    private fun getRoundedDefaultIcon(cornerRadius: Float, size: Int = 300): Bitmap {
 
         val drawable = context.packageManager.getApplicationIcon(context.packageName)
-        val size = 300
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         drawable.setBounds(0, 0, size, size)

@@ -1,0 +1,72 @@
+{
+  "id": "liquid-glass",
+  "name": "Kính Lỏng Trong Suốt",
+  "version": "1.0.0",
+  "description": "Giao diện kính mờ trong suốt, bo góc mềm mại và nền chuyển sắc động theo bìa nhạc.",
+  "author": "Mochy Music VN",
+  "look": {
+    "playerStyle": "FLAGSHIP",
+    "homeStyle": "MOCHYY",
+    "playlistStyle": "FLOW",
+    "thumbnailCornerRadius": "24",
+    "lyricsMotionStyle": "MOTION",
+    "blurQuality": "HIGH",
+    "blurStrengthPx": "36",
+    "enableProgressiveBlur": "true",
+    "elementBlur": "true",
+    "pureBlack": "false",
+    "dynamicTheme": "true",
+    "flagshipBackground": "APPLE_MUSIC",
+    "playerBackground": "APPLE_MUSIC",
+    "bottomBar": "FROSTED"
+  },
+  "settings": [
+    {
+      "key": "blur_level",
+      "label": "Độ mờ lớp kính",
+      "type": "select",
+      "default": "balanced",
+      "description": "Điều chỉnh bán kính làm mờ ở thanh điều hướng và các thẻ nổi.",
+      "options": [
+        {
+          "value": "clear",
+          "label": "Trong trẻo (22 px)",
+          "description": "Lớp kính nhẹ, nhìn rõ nội dung trôi phía dưới.",
+          "look": {
+            "blurStrengthPx": "22",
+            "blurQuality": "HIGH"
+          }
+        },
+        {
+          "value": "balanced",
+          "label": "Cân bằng (36 px)",
+          "description": "Độ mờ kính tiêu chuẩn cho cảm giác nổi khối hài hòa.",
+          "look": {
+            "blurStrengthPx": "36",
+            "blurQuality": "HIGH"
+          }
+        },
+        {
+          "value": "deep",
+          "label": "Mờ sâu (48 px)",
+          "description": "Tán xạ ánh sáng mạnh giúp chữ nổi bật trên nền rực rỡ.",
+          "look": {
+            "blurStrengthPx": "48",
+            "blurQuality": "HIGH"
+          }
+        }
+      ]
+    },
+    {
+      "key": "ambient_kawarp",
+      "label": "Nền chuyển động Kawarp",
+      "type": "toggle",
+      "default": false,
+      "description": "Dùng hiệu ứng sóng màu lỏng Kawarp làm nền trình phát.",
+      "look": {
+        "flagshipBackground": "KAWARP",
+        "playerBackground": "KAWARP"
+      }
+    }
+  ]
+}

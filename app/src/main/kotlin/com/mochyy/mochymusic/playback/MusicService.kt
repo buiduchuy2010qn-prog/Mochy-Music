@@ -136,6 +136,7 @@ import com.mochyy.mochymusic.constants.DisableLoadMoreWhenRepeatAllKey
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import com.mochyy.mochymusic.cloud.CloudPlaylistTrack
 import com.mochyy.mochymusic.cloud.MochyCloudSyncManager
 import com.mochyy.mochymusic.constants.HideExplicitKey
 import com.mochyy.mochymusic.constants.HideVideoSongsKey
@@ -2832,7 +2833,7 @@ class MusicService :
                     }
                 }
                 currentMediaMetadata.value = player.currentMetadata
-                MochyCloudSyncManager.onFavoriteToggled(this@MusicService)
+                MochyCloudSyncManager.onFavoriteToggled(this@MusicService, song.id, song.liked)
             }
         }
     }
@@ -3075,6 +3076,39 @@ class MusicService :
             playReporter.onSongStop()
             MochyCloudSyncManager.flushPendingHistory(this)
         }
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) {
+            MochyCloudSyncManager.cancelScheduledPlaybackResumePush()
+        } else if (player.currentMediaItem != null && player.currentPosition >= 10_000L) {
+            capturePlaybackResumeSnapshot()
+            MochyCloudSyncManager.schedulePlaybackResumePush(this@MusicService, 4_000L)
+        }
+    }
+
+    private fun capturePlaybackResumeSnapshot() {
+        val song = player.currentMetadata ?: run {
+            MochyCloudSyncManager.updatePlaybackResumeSnapshot(null, 0L, emptyList())
+            return
+        }
+        val posMs = player.currentPosition.coerceAtLeast(0L)
+        val startIdx = (player.currentMediaItemIndex + 1).coerceAtLeast(0)
+        val items = player.mediaItems
+        val upcoming = if (startIdx < items.size) items.subList(startIdx, items.size) else emptyList()
+        val queueTracks = upcoming.mapNotNull { item ->
+            val m = item.metadata ?: return@mapNotNull null
+            if (m.id == song.id || m.localUri != null) return@mapNotNull null
+            CloudPlaylistTrack(
+                songId = m.id,
+                title = m.title.ifBlank { "Bài hát" },
+                artists = m.artists.joinToString(", ") { it.name }.ifBlank { "Nghệ sĩ" },
+                albumName = m.album?.title,
+                duration = m.duration,
+                thumbnailUrl = m.thumbnailUrl,
+            )
+        }.distinctBy { it.songId }.take(25)
+        MochyCloudSyncManager.updatePlaybackResumeSnapshot(song, posMs, queueTracks)
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -4449,6 +4483,10 @@ class MusicService :
         // sends the last stretch of the song that was playing while the player can still say where it stopped
         playReporter.onSongStop()
         MochyCloudSyncManager.flushPendingHistory(this)
+        if (player.currentMediaItem != null && player.currentPosition >= 5_000L) {
+            capturePlaybackResumeSnapshot()
+            MochyCloudSyncManager.schedulePlaybackResumePush(this@MusicService, 0L)
+        }
         connectivityObserver.unregister()
         callWatcher.stop()
         abandonAudioFocus()
@@ -4474,6 +4512,10 @@ class MusicService :
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         MochyCloudSyncManager.flushPendingHistory(this)
+        if (player.currentMediaItem != null && player.currentPosition >= 5_000L) {
+            capturePlaybackResumeSnapshot()
+            MochyCloudSyncManager.schedulePlaybackResumePush(this@MusicService, 0L)
+        }
         if (dataStore.get(StopPlaybackOnTaskRemovedKey, false)) {
             player.stop()
             stopSelf()

@@ -8,6 +8,10 @@
 
 package com.mochyy.mochymusic.ui.player.menu
 
+import android.app.Activity
+import android.content.ClipData
+import android.content.Context
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -41,7 +45,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
+import java.io.File
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -102,6 +110,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
     val viewModel: LyricsMenuViewModel = hiltViewModel()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+    val lyricsOffsetMs by playerConnection.lyricsOffsetMs.collectAsState()
 
     val parsed = remember(lyricsEntity?.lyrics) {
         val raw = lyricsEntity?.lyrics
@@ -167,6 +176,7 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
             } else {
                 LazyColumn(
                     modifier = Modifier
+                        .weight(1f, fill = false)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(18.dp))
                         .background(MenuRowSurface)
@@ -196,6 +206,22 @@ fun LyricsEditorSheet(onDismiss: () -> Unit) {
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            val editedChanged = parsed.isNotEmpty() && drafts.toList() != parsed.map { it.text }
+            val exportRaw = if (editedChanged) {
+                buildLrc(parsed.map { it.time }, drafts).takeIf { it.isNotBlank() }
+            } else {
+                lyricsEntity?.lyrics
+            }
+            ExportLrcRow(
+                title = mediaMetadata?.title,
+                artist = mediaMetadata?.artists?.joinToString(", ") { it.name },
+                album = mediaMetadata?.album?.title,
+                offsetMs = lyricsOffsetMs,
+                rawLyrics = exportRaw,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -246,6 +272,7 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
     val viewModel: LyricsMenuViewModel = hiltViewModel()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+    val lyricsOffsetMs by playerConnection.lyricsOffsetMs.collectAsState()
     val sources by viewModel.sources.collectAsState()
 
     androidx.compose.runtime.LaunchedEffect(mediaMetadata?.id) {
@@ -295,6 +322,14 @@ fun LyricsProviderSheet(onDismiss: () -> Unit) {
                     TopToaster.show(text = addedText, iconRes = R.drawable.lyrics)
                     closeSheet()
                 },
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            ExportLrcRow(
+                title = mediaMetadata?.title,
+                artist = mediaMetadata?.artists?.joinToString(", ") { it.name },
+                album = mediaMetadata?.album?.title,
+                offsetMs = lyricsOffsetMs,
+                rawLyrics = lyricsEntity?.lyrics,
             )
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -855,6 +890,162 @@ internal fun PillButton(
         )
         if (trailing != null) {
             Box(modifier = Modifier.align(Alignment.CenterEnd).padding(end = 9.dp)) { trailing() }
+        }
+    }
+}
+
+private val ExportHeaderRegex = Regex("""^\[(?:ti|ar|al|offset):.*\]$""", RegexOption.IGNORE_CASE)
+private val UnsafeFileNameRegex = Regex("""[\\/:*?"<>|\u0000-\u001F]+""")
+private const val ExportLrcLabel = "Xuất tệp lời bài hát (.lrc)"
+
+@Composable
+private fun ExportLrcRow(
+    title: String?,
+    artist: String?,
+    album: String?,
+    offsetMs: Int,
+    rawLyrics: String?,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var exporting by remember { mutableStateOf(false) }
+    val hasLyrics = !rawLyrics.isNullOrBlank() && rawLyrics != LYRICS_NOT_FOUND
+    val alpha = if (hasLyrics) 1f else 0.55f
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MenuRowSurface)
+            .clickable(
+                enabled = !exporting,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = RemoteFocus,
+            ) {
+                if (!hasLyrics) {
+                    TopToaster.error("Bài hát này chưa có lời để xuất tệp .lrc.")
+                    return@clickable
+                }
+                val content = rawLyrics ?: return@clickable
+                exporting = true
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val dir = File(context.cacheDir, "exported_lyrics").apply { mkdirs() }
+                            dir.listFiles()?.forEach { old ->
+                                if (old.isFile && old.extension.equals("lrc", ignoreCase = true)) {
+                                    old.delete()
+                                }
+                            }
+                            val fileName = safeLrcFileName(title, artist)
+                            val outFile = File(dir, "$fileName.lrc")
+                            val formatted = buildExportedLrc(title, artist, album, offsetMs, content)
+                            outFile.writeText(formatted, Charsets.UTF_8)
+                            outFile
+                        }
+                    }
+                    exporting = false
+                    result.onSuccess { outFile ->
+                        runCatching {
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.FileProvider",
+                                outFile,
+                            )
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                putExtra(Intent.EXTRA_SUBJECT, outFile.name)
+                                clipData = ClipData.newUri(context.contentResolver, outFile.name, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            val chooser = Intent.createChooser(sendIntent, ExportLrcLabel).apply {
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                if (context !is Activity) {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                            }
+                            context.startActivity(chooser)
+                        }.onFailure {
+                            TopToaster.error("Không thể mở hộp thoại chia sẻ tệp .lrc.")
+                        }
+                    }.onFailure {
+                        TopToaster.error("Không thể xuất tệp lời bài hát (.lrc).")
+                    }
+                }
+            }
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+    ) {
+        SheetIcon(R.drawable.ios_share, tint = Color.White.copy(alpha = alpha))
+        Spacer(modifier = Modifier.width(14.dp))
+        Text(
+            text = ExportLrcLabel,
+            color = Color.White.copy(alpha = alpha),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = if (hasLyrics) ".lrc" else "Chưa có lời",
+            color = Color(0xFF9A9A9A),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+private fun sanitizeLrcTagValue(value: String?): String =
+    value?.replace('\r', ' ')
+        ?.replace('\n', ' ')
+        ?.replace(']', ')')
+        ?.trim()
+        .orEmpty()
+
+internal fun safeLrcFileName(title: String?, artist: String?): String {
+    val raw = listOfNotNull(
+        title?.trim()?.takeIf { it.isNotEmpty() },
+        artist?.trim()?.takeIf { it.isNotEmpty() },
+    ).joinToString(" - ")
+    val cleaned = UnsafeFileNameRegex.replace(raw, "_")
+        .replace(Regex("\\s+"), " ")
+        .trim(' ', '.')
+        .take(80)
+        .trim(' ', '.')
+    return cleaned.ifEmpty { "mochy_lyrics" }
+}
+
+internal fun buildExportedLrc(
+    title: String?,
+    artist: String?,
+    album: String?,
+    offsetMs: Int,
+    rawLyrics: String,
+): String {
+    val cleanTitle = sanitizeLrcTagValue(title)
+    val cleanArtist = sanitizeLrcTagValue(artist)
+    val cleanAlbum = sanitizeLrcTagValue(album)
+    val body = rawLyrics.removePrefix("\uFEFF")
+        .replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .lines()
+        .dropWhile { line ->
+            val trimmed = line.trim()
+            trimmed.isEmpty() || ExportHeaderRegex.matches(trimmed)
+        }
+        .filterNot { line -> ExportHeaderRegex.matches(line.trim()) }
+        .joinToString("\n")
+        .trim()
+
+    return buildString {
+        append("[ti:").append(cleanTitle).append("]\n")
+        append("[ar:").append(cleanArtist).append("]\n")
+        append("[al:").append(cleanAlbum).append("]\n")
+        append("[offset:").append(offsetMs).append("]\n")
+        if (body.isNotEmpty()) {
+            append(body).append('\n')
         }
     }
 }

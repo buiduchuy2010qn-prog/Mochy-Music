@@ -5,6 +5,7 @@ package com.mochyy.mochymusic.modules
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -30,6 +31,7 @@ import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
 import com.mochyy.mochymusic.module.bridge.BridgedModule
 import com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
+import com.mochyy.mochymusic.module.soundcloud.SoundCloudModule
 import com.mochyy.mochymusic.modules.code.CodeModules
 import com.mochyy.mochymusic.modules.local.LocalModule
 import com.mochyy.mochymusic.modules.skin.ActiveSkin
@@ -42,6 +44,7 @@ import com.mochyy.mochymusic.modules.skin.SkinSource
 import com.mochyy.mochymusic.modules.web.WebModule
 import com.mochyy.mochymusic.modules.web.WebModuleManifest
 import com.mochyy.mochymusic.utils.dataStore
+import com.mochyy.mochymusic.utils.followAppProxy
 import com.mochyy.mochymusic.utils.get
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dalvik.system.PathClassLoader
@@ -124,9 +127,15 @@ class ModuleRegistry @Inject constructor(
 
     private val client by lazy {
         OkHttpClient.Builder()
+            .followAppProxy()
             .connectTimeout(12, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .build()
+    }
+
+    // strong reference so SharedPreferences doesn't GC the listener while Cloud/.mochy.gz restores update modules live
+    private val syncPrefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "cloud_sync_stamp") rebuild()
     }
 
     @Volatile
@@ -141,8 +150,20 @@ class ModuleRegistry @Inject constructor(
     val entries: StateFlow<List<ModuleEntry>> = _entries.asStateFlow()
 
     init {
+        prefs.registerOnSharedPreferenceChangeListener(syncPrefListener)
         // lyrics modules have to be in the lyrics sources before the first song asks for lyrics
         scope.launch { refresh() }
+    }
+
+    /** reloads all modules and reapplies active looks/providers after a backup or cloud sync */
+    fun rebuild() {
+        scope.launch {
+            synchronized(this@ModuleRegistry) {
+                loaded?.forEach { (module, _) -> (module as? BridgedModule)?.close() }
+                loaded = load()
+            }
+            refresh()
+        }
     }
 
     fun module(id: String): MochyModule? = modules.firstOrNull { it.first.info.id == id }?.first
@@ -551,7 +572,12 @@ class ModuleRegistry @Inject constructor(
     // ---- loading --------------------------------------------------------------------------------
 
     private fun load(): List<Pair<MochyModule, ModuleOrigin>> {
-        val builtIn = listOf<MochyModule>(AppleMusicModule(), MonochromeModule(), JioSaavnModule()).map { it to ModuleOrigin.BuiltIn }
+        val builtIn = listOf<MochyModule>(
+            AppleMusicModule(),
+            MonochromeModule(),
+            JioSaavnModule(),
+            SoundCloudModule(),
+        ).map { it to ModuleOrigin.BuiltIn }
         val apps = discover()
         val savedCode = savedCodeModules()
         CodeModules.tidy(context, savedCode.map { it.optString("folder") }.toSet())

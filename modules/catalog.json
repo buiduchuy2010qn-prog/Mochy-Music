@@ -1,4 +1,33 @@
 {
-  "about": "The modules people can find under Settings, Modules, Add a module. Each one is a link Mochy can add; modules/README.md says what that link has to answer.",
-  "modules": []
+  "about": "Danh mục module chính thức của Mochy Music VN. Mỗi mục là một liên kết manifest hợp lệ để thêm trực tiếp từ phần Module.",
+  "modules": [
+    {
+      "name": "Kính Lỏng Trong Suốt",
+      "description": "Giao diện kính mờ trong suốt, bo góc mềm mại và nền chuyển sắc động theo bìa nhạc.",
+      "url": "https://raw.githubusercontent.com/buiduchuy2010qn-prog/Mochy-Music/main/modules/looks/liquid-glass",
+      "adds": ["look"],
+      "author": "Mochy Music VN"
+    },
+    {
+      "name": "Đen Tuyệt Đối OLED",
+      "description": "Nền đen thuần tiết kiệm pin tối đa cho màn hình OLED, tương phản sắc nét và gọn gàng.",
+      "url": "https://raw.githubusercontent.com/buiduchuy2010qn-prog/Mochy-Music/main/modules/looks/oled-midnight",
+      "adds": ["look"],
+      "author": "Mochy Music VN"
+    },
+    {
+      "name": "Máy Nghe Nhạc iPod Cổ Điển",
+      "description": "Biến trình phát thành chiếc iPod Classic với bánh xe cảm ứng Click Wheel hoài cổ.",
+      "url": "https://raw.githubusercontent.com/buiduchuy2010qn-prog/Mochy-Music/main/modules/looks/ipod-retro",
+      "adds": ["look"],
+      "author": "Mochy Music VN"
+    },
+    {
+      "name": "Đĩa Than Phòng Thu",
+      "description": "Trình phát mâm đĩa than quay nhịp nhàng kèm tông màu hổ phách ấm áp như phòng thu analog.",
+      "url": "https://raw.githubusercontent.com/buiduchuy2010qn-prog/Mochy-Music/main/modules/looks/vinyl-warm",
+      "adds": ["look"],
+      "author": "Mochy Music VN"
+    }
+  ]
 }

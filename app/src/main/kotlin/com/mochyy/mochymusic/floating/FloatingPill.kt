@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.utils.LowEndModeManager
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -172,6 +173,7 @@ internal interface PillHost {
 
 @Composable
 internal fun FloatingPill(state: PillState, metrics: PillMetrics, host: PillHost) {
+    val lowEnd = LowEndModeManager.isActive
     val expand = remember { Animatable(0f) }
     // starts tucked into the cover, so the bubble pops out of it when the pill appears
     val tuck = remember { Animatable(1f) }
@@ -183,15 +185,28 @@ internal fun FloatingPill(state: PillState, metrics: PillMetrics, host: PillHost
         state.expanded -> PillShape.OPEN
         else -> PillShape.PILL
     }
-    LaunchedEffect(Unit) { appear.animateTo(1f, AppearSpring) }
-    LaunchedEffect(shape, slots) {
+    LaunchedEffect(lowEnd) {
+        if (lowEnd) appear.animateTo(1f, tween(120)) else appear.animateTo(1f, AppearSpring)
+    }
+    LaunchedEffect(shape, slots, lowEnd) {
         // the window grows first and shrinks last, anchored at the cover, so nothing on screen jumps when it does
         host.reserveFrame(shape, slots)
-        if (appear.value < 0.5f) delay(AppearStaggerMs)
-        coroutineScope {
-            launch { expand.animateTo(if (shape == PillShape.OPEN) 1f else 0f, if (shape == PillShape.OPEN) OpenEase else CloseEase) }
-            launch { tuck.animateTo(if (shape == PillShape.COVER) 1f else 0f, if (shape == PillShape.COVER) TuckSpring else PopSpring) }
-            launch { shownSlots.animateTo(slots.toFloat(), SlotsSpring) }
+        if (!lowEnd && appear.value < 0.5f) delay(AppearStaggerMs)
+        val expandTarget = if (shape == PillShape.OPEN) 1f else 0f
+        val tuckTarget = if (shape == PillShape.COVER) 1f else 0f
+        if (lowEnd) {
+            val fast = tween<Float>(durationMillis = 140)
+            coroutineScope {
+                launch { expand.animateTo(expandTarget, fast) }
+                launch { tuck.animateTo(tuckTarget, fast) }
+                launch { shownSlots.animateTo(slots.toFloat(), fast) }
+            }
+        } else {
+            coroutineScope {
+                launch { expand.animateTo(expandTarget, if (shape == PillShape.OPEN) OpenEase else CloseEase) }
+                launch { tuck.animateTo(tuckTarget, if (shape == PillShape.COVER) TuckSpring else PopSpring) }
+                launch { shownSlots.animateTo(slots.toFloat(), SlotsSpring) }
+            }
         }
         host.fitFrame(shape, slots)
     }
@@ -210,13 +225,21 @@ internal fun FloatingPill(state: PillState, metrics: PillMetrics, host: PillHost
     SongProgressTicker(state, progress, elapsed, timesShown)
 
     var pressed by remember { mutableStateOf(false) }
-    val press = animateFloatAsState(if (pressed) 0.93f else 1f, spring(dampingRatio = 0.6f, stiffness = 600f), label = "coverPress")
-    val lift = animateFloatAsState(if (state.lifted) 1f else 0f, spring(dampingRatio = 0.55f, stiffness = 500f), label = "coverLift")
+    val press = animateFloatAsState(
+        if (pressed) 0.93f else 1f,
+        if (lowEnd) tween(60) else spring(dampingRatio = 0.6f, stiffness = 600f),
+        label = "coverPress",
+    )
+    val lift = animateFloatAsState(
+        if (state.lifted) 1f else 0f,
+        if (lowEnd) tween(80) else spring(dampingRatio = 0.55f, stiffness = 500f),
+        label = "coverLift",
+    )
 
     // the bubble takes the cover's accent, fading over from one song's to the next
     val colors = remember(state.accent) { PillColors.from(state.accent) }
-    val bubbleColor = animateColorAsState(colors.bubble, tween(700), label = "pillBubble")
-    val inkColor = animateColorAsState(colors.ink, tween(700), label = "pillInk")
+    val bubbleColor = animateColorAsState(colors.bubble, tween(if (lowEnd) 160 else 700), label = "pillBubble")
+    val inkColor = animateColorAsState(colors.ink, tween(if (lowEnd) 160 else 700), label = "pillInk")
     val tint = remember { PillTint(bubbleColor, inkColor) }
 
     // the pill is a fixed size, so the text inside it keeps to its own size too
@@ -339,7 +362,7 @@ private fun Bubble(state: PillState, metrics: PillMetrics, end: Boolean, opened:
                 alpha = (1f - k * 1.6f).coerceIn(0f, 1f)
                 translationX = toCover * TuckSlide.toPx() * k
                 transformOrigin = TransformOrigin(if (end) 1f else 0f, (PillMetrics.BubbleHeight.toPx() * TailAt / size.height).coerceIn(0f, 1f))
-                compositingStrategy = CompositingStrategy.ModulateAlpha
+                compositingStrategy = if (LowEndModeManager.isActive) CompositingStrategy.Auto else CompositingStrategy.ModulateAlpha
             }
             .softShadow(BubbleCorner, BubbleShadowBlur, { BubbleShadowDrop }, { BubbleShadowAlpha })
             .drawWithCache {

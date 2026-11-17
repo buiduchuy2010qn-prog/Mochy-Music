@@ -73,9 +73,11 @@ fun LocalPlaylistMenu(
     navController: NavController? = null,
 ) {
     val isYouTubePlaylist = playlist.playlist.browseId != null
+    val database = LocalDatabase.current
     val resync = rememberPlaylistResync(playlist.id, playlist.playlist.browseId, navController, onDismiss)
     val coroutineScope = rememberCoroutineScope()
     var sharingMochypl by remember { mutableStateOf(false) }
+    var copyingPlaylistCode by remember { mutableStateOf(false) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
     val topSong = remember(songs) {
         songs.minWithOrNull(compareBy({ it.map.position }, { it.map.id }))?.song
@@ -272,6 +274,33 @@ fun LocalPlaylistMenu(
                                             onDismiss()
                                         },
                                         onFailed = { sharingMochypl = false },
+                                    )
+                                }
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            title = { Text("Sao chép mã chia sẻ Playlist") },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.content_copy),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                if (!copyingPlaylistCode) {
+                                    copyingPlaylistCode = true
+                                    copySinglePlaylistCode(
+                                        context = context,
+                                        database = database,
+                                        coroutineScope = coroutineScope,
+                                        playlistId = playlist.id,
+                                        onFinished = {
+                                            copyingPlaylistCode = false
+                                            onDismiss()
+                                        },
+                                        onFailed = { copyingPlaylistCode = false },
                                     )
                                 }
                             },

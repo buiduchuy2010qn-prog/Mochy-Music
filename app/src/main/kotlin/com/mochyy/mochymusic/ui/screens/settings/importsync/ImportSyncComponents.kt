@@ -83,7 +83,7 @@ fun ImportInfoCard(
 
 @Composable
 fun LinkInputDialog(
-    source: LinkSource,
+    source: LinkSource?,
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit,
 ) {
@@ -95,7 +95,15 @@ fun LinkInputDialog(
     DefaultDialog(
         onDismiss = onDismiss,
         horizontalAlignment = Alignment.Start,
-        title = { Text(stringResource(R.string.import_component_from_source, source.label)) },
+        title = {
+            Text(
+                if (source != null) {
+                    stringResource(R.string.import_component_from_source, source.label)
+                } else {
+                    "Nhập từ mã chia sẻ Playlist"
+                },
+            )
+        },
         buttons = {
             TextButton(onClick = {
                 clipboard
@@ -113,16 +121,34 @@ fun LinkInputDialog(
         },
     ) {
         Text(
-            text = stringResource(R.string.import_component_link_prompt, source.label),
+            text = if (source != null) {
+                stringResource(R.string.import_component_link_prompt, source.label)
+            } else {
+                "Dán đoạn tin nhắn hoặc mã chia sẻ mochypl1:… nhận được từ bạn bè để nhập playlist ngay."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (source != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Hỗ trợ dán trực tiếp mã chia sẻ playlist mochypl1:…",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(Modifier.height(16.dp))
         OutlinedTextField(
             value = link,
             onValueChange = { link = it },
             singleLine = true,
-            placeholder = { Text(source.example, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            placeholder = {
+                Text(
+                    text = if (source != null) "${source.example} hoặc mochypl1:…" else "mochypl1:…",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { if (link.isNotBlank()) onSubmit(link.trim()) }),
             modifier =

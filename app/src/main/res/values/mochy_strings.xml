@@ -605,6 +605,7 @@
     <string name="turntable_widget_description">Circular music widget with play and like controls</string>
     <string name="widget_music_player">Music Player</string>
     <string name="widget_turntable">Turntable</string>
+    <string name="widget_unlike">Unlike</string>
 
     <!-- Player Client Settings -->
     <string name="player_client">Player client</string>
@@ -1265,6 +1266,7 @@
     <string name="floating_lyrics_never">Don\'t show again</string>
     <string name="floating_lyrics_turned_off">Floating lyrics are off. You can turn them back on in Settings.</string>
     <string name="floating_lyrics_permission">Let Mochy show over other apps so the lyrics can float</string>
+    <string name="floating_lyrics_window_title">Floating lyrics</string>
     <string name="swipe_action_library">Add or remove from library</string>
     <string name="swipe_action_details">View details</string>
     <string name="menu_ai_translation">AI translation</string>
