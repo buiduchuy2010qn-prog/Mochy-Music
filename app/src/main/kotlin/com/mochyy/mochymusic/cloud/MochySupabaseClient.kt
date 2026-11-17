@@ -121,39 +121,6 @@ object MochySupabaseClient {
             .post(body)
             .build()
 
-        val responseJson = executeAuthRequest(request, isSignUp = true)
-        val session = parseAuthSession(responseJson, fallbackUsername = username, fallbackDisplay = cleanDisplay)
-        ensureProfileRow(context, session, cleanDisplay)
-        session
-    }
-
-    suspend fun signIn(
-        context: Context,
-        rawUsername: String,
-        password: String,
-    ): MochyCloudSession = withContext(Dispatchers.IO) {
-        val username = normalizeUsername(rawUsername)
-        if (!isValidUsername(username)) {
-            throw MochyCloudException("Tên đăng nhập không hợp lệ.")
-        }
-        if (password.isEmpty()) {
-            throw MochyCloudException("Vui lòng nhập mật khẩu.")
-        }
-        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
-            ?: throw MochyCloudException("Bản dựng này chưa cấu hình Mochy Cloud.")
-
-        val body = JSONObject().apply {
-            put("email", syntheticEmail(username))
-            put("password", password)
-        }.toString().toRequestBody(JsonMediaType)
-
-        val request = Request.Builder()
-            .url("$baseUrl/auth/v1/token?grant_type=password")
-            .header("apikey", publishableKey)
-            .header("Accept", "application/json")
-            .post(body)
-            .build()
-
         val responseJson = executeAuthRequest(request, isSignUp = true, isSignIn = false)
         val session = parseAuthSession(responseJson, fallbackUsername = username, fallbackDisplay = cleanDisplay)
         ensureProfileRow(context, session, cleanDisplay)
