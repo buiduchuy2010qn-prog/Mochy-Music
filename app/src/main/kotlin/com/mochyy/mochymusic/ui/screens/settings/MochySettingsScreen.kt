@@ -32,6 +32,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.cloud.showMochyCloudSheet
 import com.mochyy.mochymusic.scrobble.ScrobbleSite
 import com.mochyy.mochymusic.ui.screens.devices.showDeviceIntegration
 import com.mochyy.mochymusic.ui.screens.settings.importsync.YouTubeSyncRoute
@@ -282,18 +284,17 @@ internal val IconBgColor = Color(0xFF333338)
 @Composable
 fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null) {
     val focusManager = LocalFocusManager.current
-    val sheets = com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState.current
+    val zoomOutOverlay = com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState.current
     val devices = com.mochyy.mochymusic.ui.screens.devices.rememberDevicesLink()
     // on a wide screen the list stays put and its pages open beside it; device integration is a sheet over either
     val open: (String) -> Unit = { route ->
         when {
-            route == com.mochyy.mochymusic.ui.screens.devices.DeviceIntegrationRoute -> sheets.showDeviceIntegration(devices)
+            route == com.mochyy.mochymusic.ui.screens.devices.DeviceIntegrationRoute -> zoomOutOverlay.showDeviceIntegration(devices)
             pane != null -> navController.openSettingsPage(route)
             else -> navController.navigate(route)
         }
     }
-    var showCloudSheet by remember { mutableStateOf(false) }
-    val onOpenCloudSheet: () -> Unit = { showCloudSheet = true }
+    val onOpenCloudSheet: () -> Unit = { zoomOutOverlay.showMochyCloudSheet() }
     val selected = pane?.selectedRoute
     val scrollState = rememberScrollState()
     val glassState = remember { GlassState() }
@@ -304,6 +305,12 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
     var isSearchFocused by remember { mutableStateOf(false) }
 
     val isSearching = isSearchFocused || query.text.isNotBlank()
+
+    LaunchedEffect(isSearching) {
+        if (isSearching && scrollState.value > 0) {
+            scrollState.scrollTo(0)
+        }
+    }
 
     BackHandler(enabled = isSearching) {
         query = TextFieldValue()
@@ -351,14 +358,14 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .glassRoot(glassState, isActive = { !scrollState.isScrollInProgress && collapseProgress > 0f }),
+                .glassRoot(glassState, isActive = { collapseProgress > 0.01f }),
         ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
         ) {
-            Spacer(modifier = Modifier.height(searchTopBarHeight(titleBlockHeight = SettingsTitleBlockHeight)))
+            Spacer(modifier = Modifier.height(searchTopBarHeight(titleBlockHeight = SettingsTitleBlockHeight, extra = 6.dp)))
 
             // Search results view when user types
             AnimatedVisibility(
@@ -443,20 +450,22 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         .fillMaxWidth()
                         .graphicsLayer { alpha = contentAlpha }
                 ) {
-                    RecommendedCard(recommendations = recommendations, open = open)
+                    if (recommendations.isNotEmpty()) {
+                        RecommendedCard(recommendations = recommendations, open = open)
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
-                    // Divider
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .height(0.8.dp)
-                            .background(Color.White.copy(alpha = 0.1f))
-                    )
+                        // Divider
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                                .height(0.8.dp)
+                                .background(Color.White.copy(alpha = 0.1f))
+                        )
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
+                    }
 
                     // Separate Bubble Pills for Categories (No outlines, individually bubble-wrapped)
                     Column(
@@ -618,10 +627,6 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                 },
             )
         }
-    }
-
-    if (showCloudSheet) {
-        com.mochyy.mochymusic.cloud.MochyCloudSheet(onDismiss = { showCloudSheet = false })
     }
 }
 

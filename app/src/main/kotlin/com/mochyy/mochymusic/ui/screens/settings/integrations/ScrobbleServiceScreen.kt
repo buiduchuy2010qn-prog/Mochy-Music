@@ -47,10 +47,16 @@ fun ScrobbleServiceScreen(
     val context = LocalContext.current
     val overlay = LocalZoomOutOverlayState.current
     val accounts by viewModel.accounts.collectAsState()
+    val customLastFmCredentials by viewModel.customLastFmCredentials.collectAsState()
     val pending by viewModel.pending.collectAsState()
     val sendResult by viewModel.sendResult.collectAsState()
     val (nowPlaying, onNowPlayingChange) = rememberPreference(LastFMUseNowPlaying, defaultValue = true)
     val (sendLikes, onSendLikesChange) = rememberPreference(LastFMUseSendLikes, defaultValue = false)
+    val isSignedIn = accounts[site] != null
+    val hasCustomCredentials =
+        site == ScrobbleSite.LASTFM &&
+            customLastFmCredentials.first.isNotBlank() &&
+            customLastFmCredentials.second.isNotBlank()
 
     LaunchedEffect(sendResult) {
         sendResult?.let {
@@ -82,6 +88,7 @@ fun ScrobbleServiceScreen(
         ScrobbleAccountGroup(
             site = site,
             username = accounts[site],
+            hasCustomCredentials = hasCustomCredentials,
             onSignIn = ::signIn,
             onSignOut = { viewModel.signOut(site) },
         )
@@ -101,8 +108,15 @@ fun ScrobbleServiceScreen(
                     descriptionText = stringResource(R.string.scrobble_now_playing_desc),
                     icon = painterResource(R.drawable.music_note),
                     iconShape = CircleShape,
+                    enabled = isSignedIn,
                     onClick = { onNowPlayingChange(!nowPlaying) },
-                    trailingContent = { AppSwitch(checked = nowPlaying, onCheckedChange = onNowPlayingChange) },
+                    trailingContent = {
+                        AppSwitch(
+                            checked = nowPlaying,
+                            onCheckedChange = onNowPlayingChange,
+                            enabled = isSignedIn,
+                        )
+                    },
                 ),
                 SettingsItem(
                     title = { Text(sendLikesTitle) },
@@ -111,8 +125,15 @@ fun ScrobbleServiceScreen(
                     descriptionText = stringResource(R.string.scrobble_send_likes_desc),
                     icon = painterResource(R.drawable.favorite),
                     iconShape = CircleShape,
+                    enabled = isSignedIn,
                     onClick = { onSendLikesChange(!sendLikes) },
-                    trailingContent = { AppSwitch(checked = sendLikes, onCheckedChange = onSendLikesChange) },
+                    trailingContent = {
+                        AppSwitch(
+                            checked = sendLikes,
+                            onCheckedChange = onSendLikesChange,
+                            enabled = isSignedIn,
+                        )
+                    },
                 ),
                 if (pending > 0) {
                     val waiting = pluralStringResource(R.plurals.scrobble_plays_waiting, pending, pending)
@@ -136,22 +157,26 @@ fun ScrobbleServiceScreen(
 private fun ScrobbleAccountGroup(
     site: ScrobbleSite,
     username: String?,
+    hasCustomCredentials: Boolean,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     val (enabled, onEnabledChange) = rememberPreference(site.enabledKey, defaultValue = true)
     val uriHandler = LocalUriHandler.current
     val items = if (username == null) {
+        val descriptionRes = when {
+            site.api.isConfigured || hasCustomCredentials -> R.string.scrobble_sign_in_desc
+            site == ScrobbleSite.LASTFM -> R.string.scrobble_sign_in_custom_desc
+            else -> R.string.scrobble_not_set_up
+        }
         listOf(
             SettingsItem(
                 title = { Text(stringResource(R.string.scrobble_sign_in_title, site.label)) },
                 highlightKey = site.label,
-                descriptionText = stringResource(
-                    if (site.api.isConfigured) R.string.scrobble_sign_in_desc else R.string.scrobble_not_set_up,
-                ),
+                descriptionText = stringResource(descriptionRes),
                 icon = painterResource(R.drawable.login),
                 iconShape = CircleShape,
-                enabled = site.api.isConfigured,
+                enabled = true,
                 onClick = onSignIn,
             ),
         )

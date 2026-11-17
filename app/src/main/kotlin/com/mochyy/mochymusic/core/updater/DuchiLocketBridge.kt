@@ -38,6 +38,8 @@ private const val ConnectTimeoutMs = 12_000
 private const val ReadTimeoutMs = 30_000
 private const val MaxRedirects = 6
 private const val ApkCacheFileName = "duchi_locket_update.apk"
+private const val LocketApkMaxAgeMs = 24L * 60L * 60L * 1000L
+private const val LocketTempApkMaxAgeMs = 60L * 60L * 1000L
 
 data class DuchiLocketManifest(
     val packageName: String,
@@ -181,6 +183,7 @@ suspend fun checkDuchiLocketOta(
     val now = System.currentTimeMillis()
     val cached = if (!force && now - cachedManifestAtMs < ManifestCacheTtlMs) cachedManifest else null
     val manifest = cached ?: fetchDuchiLocketManifest().getOrElse { err ->
+        cleanupOldLocketApk(context, installed, null)
         return@withContext DuchiLocketOtaState.Offline(
             installed = installed,
             errorMessage = err.message ?: "Không kiểm tra được kênh OTA Duchi Locket.",
@@ -189,6 +192,7 @@ suspend fun checkDuchiLocketOta(
 
     cachedManifest = manifest
     cachedManifestAtMs = System.currentTimeMillis()
+    cleanupOldLocketApk(context, installed, manifest)
 
     val updateAvailable = installed != null && isLocketUpdateAvailable(installed, manifest)
     DuchiLocketOtaState.Ready(
@@ -196,6 +200,40 @@ suspend fun checkDuchiLocketOta(
         manifest = manifest,
         updateAvailable = updateAvailable,
     )
+}
+
+/**
+ * Deletes cached `duchi_locket_update.apk` when Duchi Locket is already at or above the manifest
+ * versionCode or when the cached APK is older than 24 hours.
+ */
+fun cleanupOldLocketApk(
+    context: Context,
+    installed: InstalledLocketInfo? = null,
+    manifest: DuchiLocketManifest? = null,
+) {
+    runCatching {
+        val now = System.currentTimeMillis()
+        val tempFile = File(context.cacheDir, "$ApkCacheFileName.tmp")
+        if (tempFile.exists()) {
+            val modified = tempFile.lastModified()
+            if (modified <= 0L || now - modified >= LocketTempApkMaxAgeMs) {
+                tempFile.delete()
+            }
+        }
+        val apkFile = File(context.cacheDir, ApkCacheFileName)
+        if (!apkFile.exists()) return
+        val currentInstalled = installed ?: getInstalledLocketInfo(context)
+        val currentManifest = manifest ?: cachedManifest
+        val alreadyInstalled = currentInstalled != null && currentManifest != null && (
+            (currentManifest.versionCode > 0L && currentInstalled.versionCode >= currentManifest.versionCode) ||
+                !isLocketUpdateAvailable(currentInstalled, currentManifest)
+            )
+        val modified = apkFile.lastModified()
+        val expired = modified <= 0L || now - modified >= LocketApkMaxAgeMs
+        if (alreadyInstalled || expired) {
+            apkFile.delete()
+        }
+    }
 }
 
 suspend fun downloadDuchiLocketApk(

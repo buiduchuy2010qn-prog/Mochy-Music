@@ -5,9 +5,11 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.PlayerMenuSlotsKey
 import com.mochyy.mochymusic.constants.PlayerSideButtonKey
+import com.mochyy.mochymusic.core.updater.getInstalledLocketInfo
 import com.mochyy.mochymusic.utils.rememberPreference
 
 /**
@@ -87,9 +89,39 @@ class PlayerMenuLayout(
 
 @Composable
 fun rememberPlayerMenuLayout(): PlayerMenuLayout {
+    val context = LocalContext.current
+    val locketInstalled = remember(context) { getInstalledLocketInfo(context) != null }
     val (slotsStored, onSlots) = rememberPreference(PlayerMenuSlotsKey, defaultValue = "")
     val (sideStored, onSide) = rememberPreference(PlayerSideButtonKey, defaultValue = "")
-    val slots = remember(slotsStored) { PlayerMenuAction.parseSlots(slotsStored) }
-    val side = remember(sideStored) { PlayerMenuAction.parseSide(sideStored) }
+    val rawSlots = remember(slotsStored) { PlayerMenuAction.parseSlots(slotsStored) }
+    val rawSide = remember(sideStored) { PlayerMenuAction.parseSide(sideStored) }
+    val side = remember(rawSide, locketInstalled) {
+        if (!locketInstalled && rawSide == PlayerMenuAction.DUCHI_LOCKET) {
+            PlayerMenuAction.DefaultSide
+        } else {
+            rawSide
+        }
+    }
+    val slots = remember(rawSlots, side, locketInstalled) {
+        if (locketInstalled || PlayerMenuAction.DUCHI_LOCKET !in rawSlots) {
+            rawSlots
+        } else {
+            val fallbackPool = PlayerMenuAction.DefaultSlots + listOf(
+                PlayerMenuAction.SHARE,
+                PlayerMenuAction.LYRICS,
+                PlayerMenuAction.QUEUE,
+            )
+            val used = (rawSlots.filter { it != PlayerMenuAction.DUCHI_LOCKET } + side).toMutableSet()
+            rawSlots.map { action ->
+                if (action != PlayerMenuAction.DUCHI_LOCKET) {
+                    action
+                } else {
+                    val replacement = fallbackPool.firstOrNull { it !in used } ?: PlayerMenuAction.SHARE
+                    used += replacement
+                    replacement
+                }
+            }
+        }
+    }
     return remember(slots, side, onSlots, onSide) { PlayerMenuLayout(slots, side, onSlots, onSide) }
 }

@@ -155,7 +155,7 @@ private suspend fun checkUpdate(channel: UpdateChannel, force: Boolean): UpdateS
                 else -> UpdateState.UpToDate
             }
         },
-        onFailure = { UpdateState.Failed(it.message ?: "Couldn't reach GitHub") },
+        onFailure = { UpdateState.Failed(it.message ?: "Không thể kết nối GitHub") },
     )
 
 /** shows the app version sheet as a PopupSheet, see docs/popup-sheet.skill.md */
@@ -197,7 +197,7 @@ internal fun SheetPrimaryButton(text: String, onClick: () -> Unit) {
 }
 
 private val StableGreen = Color(0xFF9CF58A)
-private const val StableLabel = "STABLE"
+private const val StableLabel = "ỔN ĐỊNH"
 
 /** "8.1.0 build#1165" -> "8.1.0", "8.0.2 (1100)" -> "8.0.2" */
 internal fun shortVersion(version: String): String = version.substringBefore(' ')
@@ -294,13 +294,6 @@ private fun ColumnScope.UpdateSheetContent(
             DuchiLocketEcosystemCard()
 
             val (userName) = rememberPreference(UsernameKey, "")
-            var showWhatsNew by remember { mutableStateOf(false) }
-            if (showWhatsNew) {
-                WhatsNewPromptSheet(
-                    userName = userName,
-                    onDismiss = { showWhatsNew = false },
-                )
-            }
 
             Spacer(Modifier.height(22.dp))
             Text(stringResource(R.string.update_actions), fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
@@ -317,7 +310,7 @@ private fun ColumnScope.UpdateSheetContent(
                 ActionRow(
                     icon = R.drawable.update,
                     label = "Có gì mới trên bản này",
-                    onClick = { showWhatsNew = true },
+                    onClick = { popup.showWhatsNewSheet(userName = userName) },
                 )
                 AnimatedVisibility(
                     visible = previous != null,
@@ -377,7 +370,7 @@ private fun ChannelBadge(latestRelease: GithubRelease?) {
     val aheadOfReleases = latestRelease != null &&
         parseFullVersion(latestRelease.version).copy(buildNumber = 0) < parseFullVersion(BuildConfig.VERSION_NAME).copy(buildNumber = 0)
     val label = when {
-        installedIsNightly -> "NIGHTLY"
+        installedIsNightly -> "THỬ NGHIỆM"
         aheadOfReleases -> "BETA"
         else -> StableLabel
     }

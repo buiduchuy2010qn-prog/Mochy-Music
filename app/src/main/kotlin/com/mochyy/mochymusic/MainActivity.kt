@@ -286,6 +286,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var syncUtils: SyncUtils
 
+    @Inject
+    lateinit var musicImportService: com.mochyy.mochymusic.importer.MusicImportService
+
     // made only when first used, so a phone with nothing paired never builds it on the way in
     @Inject
     lateinit var phoneLink: dagger.Lazy<com.mochyy.mochymusic.link.phone.PhoneLinkHost>
@@ -424,6 +427,12 @@ class MainActivity : ComponentActivity() {
         com.mochyy.mochymusic.utils.AppIcons.syncSplash(this)
         com.mochyy.mochymusic.utils.CustomAppBranding.ensureInit(applicationContext)
         com.mochyy.mochymusic.utils.CustomAppBranding.syncTaskDescription(this)
+        if (savedInstanceState == null) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                com.mochyy.mochymusic.core.updater.cleanupInstalledOtaApks(applicationContext)
+                com.mochyy.mochymusic.core.updater.cleanupOldLocketApk(applicationContext)
+            }
+        }
         lifecycleScope.launch {
             com.mochyy.mochymusic.utils.CustomAppBranding.state.collectLatest {
                 com.mochyy.mochymusic.utils.CustomAppBranding.syncTaskDescription(this@MainActivity)
@@ -1612,10 +1621,26 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (importSharedAudio(intent)) return
-        val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
+        val rawSharedText = intent.extras?.getString(Intent.EXTRA_TEXT)
+        val rawUrl = intent.dataString?.takeIf { it.isNotBlank() }
+            ?: com.mochyy.mochymusic.importer.LinkImporter.extractUrl(rawSharedText.orEmpty())
+            ?: return
+        val uri = intent.data ?: rawUrl.toUri()
         intent.data = null
         intent.removeExtra(Intent.EXTRA_TEXT)
         val coroutineScope = lifecycle.coroutineScope
+
+        val host = uri.host?.lowercase().orEmpty()
+        val scheme = uri.scheme?.lowercase().orEmpty()
+        val isYouTube = scheme.startsWith("vnd.youtube") ||
+            host == "youtu.be" ||
+            host == "youtube.com" ||
+            host.endsWith(".youtube.com")
+
+        if (!isYouTube) {
+            handleSharedMusicLink(rawUrl, navController)
+            return
+        }
 
         when (val path = uri.pathSegments.firstOrNull()) {
             "playlist" -> uri.getQueryParameter("list")?.let { playlistId ->
@@ -1687,6 +1712,124 @@ class MainActivity : ComponentActivity() {
                         }.onFailure {
                             reportException(it)
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun awaitPlayerConnection(timeoutMs: Long = 8_000L): PlayerConnection? {
+        playerConnection?.let { return it }
+        val deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs
+        while (playerConnection == null && android.os.SystemClock.elapsedRealtime() < deadline) {
+            delay(100L)
+        }
+        return playerConnection
+    }
+
+    private fun handleSharedMusicLink(rawUrl: String, navController: NavHostController) {
+        val canHandle = com.mochyy.mochymusic.importer.LinkImporter.detect(rawUrl) != null ||
+            com.mochyy.mochymusic.importer.LinkImporter.isShortLink(rawUrl)
+        if (!canHandle) return
+
+        lifecycle.coroutineScope.launch(Dispatchers.IO) {
+            val resolvedUrl = try {
+                com.mochyy.mochymusic.importer.LinkImporter.resolveShareLink(rawUrl)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportException(e)
+                rawUrl
+            }
+
+            if (com.mochyy.mochymusic.importer.LinkImporter.isSingleTrackUrl(resolvedUrl)) {
+                val trackInfo = try {
+                    com.mochyy.mochymusic.importer.LinkImporter.resolveSharedTrack(resolvedUrl)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    reportException(e)
+                    null
+                }
+                val query = trackInfo?.query?.takeIf { it.isNotBlank() }
+                if (query == null) {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            applicationContext,
+                            "Không đọc được thông tin bài hát từ liên kết chia sẻ.",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                val topSong = YouTube.search(query, YouTube.SearchFilter.FILTER_SONG)
+                    .getOrNull()?.items?.filterIsInstance<SongItem>()?.firstOrNull()
+                    ?: YouTube.search(query, YouTube.SearchFilter.FILTER_VIDEO)
+                        .getOrNull()?.items?.filterIsInstance<SongItem>()?.firstOrNull()
+
+                if (topSong == null) {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            applicationContext,
+                            "Không tìm thấy bài hát phù hợp cho \"$query\".",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                val conn = awaitPlayerConnection()
+                withContext(Dispatchers.Main) {
+                    conn?.playQueue(
+                        YouTubeQueue(
+                            WatchEndpoint(videoId = topSong.id),
+                            topSong.toMediaMetadata(),
+                        ),
+                    )
+                    android.widget.Toast.makeText(
+                        applicationContext,
+                        if (conn != null) "Đang phát: ${topSong.title}" else "Không thể kết nối trình phát nhạc.",
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                return@launch
+            }
+
+            if (com.mochyy.mochymusic.importer.LinkImporter.detect(resolvedUrl) != null) {
+                try {
+                    val parsed = com.mochyy.mochymusic.importer.LinkImporter.fetch(resolvedUrl)
+                    val started = musicImportService.startImport(parsed)
+                    withContext(Dispatchers.Main) {
+                        if (started) {
+                            android.widget.Toast.makeText(
+                                applicationContext,
+                                "Đang nhập playlist từ chia sẻ…",
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                            if (navController.currentDestination?.route != "setup") {
+                                navController.navigate(com.mochyy.mochymusic.ui.screens.settings.importsync.ImportProgressRoute) {
+                                    launchSingleTop = true
+                                }
+                            }
+                        } else {
+                            android.widget.Toast.makeText(
+                                applicationContext,
+                                "Đang có tiến trình nhập khác đang chạy.",
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    reportException(e)
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            applicationContext,
+                            e.message ?: "Không đọc được playlist từ liên kết chia sẻ.",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
                     }
                 }
             }

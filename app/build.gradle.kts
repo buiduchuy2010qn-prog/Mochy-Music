@@ -27,7 +27,7 @@ extensions.configure<ApplicationExtension> {
     val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
     val versionStep = (ciRunNumber - 10).coerceAtLeast(0)
     val tenths = 83 + versionStep
-    val fallbackSemver = if (versionStep == 0) "11.1.0" else "${tenths / 10}.${tenths % 10}.0"
+    val fallbackSemver = if (versionStep == 0) "11.2.0" else "${tenths / 10}.${tenths % 10}.0"
     val propVer = (project.findProperty("mochyAppVersion") as? String)?.takeIf { it.isNotBlank() }
     val propBuild = (project.findProperty("mochyBuildNumber") as? String)?.toIntOrNull()
     val computedSemver = propVer ?: System.getenv("MOCHY_APP_VERSION")?.takeIf { it.isNotBlank() } ?: fallbackSemver

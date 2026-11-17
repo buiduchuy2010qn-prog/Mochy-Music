@@ -714,6 +714,48 @@ suspend fun downloadApk(
 fun apkFileFor(context: Context, release: GithubRelease): File =
     File(context.cacheDir, release.apkName ?: "mochy-update.apk")
 
+private const val StaleOtaPartMillis = 60L * 60L * 1000L
+
+/**
+ * Removes already-installed or obsolete OTA APKs (`<= installedVersion`) and stale `.apk.part`
+ * files older than 1 hour from [Context.getCacheDir], while preserving any newer downloaded APK
+ * waiting to be installed.
+ */
+fun cleanupInstalledOtaApks(context: Context) {
+    runCatching {
+        val cacheDir = context.cacheDir ?: return
+        val files = cacheDir.listFiles() ?: return
+        val now = System.currentTimeMillis()
+        for (file in files) {
+            if (!file.isFile) continue
+            val name = file.name
+            if (name.startsWith("duchi_locket", ignoreCase = true)) continue
+            val lower = name.lowercase()
+            val modified = file.lastModified()
+            val isStale = modified <= 0L || (now - modified) >= StaleOtaPartMillis
+            when {
+                lower.endsWith(".apk.part") -> {
+                    val parsed = parseFullVersion(name)
+                    if (isStale || (parsed.major > 0 && !isNewerThanInstalled(name))) {
+                        file.delete()
+                    }
+                }
+                lower.endsWith(".apk") -> {
+                    val parsed = parseFullVersion(name)
+                    val shouldDelete = if (parsed.major > 0) {
+                        !isNewerThanInstalled(name)
+                    } else {
+                        isStale
+                    }
+                    if (shouldDelete) {
+                        file.delete()
+                    }
+                }
+            }
+        }
+    }
+}
+
 fun isDownloaded(context: Context, release: GithubRelease): Boolean {
     val f = apkFileFor(context, release)
     if (!f.exists() || f.length() < 5_000_000L) return false

@@ -28,6 +28,8 @@ enum class ImportSource(val key: String, val label: String) {
     YOUTUBE_MUSIC("youtube_music", "YouTube Music"),
     DEEZER("deezer", "Deezer"),
     SOUNDCLOUD("soundcloud", "SoundCloud"),
+    ZING_MP3("zing_mp3", "Zing MP3"),
+    NHACCUATUI("nhaccuatui", "NhacCuaTui"),
 
     /** a file or a service with no name of its own (a tunemymusic csv, a mochy backup) */
     OTHER("other", "other sources");

@@ -1,11 +1,14 @@
 package com.mochyy.mochymusic.ui.screens.update
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +16,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,16 +26,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -43,15 +50,57 @@ import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.core.updater.GithubRelease
+import com.mochyy.mochymusic.core.updater.apkFileFor
 import com.mochyy.mochymusic.core.updater.downloadApk
 import com.mochyy.mochymusic.core.updater.formatBytes
 import com.mochyy.mochymusic.core.updater.installApk
+import com.mochyy.mochymusic.core.updater.isDownloaded
+import com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState
+import com.mochyy.mochymusic.ui.component.PopupSheetHandle
+import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
-import com.mochyy.mochymusic.ui.player.menu.MenuSheetSurface
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.launch
+import java.io.File
 
-private val CardSurface = MenuRowSurface
+@Stable
+private class UpdatePromptController {
+    var downloading by mutableStateOf(false)
+    var error by mutableStateOf<String?>(null)
+    var progress by mutableFloatStateOf(0f)
+    var readyToInstall by mutableStateOf(false)
+    var needsPermission by mutableStateOf(false)
+    var handle: PopupSheetHandle? = null
+}
+
+fun PopupSheetState.showUpdatePromptSheet(
+    release: GithubRelease,
+    userName: String,
+    onSnooze: () -> Unit,
+    onClosed: (() -> Unit)? = null,
+): PopupSheetHandle {
+    val controller = UpdatePromptController()
+    val handle = showWithHandle(
+        buttonBar = {
+            UpdatePromptButtons(
+                controller = controller,
+                release = release,
+                onSnooze = onSnooze,
+            )
+        },
+        onClosed = onClosed,
+    ) {
+        UpdatePromptContent(
+            controller = controller,
+            release = release,
+            userName = userName,
+        )
+    }
+    controller.handle = handle
+    return handle
+}
 
 @Composable
 fun UpdatePromptSheet(
@@ -59,245 +108,354 @@ fun UpdatePromptSheet(
     userName: String,
     onSnooze: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-    onReveal: ((Float) -> Unit)? = null,
+    @Suppress("UNUSED_PARAMETER") modifier: Modifier = Modifier,
+    @Suppress("UNUSED_PARAMETER") onReveal: ((Float) -> Unit)? = null,
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val overlay = LocalZoomOutOverlayState.current
+    val currentOnSnooze by rememberUpdatedState(onSnooze)
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
 
-    var downloading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    val progress = remember { mutableFloatStateOf(0f) }
-
-    var readyToInstall by remember(release.apkName) {
-        mutableStateOf(com.mochyy.mochymusic.core.updater.isDownloaded(context, release))
-    }
-
-    var needsPermission by remember { mutableStateOf(false) }
-
-    val startInstall: (java.io.File) -> Unit = { file ->
-        if (installApk(context, file)) {
-            needsPermission = false
-        } else {
-            needsPermission = true
-            readyToInstall = true
-            error = "Hãy cấp quyền \"Cài đặt ứng dụng không xác định\" cho Mochy, rồi chạm Cài đặt ngay."
-        }
-    }
-
-    MenuSheetSurface(
-        onDismiss = onDismiss,
-        modifier = modifier,
-        wrapHeight = true,
-        fullDetent = 0.92f,
-        dismissEnabled = !downloading,
-        revealProvider = onReveal,
-    ) { _ ->
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(top = 12.dp, bottom = 24.dp)
-                .animateContentSize()
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(CircleShape)
-                    .background(CardSurface)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_mochy_mark),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(52.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = if (userName.isBlank()) "Đã có bản cập nhật mới!" else "Đã có bản cập nhật mới, $userName!",
-                color = Color.White,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardSurface)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "Thay đổi trên ${shortVersion(release.version)}",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                ChangelogMarkdown(markdown = release.body)
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = "Gói cài đặt —",
-                color = Color(0xFF8A8A8A),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardSurface)
-                    .padding(14.dp)
-            ) {
-                AppIconImage(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = release.apkName ?: "mochy.apk",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = "${BuildConfig.APPLICATION_ID} · ${formatBytes(release.apkSizeBytes)}",
-                        color = Color(0xFF9A9A9A),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            error?.let {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(text = it, color = Color(0xFFE0736B), fontSize = 12.sp)
-            }
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            val animatedProgress by animateFloatAsState(
-                targetValue = progress.floatValue,
-                animationSpec = tween(durationMillis = 120),
-                label = "promptDownloadProgress",
-            )
-            PromptButton(
-                enabled = !downloading && release.apkUrl != null,
-                progress = animatedProgress,
-                label = when {
-                    downloading -> "Đang tải… ${(animatedProgress * 100).toInt()}%"
-                    release.apkUrl == null -> "Không có tệp APK trong bản phát hành này"
-                    needsPermission -> "Cài đặt ngay"
-                    readyToInstall -> "Cài đặt ngay"
-                    else -> "Cài đặt ngay"
-                },
-                dimmed = release.apkUrl == null,
-                onClick = {
-                    error = null
-                    val existing = com.mochyy.mochymusic.core.updater.apkFileFor(context, release)
-                    if (com.mochyy.mochymusic.core.updater.isDownloaded(context, release)) {
-                        startInstall(existing)
-                    } else {
-                        downloading = true
-                        progress.floatValue = 0f
-                        scope.launch {
-                            val result = downloadApk(context, release) { progress.floatValue = it }
-                            downloading = false
-                            result.fold(
-                                onSuccess = { startInstall(it) },
-                                onFailure = { error = it.message ?: "Tải xuống thất bại" },
-                            )
-                        }
-                    }
-                },
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            PromptButton(
-                enabled = !downloading,
-                label = "Mở trang phát hành",
-                dimmed = downloading,
-                onClick = { context.openReleaseUrl(release.htmlUrl) },
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            PromptButton(
-                enabled = !downloading,
-                label = "Để sau, nhắc lại sau 6 giờ",
-                dimmed = downloading,
-                onClick = onSnooze,
-            )
+    DisposableEffect(overlay, release.tag, release.version) {
+        var disposed = false
+        var snoozed = false
+        val handle = overlay.showUpdatePromptSheet(
+            release = release,
+            userName = userName,
+            onSnooze = {
+                snoozed = true
+                currentOnSnooze()
+            },
+            onClosed = {
+                if (!disposed && !snoozed) currentOnDismiss()
+            },
+        )
+        onDispose {
+            disposed = true
+            handle.dismiss()
         }
     }
 }
 
 @Composable
-private fun PromptButton(
-    label: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    dimmed: Boolean = false,
-    progress: Float = 0f,
+private fun UpdatePromptContent(
+    controller: UpdatePromptController,
+    release: GithubRelease,
+    userName: String,
 ) {
-    Box(
-        contentAlignment = Alignment.Center,
+    val context = LocalContext.current
+
+    LaunchedEffect(release.apkName) {
+        controller.readyToInstall = isDownloaded(context, release)
+    }
+
+    LaunchedEffect(controller.downloading) {
+        controller.handle?.setLocked(controller.downloading)
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardSurface)
-            .clickable(
-                enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = RemoteFocus,
-                onClick = onClick,
-            )
-            .padding(vertical = 14.dp)
+            .verticalScroll(rememberScrollState())
+            .animateContentSize(),
     ) {
-        if (progress > 0f && progress < 1f) {
-            Box(
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(76.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(MenuRowSurface),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_mochy_mark),
+                contentDescription = null,
+                tint = Color.White,
                 modifier = Modifier
-                    .matchParentSize()
-                    .fillMaxHeight()
-                    .fillMaxWidth(fraction = progress)
-                    .background(Color(0xFF444444))
+                    .padding(start = 2.dp)
+                    .size(38.dp),
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
-            text = label,
-            color = Color.White.copy(alpha = if (dimmed) 0.5f else 1f),
-            fontSize = 14.sp,
+            text = if (userName.isBlank()) {
+                "Đã có bản cập nhật mới!"
+            } else {
+                "Đã có bản cập nhật mới, $userName!"
+            },
+            fontFamily = InterFontFamily,
+            color = Color.White,
+            fontSize = 22.sp,
+            lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.6).sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(MenuRowSurface)
+                .padding(16.dp),
+        ) {
+            Text(
+                text = "Thay đổi trên ${shortVersion(release.version)}",
+                fontFamily = InterFontFamily,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.4).sp,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            ChangelogMarkdown(markdown = release.body)
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        Text(
+            text = "Gói cài đặt —",
+            fontFamily = InterFontFamily,
+            color = Color(0xFF8A8A8A),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(MenuRowSurface)
+                .padding(14.dp),
+        ) {
+            AppIconImage(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = release.apkName ?: "mochy.apk",
+                    fontFamily = InterFontFamily,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${BuildConfig.APPLICATION_ID} · ${formatBytes(release.apkSizeBytes)}",
+                    fontFamily = InterFontFamily,
+                    color = Color(0xFF9A9A9A),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        controller.error?.let { err ->
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = err,
+                fontFamily = InterFontFamily,
+                color = Color(0xFFE0736B),
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+    }
+}
+
+@Composable
+private fun UpdatePromptButtons(
+    controller: UpdatePromptController,
+    release: GithubRelease,
+    onSnooze: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val startInstall: (File) -> Unit = { file ->
+        if (installApk(context, file)) {
+            controller.needsPermission = false
+        } else {
+            controller.needsPermission = true
+            controller.readyToInstall = true
+            controller.error = "Hãy cấp quyền \"Cài đặt ứng dụng không xác định\" cho Mochy, rồi chạm Cài đặt ngay."
+        }
+    }
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = controller.progress,
+        animationSpec = tween(durationMillis = 120),
+        label = "promptDownloadProgress",
+    )
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        val primaryEnabled = !controller.downloading && release.apkUrl != null
+        val primaryInteraction = remember { MutableInteractionSource() }
+        val primaryLabel = when {
+            controller.downloading -> "Đang tải… ${(animatedProgress * 100).toInt()}%"
+            release.apkUrl == null -> "Không có tệp APK trong bản phát hành này"
+            controller.needsPermission -> "Cài đặt ngay"
+            controller.readyToInstall -> "Cài đặt ngay"
+            else -> "Cài đặt ngay"
+        }
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .pressBounce(primaryInteraction, pressedScale = 0.97f)
+                .fillMaxWidth()
+                .height(50.dp)
+                .graphicsLayer {
+                    alpha = if (release.apkUrl == null) 0.45f else 1f
+                }
+                .clip(CircleShape)
+                .background(
+                    if (controller.downloading) {
+                        Color.White.copy(alpha = 0.18f)
+                    } else {
+                        Color.White
+                    },
+                )
+                .clickable(
+                    enabled = primaryEnabled,
+                    interactionSource = primaryInteraction,
+                    indication = RemoteFocus,
+                    onClick = {
+                        controller.error = null
+                        val existing = apkFileFor(context, release)
+                        if (isDownloaded(context, release)) {
+                            startInstall(existing)
+                        } else {
+                            controller.downloading = true
+                            controller.handle?.setLocked(true)
+                            controller.progress = 0f
+                            scope.launch {
+                                try {
+                                    val result = downloadApk(context, release) { controller.progress = it }
+                                    result.fold(
+                                        onSuccess = { startInstall(it) },
+                                        onFailure = {
+                                            controller.error = it.message ?: "Tải xuống thất bại"
+                                        },
+                                    )
+                                } finally {
+                                    controller.downloading = false
+                                    controller.handle?.setLocked(false)
+                                }
+                            }
+                        }
+                    },
+                ),
+        ) {
+            if (controller.downloading && animatedProgress > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxHeight()
+                        .fillMaxWidth(fraction = animatedProgress.coerceIn(0f, 1f))
+                        .background(Color.White.copy(alpha = 0.28f)),
+                )
+            }
+            Text(
+                text = primaryLabel,
+                fontFamily = InterFontFamily,
+                color = if (controller.downloading) Color.White else Color(0xFF111113),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.3).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+
+        val secondaryInteraction = remember { MutableInteractionSource() }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .pressBounce(secondaryInteraction, pressedScale = 0.97f)
+                .fillMaxWidth()
+                .height(44.dp)
+                .graphicsLayer { alpha = if (controller.downloading) 0.45f else 1f }
+                .clip(CircleShape)
+                .background(MenuRowSurface)
+                .clickable(
+                    enabled = !controller.downloading,
+                    interactionSource = secondaryInteraction,
+                    indication = RemoteFocus,
+                    onClick = { context.openReleaseUrl(release.htmlUrl) },
+                ),
+        ) {
+            Text(
+                text = "Mở trang phát hành",
+                fontFamily = InterFontFamily,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.2).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+
+        val snoozeInteraction = remember { MutableInteractionSource() }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .pressBounce(snoozeInteraction, pressedScale = 0.97f)
+                .fillMaxWidth()
+                .height(42.dp)
+                .graphicsLayer { alpha = if (controller.downloading) 0.35f else 1f }
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f))
+                .clickable(
+                    enabled = !controller.downloading,
+                    interactionSource = snoozeInteraction,
+                    indication = RemoteFocus,
+                    onClick = {
+                        onSnooze()
+                        controller.handle?.dismiss()
+                    },
+                ),
+        ) {
+            Text(
+                text = "Nhắc lại sau 24 giờ",
+                fontFamily = InterFontFamily,
+                color = Color.White.copy(alpha = 0.65f),
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.2).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
     }
 }
 
 private fun android.content.Context.openReleaseUrl(url: String) {
     runCatching {
         startActivity(
-            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }
 }

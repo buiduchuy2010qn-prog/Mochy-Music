@@ -3,18 +3,25 @@ package com.mochyy.mochymusic.cloud
 import android.content.Context
 import android.net.Uri
 import androidx.datastore.preferences.core.edit
+import com.mochyy.mochymusic.constants.AudioNormalizationKey
+import com.mochyy.mochymusic.constants.AudioQualityKey
 import com.mochyy.mochymusic.constants.ProfileCardNumberKey
 import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
 import com.mochyy.mochymusic.constants.ProfilePicUriKey
 import com.mochyy.mochymusic.constants.UsernameKey
 import com.mochyy.mochymusic.db.MusicDatabase
+import com.mochyy.mochymusic.db.entities.AlbumArtistMap
+import com.mochyy.mochymusic.db.entities.AlbumEntity
 import com.mochyy.mochymusic.db.entities.ArtistEntity
 import com.mochyy.mochymusic.db.entities.Event
 import com.mochyy.mochymusic.db.entities.PlaylistEntity
 import com.mochyy.mochymusic.db.entities.PlaylistSongMap
 import com.mochyy.mochymusic.db.entities.SongArtistMap
 import com.mochyy.mochymusic.db.entities.SongEntity
+import com.mochyy.mochymusic.di.AudioLabEntryPoint
 import com.mochyy.mochymusic.di.CloudSyncEntryPoint
+import com.mochyy.mochymusic.eq.AudioLabStore
+import com.mochyy.mochymusic.eq.EqSettings
 import com.mochyy.mochymusic.ui.screens.profile.ProfileStore
 import com.mochyy.mochymusic.utils.dataStore
 import dagger.hilt.android.EntryPointAccessors
@@ -34,7 +41,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.io.File
+import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -52,6 +61,8 @@ data class MochyCloudState(
     val avatarLocalPath: String? = null,
     val favoritesCount: Int = 0,
     val playlistsCount: Int = 0,
+    val albumsCount: Int = 0,
+    val artistsCount: Int = 0,
     val historyCount: Int = 0,
     val syncing: Boolean = false,
     val lastSyncEpochMs: Long = 0L,
@@ -61,18 +72,26 @@ data class MochyCloudState(
 /**
  * Điều phối Mochy Cloud gọn nhẹ:
  * - Đồng bộ hai chiều Yêu thích (`mochy_favorites`), Playlist cá nhân (`user_metadata.playlists_gz`),
- *   Lịch sử nghe (`mochy_history`), Thẻ ID bạc 3D (`user_metadata`) & Ảnh đại diện WebP (`<= 24 KB`).
+ *   Album đã lưu, Nghệ sĩ theo dõi & Equalizer (`user_metadata.library_extra_gz`),
+ *   Lịch sử nghe (`mochy_history`), Thẻ ID (`user_metadata`) & Ảnh đại diện WebP.
  * - Hàng đợi gộp lịch sử nghe (debounce 45s hoặc đủ 10 bài, lưu bền vững chống mất dữ liệu).
  */
 object MochyCloudSyncManager {
 
     private const val HistoryBatchFlushCount = 10
     private const val HistoryBatchDebounceMs = 45_000L
+    private const val MaxCloudExtraItems = 200
+
+    private val audioLabJson = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     private val _state = MutableStateFlow(MochyCloudState())
     val state: StateFlow<MochyCloudState> = _state.asStateFlow()
 
     private val syncMutex = Mutex()
+    private val sessionRefreshMutex = Mutex()
     private val historyFlushMutex = Mutex()
     private val historyPlayCountCache = ConcurrentHashMap<String, Pair<Long, Long>>()
     private val pendingHistoryMap = ConcurrentHashMap<String, CloudHistoryRecord>()
@@ -83,6 +102,12 @@ object MochyCloudSyncManager {
     private var historyFlushJob: Job? = null
     private var favoriteToggleSyncJob: Job? = null
     private var suppressObserverUntilMs: Long = 0L
+
+    @Volatile
+    private var lastSessionFailureReason: String? = null
+
+    @Volatile
+    private var lastSessionExpired: Boolean = false
 
     fun start(context: Context, scope: CoroutineScope) {
         val app = context.applicationContext
@@ -106,7 +131,12 @@ object MochyCloudSyncManager {
                 readLocalAvatarFile(app)?.let { local ->
                     _state.value = _state.value.copy(avatarLocalPath = local.absolutePath)
                 }
-                syncNowInternal(app)
+                refreshLocalStats(app)
+                syncNowInternal(app, fromUser = false)
+            }
+        } else {
+            scope.launch(Dispatchers.IO) {
+                refreshLocalStats(app)
             }
         }
     }
@@ -149,8 +179,10 @@ object MochyCloudSyncManager {
                 avatarLocalPath = localAvatarPath,
                 lastError = null,
             )
+            lastSessionFailureReason = null
+            lastSessionExpired = false
             appScope?.let { startObservers(app, it) }
-            syncNowInternal(app)
+            syncNowInternal(app, fromUser = true)
         }.onFailure { err ->
             _state.value = _state.value.copy(lastError = err.message)
         }
@@ -175,8 +207,10 @@ object MochyCloudSyncManager {
                 avatarLocalPath = existingAvatar?.absolutePath ?: _state.value.avatarLocalPath,
                 lastError = null,
             )
+            lastSessionFailureReason = null
+            lastSessionExpired = false
             appScope?.let { startObservers(app, it) }
-            syncNowInternal(app)
+            syncNowInternal(app, fromUser = true)
         }.onFailure { err ->
             _state.value = _state.value.copy(lastError = err.message)
         }
@@ -184,53 +218,56 @@ object MochyCloudSyncManager {
 
     suspend fun signOut(context: Context) {
         val app = context.applicationContext
-        favoritesObserverJob?.cancel()
-        favoritesObserverJob = null
-        playlistsObserverJob?.cancel()
-        playlistsObserverJob = null
-        historyFlushJob?.cancel()
-        historyFlushJob = null
-        favoriteToggleSyncJob?.cancel()
-        favoriteToggleSyncJob = null
+        cancelBackgroundJobs()
         pendingHistoryMap.clear()
         val old = MochyCloudVault.loadSession(app)
         MochyCloudVault.clearSession(app)
         historyPlayCountCache.clear()
+        lastSessionFailureReason = null
+        lastSessionExpired = false
         if (old != null) {
             runCatching { MochySupabaseClient.signOutRemote(app, old) }
         }
         _state.value = MochyCloudState(isConfigured = MochyCloudVault.isConfigured(app))
+        refreshLocalStats(app)
     }
 
     suspend fun updateProfileAndAvatar(
         context: Context,
         newDisplayName: String?,
         avatarUri: Uri?,
-    ): Result<Unit> = runCatching {
-        val app = context.applicationContext
-        val session = getValidSession(app) ?: throw MochyCloudException("Bạn chưa đăng nhập Mochy Cloud.")
-        var webpDataUri: String? = null
-        if (avatarUri != null) {
-            webpDataUri = MochyAvatarCodec.encodeUriToWebpDataUri(app, avatarUri)
-                ?: throw MochyCloudException("Không thể nén ảnh đại diện xuống dưới 24 KB.")
+    ): Result<Unit> = withContext(NonCancellable + Dispatchers.IO) {
+        runCatching {
+            val app = context.applicationContext
+            val session = getValidSession(app)
+                ?: throw MochyCloudException(lastSessionFailureReason ?: "Bạn chưa đăng nhập Mochy Cloud.")
+            var webpDataUri: String? = null
+            if (avatarUri != null) {
+                webpDataUri = MochyAvatarCodec.encodeUriToWebpDataUri(app, avatarUri)
+                    ?: throw MochyCloudException("Không thể nén ảnh đại diện để tải lên.")
+            }
+            MochySupabaseClient.updateProfile(app, session, newDisplayName, webpDataUri)
+            val updatedName = newDisplayName?.trim()?.takeIf { it.isNotBlank() }?.take(40) ?: session.displayName
+            val latestSession = MochyCloudVault.loadSession(app)?.takeIf { it.userId == session.userId } ?: session
+            MochyCloudVault.saveSession(app, latestSession.copy(displayName = updatedName))
+            val localFile = if (webpDataUri != null) {
+                MochyAvatarCodec.decodeDataUriToFile(app, webpDataUri)
+            } else null
+            if (newDisplayName != null || localFile != null) {
+                ProfileStore.save(app, updatedName, localFile?.let(Uri::fromFile), syncToCloud = false)
+            }
+            _state.value = _state.value.copy(
+                displayName = updatedName,
+                avatarLocalPath = localFile?.absolutePath ?: _state.value.avatarLocalPath,
+                lastError = null,
+            )
+        }.onFailure { err ->
+            if (err is MochyCloudAuthExpiredException) {
+                handleSessionExpired(context.applicationContext, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+            } else {
+                _state.value = _state.value.copy(lastError = err.message)
+            }
         }
-        MochySupabaseClient.updateProfile(app, session, newDisplayName, webpDataUri)
-        val updatedName = newDisplayName?.trim()?.takeIf { it.isNotBlank() }?.take(40) ?: session.displayName
-        val updatedSession = session.copy(displayName = updatedName)
-        MochyCloudVault.saveSession(app, updatedSession)
-        val localFile = if (webpDataUri != null) {
-            MochyAvatarCodec.decodeDataUriToFile(app, webpDataUri)
-        } else null
-        if (newDisplayName != null || localFile != null) {
-            ProfileStore.save(app, updatedName, localFile?.let(Uri::fromFile), syncToCloud = false)
-        }
-        _state.value = _state.value.copy(
-            displayName = updatedName,
-            avatarLocalPath = localFile?.absolutePath ?: _state.value.avatarLocalPath,
-            lastError = null,
-        )
-    }.onFailure { err ->
-        _state.value = _state.value.copy(lastError = err.message)
     }
 
     suspend fun changePassword(
@@ -239,9 +276,14 @@ object MochyCloudSyncManager {
     ): Result<Unit> = withContext(NonCancellable + Dispatchers.IO) {
         runCatching {
             val app = context.applicationContext
-            val session = getValidSession(app) ?: throw MochyCloudException("Bạn chưa đăng nhập Mochy Cloud.")
+            val session = getValidSession(app)
+                ?: throw MochyCloudException(lastSessionFailureReason ?: "Bạn chưa đăng nhập Mochy Cloud.")
             MochySupabaseClient.updatePassword(app, session, newPassword)
             Unit
+        }.onFailure { err ->
+            if (err is MochyCloudAuthExpiredException) {
+                handleSessionExpired(context.applicationContext, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+            }
         }
     }
 
@@ -249,31 +291,60 @@ object MochyCloudSyncManager {
         syncMutex.withLock {
             runCatching {
                 val app = context.applicationContext
-                val session = getValidSession(app) ?: throw MochyCloudException("Bạn chưa đăng nhập Mochy Cloud.")
+                val session = getValidSession(app)
+                    ?: throw MochyCloudException(lastSessionFailureReason ?: "Bạn chưa đăng nhập Mochy Cloud.")
                 historyFlushJob?.cancel()
                 pendingHistoryMap.clear()
                 historyPlayCountCache.clear()
                 MochyCloudVault.savePendingHistory(app, session.userId, emptyList())
                 MochyCloudVault.saveSyncedFavoriteIds(app, session.userId, emptySet())
                 MochyCloudVault.saveSyncedPlaylistIds(app, session.userId, emptySet())
+                MochyCloudVault.saveSyncedPlaylistsDigest(app, session.userId, null)
+                MochyCloudVault.saveSyncedAlbumIds(app, session.userId, emptySet())
+                MochyCloudVault.saveSyncedArtistIds(app, session.userId, emptySet())
+                MochyCloudVault.saveSyncedEqDigest(app, session.userId, null)
                 MochySupabaseClient.wipeCloudData(app, session)
                 ProfileStore.save(app, session.displayName, null, syncToCloud = false)
                 _state.value = _state.value.copy(
                     avatarLocalPath = null,
                     favoritesCount = 0,
                     playlistsCount = 0,
+                    albumsCount = 0,
+                    artistsCount = 0,
                     historyCount = 0,
                     lastSyncEpochMs = System.currentTimeMillis(),
                     lastError = null,
                 )
+            }.onFailure { err ->
+                if (err is MochyCloudAuthExpiredException) {
+                    handleSessionExpired(context.applicationContext, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+                }
             }
         }
     }
 
-    fun syncNow(context: Context) {
+    fun syncNow(context: Context, fromUser: Boolean = true) {
         val scope = appScope ?: return
         scope.launch(Dispatchers.IO) {
-            syncNowInternal(context.applicationContext)
+            syncNowInternal(context.applicationContext, fromUser = fromUser)
+        }
+    }
+
+    suspend fun refreshLocalStats(context: Context) = withContext(Dispatchers.IO) {
+        runCatching {
+            val db = database(context.applicationContext)
+            val favCount = db.likedSongsCount().first()
+            val plCount = db.playlistsByCreateDateAsc().first().count { isSyncablePlaylist(it.playlist) }
+            val albCount = db.albumsLikedByCreateDateAsc().first().count { !it.album.isLocal && it.album.id.isNotBlank() }
+            val artCount = db.artistsBookmarkedByCreateDateAsc().first().count { !it.artist.isLocal && it.artist.id.isNotBlank() }
+            val histCount = db.recentEvents(500).first().distinctBy { it.song.id }.size
+            _state.value = _state.value.copy(
+                favoritesCount = favCount,
+                playlistsCount = plCount,
+                albumsCount = albCount,
+                artistsCount = artCount,
+                historyCount = maxOf(_state.value.historyCount, histCount),
+            )
         }
     }
 
@@ -300,6 +371,10 @@ object MochyCloudSyncManager {
                     displayName = cleanName.takeIf { it.isNotBlank() },
                     avatarWebp = webp,
                 )
+            }.onFailure { err ->
+                if (err is MochyCloudAuthExpiredException) {
+                    handleSessionExpired(app, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+                }
             }
         }
     }
@@ -311,7 +386,7 @@ object MochyCloudSyncManager {
         favoriteToggleSyncJob?.cancel()
         favoriteToggleSyncJob = scope.launch(Dispatchers.IO) {
             delay(1_500L)
-            syncNowInternal(app)
+            syncNowInternal(app, fromUser = false)
         }
     }
 
@@ -385,6 +460,12 @@ object MochyCloudSyncManager {
                 lastSyncEpochMs = System.currentTimeMillis(),
             )
         } else {
+            val err = result.exceptionOrNull()
+            if (err is MochyCloudAuthExpiredException) {
+                pendingHistoryMap.clear()
+                handleSessionExpired(app, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+                return@withLock
+            }
             snapshot.forEach { oldRec ->
                 val cur = pendingHistoryMap[oldRec.songId]
                 if (cur == null) {
@@ -412,7 +493,7 @@ object MochyCloudSyncManager {
                     if (System.currentTimeMillis() < suppressObserverUntilMs) return@collectLatest
                     val prevSynced = MochyCloudVault.loadSyncedFavoriteIds(app, session.userId) ?: return@collectLatest
                     if (currentIds == prevSynced) return@collectLatest
-                    syncNowInternal(app)
+                    syncNowInternal(app, fromUser = false)
                 }
         }
 
@@ -422,23 +503,23 @@ object MochyCloudSyncManager {
             db.playlistsByCreateDateAsc()
                 .map { list ->
                     list.filter { isSyncablePlaylist(it.playlist) }
+                        .take(25)
                         .map { Triple(it.id, it.playlist.name, it.songCount) }
                 }
                 .distinctUntilChanged()
                 .collectLatest { items ->
                     val session = MochyCloudVault.loadSession(app) ?: return@collectLatest
                     if (System.currentTimeMillis() < suppressObserverUntilMs) return@collectLatest
-                    val prevSynced = MochyCloudVault.loadSyncedPlaylistIds(app, session.userId) ?: return@collectLatest
-                    if (items.map { it.first }.toSet() == prevSynced && prevSynced.isNotEmpty()) {
-                        // Vẫn cho phép đẩy lên nếu tên hoặc số bài đổi
-                        delay(4_000L)
-                        if (System.currentTimeMillis() < suppressObserverUntilMs) return@collectLatest
-                        syncNowInternal(app)
-                    } else if (items.map { it.first }.toSet() != prevSynced) {
-                        delay(4_000L)
-                        if (System.currentTimeMillis() < suppressObserverUntilMs) return@collectLatest
-                        syncNowInternal(app)
-                    }
+                    val prevDigest = MochyCloudVault.loadSyncedPlaylistsDigest(app, session.userId)
+                        ?: return@collectLatest
+                    val currentDigest = computePlaylistsDigest(items)
+                    if (currentDigest == prevDigest) return@collectLatest
+                    delay(4_000L)
+                    if (System.currentTimeMillis() < suppressObserverUntilMs) return@collectLatest
+                    val latestDigest = MochyCloudVault.loadSyncedPlaylistsDigest(app, session.userId)
+                        ?: return@collectLatest
+                    if (currentDigest == latestDigest) return@collectLatest
+                    syncNowInternal(app, fromUser = false)
                 }
         }
     }
@@ -449,31 +530,43 @@ object MochyCloudSyncManager {
             pl.id != PlaylistEntity.LIKED_PLAYLIST_ID &&
             pl.id != PlaylistEntity.DOWNLOADED_PLAYLIST_ID
 
-    private suspend fun syncNowInternal(app: Context) = syncMutex.withLock {
-        val session = getValidSession(app) ?: return@withLock
+    private suspend fun syncNowInternal(app: Context, fromUser: Boolean = false) = syncMutex.withLock {
+        val session = getValidSession(app)
+        if (session == null) {
+            if (fromUser && !lastSessionExpired && !lastSessionFailureReason.isNullOrBlank()) {
+                _state.value = _state.value.copy(
+                    syncing = false,
+                    lastError = lastSessionFailureReason,
+                )
+            }
+            return@withLock
+        }
         _state.value = _state.value.copy(syncing = true, lastError = null)
         try {
             val db = database(app)
 
             // Đẩy hàng đợi lịch sử còn tồn trước khi đồng bộ
             flushPendingHistoryInternal(app)
+            val activeSession = MochyCloudVault.loadSession(app)
+                ?.takeIf { it.userId == session.userId }
+                ?: session
 
             // 1. Hồ sơ & ảnh đại diện nhẹ
             val localAvatarFile = readLocalAvatarFile(app)
             val localUserName = runCatching {
                 app.dataStore.data.first()[UsernameKey]?.trim().orEmpty()
             }.getOrDefault("")
-            var profile = MochySupabaseClient.fetchProfile(app, session)
+            var profile = MochySupabaseClient.fetchProfile(app, activeSession)
             if (profile == null) {
                 MochySupabaseClient.ensureProfileRow(
                     app,
-                    session,
-                    localUserName.ifBlank { session.displayName },
+                    activeSession,
+                    localUserName.ifBlank { activeSession.displayName },
                 )
-                profile = MochySupabaseClient.fetchProfile(app, session)
+                profile = MochySupabaseClient.fetchProfile(app, activeSession)
             }
             var avatarPath = localAvatarFile?.absolutePath ?: _state.value.avatarLocalPath
-            var activeDisplay = session.displayName
+            var activeDisplay = activeSession.displayName
             if (profile != null) {
                 if (profile.displayName.isNotBlank()) {
                     activeDisplay = profile.displayName
@@ -488,7 +581,9 @@ object MochyCloudSyncManager {
                     val webp = MochyAvatarCodec.encodeUriToWebpDataUri(app, Uri.fromFile(localAvatarFile))
                     if (webp != null) {
                         runCatching {
-                            MochySupabaseClient.updateProfile(app, session, activeDisplay, webp)
+                            MochySupabaseClient.updateProfile(app, activeSession, activeDisplay, webp)
+                        }.onFailure { err ->
+                            if (err is MochyCloudAuthExpiredException) throw err
                         }
                     }
                     avatarPath = localAvatarFile.absolutePath
@@ -498,18 +593,20 @@ object MochyCloudSyncManager {
                 }
             }
 
-            // 1B. Metadata tài khoản (Thẻ ID bạc 3D + GZIP Playlist)
-            val remoteMeta = runCatching { MochySupabaseClient.fetchUserMetadata(app, session) }.getOrNull()
+            // 1B. Metadata tài khoản (Thẻ ID, GZIP Playlist & Library Extra)
+            val remoteMeta = runCatching { MochySupabaseClient.fetchUserMetadata(app, activeSession) }
+                .onFailure { err -> if (err is MochyCloudAuthExpiredException) throw err }
+                .getOrNull()
             if (remoteMeta != null) {
-                syncIdCardMetadata(app, session, remoteMeta)
+                syncIdCardMetadata(app, activeSession, remoteMeta)
             }
 
             // 2. Yêu thích (hai chiều)
-            val remoteFavs = MochySupabaseClient.fetchFavorites(app, session)
+            val remoteFavs = MochySupabaseClient.fetchFavorites(app, activeSession)
             val remoteById = remoteFavs.associateBy { it.songId }
             val localLiked = db.likedSongsByCreateDateAsc().first()
             val localById = localLiked.associateBy { it.id }
-            val prevSynced = MochyCloudVault.loadSyncedFavoriteIds(app, session.userId)
+            val prevSynced = MochyCloudVault.loadSyncedFavoriteIds(app, activeSession.userId)
 
             val removedLocally = if (prevSynced != null) prevSynced - localById.keys else emptySet()
             val addedLocally = if (prevSynced != null) localById.keys - prevSynced else localById.keys
@@ -531,11 +628,11 @@ object MochyCloudSyncManager {
                 }
             }
             if (toPushFavs.isNotEmpty()) {
-                MochySupabaseClient.upsertFavorites(app, session, toPushFavs)
+                MochySupabaseClient.upsertFavorites(app, activeSession, toPushFavs)
             }
             val toDeleteRemote = removedLocally.filter { remoteById.containsKey(it) }
             if (toDeleteRemote.isNotEmpty()) {
-                MochySupabaseClient.deleteFavorites(app, session, toDeleteRemote)
+                MochySupabaseClient.deleteFavorites(app, activeSession, toDeleteRemote)
             }
 
             val toImportLocal = remoteFavs.filter { !localById.containsKey(it.songId) && !removedLocally.contains(it.songId) }
@@ -547,10 +644,10 @@ object MochyCloudSyncManager {
             }
 
             val finalSyncedIds = (localById.keys + toImportLocal.map { it.songId }) - toDeleteRemote.toSet()
-            MochyCloudVault.saveSyncedFavoriteIds(app, session.userId, finalSyncedIds)
+            MochyCloudVault.saveSyncedFavoriteIds(app, activeSession.userId, finalSyncedIds)
 
             // 3. Lịch sử nghe (gộp mới nhất, tối đa 500 bài)
-            val remoteHistory = MochySupabaseClient.fetchHistory(app, session)
+            val remoteHistory = MochySupabaseClient.fetchHistory(app, activeSession)
             val remoteHistoryMap = remoteHistory.associateBy { it.songId }
             val localEvents = db.recentEvents(300).first()
             val groupedLocal = localEvents.groupBy { it.song.id }
@@ -588,7 +685,7 @@ object MochyCloudSyncManager {
                 }
             }
             if (toPushHistory.isNotEmpty()) {
-                MochySupabaseClient.upsertHistory(app, session, toPushHistory)
+                MochySupabaseClient.upsertHistory(app, activeSession, toPushHistory)
             }
 
             for (rh in remoteHistory) {
@@ -600,24 +697,40 @@ object MochyCloudSyncManager {
 
             // 4. Playlist cá nhân hai chiều (GZIP <= 16 KB, tối đa 25 playlist)
             val playlistsCount = if (remoteMeta != null) {
-                syncPersonalPlaylists(app, session, db, remoteMeta.playlistsGz)
+                syncPersonalPlaylists(app, activeSession, db, remoteMeta.playlistsGz)
             } else {
                 db.playlistsByCreateDateAsc().first().count { isSyncablePlaylist(it.playlist) }
             }
 
+            // 5. Album đã lưu, Nghệ sĩ theo dõi & Equalizer (`library_extra_gz` <= 16 KB)
+            val (albumsCount, artistsCount) = if (remoteMeta != null) {
+                syncLibraryExtra(app, activeSession, db, remoteMeta.libraryExtraGz)
+            } else {
+                val albCount = db.albumsLikedByCreateDateAsc().first().count { !it.album.isLocal && it.album.id.isNotBlank() }
+                val artCount = db.artistsBookmarkedByCreateDateAsc().first().count { !it.artist.isLocal && it.artist.id.isNotBlank() }
+                albCount to artCount
+            }
+
+            val finalSession = MochyCloudVault.loadSession(app)
+                ?.takeIf { it.userId == activeSession.userId }
+                ?: activeSession
             _state.value = _state.value.copy(
                 isConfigured = true,
                 signedIn = true,
-                username = session.username,
+                username = finalSession.username,
                 displayName = activeDisplay,
                 avatarLocalPath = avatarPath,
                 favoritesCount = finalSyncedIds.size,
                 playlistsCount = playlistsCount,
+                albumsCount = albumsCount,
+                artistsCount = artistsCount,
                 historyCount = maxOf(groupedLocal.size, remoteHistory.size),
                 syncing = false,
                 lastSyncEpochMs = System.currentTimeMillis(),
                 lastError = null,
             )
+        } catch (err: MochyCloudAuthExpiredException) {
+            handleSessionExpired(app, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
         } catch (err: Throwable) {
             _state.value = _state.value.copy(
                 syncing = false,
@@ -645,7 +758,7 @@ object MochyCloudSyncManager {
             if (remoteMeta.joinedEpochDay == null) {
                 runCatching {
                     MochySupabaseClient.updateUserMetadata(app, session, joinedEpochDay = targetJoined)
-                }
+                }.onFailure { err -> if (err is MochyCloudAuthExpiredException) throw err }
             }
         } else {
             val cardToUse = localCard ?: (10_000_000_000L + Random.nextLong(89_999_999_999L)).toString()
@@ -661,7 +774,7 @@ object MochyCloudSyncManager {
                     cardNumber = cardToUse,
                     joinedEpochDay = joinedToUse,
                 )
-            }
+            }.onFailure { err -> if (err is MochyCloudAuthExpiredException) throw err }
         }
     }
 
@@ -754,10 +867,203 @@ object MochyCloudSyncManager {
                     playlistsGz = if (recordsToPush.isEmpty()) null else encoded,
                     clearPlaylists = recordsToPush.isEmpty(),
                 )
-            }
+            }.onFailure { err -> if (err is MochyCloudAuthExpiredException) throw err }
         }
         MochyCloudVault.saveSyncedPlaylistIds(app, session.userId, finalLocal.map { it.id }.toSet())
+        val finalDigest = computePlaylistsDigest(
+            finalLocal.map { Triple(it.id, it.playlist.name, it.songCount) },
+        )
+        MochyCloudVault.saveSyncedPlaylistsDigest(app, session.userId, finalDigest)
         return finalLocal.size
+    }
+
+    private suspend fun syncLibraryExtra(
+        app: Context,
+        session: MochyCloudSession,
+        db: MusicDatabase,
+        remoteLibraryExtraGz: String?,
+    ): Pair<Int, Int> {
+        val remoteExtra = MochyLibraryExtraCodec.decode(remoteLibraryExtraGz)
+
+        // A. Album đã lưu (bookmarkedAt != null)
+        val initialAlbums = db.albumsLikedByCreateDateAsc().first()
+            .filter { !it.album.isLocal && it.album.id.isNotBlank() }
+        val localAlbumMap = initialAlbums.associateBy { it.album.id }
+        val prevSyncedAlbums = MochyCloudVault.loadSyncedAlbumIds(app, session.userId)
+        val removedAlbumsLocally = prevSyncedAlbums?.let { it - localAlbumMap.keys }.orEmpty()
+
+        for (remoteAlb in remoteExtra?.albums.orEmpty()) {
+            if (remoteAlb.id in removedAlbumsLocally) continue
+            val existing = db.album(remoteAlb.id).first()
+            val bookmarkedLocal = if (remoteAlb.bookmarkedEpochSec > 0L) {
+                Instant.ofEpochSecond(remoteAlb.bookmarkedEpochSec).atZone(ZoneId.systemDefault()).toLocalDateTime()
+            } else {
+                LocalDateTime.now()
+            }
+            if (existing == null) {
+                db.insert(
+                    AlbumEntity(
+                        id = remoteAlb.id,
+                        playlistId = remoteAlb.playlistId,
+                        title = remoteAlb.title,
+                        year = remoteAlb.year,
+                        thumbnailUrl = remoteAlb.thumbnailUrl,
+                        songCount = remoteAlb.songCount,
+                        duration = remoteAlb.duration,
+                        bookmarkedAt = bookmarkedLocal,
+                    ),
+                )
+                remoteAlb.artists.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .forEachIndexed { idx, artistName ->
+                        val artistId = db.artistByName(artistName)?.id ?: ArtistEntity.generateArtistId()
+                        db.insert(ArtistEntity(id = artistId, name = artistName))
+                        db.insert(AlbumArtistMap(albumId = remoteAlb.id, artistId = artistId, order = idx))
+                    }
+            } else if (existing.album.bookmarkedAt == null) {
+                db.update(existing.album.copy(bookmarkedAt = bookmarkedLocal))
+            }
+        }
+        if (remoteExtra != null && !remoteExtra.albumsTruncated && prevSyncedAlbums != null) {
+            val remoteIds = remoteExtra.albums.map { it.id }.toSet()
+            for (localAlb in initialAlbums) {
+                if (localAlb.album.id in prevSyncedAlbums && localAlb.album.id !in remoteIds) {
+                    db.update(localAlb.album.copy(bookmarkedAt = null))
+                }
+            }
+        }
+
+        // B. Nghệ sĩ theo dõi (bookmarkedAt != null)
+        val initialArtists = db.artistsBookmarkedByCreateDateAsc().first()
+            .filter { !it.artist.isLocal && it.artist.id.isNotBlank() }
+        val localArtistMap = initialArtists.associateBy { it.artist.id }
+        val prevSyncedArtists = MochyCloudVault.loadSyncedArtistIds(app, session.userId)
+        val removedArtistsLocally = prevSyncedArtists?.let { it - localArtistMap.keys }.orEmpty()
+
+        for (remoteArt in remoteExtra?.artists.orEmpty()) {
+            if (remoteArt.id in removedArtistsLocally) continue
+            val existing = db.getArtistById(remoteArt.id)
+            val bookmarkedLocal = if (remoteArt.bookmarkedEpochSec > 0L) {
+                Instant.ofEpochSecond(remoteArt.bookmarkedEpochSec).atZone(ZoneId.systemDefault()).toLocalDateTime()
+            } else {
+                LocalDateTime.now()
+            }
+            if (existing == null) {
+                db.insert(
+                    ArtistEntity(
+                        id = remoteArt.id,
+                        name = remoteArt.name,
+                        thumbnailUrl = remoteArt.thumbnailUrl,
+                        channelId = remoteArt.channelId,
+                        bookmarkedAt = bookmarkedLocal,
+                    ),
+                )
+            } else if (existing.bookmarkedAt == null) {
+                db.update(
+                    existing.copy(
+                        bookmarkedAt = bookmarkedLocal,
+                        thumbnailUrl = existing.thumbnailUrl ?: remoteArt.thumbnailUrl,
+                        channelId = existing.channelId ?: remoteArt.channelId,
+                    ),
+                )
+            }
+        }
+        if (remoteExtra != null && !remoteExtra.artistsTruncated && prevSyncedArtists != null) {
+            val remoteIds = remoteExtra.artists.map { it.id }.toSet()
+            for (localArt in initialArtists) {
+                if (localArt.artist.id in prevSyncedArtists && localArt.artist.id !in remoteIds) {
+                    db.update(localArt.artist.copy(bookmarkedAt = null))
+                }
+            }
+        }
+
+        // C. Cài đặt Equalizer & âm thanh
+        val audioLab = audioLab(app)
+        val initialEq = audioLab.eq.value
+        val initialEqJson = audioLabJson.encodeToString(EqSettings.serializer(), initialEq)
+        val initialEqDigest = sha256Hex(initialEqJson)
+        val prevEqDigest = MochyCloudVault.loadSyncedEqDigest(app, session.userId)
+        val remoteAudio = remoteExtra?.audio
+        val remoteEqJson = remoteAudio?.eqSettingsJson
+        val remoteEqDigest = remoteEqJson?.let(::sha256Hex)
+
+        if (!remoteEqJson.isNullOrBlank()) {
+            val shouldApplyRemote = when {
+                prevEqDigest == null -> initialEq == EqSettings()
+                else -> initialEqDigest == prevEqDigest && remoteEqDigest != prevEqDigest
+            }
+            if (shouldApplyRemote) {
+                runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), remoteEqJson) }
+                    .getOrNull()
+                    ?.let { decodedEq -> audioLab.updateEq { decodedEq } }
+                app.dataStore.edit { p ->
+                    remoteAudio.audioNormalization?.let { p[AudioNormalizationKey] = it }
+                    remoteAudio.audioQuality?.takeIf { it.isNotBlank() }?.let { p[AudioQualityKey] = it }
+                }
+            }
+        }
+
+        // Thu thập trạng thái cuối & đẩy lên user_metadata.library_extra_gz (<= 16 KB)
+        val finalAlbums = db.albumsLikedByCreateDateAsc().first()
+            .filter { !it.album.isLocal && it.album.id.isNotBlank() }
+        val finalArtists = db.artistsBookmarkedByCreateDateAsc().first()
+            .filter { !it.artist.isLocal && it.artist.id.isNotBlank() }
+        val prefs = app.dataStore.data.first()
+        val finalEqJson = audioLabJson.encodeToString(EqSettings.serializer(), audioLab.eq.value)
+        val extraPayload = CloudLibraryExtra(
+            albums = finalAlbums.take(MaxCloudExtraItems).map { alb ->
+                val epochSec = (alb.album.bookmarkedAt ?: LocalDateTime.now())
+                    .atZone(ZoneId.systemDefault())
+                    .toEpochSecond()
+                    .coerceAtLeast(1L)
+                CloudAlbumRecord(
+                    id = alb.album.id,
+                    playlistId = alb.album.playlistId,
+                    title = alb.album.title,
+                    artists = alb.artists.joinToString(", ") { it.name },
+                    year = alb.album.year,
+                    songCount = alb.album.songCount,
+                    duration = alb.album.duration,
+                    thumbnailUrl = alb.album.thumbnailUrl,
+                    bookmarkedEpochSec = epochSec,
+                )
+            },
+            artists = finalArtists.take(MaxCloudExtraItems).map { art ->
+                val epochSec = (art.artist.bookmarkedAt ?: LocalDateTime.now())
+                    .atZone(ZoneId.systemDefault())
+                    .toEpochSecond()
+                    .coerceAtLeast(1L)
+                CloudArtistRecord(
+                    id = art.artist.id,
+                    name = art.artist.name,
+                    channelId = art.artist.channelId,
+                    thumbnailUrl = art.artist.thumbnailUrl,
+                    bookmarkedEpochSec = epochSec,
+                )
+            },
+            audio = CloudAudioConfig(
+                eqSettingsJson = finalEqJson,
+                audioNormalization = prefs[AudioNormalizationKey],
+                audioQuality = prefs[AudioQualityKey],
+            ),
+        )
+        val encodedExtra = MochyLibraryExtraCodec.encode(extraPayload)
+        if (encodedExtra != remoteLibraryExtraGz.orEmpty()) {
+            runCatching {
+                MochySupabaseClient.updateUserMetadata(
+                    context = app,
+                    session = session,
+                    libraryExtraGz = encodedExtra.ifEmpty { null },
+                    clearLibraryExtra = encodedExtra.isEmpty(),
+                )
+            }.onFailure { err -> if (err is MochyCloudAuthExpiredException) throw err }
+        }
+
+        MochyCloudVault.saveSyncedAlbumIds(app, session.userId, finalAlbums.map { it.album.id }.toSet())
+        MochyCloudVault.saveSyncedArtistIds(app, session.userId, finalArtists.map { it.artist.id }.toSet())
+        MochyCloudVault.saveSyncedEqDigest(app, session.userId, sha256Hex(finalEqJson))
+        return finalAlbums.size to finalArtists.size
     }
 
     private fun writePlaylistTracks(db: MusicDatabase, remotePl: CloudPlaylistRecord) {
@@ -790,12 +1096,72 @@ object MochyCloudSyncManager {
         val current = MochyCloudVault.loadSession(app) ?: return null
         val nowSec = System.currentTimeMillis() / 1000L
         if (current.expiresAtEpochSec > nowSec + 90L) return current
-        val refreshed = MochySupabaseClient.refreshSession(app, current)
-        if (refreshed != null) {
-            MochyCloudVault.saveSession(app, refreshed)
-            return refreshed
+        return sessionRefreshMutex.withLock {
+            val latest = MochyCloudVault.loadSession(app) ?: return@withLock null
+            val checkNow = System.currentTimeMillis() / 1000L
+            if (latest.expiresAtEpochSec > checkNow + 90L) return@withLock latest
+            when (val outcome = MochySupabaseClient.refreshSessionWithStatus(app, latest)) {
+                is RefreshSessionResult.Success -> {
+                    MochyCloudVault.saveSession(app, outcome.session)
+                    lastSessionFailureReason = null
+                    lastSessionExpired = false
+                    outcome.session
+                }
+                is RefreshSessionResult.AuthExpired -> {
+                    lastSessionFailureReason = outcome.message
+                    lastSessionExpired = true
+                    handleSessionExpired(app, outcome.message)
+                    null
+                }
+                is RefreshSessionResult.NetworkError -> {
+                    lastSessionFailureReason = outcome.message
+                    lastSessionExpired = false
+                    null
+                }
+            }
         }
-        return current
+    }
+
+    private fun cancelBackgroundJobs() {
+        favoritesObserverJob?.cancel()
+        favoritesObserverJob = null
+        playlistsObserverJob?.cancel()
+        playlistsObserverJob = null
+        historyFlushJob?.cancel()
+        historyFlushJob = null
+        favoriteToggleSyncJob?.cancel()
+        favoriteToggleSyncJob = null
+    }
+
+    private fun handleSessionExpired(app: Context, message: String) {
+        cancelBackgroundJobs()
+        pendingHistoryMap.clear()
+        historyPlayCountCache.clear()
+        MochyCloudVault.clearSession(app)
+        lastSessionFailureReason = message
+        lastSessionExpired = true
+        _state.value = MochyCloudState(
+            isConfigured = MochyCloudVault.isConfigured(app),
+            signedIn = false,
+            lastError = message,
+        )
+    }
+
+    private fun computePlaylistsDigest(items: List<Triple<String, String, Int>>): String {
+        val canonical = items
+            .sortedBy { it.first }
+            .joinToString("\n") { (id, name, count) -> "$id\u0000$name\u0000$count" }
+        return sha256Hex(canonical)
+    }
+
+    private fun sha256Hex(input: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+        return buildString(bytes.size * 2) {
+            for (b in bytes) {
+                append(((b.toInt() ushr 4) and 0xF).toString(16))
+                append((b.toInt() and 0xF).toString(16))
+            }
+        }
     }
 
     private fun ensureSongLikedInLocalDb(db: MusicDatabase, fav: CloudFavoriteRecord) {
@@ -877,7 +1243,7 @@ object MochyCloudSyncManager {
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .forEachIndexed { idx, artistName ->
-                val artistId = ArtistEntity.generateArtistId()
+                val artistId = db.artistByName(artistName)?.id ?: ArtistEntity.generateArtistId()
                 db.insert(ArtistEntity(id = artistId, name = artistName))
                 db.insert(SongArtistMap(songId = songId, artistId = artistId, position = idx))
             }
@@ -907,4 +1273,8 @@ object MochyCloudSyncManager {
     private fun database(context: Context): MusicDatabase =
         EntryPointAccessors.fromApplication(context.applicationContext, CloudSyncEntryPoint::class.java)
             .database()
+
+    private fun audioLab(context: Context): AudioLabStore =
+        EntryPointAccessors.fromApplication(context.applicationContext, AudioLabEntryPoint::class.java)
+            .audioLabStore()
 }

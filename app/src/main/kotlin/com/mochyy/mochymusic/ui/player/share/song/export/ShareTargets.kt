@@ -8,6 +8,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -16,6 +17,8 @@ import androidx.annotation.StringRes
 import androidx.core.content.FileProvider
 import androidx.media3.datasource.DataSource
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket
+import com.mochyy.mochymusic.playback.PlayerConnection
 import com.mochyy.mochymusic.ui.player.share.song.ShareLayers
 import com.mochyy.mochymusic.ui.player.share.song.SongShareKind
 import com.mochyy.mochymusic.ui.player.share.song.SongShareSession
@@ -119,6 +122,19 @@ internal suspend fun ShareRequest.exportAndShare(): Boolean {
     return saved
 }
 
+internal suspend fun ShareRequest.exportToDuchiLocket(playerConnection: PlayerConnection?): Int? {
+    val baked = export(ShareLayers.Everything)
+    val saved = saveToGallery(context, baked)
+    withContext(Dispatchers.Main) {
+        shareSongToDuchiLocket(
+            context = context,
+            song = session.song,
+            playerConnection = playerConnection,
+        )
+    }
+    return if (saved) R.string.song_share_saved else null
+}
+
 internal fun copySongLink(context: Context, session: SongShareSession): Boolean {
     val link = session.link ?: return false
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return false
@@ -133,18 +149,37 @@ private fun caption(context: Context, session: SongShareSession): String {
 
 private fun uriOf(context: Context, file: File): Uri = FileProvider.getUriForFile(context, "${context.packageName}.FileProvider", file)
 
-// the shared folders only take files without a permission from android 10 on
 private suspend fun saveToGallery(context: Context, file: ShareFile): Boolean = withContext(Dispatchers.IO) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext false
+    val video = file.mimeType.startsWith("video")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        return@withContext runCatching {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, file.file.name)
+                put(MediaStore.MediaColumns.MIME_TYPE, file.mimeType)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, (if (video) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES) + "/Mochy")
+            }
+            val collection = if (video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            val uri = context.contentResolver.insert(collection, values) ?: return@runCatching false
+            context.contentResolver.openOutputStream(uri)?.use { out -> file.file.inputStream().use { it.copyTo(out) } } != null
+        }.getOrDefault(false)
+    }
     runCatching {
-        val video = file.mimeType.startsWith("video")
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, file.file.name)
-            put(MediaStore.MediaColumns.MIME_TYPE, file.mimeType)
-            put(MediaStore.MediaColumns.RELATIVE_PATH, (if (video) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES) + "/Mochy")
+        @Suppress("DEPRECATION")
+        val publicDir = Environment.getExternalStoragePublicDirectory(
+            if (video) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES,
+        )
+        val targetDir = File(publicDir, "Mochy")
+        if (!targetDir.exists() && !targetDir.mkdirs()) return@runCatching false
+        val destFile = File(targetDir, file.file.name)
+        file.file.inputStream().use { input ->
+            destFile.outputStream().use { output -> input.copyTo(output) }
         }
-        val collection = if (video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        val uri = context.contentResolver.insert(collection, values) ?: return@runCatching false
-        context.contentResolver.openOutputStream(uri)?.use { out -> file.file.inputStream().use { it.copyTo(out) } } != null
+        MediaScannerConnection.scanFile(
+            context.applicationContext,
+            arrayOf(destFile.absolutePath),
+            arrayOf(file.mimeType),
+            null,
+        )
+        true
     }.getOrDefault(false)
 }

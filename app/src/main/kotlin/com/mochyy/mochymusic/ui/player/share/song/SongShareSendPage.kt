@@ -61,6 +61,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.transformer.ExportException
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.core.updater.getInstalledLocketInfo
 import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.SheetPillButton
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
@@ -72,6 +73,7 @@ import com.mochyy.mochymusic.ui.player.share.song.export.ShareQuality
 import com.mochyy.mochymusic.ui.player.share.song.export.ShareRequest
 import com.mochyy.mochymusic.ui.player.share.song.export.ShareTheme
 import com.mochyy.mochymusic.ui.player.share.song.export.exportAndShare
+import com.mochyy.mochymusic.ui.player.share.song.export.exportToDuchiLocket
 import com.mochyy.mochymusic.ui.player.share.song.export.installedPackage
 import com.mochyy.mochymusic.ui.player.share.song.export.sendTo
 import com.mochyy.mochymusic.ui.player.share.song.export.takesSticker
@@ -234,53 +236,53 @@ private fun SendContent(send: SendState, live: Boolean) {
                 AppTile(app, enabled = !send.working) { send.start { sendTo(app); null } }
             }
         }
-        Spacer(Modifier.height(14.dp))
-        val locketPlayerConnection = LocalPlayerConnection.current
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MenuRowSurface)
-                .clickable(enabled = !send.working) {
-                    com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket(
-                        context = context,
-                        song = session.song,
-                        playerConnection = locketPlayerConnection,
+        val locketInstalled = remember(context) { getInstalledLocketInfo(context) != null }
+        if (locketInstalled) {
+            Spacer(Modifier.height(14.dp))
+            val locketPlayerConnection = LocalPlayerConnection.current
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { alpha = if (!send.working) 1f else 0.45f }
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MenuRowSurface)
+                    .clickable(enabled = !send.working) {
+                        send.start { exportToDuchiLocket(locketPlayerConnection) }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.12f)),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_duchi_locket),
+                        contentDescription = "Duchi Locket",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f)),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_duchi_locket),
-                    contentDescription = "Duchi Locket",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Đăng lên Duchi Locket",
-                    fontFamily = InterFontFamily,
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.3).sp,
-                )
-                Text(
-                    text = "Phát bài trên Mochy & mở khung Nhạc ở Locket",
-                    fontFamily = InterFontFamily,
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Đăng lên Duchi Locket",
+                        fontFamily = InterFontFamily,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp,
+                    )
+                    Text(
+                        text = "Lưu thẻ lời vào Thư viện, phát nhạc & mở Duchi Locket",
+                        fontFamily = InterFontFamily,
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(16.dp))

@@ -1127,7 +1127,7 @@ private fun VersionCard(
  */
 @Composable
 private fun VersionCapsule(update: Boolean, onAbout: () -> Unit) {
-    val shown = if (update) "Update" else stringResource(R.string.profile_capsule_about)
+    val shown = if (update) stringResource(R.string.profile_capsule_update) else stringResource(R.string.profile_capsule_about)
 
     // the pop: a quick squash, then a spring that carries past full size and settles
     val pop = remember { Animatable(1f) }

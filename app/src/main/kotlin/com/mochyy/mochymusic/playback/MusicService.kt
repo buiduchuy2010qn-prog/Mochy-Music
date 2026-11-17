@@ -53,6 +53,7 @@ import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.decoder.ffmpeg.FfmpegFallbackRenderer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -242,6 +243,8 @@ import com.mochyy.mochymusic.constants.YtReportPlaysKey
 import com.mochyy.mochymusic.constants.ForcePlaybackKey
 import com.mochyy.mochymusic.constants.transitionModeOf
 import com.mochyy.mochymusic.constants.CrossmixAlwaysMixKey
+import com.mochyy.mochymusic.constants.LowEndModeKey
+import com.mochyy.mochymusic.utils.LowEndModeManager
 import com.mochyy.mochymusic.utils.dataStore
 import com.mochyy.mochymusic.utils.get
 import com.mochyy.mochymusic.utils.reportException
@@ -1408,13 +1411,17 @@ class MusicService :
             }
         }
 
+        var useCompactBuffer = LowEndModeManager.isActive || LowEndModeManager.isAndroid8LowRamHardware(this)
         runBlocking {
             val skipSilence = dataStore.get(SkipSilenceKey, false)
             val instantSkip = dataStore.get(SkipSilenceInstantKey, false)
             silenceProcessor.instantModeEnabled = skipSilence && instantSkip
+            if (!useCompactBuffer && dataStore.get(LowEndModeKey, false)) {
+                useCompactBuffer = true
+            }
         }
 
-        val player = ExoPlayer.Builder(this)
+        val playerBuilder = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
             .setRenderersFactory(createRenderersFactory(eqProcessor, fxProcessors, silenceProcessor, hapticAudioProcessor, crossmixProcessor, replayGain, spectrum, inspector))
             .setHandleAudioBecomingNoisy(true)
@@ -1431,7 +1438,19 @@ class MusicService :
             .setDeviceVolumeControlEnabled(true)
             // wake the playback loop when the audio buffer needs more, not every 10 ms: it was a third of a core in the background
             .experimentalSetDynamicSchedulingEnabled(true)
-            .build()
+
+        if (useCompactBuffer) {
+            // Trim playback memory footprint on low-RAM / Android 8.1 hardware while keeping standard devices untouched.
+            playerBuilder.setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(10_000, 22_000, 1_500, 3_000)
+                    .setTargetBufferBytes(6 * 1024 * 1024)
+                    .setPrioritizeTimeOverSizeThresholds(false)
+                    .build(),
+            )
+        }
+
+        val player = playerBuilder.build()
 
         player.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {

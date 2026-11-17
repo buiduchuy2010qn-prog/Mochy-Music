@@ -6,9 +6,12 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.CustomLastFmApiKey
+import com.mochyy.mochymusic.constants.CustomLastFmSecretKey
 import com.mochyy.mochymusic.scrobble.ScrobbleSite
 import com.mochyy.mochymusic.scrobble.Scrobbler
 import com.mochyy.mochymusic.utils.dataStore
+import com.music.lastfm.Audioscrobbler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,14 +40,32 @@ class IntegrationsViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /** User-provided Last.fm API key & shared secret saved for builds without embedded CI secrets. */
+    val customLastFmCredentials: StateFlow<Pair<String, String>> = context.dataStore.data
+        .map { prefs ->
+            prefs[CustomLastFmApiKey].orEmpty() to prefs[CustomLastFmSecretKey].orEmpty()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "" to "")
+
     val pending: StateFlow<Int> = scrobbler.pending
 
     /** What "Send now" did, for a short message; cleared once shown. */
     private val _sendResult = MutableStateFlow<Int?>(null)
     val sendResult: StateFlow<Int?> = _sendResult.asStateFlow()
 
+    suspend fun resolveApi(site: ScrobbleSite): Audioscrobbler =
+        scrobbler.resolveApi(site)
+
     suspend fun signIn(site: ScrobbleSite, username: String, password: String): String =
         scrobbler.signIn(site, username, password)
+
+    suspend fun signIn(
+        site: ScrobbleSite,
+        username: String,
+        password: String,
+        customApiKey: String,
+        customSecret: String,
+    ): String = scrobbler.signIn(site, username, password, customApiKey, customSecret)
 
     fun signOut(site: ScrobbleSite) {
         viewModelScope.launch { scrobbler.signOut(site) }

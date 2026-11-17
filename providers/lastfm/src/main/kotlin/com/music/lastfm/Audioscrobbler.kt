@@ -44,14 +44,21 @@ class AudioscrobblerException(val code: Int, message: String) : Exception(messag
     /** signing in: the username or password is wrong, both services answer this with the same code */
     val isWrongLogin: Boolean get() = code == AUTH_FAILED
 
+    /** api key or signature was turned down by the service (missing, wrong, or suspended key/secret) */
+    val isApiKeyRejected: Boolean get() = code in ApiKeyRejectedCodes
+
     companion object {
         /** not one of the service's codes: the server itself failed or answered with no json */
         const val SERVER_ERROR = -1
+        const val INVALID_API_KEY = 10
         private const val AUTH_FAILED = 4
         private const val INVALID_PARAMETERS = 6
         private const val INVALID_RESOURCE = 7
         private const val INVALID_SESSION = 9
+        private const val INVALID_SIGNATURE = 13
+        private const val SUSPENDED_API_KEY = 26
         private val TemporaryCodes = setOf(SERVER_ERROR, 8, 11, 16, 29)
+        private val ApiKeyRejectedCodes = setOf(INVALID_API_KEY, INVALID_SIGNATURE, SUSPENDED_API_KEY)
     }
 }
 
@@ -64,7 +71,23 @@ class Audioscrobbler(
     private val signsInWithToken: Boolean = false,
 ) {
     /** false in a build made without this service's api key, which can't sign anyone in */
-    val isConfigured: Boolean get() = apiKey.isNotEmpty() && secret.isNotEmpty()
+    val isConfigured: Boolean get() = apiKey.isNotBlank() && secret.isNotBlank()
+
+    /** returns a client using [overrideApiKey] and [overrideSecret] when both are non-blank, otherwise this client */
+    fun withCredentials(overrideApiKey: String, overrideSecret: String): Audioscrobbler {
+        val trimmedKey = overrideApiKey.trim()
+        val trimmedSecret = overrideSecret.trim()
+        return if (trimmedKey.isNotEmpty() && trimmedSecret.isNotEmpty()) {
+            Audioscrobbler(
+                apiRoot = apiRoot,
+                apiKey = trimmedKey,
+                secret = trimmedSecret,
+                signsInWithToken = signsInWithToken,
+            )
+        } else {
+            this
+        }
+    }
 
     /** signs in straight from mochy's own form, the password only goes to the service over https and isn't kept */
     suspend fun getMobileSession(username: String, password: String): AudioscrobblerSession {

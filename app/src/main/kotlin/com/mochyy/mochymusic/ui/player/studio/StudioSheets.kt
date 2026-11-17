@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -166,11 +167,18 @@ fun StudioSheets(
             }
 
             StudioSheet.MENU_SLOT -> {
+                val context = LocalContext.current
+                val locketInstalled = remember(context, sheet) {
+                    com.mochyy.mochymusic.core.updater.getInstalledLocketInfo(context) != null
+                }
                 val slot = studio.sheetSlot
                 val current = menuLayout.actionAt(slot)
                 val used = (menuLayout.slots + menuLayout.side).toSet()
                 OptionSheet(if (slot == PlayerMenuLayout.SideSlot) stringResource(R.string.ps_studio_side_button) else stringResource(R.string.ps_studio_menu_button, slot + 1)) {
-                    PlayerMenuAction.entries.filter { it != PlayerMenuAction.ROTATE }.forEach { action ->
+                    PlayerMenuAction.entries.filter {
+                        it != PlayerMenuAction.ROTATE &&
+                            (it != PlayerMenuAction.DUCHI_LOCKET || locketInstalled)
+                    }.forEach { action ->
                         OptionRow(
                             selected = action == current,
                             onClick = { menuLayout.assign(slot, action) },

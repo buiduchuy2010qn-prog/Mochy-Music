@@ -81,6 +81,8 @@ fun ImportProvidersScreen(
                                 LinkSource.DEEZER -> stringResource(R.string.import_link_deezer_desc)
                                 LinkSource.YOUTUBE -> stringResource(R.string.import_link_youtube_desc)
                                 LinkSource.SOUNDCLOUD -> stringResource(R.string.import_link_soundcloud_desc)
+                                LinkSource.ZING_MP3 -> stringResource(R.string.import_link_zing_desc)
+                                LinkSource.NHACCUATUI -> stringResource(R.string.import_link_nct_desc)
                             },
                         icon = painterResource(R.drawable.link),
                         iconShape = CircleShape,

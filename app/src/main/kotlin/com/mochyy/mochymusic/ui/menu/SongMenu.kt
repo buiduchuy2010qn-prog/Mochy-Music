@@ -110,6 +110,9 @@ fun SongMenu(
     isFromCache: Boolean = false,
 ) {
     val context = LocalContext.current
+    val locketInstalled = remember(context) {
+        com.mochyy.mochymusic.core.updater.getInstalledLocketInfo(context) != null
+    }
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val songState = remember(database, originalSong.id) { database.song(originalSong.id) }.collectAsState(initial = originalSong)
@@ -366,23 +369,25 @@ fun SongMenu(
                             com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song.toMediaMetadata())
                         }
                     ),
-                    Material3MenuItemData(
-                        title = { Text(text = "Đăng lên Duchi Locket") },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_duchi_locket),
-                                contentDescription = null,
-                            )
-                        },
-                        onClick = {
-                            onDismiss()
-                            com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket(
-                                context = context,
-                                song = song.toMediaMetadata(),
-                                playerConnection = playerConnection,
-                            )
-                        }
-                    ),
+                    if (locketInstalled) {
+                        Material3MenuItemData(
+                            title = { Text(text = "Đăng lên Duchi Locket") },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_duchi_locket),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                onDismiss()
+                                com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket(
+                                    context = context,
+                                    song = song.toMediaMetadata(),
+                                    playerConnection = playerConnection,
+                                )
+                            }
+                        )
+                    } else null,
                     if (song.song.albumId != null) {
                         Material3MenuItemData(
                             title = { Text(text = stringResource(R.string.view_album)) },

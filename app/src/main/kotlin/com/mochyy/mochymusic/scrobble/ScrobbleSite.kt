@@ -4,6 +4,8 @@ package com.mochyy.mochymusic.scrobble
 
 import androidx.datastore.preferences.core.Preferences
 import com.mochyy.mochymusic.BuildConfig
+import com.mochyy.mochymusic.constants.CustomLastFmApiKey
+import com.mochyy.mochymusic.constants.CustomLastFmSecretKey
 import com.mochyy.mochymusic.constants.EnableLastFMScrobblingKey
 import com.mochyy.mochymusic.constants.EnableLibreFmScrobblingKey
 import com.mochyy.mochymusic.constants.LastFMSessionKey
@@ -26,6 +28,8 @@ enum class ScrobbleSite(
     /** where someone without an account makes one */
     val signUpUrl: String,
     val api: Audioscrobbler,
+    /** where someone can create a personal API key when the build doesn't embed one */
+    val createApiKeyUrl: String? = null,
 ) {
     LASTFM(
         label = "Last.fm",
@@ -39,6 +43,7 @@ enum class ScrobbleSite(
             apiKey = BuildConfig.LASTFM_API_KEY,
             secret = BuildConfig.LASTFM_SECRET,
         ),
+        createApiKeyUrl = "https://www.last.fm/api/account/create",
     ),
     LIBREFM(
         label = "Libre.fm",
@@ -56,4 +61,13 @@ enum class ScrobbleSite(
     );
 
     fun profileUrl(username: String) = profilePage + username
+
+    /** Resolves the client to use: prefers [api] if configured, else user-provided Last.fm keys in [prefs]. */
+    fun resolveApi(prefs: Preferences): Audioscrobbler {
+        if (api.isConfigured || this != LASTFM) return api
+        return api.withCredentials(
+            overrideApiKey = prefs[CustomLastFmApiKey].orEmpty(),
+            overrideSecret = prefs[CustomLastFmSecretKey].orEmpty(),
+        )
+    }
 }

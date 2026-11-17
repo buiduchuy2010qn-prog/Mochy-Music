@@ -14,6 +14,8 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.CustomLastFmApiKey
+import com.mochyy.mochymusic.constants.CustomLastFmSecretKey
 import com.mochyy.mochymusic.constants.LastFMUseNowPlaying
 import com.mochyy.mochymusic.constants.LastFMUseSendLikes
 import com.mochyy.mochymusic.utils.OfflineMode
@@ -62,13 +64,19 @@ class Scrobbler @Inject constructor(
         }
     }
 
+    /** Resolves the effective client for [site], preferring built-in credentials or falling back to saved custom keys. */
+    suspend fun resolveApi(site: ScrobbleSite): Audioscrobbler =
+        site.resolveApi(context.dataStore.data.first())
+
     fun nowPlaying(track: ScrobbleTrack) {
         if (OfflineMode.isOn) return
         scope.launch {
             if (context.dataStore.data.first()[LastFMUseNowPlaying] == false) return@launch
             for ((site, session) in sites(includePaused = false)) {
                 try {
-                    site.api.updateNowPlaying(session, track)
+                    val api = resolveApi(site)
+                    if (!api.isConfigured) continue
+                    api.updateNowPlaying(session, track)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -97,7 +105,9 @@ class Scrobbler @Inject constructor(
             if (context.dataStore.data.first()[LastFMUseSendLikes] != true) return@launch
             for ((site, session) in sites(includePaused = false)) {
                 try {
-                    site.api.love(session, artist, track, love)
+                    val api = resolveApi(site)
+                    if (!api.isConfigured) continue
+                    api.love(session, artist, track, love)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -119,11 +129,16 @@ class Scrobbler @Inject constructor(
         var allSent = true
         // paused services still get plays from before the pause
         for ((site, session) in sites(includePaused = true)) {
+            val api = resolveApi(site)
             while (true) {
                 val batch = queue.nextFor(site, Audioscrobbler.MAX_BATCH)
                 if (batch.isEmpty()) break
+                if (!api.isConfigured) {
+                    allSent = false
+                    break
+                }
                 try {
-                    site.api.scrobble(session, batch.map { it.track to it.startedAt })
+                    api.scrobble(session, batch.map { it.track to it.startedAt })
                     queue.markSent(site, batch)
                 } catch (e: CancellationException) {
                     throw e
@@ -158,12 +173,37 @@ class Scrobbler @Inject constructor(
     // ---- signing in and out ----
 
     /** signs in from mochy's own form and keeps only the session key, the password is never stored; gives back the account's name */
-    suspend fun signIn(site: ScrobbleSite, username: String, password: String): String {
-        val session = site.api.getMobileSession(username.trim(), password)
+    suspend fun signIn(site: ScrobbleSite, username: String, password: String): String =
+        signIn(site, username, password, customApiKey = "", customSecret = "")
+
+    /** signs in with optional custom API credentials (for Last.fm builds without CI secrets), persisting them when sign-in succeeds */
+    suspend fun signIn(
+        site: ScrobbleSite,
+        username: String,
+        password: String,
+        customApiKey: String,
+        customSecret: String,
+    ): String {
+        val trimmedKey = customApiKey.trim()
+        val trimmedSecret = customSecret.trim()
+        val hasCustomPair = site == ScrobbleSite.LASTFM && trimmedKey.isNotEmpty() && trimmedSecret.isNotEmpty()
+        val api = when {
+            site.api.isConfigured -> site.api
+            hasCustomPair -> site.api.withCredentials(trimmedKey, trimmedSecret)
+            else -> resolveApi(site)
+        }
+        if (!api.isConfigured) {
+            throw AudioscrobblerException(AudioscrobblerException.INVALID_API_KEY, "Missing API key for ${site.label}")
+        }
+        val session = api.getMobileSession(username.trim(), password)
         context.dataStore.edit {
             it[site.sessionKey] = session.key
             it[site.usernameKey] = session.name
             it[site.enabledKey] = true
+            if (hasCustomPair) {
+                it[CustomLastFmApiKey] = trimmedKey
+                it[CustomLastFmSecretKey] = trimmedSecret
+            }
         }
         return session.name
     }

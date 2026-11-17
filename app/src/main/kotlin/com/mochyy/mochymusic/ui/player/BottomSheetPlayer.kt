@@ -67,6 +67,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -1740,13 +1741,19 @@ private fun PlayerSheet(
         // Above the player and its controls, so a heart can fly over everything on its way home.
         LikeBurstOverlay(state = likeBurst)
 
+        val expandContext = LocalContext.current
+        val locketInstalled = remember(expandContext, showExpandMenu) {
+            com.mochyy.mochymusic.core.updater.getInstalledLocketInfo(expandContext) != null
+        }
+
         ExpandMenuOverlay(
             visible = showExpandMenu,
             onDismiss = { showExpandMenu = false },
             // the Turntable's pills have no shuffle or repeat, so its menu adds them on top of the
             // four set in the editor (unless one of those is already there)
             slots = run {
-                val set = if (isTurntable) {
+                val locketAction = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.DUCHI_LOCKET
+                val rawSet = if (isTurntable) {
                     listOf(
                         com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHUFFLE,
                         com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.REPEAT,
@@ -1754,6 +1761,7 @@ private fun PlayerSheet(
                 } else {
                     menuLayout.slots
                 }
+                val set = if (locketInstalled) rawSet else rawSet.filterNot { it == locketAction }
                 // with a youtube video on the cover, the full video mode goes on top unless it's already one of the four
                 val shareAction = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.SHARE
                 val withShare = if (shareAction !in set && menuLayout.side != shareAction) {
@@ -1766,8 +1774,7 @@ private fun PlayerSheet(
                 } else {
                     set
                 }
-                val locketAction = com.mochyy.mochymusic.ui.player.studio.PlayerMenuAction.DUCHI_LOCKET
-                val withLocket = if (locketAction !in withShare && menuLayout.side != locketAction) {
+                val withLocket = if (locketInstalled && locketAction !in withShare && menuLayout.side != locketAction) {
                     val shareIdx = withShare.indexOf(shareAction)
                     if (shareIdx >= 0) {
                         withShare.toMutableList().apply { add(shareIdx + 1, locketAction) }

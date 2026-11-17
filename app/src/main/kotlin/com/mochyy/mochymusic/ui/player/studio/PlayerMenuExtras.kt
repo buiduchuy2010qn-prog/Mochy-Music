@@ -23,6 +23,8 @@ import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.LocalDownloadUtil
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.KeepScreenOn
+import com.mochyy.mochymusic.core.updater.getInstalledLocketInfo
+import com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.lyrics.LyricsTranslationHelper
 import com.mochyy.mochymusic.models.MediaMetadata
@@ -72,8 +74,8 @@ class PlayerMenuExtras internal constructor(
             PlayerMenuAction.DOWNLOAD -> toggleDownload()
             PlayerMenuAction.ADD_TO_PLAYLIST -> if (song != null) showAddToPlaylist()
             PlayerMenuAction.SHARE -> if (song != null) com.mochyy.mochymusic.ui.player.share.song.SongShare.open(song)
-            PlayerMenuAction.DUCHI_LOCKET -> if (song != null) {
-                com.mochyy.mochymusic.core.updater.shareSongToDuchiLocket(context, song, playerConnection)
+            PlayerMenuAction.DUCHI_LOCKET -> if (song != null && getInstalledLocketInfo(context) != null) {
+                shareSongToDuchiLocket(context, song, playerConnection)
             }
             else -> return false
         }

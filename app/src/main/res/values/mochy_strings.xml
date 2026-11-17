@@ -371,6 +371,7 @@
     <string name="scrobble_account">Account</string>
     <string name="scrobble_sign_in_title">Sign in to %1$s</string>
     <string name="scrobble_sign_in_desc">Keep your listening history, stats and recommendations there</string>
+    <string name="scrobble_sign_in_custom_desc">Sign in with your account and personal API key</string>
     <string name="scrobble_not_set_up">Not set up in this build of Mochy</string>
     <string name="scrobble_to">Scrobble to %1$s</string>
     <string name="scrobble_signed_in_as">Signed in as %1$s</string>
@@ -399,9 +400,15 @@
     <string name="scrobble_sign_in_button">Sign in</string>
     <string name="scrobble_signing_in">Signing in…</string>
     <string name="scrobble_sign_in_wrong">That username or password didn\'t work. Check them and try again.</string>
+    <string name="scrobble_sign_in_invalid_api_key">That API Key or Shared Secret wasn\'t accepted by %1$s. Check them and try again.</string>
     <string name="scrobble_sign_in_busy">%1$s couldn\'t sign you in right now. Try again in a moment.</string>
     <string name="scrobble_sign_in_offline">Couldn\'t reach %1$s. Check your connection and try again.</string>
     <string name="scrobble_sign_up">No account yet? Make one on %1$s</string>
+    <string name="scrobble_api_key_label">Last.fm API Key</string>
+    <string name="scrobble_api_key_hint">Paste your Last.fm API key</string>
+    <string name="scrobble_shared_secret_label">Shared Secret</string>
+    <string name="scrobble_shared_secret_hint">Paste your Last.fm shared secret</string>
+    <string name="scrobble_create_api_key">No API Key yet? Create one free on Last.fm</string>
 
     <!-- Last.fm -->
     <string name="lastfm_integration">Last.fm Integration</string>
@@ -854,6 +861,13 @@
     <string name="discord_activity_name_description">Custom name for the activity (leave empty for default)</string>
     <string name="discord_advanced_mode">Advanced mode</string>
     <string name="discord_advanced_mode_description">Show additional customization options for Rich Presence</string>
+    <string name="discord_placeholder_name_desc">Song name</string>
+    <string name="discord_placeholder_artist_desc">Artist name</string>
+    <string name="discord_placeholder_album_desc">Album</string>
+    <string name="discord_placeholder_app_desc">Mochy</string>
+    <string name="discord_placeholder_quality_desc">Format and bitrate, like OPUS · 160 kbps</string>
+    <string name="discord_placeholder_apple_desc">The Apple logo (only Apple devices can show it)</string>
+    <string name="discord_placeholder_example_template">{name} by {artist} on {album}</string>
     <string name="speed_dial">Jump Back In</string>
     <string name="pin_to_speed_dial">Pin to library</string>
     <string name="unpin_from_speed_dial">Unpin from library</string>

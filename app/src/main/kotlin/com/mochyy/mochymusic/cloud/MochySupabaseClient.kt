@@ -2,6 +2,8 @@ package com.mochyy.mochymusic.cloud
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -9,6 +11,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 import java.net.URLEncoder
 import java.time.Instant
 import java.util.concurrent.TimeUnit
@@ -46,9 +49,18 @@ data class CloudUserMetadata(
     val cardNumber: String?,
     val joinedEpochDay: Long?,
     val playlistsGz: String?,
+    val libraryExtraGz: String? = null,
 )
 
-class MochyCloudException(message: String) : Exception(message)
+open class MochyCloudException(message: String) : Exception(message)
+
+class MochyCloudAuthExpiredException(message: String) : MochyCloudException(message)
+
+sealed class RefreshSessionResult {
+    data class Success(val session: MochyCloudSession) : RefreshSessionResult()
+    data class AuthExpired(val message: String) : RefreshSessionResult()
+    data class NetworkError(val message: String) : RefreshSessionResult()
+}
 
 /**
  * Giao tiếp HTTPS trực tiếp với Supabase Auth + PostgREST cho Mochy Cloud.
@@ -60,6 +72,7 @@ object MochySupabaseClient {
 
     private val JsonMediaType = "application/json; charset=utf-8".toMediaType()
     private val UsernameRegex = Regex("^[a-z0-9._]{3,24}$")
+    private val refreshMutex = Mutex()
 
     private val http: OkHttpClient by lazy {
         OkHttpClient.Builder()
@@ -141,31 +154,108 @@ object MochySupabaseClient {
             .post(body)
             .build()
 
-        val responseJson = executeAuthRequest(request, isSignUp = false)
+        val responseJson = executeAuthRequest(request, isSignUp = true, isSignIn = false)
+        val session = parseAuthSession(responseJson, fallbackUsername = username, fallbackDisplay = cleanDisplay)
+        ensureProfileRow(context, session, cleanDisplay)
+        session
+    }
+
+    suspend fun signIn(
+        context: Context,
+        rawUsername: String,
+        password: String,
+    ): MochyCloudSession = withContext(Dispatchers.IO) {
+        val username = normalizeUsername(rawUsername)
+        if (!isValidUsername(username)) {
+            throw MochyCloudException("Tên đăng nhập không hợp lệ.")
+        }
+        if (password.isEmpty()) {
+            throw MochyCloudException("Vui lòng nhập mật khẩu.")
+        }
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
+            ?: throw MochyCloudException("Bản dựng này chưa cấu hình Mochy Cloud.")
+
+        val body = JSONObject().apply {
+            put("email", syntheticEmail(username))
+            put("password", password)
+        }.toString().toRequestBody(JsonMediaType)
+
+        val request = Request.Builder()
+            .url("$baseUrl/auth/v1/token?grant_type=password")
+            .header("apikey", publishableKey)
+            .header("Accept", "application/json")
+            .post(body)
+            .build()
+
+        val responseJson = executeAuthRequest(request, isSignUp = false, isSignIn = true)
         parseAuthSession(responseJson, fallbackUsername = username, fallbackDisplay = username)
     }
 
     suspend fun refreshSession(
         context: Context,
         session: MochyCloudSession,
-    ): MochyCloudSession? = withContext(Dispatchers.IO) {
-        if (session.refreshToken.isBlank()) return@withContext null
-        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext null
-        val body = JSONObject().apply {
-            put("refresh_token", session.refreshToken)
-        }.toString().toRequestBody(JsonMediaType)
+    ): MochyCloudSession? = (refreshSessionWithStatus(context, session) as? RefreshSessionResult.Success)?.session
 
-        val request = Request.Builder()
-            .url("$baseUrl/auth/v1/token?grant_type=refresh_token")
-            .header("apikey", publishableKey)
-            .header("Accept", "application/json")
-            .post(body)
-            .build()
+    suspend fun refreshSessionWithStatus(
+        context: Context,
+        session: MochyCloudSession,
+    ): RefreshSessionResult = withContext(Dispatchers.IO) {
+        refreshMutex.withLock {
+            val nowSec = System.currentTimeMillis() / 1000L
+            val cached = MochyCloudVault.loadSession(context)
+            if (cached != null &&
+                cached.userId == session.userId &&
+                cached.accessToken != session.accessToken &&
+                cached.expiresAtEpochSec > nowSec + 90L
+            ) {
+                return@withLock RefreshSessionResult.Success(cached)
+            }
+            if (session.refreshToken.isBlank()) {
+                return@withLock RefreshSessionResult.AuthExpired("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+            }
+            val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
+                ?: return@withLock RefreshSessionResult.NetworkError("Chưa cấu hình Mochy Cloud.")
+            val body = JSONObject().apply {
+                put("refresh_token", session.refreshToken)
+            }.toString().toRequestBody(JsonMediaType)
 
-        runCatching {
-            val json = executeAuthRequest(request, isSignUp = false)
-            parseAuthSession(json, fallbackUsername = session.username, fallbackDisplay = session.displayName)
-        }.getOrNull()
+            val request = Request.Builder()
+                .url("$baseUrl/auth/v1/token?grant_type=refresh_token")
+                .header("apikey", publishableKey)
+                .header("Accept", "application/json")
+                .post(body)
+                .build()
+
+            val callResult = try {
+                http.newCall(request).execute().use { resp ->
+                    HttpCallResult(resp.code, resp.body?.string().orEmpty())
+                }
+            } catch (_: IOException) {
+                return@withLock RefreshSessionResult.NetworkError("Không thể kết nối Mochy Cloud, sẽ thử lại sau.")
+            }
+
+            if (callResult.code in 200..299) {
+                val parsed = runCatching {
+                    val json = JSONObject(callResult.body)
+                    parseAuthSession(json, fallbackUsername = session.username, fallbackDisplay = session.displayName)
+                }.getOrNull()
+                if (parsed != null) {
+                    MochyCloudVault.saveSession(context, parsed)
+                    return@withLock RefreshSessionResult.Success(parsed)
+                }
+                return@withLock RefreshSessionResult.NetworkError("Phản hồi làm mới phiên không hợp lệ.")
+            }
+
+            if (callResult.code == 400 || callResult.code == 401 || callResult.code == 403) {
+                return@withLock RefreshSessionResult.AuthExpired("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+            }
+
+            if (callResult.code == 429 || callResult.code >= 500) {
+                return@withLock RefreshSessionResult.NetworkError("Máy chủ Mochy Cloud đang bận, thử lại sau nhé.")
+            }
+
+            RefreshSessionResult.NetworkError("Không thể làm mới phiên (${callResult.code}).")
+        }
     }
 
     suspend fun fetchUserMetadata(
@@ -173,20 +263,22 @@ object MochySupabaseClient {
         session: MochyCloudSession,
     ): CloudUserMetadata? = withContext(Dispatchers.IO) {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext null
-        val request = Request.Builder()
-            .url("$baseUrl/auth/v1/user")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .header("Accept", "application/json")
-            .get()
-            .build()
-        val json = executeAuthRequest(request, isSignUp = false)
+        val json = executeAuthenticatedAuthJson(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/auth/v1/user")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .header("Accept", "application/json")
+                .get()
+                .build()
+        }
         val meta = json.optJSONObject("user_metadata")
             ?: json.optJSONObject("user")?.optJSONObject("user_metadata")
         CloudUserMetadata(
             cardNumber = meta?.optString("card_number")?.takeIf { it.isNotBlank() && it != "null" },
             joinedEpochDay = meta?.optLong("joined_epoch_day", -1L)?.takeIf { it > 0L },
             playlistsGz = meta?.optString("playlists_gz")?.takeIf { it.isNotBlank() && it != "null" },
+            libraryExtraGz = meta?.optString("library_extra_gz")?.takeIf { it.isNotBlank() && it != "null" },
         )
     }
 
@@ -197,14 +289,21 @@ object MochySupabaseClient {
         joinedEpochDay: Long? = null,
         playlistsGz: String? = null,
         clearPlaylists: Boolean = false,
-    ) = withContext(Dispatchers.IO) {
+        libraryExtraGz: String? = null,
+        clearLibraryExtra: Boolean = false,
+    ): Unit = withContext(Dispatchers.IO) {
         val data = JSONObject().apply {
             if (cardNumber != null) put("card_number", cardNumber.take(24))
             if (joinedEpochDay != null && joinedEpochDay > 0L) put("joined_epoch_day", joinedEpochDay)
             if (clearPlaylists) {
                 put("playlists_gz", "")
             } else if (playlistsGz != null) {
-                put("playlists_gz", playlistsGz)
+                put("playlists_gz", playlistsGz.take(16_384))
+            }
+            if (clearLibraryExtra) {
+                put("library_extra_gz", "")
+            } else if (libraryExtraGz != null) {
+                put("library_extra_gz", libraryExtraGz.take(16_384))
             }
         }
         if (data.length() == 0) return@withContext
@@ -213,21 +312,22 @@ object MochySupabaseClient {
         val body = JSONObject().apply {
             put("data", data)
         }.toString().toRequestBody(JsonMediaType)
-        val request = Request.Builder()
-            .url("$baseUrl/auth/v1/user")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .header("Accept", "application/json")
-            .put(body)
-            .build()
-        executeAuthRequest(request, isSignUp = false)
+        executeAuthenticatedAuthJson(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/auth/v1/user")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .header("Accept", "application/json")
+                .put(body)
+                .build()
+        }
     }
 
     suspend fun updatePassword(
         context: Context,
         session: MochyCloudSession,
         newPassword: String,
-    ) = withContext(Dispatchers.IO) {
+    ): Unit = withContext(Dispatchers.IO) {
         if (newPassword.length < 6) {
             throw MochyCloudException("Mật khẩu mới phải có ít nhất 6 ký tự.")
         }
@@ -236,49 +336,54 @@ object MochySupabaseClient {
         val body = JSONObject().apply {
             put("password", newPassword)
         }.toString().toRequestBody(JsonMediaType)
-        val request = Request.Builder()
-            .url("$baseUrl/auth/v1/user")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .header("Accept", "application/json")
-            .put(body)
-            .build()
-        executeAuthRequest(request, isSignUp = false)
+        executeAuthenticatedAuthJson(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/auth/v1/user")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .header("Accept", "application/json")
+                .put(body)
+                .build()
+        }
     }
 
     suspend fun wipeCloudData(
         context: Context,
         session: MochyCloudSession,
-    ) = withContext(Dispatchers.IO) {
+    ): Unit = withContext(Dispatchers.IO) {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
             ?: throw MochyCloudException("Chưa cấu hình Mochy Cloud.")
         val uid = urlEncode(session.userId)
-        val delFavs = Request.Builder()
-            .url("$baseUrl/rest/v1/mochy_favorites?user_id=eq.$uid")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .delete()
-            .build()
-        executeRestWrite(delFavs)
+        executeAuthenticatedRestWrite(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/rest/v1/mochy_favorites?user_id=eq.$uid")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .delete()
+                .build()
+        }
 
-        val delHistory = Request.Builder()
-            .url("$baseUrl/rest/v1/mochy_history?user_id=eq.$uid")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .delete()
-            .build()
-        executeRestWrite(delHistory)
+        executeAuthenticatedRestWrite(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/rest/v1/mochy_history?user_id=eq.$uid")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .delete()
+                .build()
+        }
 
-        val clearAvatar = Request.Builder()
-            .url("$baseUrl/rest/v1/mochy_profiles?user_id=eq.$uid")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .header("Prefer", "return=minimal")
-            .patch(JSONObject().apply { put("avatar_webp", JSONObject.NULL) }.toString().toRequestBody(JsonMediaType))
-            .build()
-        executeRestWrite(clearAvatar)
+        val avatarPatch = JSONObject().apply { put("avatar_webp", JSONObject.NULL) }.toString().toRequestBody(JsonMediaType)
+        executeAuthenticatedRestWrite(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/rest/v1/mochy_profiles?user_id=eq.$uid")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .header("Prefer", "return=minimal")
+                .patch(avatarPatch)
+                .build()
+        }
 
-        updateUserMetadata(context, session, clearPlaylists = true)
+        updateUserMetadata(context, session, clearPlaylists = true, clearLibraryExtra = true)
     }
 
     suspend fun signOutRemote(context: Context, session: MochyCloudSession) = withContext(Dispatchers.IO) {
@@ -295,13 +400,14 @@ object MochySupabaseClient {
     suspend fun fetchProfile(context: Context, session: MochyCloudSession): CloudProfileRecord? = withContext(Dispatchers.IO) {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext null
         val uid = urlEncode(session.userId)
-        val request = Request.Builder()
-            .url("$baseUrl/rest/v1/mochy_profiles?user_id=eq.$uid&select=user_id,username,display_name,avatar_webp&limit=1")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .get()
-            .build()
-        val arr = executeRestArray(request)
+        val arr = executeAuthenticatedRestArray(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/rest/v1/mochy_profiles?user_id=eq.$uid&select=user_id,username,display_name,avatar_webp&limit=1")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .get()
+                .build()
+        }
         if (arr.length() == 0) return@withContext null
         val obj = arr.getJSONObject(0)
         CloudProfileRecord(
@@ -317,7 +423,7 @@ object MochySupabaseClient {
         session: MochyCloudSession,
         displayName: String?,
         avatarWebp: String?,
-    ) = withContext(Dispatchers.IO) {
+    ): Unit = withContext(Dispatchers.IO) {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
             ?: throw MochyCloudException("Chưa cấu hình Mochy Cloud.")
         val payload = JSONObject().apply {
@@ -331,26 +437,29 @@ object MochySupabaseClient {
         }
         if (payload.length() == 0) return@withContext
         val uid = urlEncode(session.userId)
-        val request = Request.Builder()
-            .url("$baseUrl/rest/v1/mochy_profiles?user_id=eq.$uid")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .header("Prefer", "return=minimal")
-            .patch(payload.toString().toRequestBody(JsonMediaType))
-            .build()
-        executeRestWrite(request)
+        val body = payload.toString().toRequestBody(JsonMediaType)
+        executeAuthenticatedRestWrite(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/rest/v1/mochy_profiles?user_id=eq.$uid")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .header("Prefer", "return=minimal")
+                .patch(body)
+                .build()
+        }
     }
 
     suspend fun fetchFavorites(context: Context, session: MochyCloudSession): List<CloudFavoriteRecord> = withContext(Dispatchers.IO) {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext emptyList()
         val uid = urlEncode(session.userId)
-        val request = Request.Builder()
-            .url("$baseUrl/rest/v1/mochy_favorites?user_id=eq.$uid&select=song_id,title,artists,album_name,duration,thumbnail_url,liked_at&order=liked_at.desc&limit=2000")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .get()
-            .build()
-        val arr = executeRestArray(request)
+        val arr = executeAuthenticatedRestArray(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/rest/v1/mochy_favorites?user_id=eq.$uid&select=song_id,title,artists,album_name,duration,thumbnail_url,liked_at&order=liked_at.desc&limit=2000")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .get()
+                .build()
+        }
         buildList(arr.length()) {
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
@@ -401,14 +510,16 @@ object MochySupabaseClient {
                     },
                 )
             }
-            val request = Request.Builder()
-                .url("$baseUrl/rest/v1/mochy_favorites?on_conflict=user_id,song_id")
-                .header("apikey", publishableKey)
-                .header("Authorization", "Bearer ${session.accessToken}")
-                .header("Prefer", "resolution=merge-duplicates,return=minimal")
-                .post(arr.toString().toRequestBody(JsonMediaType))
-                .build()
-            executeRestWrite(request)
+            val body = arr.toString().toRequestBody(JsonMediaType)
+            executeAuthenticatedRestWrite(context, session) { accessToken ->
+                Request.Builder()
+                    .url("$baseUrl/rest/v1/mochy_favorites?on_conflict=user_id,song_id")
+                    .header("apikey", publishableKey)
+                    .header("Authorization", "Bearer $accessToken")
+                    .header("Prefer", "resolution=merge-duplicates,return=minimal")
+                    .post(body)
+                    .build()
+            }
         }
     }
 
@@ -423,26 +534,28 @@ object MochySupabaseClient {
         for (chunk in songIds.chunked(60)) {
             val joined = chunk.joinToString(",") { id -> "\"${id.replace("\"", "")}\"" }
             val inFilter = urlEncode("($joined)")
-            val request = Request.Builder()
-                .url("$baseUrl/rest/v1/mochy_favorites?user_id=eq.$uid&song_id=in.$inFilter")
-                .header("apikey", publishableKey)
-                .header("Authorization", "Bearer ${session.accessToken}")
-                .delete()
-                .build()
-            executeRestWrite(request)
+            executeAuthenticatedRestWrite(context, session) { accessToken ->
+                Request.Builder()
+                    .url("$baseUrl/rest/v1/mochy_favorites?user_id=eq.$uid&song_id=in.$inFilter")
+                    .header("apikey", publishableKey)
+                    .header("Authorization", "Bearer $accessToken")
+                    .delete()
+                    .build()
+            }
         }
     }
 
     suspend fun fetchHistory(context: Context, session: MochyCloudSession): List<CloudHistoryRecord> = withContext(Dispatchers.IO) {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext emptyList()
         val uid = urlEncode(session.userId)
-        val request = Request.Builder()
-            .url("$baseUrl/rest/v1/mochy_history?user_id=eq.$uid&select=song_id,title,artists,album_name,duration,thumbnail_url,play_count,total_play_ms,last_played_at&order=last_played_at.desc&limit=500")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
-            .get()
-            .build()
-        val arr = executeRestArray(request)
+        val arr = executeAuthenticatedRestArray(context, session) { accessToken ->
+            Request.Builder()
+                .url("$baseUrl/rest/v1/mochy_history?user_id=eq.$uid&select=song_id,title,artists,album_name,duration,thumbnail_url,play_count,total_play_ms,last_played_at&order=last_played_at.desc&limit=500")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $accessToken")
+                .get()
+                .build()
+        }
         buildList(arr.length()) {
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
@@ -497,19 +610,25 @@ object MochySupabaseClient {
                     },
                 )
             }
-            val request = Request.Builder()
-                .url("$baseUrl/rest/v1/mochy_history?on_conflict=user_id,song_id")
-                .header("apikey", publishableKey)
-                .header("Authorization", "Bearer ${session.accessToken}")
-                .header("Prefer", "resolution=merge-duplicates,return=minimal")
-                .post(arr.toString().toRequestBody(JsonMediaType))
-                .build()
-            executeRestWrite(request)
+            val body = arr.toString().toRequestBody(JsonMediaType)
+            executeAuthenticatedRestWrite(context, session) { accessToken ->
+                Request.Builder()
+                    .url("$baseUrl/rest/v1/mochy_history?on_conflict=user_id,song_id")
+                    .header("apikey", publishableKey)
+                    .header("Authorization", "Bearer $accessToken")
+                    .header("Prefer", "resolution=merge-duplicates,return=minimal")
+                    .post(body)
+                    .build()
+            }
         }
     }
 
     internal fun ensureProfileRow(context: Context, session: MochyCloudSession, displayName: String) {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return
+        val activeToken = MochyCloudVault.loadSession(context)
+            ?.takeIf { it.userId == session.userId }
+            ?.accessToken
+            ?: session.accessToken
         val body = JSONObject().apply {
             put("user_id", session.userId)
             put("username", session.username)
@@ -518,7 +637,7 @@ object MochySupabaseClient {
         val request = Request.Builder()
             .url("$baseUrl/rest/v1/mochy_profiles?on_conflict=user_id")
             .header("apikey", publishableKey)
-            .header("Authorization", "Bearer ${session.accessToken}")
+            .header("Authorization", "Bearer $activeToken")
             .header("Prefer", "resolution=ignore-duplicates,return=minimal")
             .post(body)
             .build()
@@ -566,50 +685,121 @@ object MochySupabaseClient {
         put("thumbnail_url", sanitizeCloudUrl(thumbnailUrl))
     }
 
-    private fun executeAuthRequest(request: Request, isSignUp: Boolean): JSONObject {
-        http.newCall(request).execute().use { resp ->
-            val raw = resp.body?.string().orEmpty()
-            if (resp.isSuccessful) {
-                return runCatching { JSONObject(raw) }.getOrElse {
-                    throw MochyCloudException("Phản hồi máy chủ không hợp lệ.")
-                }
+    private data class HttpCallResult(val code: Int, val body: String)
+
+    private fun executeSingleCall(request: Request): HttpCallResult {
+        try {
+            http.newCall(request).execute().use { resp ->
+                return HttpCallResult(resp.code, resp.body?.string().orEmpty())
             }
-            val errJson = runCatching { JSONObject(raw) }.getOrNull()
-            val msg = errJson?.optString("msg")?.ifBlank { null }
-                ?: errJson?.optString("error_description")?.ifBlank { null }
-                ?: errJson?.optString("message").orEmpty()
-            val lower = msg.lowercase()
-            val friendly = when {
-                resp.code == 429 || "rate limit" in lower -> "Thao tác quá nhanh, vui lòng thử lại sau ít phút."
-                isSignUp && ("already registered" in lower || "already exists" in lower) ->
-                    "Tên đăng nhập này đã có người sử dụng."
-                !isSignUp && ("invalid login credentials" in lower || "invalid" in lower) ->
-                    "Sai tên đăng nhập hoặc mật khẩu."
-                resp.code >= 500 -> "Máy chủ Mochy Cloud đang bận, thử lại sau nhé."
-                msg.isNotBlank() -> msg
-                else -> "Lỗi xác thực (${resp.code})."
-            }
-            throw MochyCloudException(friendly)
+        } catch (_: IOException) {
+            throw MochyCloudException("Không thể kết nối Mochy Cloud, kiểm tra mạng rồi thử lại.")
         }
     }
 
-    private fun executeRestArray(request: Request): JSONArray {
-        http.newCall(request).execute().use { resp ->
-            val raw = resp.body?.string().orEmpty()
-            if (resp.isSuccessful) {
-                return runCatching { JSONArray(raw) }.getOrDefault(JSONArray())
-            }
-            throw MochyCloudException(mapRestError(resp.code, raw))
+    private suspend fun <T> executeAuthenticatedCall(
+        context: Context,
+        session: MochyCloudSession,
+        buildRequest: (accessToken: String) -> Request,
+        handleResponse: (code: Int, rawBody: String) -> T,
+    ): T {
+        val latest = MochyCloudVault.loadSession(context)
+            ?.takeIf { it.userId == session.userId && it.expiresAtEpochSec >= session.expiresAtEpochSec }
+            ?: session
+        val first = executeSingleCall(buildRequest(latest.accessToken))
+        if (first.code != 401) {
+            return handleResponse(first.code, first.body)
         }
+        val refreshed = when (val outcome = refreshSessionWithStatus(context, latest)) {
+            is RefreshSessionResult.Success -> outcome.session
+            is RefreshSessionResult.AuthExpired -> throw MochyCloudAuthExpiredException(outcome.message)
+            is RefreshSessionResult.NetworkError -> throw MochyCloudException(outcome.message)
+        }
+        val retry = executeSingleCall(buildRequest(refreshed.accessToken))
+        if (retry.code == 401) {
+            throw MochyCloudAuthExpiredException("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+        }
+        return handleResponse(retry.code, retry.body)
     }
 
-    private fun executeRestWrite(request: Request) {
-        http.newCall(request).execute().use { resp ->
-            val raw = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) {
-                throw MochyCloudException(mapRestError(resp.code, raw))
+    private suspend fun executeAuthenticatedAuthJson(
+        context: Context,
+        session: MochyCloudSession,
+        buildRequest: (accessToken: String) -> Request,
+    ): JSONObject = executeAuthenticatedCall(
+        context = context,
+        session = session,
+        buildRequest = buildRequest,
+        handleResponse = { code, raw ->
+            parseAuthResponseOrThrow(code, raw, isSignUp = false, isSignIn = false)
+        },
+    )
+
+    private suspend fun executeAuthenticatedRestArray(
+        context: Context,
+        session: MochyCloudSession,
+        buildRequest: (accessToken: String) -> Request,
+    ): JSONArray = executeAuthenticatedCall(
+        context = context,
+        session = session,
+        buildRequest = buildRequest,
+        handleResponse = { code, raw ->
+            if (code in 200..299) {
+                runCatching { JSONArray(raw) }.getOrDefault(JSONArray())
+            } else {
+                throw MochyCloudException(mapRestError(code, raw))
+            }
+        },
+    )
+
+    private suspend fun executeAuthenticatedRestWrite(
+        context: Context,
+        session: MochyCloudSession,
+        buildRequest: (accessToken: String) -> Request,
+    ) = executeAuthenticatedCall(
+        context = context,
+        session = session,
+        buildRequest = buildRequest,
+        handleResponse = { code, raw ->
+            if (code !in 200..299) {
+                throw MochyCloudException(mapRestError(code, raw))
+            }
+        },
+    )
+
+    private fun executeAuthRequest(request: Request, isSignUp: Boolean, isSignIn: Boolean): JSONObject {
+        val res = executeSingleCall(request)
+        return parseAuthResponseOrThrow(res.code, res.body, isSignUp = isSignUp, isSignIn = isSignIn)
+    }
+
+    private fun parseAuthResponseOrThrow(
+        code: Int,
+        raw: String,
+        isSignUp: Boolean,
+        isSignIn: Boolean,
+    ): JSONObject {
+        if (code in 200..299) {
+            return runCatching { JSONObject(raw) }.getOrElse {
+                throw MochyCloudException("Phản hồi máy chủ không hợp lệ.")
             }
         }
+        val errJson = runCatching { JSONObject(raw) }.getOrNull()
+        val msg = errJson?.optString("msg")?.ifBlank { null }
+            ?: errJson?.optString("error_description")?.ifBlank { null }
+            ?: errJson?.optString("message").orEmpty()
+        val lower = msg.lowercase()
+        val friendly = when {
+            code == 401 -> "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại."
+            code == 429 || "rate limit" in lower -> "Thao tác quá nhanh, vui lòng thử lại sau ít phút."
+            isSignUp && ("already registered" in lower || "already exists" in lower) ->
+                "Tên đăng nhập này đã có người sử dụng."
+            isSignIn && ("invalid login credentials" in lower || "invalid" in lower) ->
+                "Sai tên đăng nhập hoặc mật khẩu."
+            code >= 500 -> "Máy chủ Mochy Cloud đang bận, thử lại sau nhé."
+            msg.isNotBlank() -> msg
+            else -> "Lỗi xác thực ($code)."
+        }
+        throw MochyCloudException(friendly)
     }
 
     private fun mapRestError(code: Int, raw: String): String {

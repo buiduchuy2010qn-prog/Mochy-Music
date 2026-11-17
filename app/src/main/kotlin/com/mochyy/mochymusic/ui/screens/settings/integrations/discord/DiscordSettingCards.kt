@@ -74,6 +74,7 @@ import com.mochyy.mochymusic.discord.PresenceButton
 import com.mochyy.mochymusic.discord.PresenceButtonTarget
 import com.mochyy.mochymusic.discord.PresenceImage
 import com.mochyy.mochymusic.discord.PresenceSettings
+import com.mochyy.mochymusic.discord.PresenceText
 import com.mochyy.mochymusic.discord.SpinStyle
 import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
@@ -634,15 +635,7 @@ internal fun DiscordPlaceholderCard() {
             lineHeight = 18.sp,
             color = Color.White.copy(alpha = 0.85f),
         )
-    val placeholders =
-        listOf(
-            "{name}" to stringResource(R.string.discord_ph_name),
-            "{artist}" to stringResource(R.string.discord_ph_artist),
-            "{album}" to stringResource(R.string.discord_ph_album),
-            "{app}" to stringResource(R.string.discord_ph_app),
-            "{quality}" to stringResource(R.string.discord_ph_quality),
-            "{apple}" to stringResource(R.string.discord_ph_apple),
-        )
+    val placeholders = PresenceText.PlaceholderSpecs.map { it.token to stringResource(it.descriptionRes) }
     DiscordCard {
         Text(
             stringResource(R.string.discord_placeholder_list_title),
@@ -656,7 +649,10 @@ internal fun DiscordPlaceholderCard() {
         }
         Spacer(Modifier.height(12.dp))
         Text(stringResource(R.string.discord_placeholder_example_title), style = body)
-        Text("{name} by {artist} on {album}", style = body.copy(color = DiscordColors.Primary, fontWeight = FontWeight.Medium))
+        Text(
+            stringResource(R.string.discord_placeholder_example_template),
+            style = body.copy(color = DiscordColors.Primary, fontWeight = FontWeight.Medium),
+        )
         Spacer(Modifier.height(12.dp))
         Text(stringResource(R.string.discord_placeholder_shows_up_as), style = body)
         Text(

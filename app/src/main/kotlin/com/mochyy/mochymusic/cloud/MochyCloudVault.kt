@@ -193,34 +193,88 @@ object MochyCloudVault {
         saveSyncedIdSet(context, userId, "playlistIds", ids)
     }
 
-    private fun loadSyncedIdSet(context: Context, userId: String, key: String): Set<String>? {
+    @Synchronized
+    fun loadSyncedPlaylistsDigest(context: Context, userId: String): String? =
+        loadSyncedString(context, userId, "playlistsDigest")
+
+    @Synchronized
+    fun saveSyncedPlaylistsDigest(context: Context, userId: String, digest: String?) {
+        saveSyncedString(context, userId, "playlistsDigest", digest)
+    }
+
+    @Synchronized
+    fun loadSyncedAlbumIds(context: Context, userId: String): Set<String>? =
+        loadSyncedIdSet(context, userId, "albumIds")
+
+    @Synchronized
+    fun saveSyncedAlbumIds(context: Context, userId: String, ids: Set<String>) {
+        saveSyncedIdSet(context, userId, "albumIds", ids)
+    }
+
+    @Synchronized
+    fun loadSyncedArtistIds(context: Context, userId: String): Set<String>? =
+        loadSyncedIdSet(context, userId, "artistIds")
+
+    @Synchronized
+    fun saveSyncedArtistIds(context: Context, userId: String, ids: Set<String>) {
+        saveSyncedIdSet(context, userId, "artistIds", ids)
+    }
+
+    @Synchronized
+    fun loadSyncedEqDigest(context: Context, userId: String): String? =
+        loadSyncedString(context, userId, "eqDigest")
+
+    @Synchronized
+    fun saveSyncedEqDigest(context: Context, userId: String, digest: String?) {
+        saveSyncedString(context, userId, "eqDigest", digest)
+    }
+
+    private fun readSyncStateJson(context: Context, userId: String): JSONObject? {
         val file = syncStateFile(context)
         if (!file.exists()) return null
         return runCatching {
             val json = JSONObject(file.readText(Charsets.UTF_8))
-            if (json.optString("userId") != userId) return null
-            val arr = json.optJSONArray(key) ?: return null
-            buildSet(arr.length()) {
-                for (i in 0 until arr.length()) {
-                    arr.optString(i).takeIf { it.isNotBlank() }?.let(::add)
-                }
-            }
+            json.takeIf { it.optString("userId") == userId }
         }.getOrNull()
     }
 
-    private fun saveSyncedIdSet(context: Context, userId: String, key: String, ids: Set<String>) {
+    private fun writeSyncStateJson(context: Context, userId: String, mutate: (JSONObject) -> Unit) {
         runCatching {
             val file = syncStateFile(context)
-            val existing = if (file.exists()) {
-                runCatching { JSONObject(file.readText(Charsets.UTF_8)) }.getOrNull()
-            } else null
-            val json = if (existing != null && existing.optString("userId") == userId) {
-                existing
-            } else {
-                JSONObject().put("userId", userId)
-            }
-            json.put(key, JSONArray(ids.toList()))
+            val json = readSyncStateJson(context, userId) ?: JSONObject().put("userId", userId)
+            mutate(json)
             file.writeText(json.toString(), Charsets.UTF_8)
+        }
+    }
+
+    private fun loadSyncedString(context: Context, userId: String, key: String): String? =
+        readSyncStateJson(context, userId)
+            ?.optString(key)
+            ?.takeIf { it.isNotBlank() && it != "null" }
+
+    private fun saveSyncedString(context: Context, userId: String, key: String, value: String?) {
+        writeSyncStateJson(context, userId) { json ->
+            if (value.isNullOrBlank()) {
+                json.remove(key)
+            } else {
+                json.put(key, value)
+            }
+        }
+    }
+
+    private fun loadSyncedIdSet(context: Context, userId: String, key: String): Set<String>? {
+        val json = readSyncStateJson(context, userId) ?: return null
+        val arr = json.optJSONArray(key) ?: return null
+        return buildSet(arr.length()) {
+            for (i in 0 until arr.length()) {
+                arr.optString(i).takeIf { it.isNotBlank() }?.let(::add)
+            }
+        }
+    }
+
+    private fun saveSyncedIdSet(context: Context, userId: String, key: String, ids: Set<String>) {
+        writeSyncStateJson(context, userId) { json ->
+            json.put(key, JSONArray(ids.toList()))
         }
     }
 
