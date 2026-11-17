@@ -40,8 +40,12 @@ import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState
 import com.mochyy.mochymusic.ui.component.PopupSheetHandle
 import com.mochyy.mochymusic.ui.component.PopupSheetState
+import com.mochyy.mochymusic.ui.component.press3D
+import com.mochyy.mochymusic.ui.component.rememberRevealSeenState
+import com.mochyy.mochymusic.ui.component.revealOnAppear
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.ui.utils.AppMotion
 
 private data class WhatsNewHighlight(
     @DrawableRes val icon: Int,
@@ -49,26 +53,26 @@ private data class WhatsNewHighlight(
     val summary: String,
 )
 
-private val V112Highlights = listOf(
+private val V113Highlights = listOf(
+    WhatsNewHighlight(
+        icon = R.drawable.music_note,
+        title = "Chia sẻ TikTok / Reels tự bắt nhạc bằng Shazam",
+        summary = "Chia sẻ video TikTok, Reels hay Shorts vào Mochy để tự động tách tên bài hoặc dùng Shazam nhận diện giai điệu và phát ngay.",
+    ),
+    WhatsNewHighlight(
+        icon = R.drawable.lyrics,
+        title = "Nhận diện nhạc trên Thanh trạng thái & Lời nhạc Việt .lrc",
+        summary = "Mở nhanh nhận diện nhạc từ ô Thanh trạng thái hay phím tắt biểu tượng app; bổ sung nguồn lời NhacCuaTui và Zing MP3 khớp từng câu.",
+    ),
     WhatsNewHighlight(
         icon = R.drawable.cloud,
-        title = "Mochy Cloud đồng bộ đủ thư viện & sao lưu .mochy.gz",
-        summary = "Đồng bộ đầy đủ Album đã lưu, Nghệ sĩ theo dõi & Equalizer; xuất/nhập tệp sao lưu .mochy.gz không giới hạn và tránh đồng bộ thừa.",
+        title = "Nghe tiếp giữa các máy & Gửi Playlist .mochypl",
+        summary = "Phát tiếp đúng giây đang nghe dở kèm hàng đợi từ thiết bị khác qua Mochy Cloud và chia sẻ từng playlist gọn nhẹ bằng tệp .mochypl.",
     ),
     WhatsNewHighlight(
-        icon = R.drawable.link,
-        title = "Chia sẻ link nhạc mọi nền tảng & nhập Zing/NCT",
-        summary = "Chia sẻ thẳng từ Spotify, SoundCloud, Apple Music, Deezer, Zing MP3, NhacCuaTui vào Mochy để phát ngay hoặc nhập playlist công khai.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.smartphone,
-        title = "Tối ưu máy yếu RAM thấp, Android 8 & tự dọn APK",
-        summary = "Thu gọn bộ đệm phát nền cho máy RAM 2–3 GB / Android 8 và tự động dọn sạch tệp APK cũ sau khi cập nhật OTA.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.sparks,
-        title = "Sửa lỗi hiển thị Sheet, mở khóa Last.fm & thẻ lời",
-        summary = "Chuẩn hóa PopupSheetHost hết lỗi lộ mép trên & Z-Index, mở khóa đăng nhập Last.fm và xuất thẳng thẻ lời PNG/MP4 vào Thư viện.",
+        icon = R.drawable.sleep_timer,
+        title = "Hẹn giờ giảm êm âm lượng 25s & Hiệu ứng 1:1 Mochy",
+        summary = "Hẹn giờ ngủ hạ dần âm lượng mượt mà trong 25 giây cuối rồi tự trả mức cũ; đồng bộ hiệu ứng nhấn nảy, nghiêng 3D và chuyển động 1:1.",
     ),
 )
 
@@ -120,6 +124,7 @@ private fun WhatsNewSheetContent(
     userName: String,
 ) {
     val currentVersion = remember { shortVersion(BuildConfig.VERSION_NAME) }
+    val revealSeen = rememberRevealSeenState()
 
     Column(
         modifier = Modifier
@@ -170,11 +175,21 @@ private fun WhatsNewSheetContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            V112Highlights.forEach { item ->
+            V113Highlights.forEachIndexed { index, item ->
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .revealOnAppear(
+                            key = "v113_highlight_$index",
+                            seenState = revealSeen,
+                            cascade = true,
+                        )
+                        .press3D(
+                            maxTilt = 5f,
+                            pressedScale = 0.98f,
+                            enabled = AppMotion.enabled,
+                        )
                         .clip(RoundedCornerShape(18.dp))
                         .background(MenuRowSurface)
                         .padding(horizontal = 16.dp, vertical = 14.dp),

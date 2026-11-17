@@ -8,16 +8,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SleepTimer(
     private val scope: CoroutineScope,
     var player: Player,
 ) : Player.Listener {
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var sleepTimerJob: Job? = null
+    @Volatile
+    private var preFadeVolume: Float? = null
     var triggerTime by mutableLongStateOf(-1L)
         private set
     var totalDurationMillis by mutableLongStateOf(0L)
@@ -27,6 +35,8 @@ class SleepTimer(
     var remainingMillisWhenPaused by mutableLongStateOf(0L)
         private set
     var pauseWhenSongEnd by mutableStateOf(false)
+        private set
+    var isFadingOut by mutableStateOf(false)
         private set
 
     // a paused timer still counts as set, so the menu row and the cancel button keep showing it
@@ -96,7 +106,10 @@ class SleepTimer(
             val left = (triggerTime - System.currentTimeMillis()) + deltaMillis
             if (left <= 0L) {
                 clear()
-                player.pause()
+                runOnMain {
+                    restorePreFadeVolumeNow()
+                    player.pause()
+                }
             } else {
                 cancelJob()
                 totalDurationMillis = maxOf(totalDurationMillis, left)
@@ -108,6 +121,7 @@ class SleepTimer(
 
     fun clear() {
         cancelJob()
+        restorePreFadeVolume()
         pauseWhenSongEnd = false
         isPaused = false
         triggerTime = -1L
@@ -117,21 +131,88 @@ class SleepTimer(
 
     private fun scheduleJob(millis: Long) {
         sleepTimerJob = scope.launch {
-            delay(millis)
-            player.pause()
-            clear()
+            val currentJob = coroutineContext[Job]
+            try {
+                val fadeMs = if (millis >= 10_000L) minOf(25_000L, millis / 2L) else 0L
+                val stepMs = 250L
+                val fadeSteps = if (fadeMs > 0L) (fadeMs / stepMs).toInt().coerceAtLeast(1) else 0
+                val actualFadeMs = fadeSteps * stepMs
+                val waitMs = (millis - actualFadeMs).coerceAtLeast(0L)
+
+                if (waitMs > 0L) {
+                    delay(waitMs)
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (fadeSteps > 0) {
+                        val baseVol = player.volume.takeIf { it > 0.05f } ?: 1f
+                        preFadeVolume = baseVol
+                        isFadingOut = true
+
+                        for (step in 1..fadeSteps) {
+                            val ratio = ((fadeSteps - step).toFloat() / fadeSteps.toFloat()).coerceIn(0f, 1f)
+                            player.volume = baseVol * ratio * ratio
+                            delay(stepMs)
+                        }
+                        player.pause()
+                        player.volume = baseVol
+                        preFadeVolume = null
+                        isFadingOut = false
+                    } else {
+                        player.pause()
+                    }
+                }
+                if (isActive && sleepTimerJob === currentJob) {
+                    sleepTimerJob = null
+                    clear()
+                }
+            } catch (t: Throwable) {
+                restorePreFadeVolume()
+                if (t is CancellationException) throw t
+            } finally {
+                restorePreFadeVolume()
+            }
         }
     }
 
     private fun cancelJob() {
         sleepTimerJob?.cancel()
         sleepTimerJob = null
+        restorePreFadeVolume()
+    }
+
+    private fun runOnMain(block: () -> Unit) {
+        mainScope.launch {
+            block()
+        }
+    }
+
+    private fun restorePreFadeVolume() {
+        if (preFadeVolume != null || isFadingOut) {
+            runOnMain {
+                restorePreFadeVolumeNow()
+            }
+        }
+    }
+
+    private fun restorePreFadeVolumeNow() {
+        val saved = preFadeVolume
+        preFadeVolume = null
+        isFadingOut = false
+        if (saved != null) {
+            player.volume = saved
+        }
     }
 
     fun notifySongTransition() {
         if (pauseWhenSongEnd) {
             pauseWhenSongEnd = false
-            player.pause()
+            runOnMain {
+                restorePreFadeVolumeNow()
+                player.pause()
+            }
+        } else if (!isFadingOut && preFadeVolume != null) {
+            restorePreFadeVolume()
         }
     }
 
@@ -141,7 +222,12 @@ class SleepTimer(
     ) {
         if (pauseWhenSongEnd) {
             pauseWhenSongEnd = false
-            player.pause()
+            runOnMain {
+                restorePreFadeVolumeNow()
+                player.pause()
+            }
+        } else if (!isFadingOut && preFadeVolume != null) {
+            restorePreFadeVolume()
         }
     }
 
@@ -150,7 +236,10 @@ class SleepTimer(
     ) {
         if (playbackState == Player.STATE_ENDED && pauseWhenSongEnd) {
             pauseWhenSongEnd = false
-            player.pause()
+            runOnMain {
+                restorePreFadeVolumeNow()
+                player.pause()
+            }
         }
     }
 }

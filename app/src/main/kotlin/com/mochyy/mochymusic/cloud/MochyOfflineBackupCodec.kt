@@ -35,6 +35,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDateTime
@@ -53,15 +56,26 @@ data class MochyBackupSummary(
     val eqRestored: Boolean,
 )
 
+data class ImportedSinglePlaylist(
+    val playlistId: String,
+    val name: String,
+    val trackCount: Int,
+)
+
 /**
  * Xuất và khôi phục toàn bộ thư viện nhạc cá nhân ra tệp `.mochy.gz` (JSON + GZIP)
- * không giới hạn số lượng playlist, bài yêu thích, album, nghệ sĩ, lịch sử nghe & EQ.
+ * không giới hạn số lượng playlist, bài yêu thích, album, nghệ sĩ, lịch sử nghe & EQ,
+ * đồng thời hỗ trợ chia sẻ/nhập playlist lẻ `.mochypl`.
  */
 object MochyOfflineBackupCodec {
 
     private const val BackupFormat = "mochy-cloud-backup"
     private const val BackupVersion = 1
     private const val MaxUncompressedBytes = 32 * 1024 * 1024
+    private const val SinglePlaylistFormat = "mochy-single-playlist"
+    private const val SinglePlaylistVersion = 1
+    private const val MaxSinglePlaylistBytes = 8 * 1024 * 1024
+    private val CombiningMarksRegex = Regex("\\p{M}+")
 
     private val audioJson = Json {
         ignoreUnknownKeys = true
@@ -242,30 +256,12 @@ object MochyOfflineBackupCodec {
     suspend fun importFromUri(context: Context, uri: Uri): Result<MochyBackupSummary> = withContext(Dispatchers.IO) {
         runCatching {
             val app = context.applicationContext
-            val stream = app.contentResolver.openInputStream(uri)
-                ?: throw MochyCloudException("Không thể đọc tệp sao lưu đã chọn.")
-            val jsonStr = stream.use { input ->
-                runCatching {
-                    GZIPInputStream(input).use { gz ->
-                        val out = ByteArrayOutputStream()
-                        val buf = ByteArray(8192)
-                        var total = 0
-                        while (true) {
-                            val n = gz.read(buf)
-                            if (n <= 0) break
-                            total += n
-                            if (total > MaxUncompressedBytes) {
-                                throw MochyCloudException("Tệp sao lưu vượt kích thước an toàn cho phép.")
-                            }
-                            out.write(buf, 0, n)
-                        }
-                        String(out.toByteArray(), Charsets.UTF_8)
-                    }
-                }.getOrElse { err ->
-                    if (err is MochyCloudException) throw err
-                    throw MochyCloudException("Tệp không phải bản sao lưu .mochy.gz hợp lệ.")
-                }
-            }
+            val jsonStr = readGzipJson(
+                context = app,
+                uri = uri,
+                maxBytes = MaxUncompressedBytes,
+                invalidMsg = "Tệp không phải bản sao lưu .mochy.gz hợp lệ.",
+            )
 
             val root = runCatching { JSONObject(jsonStr) }.getOrElse {
                 throw MochyCloudException("Nội dung sao lưu bị hỏng hoặc không đúng định dạng.")
@@ -548,6 +544,170 @@ object MochyOfflineBackupCodec {
         }
     }
 
+    suspend fun exportSinglePlaylistToFile(context: Context, playlistId: String): Result<File> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val app = context.applicationContext
+                val db = EntryPointAccessors.fromApplication(app, CloudSyncEntryPoint::class.java).database()
+                val pl = db.playlistEntity(playlistId)
+                    ?: throw MochyCloudException("Không tìm thấy playlist để chia sẻ.")
+                val tracks = db.playlistSongs(playlistId).first()
+
+                val songsObj = JSONObject()
+                val trackIds = JSONArray()
+                for (ps in tracks) {
+                    val song = ps.song
+                    if (song.id.isBlank()) continue
+                    if (!songsObj.has(song.id)) {
+                        songsObj.put(song.id, songToJson(song, sanitizeLocalThumb = true))
+                    }
+                    trackIds.put(song.id)
+                }
+
+                val playlistObj = JSONObject().apply {
+                    put("name", pl.name)
+                    pl.description?.takeIf { it.isNotBlank() }?.let { put("description", it) }
+                    pl.thumbnailUrl
+                        ?.takeIf { it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
+                        ?.let { put("thumbnailUrl", it) }
+                    pl.createdAt?.let { put("createdMs", localToEpochMs(it)) }
+                    pl.lastUpdateTime?.let { put("updatedMs", localToEpochMs(it)) }
+                    put("trackIds", trackIds)
+                }
+
+                val root = JSONObject().apply {
+                    put("format", SinglePlaylistFormat)
+                    put("version", SinglePlaylistVersion)
+                    put("exportedAtMs", System.currentTimeMillis())
+                    put("playlist", playlistObj)
+                    put("songs", songsObj)
+                }
+
+                val shareDir = File(app.cacheDir, "shared_playlists").apply { mkdirs() }
+                val cutoffMs = System.currentTimeMillis() - 7_200_000L
+                shareDir.listFiles()?.forEach { old ->
+                    if (old.isFile && old.lastModified() < cutoffMs) {
+                        old.delete()
+                    }
+                }
+                val outFile = File(shareDir, "${safeShareFileName(pl.name)}.mochypl")
+                GZIPOutputStream(BufferedOutputStream(FileOutputStream(outFile))).use { gz ->
+                    gz.write(root.toString().toByteArray(Charsets.UTF_8))
+                }
+                outFile
+            }
+        }
+
+    suspend fun importSinglePlaylistFromUri(context: Context, uri: Uri): Result<ImportedSinglePlaylist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val app = context.applicationContext
+                val jsonStr = readGzipJson(
+                    context = app,
+                    uri = uri,
+                    maxBytes = MaxSinglePlaylistBytes,
+                    invalidMsg = "Tệp không phải playlist .mochypl hợp lệ.",
+                )
+                val root = runCatching { JSONObject(jsonStr) }.getOrElse {
+                    throw MochyCloudException("Nội dung tệp .mochypl bị hỏng hoặc không đúng định dạng.")
+                }
+                if (root.optString("format") != SinglePlaylistFormat ||
+                    root.optInt("version", 0) !in 1..SinglePlaylistVersion
+                ) {
+                    throw MochyCloudException("Định dạng tệp playlist .mochypl không tương thích.")
+                }
+                val plObj = root.optJSONObject("playlist")
+                    ?: throw MochyCloudException("Tệp .mochypl thiếu dữ liệu playlist.")
+                val plName = plObj.optString("name").trim().ifBlank { "Playlist được chia sẻ" }.take(120)
+                val description = plObj.optString("description").takeIf { it.isNotBlank() && it != "null" }
+                val thumbUrl = plObj.optString("thumbnailUrl")
+                    .takeIf { it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
+                val songsObj = root.optJSONObject("songs") ?: JSONObject()
+                val trackIdsArr = plObj.optJSONArray("trackIds") ?: JSONArray()
+
+                val db = EntryPointAccessors.fromApplication(app, CloudSyncEntryPoint::class.java).database()
+                var newPlaylistId = PlaylistEntity.generatePlaylistId()
+                while (db.playlistEntity(newPlaylistId) != null) {
+                    newPlaylistId = PlaylistEntity.generatePlaylistId()
+                }
+                val now = LocalDateTime.now()
+                var insertedCount = 0
+
+                db.withTransaction {
+                    db.insert(
+                        PlaylistEntity(
+                            id = newPlaylistId,
+                            name = plName,
+                            browseId = null,
+                            createdAt = now,
+                            lastUpdateTime = now,
+                            isEditable = true,
+                            bookmarkedAt = now,
+                            thumbnailUrl = thumbUrl,
+                            description = description,
+                        ),
+                    )
+                    val seen = HashSet<String>()
+                    for (i in 0 until trackIdsArr.length()) {
+                        val songId = trackIdsArr.optString(i).trim()
+                        if (songId.isBlank() || !seen.add(songId)) continue
+                        ensureSongFromCatalog(db, songId, songsObj)
+                        db.insert(PlaylistSongMap(playlistId = newPlaylistId, songId = songId, position = insertedCount++))
+                    }
+                }
+
+                MochyCloudSyncManager.refreshLocalStats(app)
+                ImportedSinglePlaylist(
+                    playlistId = newPlaylistId,
+                    name = plName,
+                    trackCount = insertedCount,
+                )
+            }
+        }
+
+    private fun readGzipJson(
+        context: Context,
+        uri: Uri,
+        maxBytes: Int,
+        invalidMsg: String,
+    ): String {
+        val stream = context.contentResolver.openInputStream(uri)
+            ?: throw MochyCloudException("Không thể đọc tệp đã chọn.")
+        return stream.use { input ->
+            runCatching {
+                GZIPInputStream(input).use { gz ->
+                    val out = ByteArrayOutputStream()
+                    val buf = ByteArray(8192)
+                    var total = 0
+                    while (true) {
+                        val n = gz.read(buf)
+                        if (n <= 0) break
+                        total += n
+                        if (total > maxBytes) {
+                            throw MochyCloudException("Tệp vượt kích thước an toàn cho phép.")
+                        }
+                        out.write(buf, 0, n)
+                    }
+                    String(out.toByteArray(), Charsets.UTF_8)
+                }
+            }.getOrElse { err ->
+                if (err is MochyCloudException) throw err
+                throw MochyCloudException(invalidMsg)
+            }
+        }
+    }
+
+    private fun safeShareFileName(rawName: String): String {
+        val ascii = Normalizer.normalize(rawName, Normalizer.Form.NFD)
+            .replace(CombiningMarksRegex, "")
+            .replace('đ', 'd')
+            .replace('Đ', 'D')
+            .replace(Regex("[^a-zA-Z0-9._-]+"), "_")
+            .trim('.', '_', '-')
+            .take(48)
+        return ascii.ifBlank { "mochy-playlist" }
+    }
+
     private fun ensureSongFromCatalog(
         db: MusicDatabase,
         songId: String,
@@ -609,21 +769,25 @@ object MochyOfflineBackupCodec {
         }
     }
 
-    private fun songToJson(song: Song): JSONObject {
+    private fun songToJson(song: Song, sanitizeLocalThumb: Boolean = false): JSONObject {
         val artistsArr = JSONArray()
         for (artist in song.artists) {
             artistsArr.put(
                 JSONObject().apply {
                     put("id", artist.id)
                     put("name", artist.name)
-                    artist.thumbnailUrl?.let { put("thumbnailUrl", it) }
+                    artist.thumbnailUrl
+                        ?.takeIf { !sanitizeLocalThumb || it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
+                        ?.let { put("thumbnailUrl", it) }
                 },
             )
         }
         return JSONObject().apply {
             put("title", song.title)
             put("duration", song.song.duration)
-            song.thumbnailUrl?.let { put("thumbnailUrl", it) }
+            song.thumbnailUrl
+                ?.takeIf { !sanitizeLocalThumb || it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
+                ?.let { put("thumbnailUrl", it) }
             song.song.albumId?.let { put("albumId", it) }
             song.song.albumName?.let { put("albumName", it) }
             put("explicit", song.song.explicit)

@@ -50,6 +50,7 @@ data class CloudUserMetadata(
     val joinedEpochDay: Long?,
     val playlistsGz: String?,
     val libraryExtraGz: String? = null,
+    val playbackResumeGz: String? = null,
 )
 
 open class MochyCloudException(message: String) : Exception(message)
@@ -246,6 +247,7 @@ object MochySupabaseClient {
             joinedEpochDay = meta?.optLong("joined_epoch_day", -1L)?.takeIf { it > 0L },
             playlistsGz = meta?.optString("playlists_gz")?.takeIf { it.isNotBlank() && it != "null" },
             libraryExtraGz = meta?.optString("library_extra_gz")?.takeIf { it.isNotBlank() && it != "null" },
+            playbackResumeGz = meta?.optString("playback_resume_gz")?.takeIf { it.isNotBlank() && it != "null" },
         )
     }
 
@@ -258,6 +260,8 @@ object MochySupabaseClient {
         clearPlaylists: Boolean = false,
         libraryExtraGz: String? = null,
         clearLibraryExtra: Boolean = false,
+        playbackResumeGz: String? = null,
+        clearPlaybackResume: Boolean = false,
     ): Unit = withContext(Dispatchers.IO) {
         val data = JSONObject().apply {
             if (cardNumber != null) put("card_number", cardNumber.take(24))
@@ -271,6 +275,11 @@ object MochySupabaseClient {
                 put("library_extra_gz", "")
             } else if (libraryExtraGz != null) {
                 put("library_extra_gz", libraryExtraGz.take(16_384))
+            }
+            if (clearPlaybackResume) {
+                put("playback_resume_gz", "")
+            } else if (playbackResumeGz != null) {
+                put("playback_resume_gz", playbackResumeGz.take(3_072))
             }
         }
         if (data.length() == 0) return@withContext
@@ -350,7 +359,13 @@ object MochySupabaseClient {
                 .build()
         }
 
-        updateUserMetadata(context, session, clearPlaylists = true, clearLibraryExtra = true)
+        updateUserMetadata(
+            context,
+            session,
+            clearPlaylists = true,
+            clearLibraryExtra = true,
+            clearPlaybackResume = true,
+        )
     }
 
     suspend fun signOutRemote(context: Context, session: MochyCloudSession) = withContext(Dispatchers.IO) {

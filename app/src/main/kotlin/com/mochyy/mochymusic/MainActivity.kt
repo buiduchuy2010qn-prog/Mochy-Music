@@ -194,6 +194,7 @@ import com.mochyy.mochymusic.ui.component.LocalBottomSheetPageState
 import com.mochyy.mochymusic.ui.component.LocalMenuState
 import com.mochyy.mochymusic.ui.component.BottomSheetState
 import com.mochyy.mochymusic.ui.component.rememberBottomSheetState
+import com.mochyy.mochymusic.ui.screens.recognition.showRecognitionSheet
 import com.mochyy.mochymusic.ui.component.shimmer.ShimmerTheme
 import com.mochyy.mochymusic.ui.menu.YouTubeSongMenu
 import com.mochyy.mochymusic.ui.player.BottomSheetPlayer
@@ -275,6 +276,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val ACTION_SEARCH = "com.mochyy.mochymusic.action.SEARCH"
         private const val ACTION_LIBRARY = "com.mochyy.mochymusic.action.LIBRARY"
+        const val ACTION_RECOGNIZE = "com.mochyy.mochymusic.action.RECOGNIZE"
+        const val ACTION_LIKED = "com.mochyy.mochymusic.action.LIKED"
     }
 
     @Inject
@@ -303,6 +306,9 @@ class MainActivity : ComponentActivity() {
 
     // the device link's notification asks for its sheet through this
     private var openDevicesRequests by mutableStateOf(0)
+
+    /** Bumped when launched from the Quick Settings Tile or shortcut; opens music recognition sheet. */
+    private var openRecognizeRequests by mutableStateOf(0)
 
     /** A fresh launch from the launcher plays the launch intro (ui/launch/LaunchIntro.kt). */
     private var introRequested = false
@@ -403,6 +409,10 @@ class MainActivity : ComponentActivity() {
             openUpdateRequests++
             return
         }
+        if (intent.action == ACTION_RECOGNIZE) {
+            openRecognizeRequests++
+            return
+        }
         if (::navController.isInitialized) {
             handleDeepLinkIntent(intent, navController)
         } else {
@@ -447,6 +457,9 @@ class MainActivity : ComponentActivity() {
         }
         if (savedInstanceState == null && intent?.action == com.mochyy.mochymusic.ui.screens.update.ActionOpenUpdate) {
             openUpdateRequests++
+        }
+        if (savedInstanceState == null && intent?.action == ACTION_RECOGNIZE) {
+            openRecognizeRequests++
         }
 
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
@@ -985,6 +998,13 @@ class MainActivity : ComponentActivity() {
                         ),
                     ) {
                     com.mochyy.mochymusic.ui.screens.devices.DeviceIntegrationOpener(requests = openDevicesRequests)
+                    val recognizeOverlay = com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState.current
+                    LaunchedEffect(openRecognizeRequests, fullSetupNeeded) {
+                        if (openRecognizeRequests > 0 && !fullSetupNeeded) {
+                            LaunchGate.awaitIntro()
+                            recognizeOverlay.showRecognitionSheet(autoStart = true)
+                        }
+                    }
                     // a phone paired before android 17 can't reach its devices until it's allowed on the wi-fi again
                     val linkPaired = remember { !isTelevision() && com.mochyy.mochymusic.link.phone.PhoneLinkHost.hasPairedDevices(this@MainActivity) }
                     com.mochyy.mochymusic.link.AskForLocalNetwork(wanted = linkPaired, onGranted = { phoneLink.get().advertiseAgain() })
@@ -1606,9 +1626,92 @@ class MainActivity : ComponentActivity() {
                     reportException(e)
                 }
             }
-            com.mochyy.mochymusic.ui.component.TopToaster.show(
-                if (done == 0) "Couldn't import that" else "Imported $done song${if (done != 1) "s" else ""} to Mochy",
+            if (done == 0) {
+                com.mochyy.mochymusic.ui.component.TopToaster.error("Không thể nhập tệp âm thanh này")
+            } else {
+                com.mochyy.mochymusic.ui.component.TopToaster.show("Đã nhập $done bài hát vào Mochy")
+            }
+        }
+        return true
+    }
+
+    private fun isMochyPlaylistUri(uri: android.net.Uri, mimeType: String? = null): Boolean {
+        if (mimeType.equals("application/x-mochy-playlist", ignoreCase = true)) return true
+        val displayName = com.mochyy.mochymusic.importer.LocalFileNames.of(applicationContext, uri)
+        if (displayName?.trim()?.lowercase()?.endsWith(".mochypl") == true) return true
+        val path = uri.path?.lowercase().orEmpty()
+        val lastSeg = uri.lastPathSegment?.lowercase().orEmpty()
+        return path.endsWith(".mochypl") || lastSeg.endsWith(".mochypl")
+    }
+
+    private fun importSharedMochyPlaylist(intent: Intent, navController: NavHostController): Boolean {
+        val uris: List<android.net.Uri> = when (intent.action) {
+            Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+            Intent.ACTION_SEND -> listOfNotNull(
+                androidx.core.content.IntentCompat.getParcelableExtra(
+                    intent,
+                    Intent.EXTRA_STREAM,
+                    android.net.Uri::class.java,
+                ),
             )
+            Intent.ACTION_SEND_MULTIPLE -> androidx.core.content.IntentCompat.getParcelableArrayListExtra(
+                intent,
+                Intent.EXTRA_STREAM,
+                android.net.Uri::class.java,
+            ).orEmpty()
+            else -> emptyList()
+        }
+        val playlistUris = uris.filter { isMochyPlaylistUri(it, intent.type) }
+        if (playlistUris.isEmpty()) return false
+
+        intent.action = null
+        intent.data = null
+        intent.removeExtra(Intent.EXTRA_STREAM)
+
+        lifecycle.coroutineScope.launch {
+            com.mochyy.mochymusic.ui.component.TopToaster.show(
+                text = "Đang nhập playlist .mochypl…",
+                iconRes = R.drawable.playlist_add,
+                durationMs = 5000L,
+            )
+            var lastImportedId: String? = null
+            var lastImportedName = ""
+            var totalTracks = 0
+            var importedCount = 0
+            var lastError: Throwable? = null
+
+            for (uri in playlistUris) {
+                val res = com.mochyy.mochymusic.cloud.MochyOfflineBackupCodec
+                    .importSinglePlaylistFromUri(applicationContext, uri)
+                res.onSuccess { imported ->
+                    importedCount++
+                    lastImportedId = imported.playlistId
+                    lastImportedName = imported.name
+                    totalTracks += imported.trackCount
+                }.onFailure { err ->
+                    reportException(err)
+                    lastError = err
+                }
+            }
+
+            if (importedCount > 0 && lastImportedId != null) {
+                val message = if (importedCount == 1) {
+                    "Đã nhập playlist \"$lastImportedName\" ($totalTracks bài hát)"
+                } else {
+                    "Đã nhập $importedCount playlist ($totalTracks bài hát)"
+                }
+                com.mochyy.mochymusic.ui.component.TopToaster.show(
+                    text = message,
+                    iconRes = R.drawable.playlist_play,
+                )
+                navController.navigate("local_playlist/$lastImportedId") {
+                    launchSingleTop = true
+                }
+            } else {
+                com.mochyy.mochymusic.ui.component.TopToaster.error(
+                    lastError?.message ?: "Không thể nhập tệp playlist .mochypl này.",
+                )
+            }
         }
         return true
     }
@@ -1620,6 +1723,14 @@ class MainActivity : ComponentActivity() {
             openDevicesRequests++
             return
         }
+        if (intent.action == ACTION_LIKED) {
+            intent.action = null
+            navController.navigate("auto_playlist/liked") {
+                launchSingleTop = true
+            }
+            return
+        }
+        if (importSharedMochyPlaylist(intent, navController)) return
         if (importSharedAudio(intent)) return
         val rawSharedText = intent.extras?.getString(Intent.EXTRA_TEXT)
         val rawUrl = intent.dataString?.takeIf { it.isNotBlank() }
@@ -1632,12 +1743,13 @@ class MainActivity : ComponentActivity() {
 
         val host = uri.host?.lowercase().orEmpty()
         val scheme = uri.scheme?.lowercase().orEmpty()
+        val isSupportedShortVideo = com.mochyy.mochymusic.recognition.TikTokMediaResolver.isSupportedVideoUrl(rawUrl)
         val isYouTube = scheme.startsWith("vnd.youtube") ||
             host == "youtu.be" ||
             host == "youtube.com" ||
             host.endsWith(".youtube.com")
 
-        if (!isYouTube) {
+        if (!isYouTube || isSupportedShortVideo) {
             handleSharedMusicLink(rawUrl, navController)
             return
         }
@@ -1728,6 +1840,83 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleSharedMusicLink(rawUrl: String, navController: NavHostController) {
+        if (com.mochyy.mochymusic.recognition.TikTokMediaResolver.isSupportedVideoUrl(rawUrl)) {
+            lifecycle.coroutineScope.launch(Dispatchers.IO) {
+                withContext(Dispatchers.Main) {
+                    com.mochyy.mochymusic.ui.component.TopToaster.show(
+                        text = "Đang tìm nhạc từ video…",
+                        iconRes = R.drawable.music_note,
+                        durationMs = 8000L,
+                    )
+                }
+                val resolved = com.mochyy.mochymusic.recognition.TikTokMediaResolver.resolve(
+                    context = applicationContext,
+                    rawInput = rawUrl,
+                    onShazamFallback = {
+                        withContext(Dispatchers.Main) {
+                            com.mochyy.mochymusic.ui.component.TopToaster.show(
+                                text = "Đang nhận diện giai điệu bằng Shazam…",
+                                iconRes = R.drawable.graphic_eq,
+                                durationMs = 10000L,
+                            )
+                        }
+                    },
+                )
+                val track = resolved.getOrElse { err ->
+                    withContext(Dispatchers.Main) {
+                        com.mochyy.mochymusic.ui.component.TopToaster.error(
+                            err.message ?: "Không thể nhận diện bài hát từ video này.",
+                        )
+                    }
+                    return@launch
+                }
+                val query = track.searchQuery
+                val topSong = if (query.isNotBlank()) {
+                    YouTube.search(query, YouTube.SearchFilter.FILTER_SONG)
+                        .getOrNull()?.items?.filterIsInstance<SongItem>()?.firstOrNull()
+                        ?: YouTube.search(query, YouTube.SearchFilter.FILTER_VIDEO)
+                            .getOrNull()?.items?.filterIsInstance<SongItem>()?.firstOrNull()
+                } else {
+                    null
+                } ?: track.youtubeVideoId?.takeIf { it.isNotBlank() }?.let { vid ->
+                    YouTube.queue(listOf(vid)).getOrNull()?.firstOrNull()
+                }
+
+                if (topSong == null) {
+                    withContext(Dispatchers.Main) {
+                        com.mochyy.mochymusic.ui.component.TopToaster.error(
+                            "Không tìm thấy bài hát phù hợp cho \"$query\".",
+                        )
+                    }
+                    return@launch
+                }
+
+                val conn = awaitPlayerConnection()
+                withContext(Dispatchers.Main) {
+                    if (conn == null) {
+                        com.mochyy.mochymusic.ui.component.TopToaster.error("Không thể kết nối trình phát nhạc.")
+                        return@withContext
+                    }
+                    conn.playQueue(
+                        YouTubeQueue(
+                            WatchEndpoint(videoId = topSong.id),
+                            topSong.toMediaMetadata(),
+                        ),
+                    )
+                    com.mochyy.mochymusic.ui.component.TopToaster.show(
+                        text = "Đang phát: ${topSong.title}",
+                        thumbnail = topSong.thumbnail,
+                        iconRes = R.drawable.music_note,
+                        actionLabel = "Yêu thích",
+                        onAction = {
+                            likeSharedSong(topSong)
+                        },
+                    )
+                }
+            }
+            return
+        }
+
         val canHandle = com.mochyy.mochymusic.importer.LinkImporter.detect(rawUrl) != null ||
             com.mochyy.mochymusic.importer.LinkImporter.isShortLink(rawUrl)
         if (!canHandle) return
@@ -1832,6 +2021,36 @@ class MainActivity : ComponentActivity() {
                         ).show()
                     }
                 }
+            }
+        }
+    }
+
+    private fun likeSharedSong(song: SongItem) {
+        val metadata = song.toMediaMetadata()
+        lifecycle.coroutineScope.launch(Dispatchers.IO) {
+            var likedEntity: com.mochyy.mochymusic.db.entities.SongEntity? = null
+            database.withTransaction {
+                val existing = getSongByIdBlocking(metadata.id)
+                if (existing == null) {
+                    insert(metadata) { entity ->
+                        entity.toggleLike().also { likedEntity = it }
+                    }
+                } else if (!existing.song.liked) {
+                    val toggled = existing.song.toggleLike()
+                    update(toggled)
+                    likedEntity = toggled
+                }
+            }
+            likedEntity?.let { entity ->
+                syncUtils.likeSong(entity)
+                com.mochyy.mochymusic.cloud.MochyCloudSyncManager.onFavoriteToggled(applicationContext)
+            }
+            withContext(Dispatchers.Main) {
+                com.mochyy.mochymusic.ui.component.TopToaster.show(
+                    text = "Đã thêm \"${song.title}\" vào Yêu thích",
+                    thumbnail = song.thumbnail,
+                    iconRes = R.drawable.favorite,
+                )
             }
         }
     }

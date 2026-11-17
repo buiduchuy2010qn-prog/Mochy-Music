@@ -12,6 +12,8 @@ object LyricsProviderRegistry {
         "BetterLyrics"    to BetterLyricsProvider,
         "SimpMusic"       to SimpMusicLyricsProvider,
         "LrcLib"          to LrcLibLyricsProvider,
+        "ZingMP3"         to ZingLyricsProvider,
+        "NhacCuaTui"      to NhacCuaTuiLyricsProvider,
         "Kugou"           to KuGouLyricsProvider,
         "NetEase"         to NetEaseLyricsProvider,
         "QQMusic"         to QQMusicLyricsProvider,
@@ -56,6 +58,8 @@ object LyricsProviderRegistry {
         "LrcRed",
         "SimpMusic",
         "LrcLib",
+        "ZingMP3",
+        "NhacCuaTui",
         "Deezer",
         "YouTubeSubtitle",
         "YouTubeMusic",
@@ -83,6 +87,8 @@ object LyricsProviderRegistry {
         "BetterLyrics"    -> "Apple Music"
         "SimpMusic"       -> "SimpMusic"
         "LrcLib"          -> "LrcLib"
+        "ZingMP3"         -> "Zing MP3"
+        "NhacCuaTui"      -> "NhacCuaTui"
         "Kugou"           -> "KuGou"
         "NetEase"         -> "NetEase"
         "QQMusic"         -> "QQ Music"

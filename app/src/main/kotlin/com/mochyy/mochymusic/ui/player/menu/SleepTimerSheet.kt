@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.ui.player.menu
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -63,6 +64,8 @@ import com.mochyy.mochymusic.playback.SleepTimer
 import com.mochyy.mochymusic.ui.component.AppSwitch
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.SheetIcon
+import com.mochyy.mochymusic.ui.component.pressBounce
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.delay
 
 private val CardSurface = MenuRowSurface
@@ -219,6 +222,16 @@ private fun CountdownCard(sleepTimer: SleepTimer, idleMillis: Long) {
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
         )
+        AnimatedVisibility(visible = sleepTimer.isFadingOut) {
+            Text(
+                text = "Đang giảm êm âm lượng…",
+                color = Color(0xFF9CF58A),
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 }
 
@@ -282,6 +295,7 @@ private fun TimerControls(sleepTimer: SleepTimer, onNudgeIdle: (Int) -> Unit, on
     val isRunning = sleepTimer.isRunning
     val isPaused = sleepTimer.isPaused
     val counting = isRunning || isPaused
+    val mainInteraction = remember { MutableInteractionSource() }
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
@@ -293,11 +307,12 @@ private fun TimerControls(sleepTimer: SleepTimer, onNudgeIdle: (Int) -> Unit, on
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
+                .pressBounce(mainInteraction, pressedScale = 0.96f)
                 .height(56.dp)
                 .clip(RoundedCornerShape(50))
                 .background(Color.White)
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = mainInteraction,
                     indication = RemoteFocus,
                     onClick = {
                         when {
@@ -330,14 +345,16 @@ private fun TimerControls(sleepTimer: SleepTimer, onNudgeIdle: (Int) -> Unit, on
 
 @Composable
 private fun OutlinePill(label: String, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
+            .pressBounce(interaction, pressedScale = 0.95f)
             .height(48.dp)
             .clip(RoundedCornerShape(50))
             .border(1.dp, Color(0xFF555555), RoundedCornerShape(50))
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interaction,
                 indication = RemoteFocus,
                 onClick = onClick,
             )
@@ -368,10 +385,12 @@ private fun QuickSet(sleepTimer: SleepTimer, idleMinutes: Int, onPick: (Int) -> 
         ) {
             row.forEach { minutes ->
                 val picked = !sleepTimer.pauseWhenSongEnd && setMinutes == minutes.toLong()
+                val interaction = remember { MutableInteractionSource() }
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .weight(1f)
+                        .pressBounce(interaction, pressedScale = 0.95f)
                         .height(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .then(
@@ -381,7 +400,7 @@ private fun QuickSet(sleepTimer: SleepTimer, idleMinutes: Int, onPick: (Int) -> 
                                 .border(1.dp, Color(0xFF38383E), RoundedCornerShape(10.dp))
                         )
                         .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = interaction,
                             indication = RemoteFocus,
                             onClick = { onPick(minutes) },
                         )
@@ -461,16 +480,18 @@ private fun CustomTimeCard(onSet: (Long) -> Unit) {
         } else {
             stringResource(R.string.sleep_timer_enter_time)
         }
+        val setInteraction = remember { MutableInteractionSource() }
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
+                .pressBounce(setInteraction, pressedScale = 0.97f)
                 .fillMaxWidth()
                 .height(46.dp)
                 .clip(RoundedCornerShape(50))
                 .background(if (canSet) Color.White else Color(0xFF26262B))
                 .clickable(
                     enabled = canSet,
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = setInteraction,
                     indication = RemoteFocus,
                     onClick = { onSet(totalSeconds) },
                 )
@@ -533,15 +554,17 @@ private fun TimeField(value: String, onValueChange: (String) -> Unit, label: Str
 
 @Composable
 private fun SheetButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
+            .pressBounce(interaction, pressedScale = 0.97f)
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(CardSurface)
             .clickable(
                 enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interaction,
                 indication = RemoteFocus,
                 onClick = onClick,
             )

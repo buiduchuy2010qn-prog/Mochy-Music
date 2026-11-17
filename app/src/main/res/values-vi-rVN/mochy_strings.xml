@@ -1133,4 +1133,6 @@
     <string name="floating_lyrics_never">Không hiện lại</string>
     <string name="floating_lyrics_turned_off">Lời bài hát nổi đã tắt. Bạn có thể bật lại trong Cài đặt.</string>
     <string name="floating_lyrics_permission">Cho phép Mochy hiển thị trên ứng dụng khác để lời bài hát có thể nổi</string>
+    <string name="shortcut_recognize">Nhận diện bài hát</string>
+    <string name="shortcut_liked">Bài hát yêu thích</string>
 </resources>

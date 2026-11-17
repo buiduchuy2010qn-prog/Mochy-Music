@@ -1279,4 +1279,6 @@
     <string name="menu_resync_paste">Paste its %1$s link</string>
     <string name="menu_choose_version">Choose different version</string>
     <string name="menu_choose_version_desc">Wrong recording? Pick the right one from a list</string>
+    <string name="shortcut_recognize">Recognize song</string>
+    <string name="shortcut_liked">Liked songs</string>
 </resources>

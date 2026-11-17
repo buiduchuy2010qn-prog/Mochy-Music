@@ -41,7 +41,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,13 +57,18 @@ import com.mochyy.mochymusic.core.updater.downloadApk
 import com.mochyy.mochymusic.core.updater.formatBytes
 import com.mochyy.mochymusic.core.updater.installApk
 import com.mochyy.mochymusic.core.updater.isDownloaded
+import com.mochyy.mochymusic.ui.component.HighlightColor
 import com.mochyy.mochymusic.ui.component.LocalZoomOutOverlayState
 import com.mochyy.mochymusic.ui.component.PopupSheetHandle
 import com.mochyy.mochymusic.ui.component.PopupSheetState
-import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.RoundedHighlight
+import com.mochyy.mochymusic.ui.component.press3D
 import com.mochyy.mochymusic.ui.component.pressBounce
+import com.mochyy.mochymusic.ui.component.rememberRevealSeenState
+import com.mochyy.mochymusic.ui.component.revealOnAppear
 import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.ui.utils.AppMotion
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -143,6 +150,7 @@ private fun UpdatePromptContent(
     userName: String,
 ) {
     val context = LocalContext.current
+    val revealSeen = rememberRevealSeenState()
 
     LaunchedEffect(release.apkName) {
         controller.readyToInstall = isDownloaded(context, release)
@@ -200,6 +208,16 @@ private fun UpdatePromptContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .revealOnAppear(
+                    key = "update_prompt_changelog_${release.version}",
+                    seenState = revealSeen,
+                    cascade = true,
+                )
+                .press3D(
+                    maxTilt = 4f,
+                    pressedScale = 0.985f,
+                    enabled = AppMotion.enabled,
+                )
                 .clip(RoundedCornerShape(18.dp))
                 .background(MenuRowSurface)
                 .padding(16.dp),
@@ -231,6 +249,16 @@ private fun UpdatePromptContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                .revealOnAppear(
+                    key = "update_prompt_package_${release.version}",
+                    seenState = revealSeen,
+                    cascade = true,
+                )
+                .press3D(
+                    maxTilt = 4f,
+                    pressedScale = 0.985f,
+                    enabled = AppMotion.enabled,
+                )
                 .clip(RoundedCornerShape(18.dp))
                 .background(MenuRowSurface)
                 .padding(14.dp),
@@ -277,6 +305,9 @@ private fun UpdatePromptContent(
     }
 }
 
+private val UpdatePillHighlight = RoundedHighlight(cornerRadius = 50.dp)
+private val PrimaryUpdatePillHighlight = RoundedHighlight(cornerRadius = 50.dp, color = Color.Black.copy(alpha = 0.10f))
+
 @Composable
 private fun UpdatePromptButtons(
     controller: UpdatePromptController,
@@ -285,6 +316,7 @@ private fun UpdatePromptButtons(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
 
     val startInstall: (File) -> Unit = { file ->
         if (installApk(context, file)) {
@@ -336,8 +368,9 @@ private fun UpdatePromptButtons(
                 .clickable(
                     enabled = primaryEnabled,
                     interactionSource = primaryInteraction,
-                    indication = RemoteFocus,
+                    indication = if (controller.downloading) UpdatePillHighlight else PrimaryUpdatePillHighlight,
                     onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         controller.error = null
                         val existing = apkFileFor(context, release)
                         if (isDownloaded(context, release)) {
@@ -399,8 +432,11 @@ private fun UpdatePromptButtons(
                 .clickable(
                     enabled = !controller.downloading,
                     interactionSource = secondaryInteraction,
-                    indication = RemoteFocus,
-                    onClick = { context.openReleaseUrl(release.htmlUrl) },
+                    indication = UpdatePillHighlight,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        context.openReleaseUrl(release.htmlUrl)
+                    },
                 ),
         ) {
             Text(
@@ -429,8 +465,9 @@ private fun UpdatePromptButtons(
                 .clickable(
                     enabled = !controller.downloading,
                     interactionSource = snoozeInteraction,
-                    indication = RemoteFocus,
+                    indication = UpdatePillHighlight,
                     onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onSnooze()
                         controller.handle?.dismiss()
                     },

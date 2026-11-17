@@ -6,6 +6,9 @@ import androidx.compose.ui.res.pluralStringResource
 import com.mochyy.mochymusic.ui.component.SheetHeaderGap
 import com.mochyy.mochymusic.ui.component.SheetHeaderButton
 import com.mochyy.mochymusic.ui.component.SheetHeader
+import android.app.Activity
+import android.content.ClipData
+import android.content.Context
 import android.content.Intent
 import androidx.navigation.NavController
 import android.content.res.Configuration
@@ -41,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
@@ -50,7 +54,9 @@ import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.LocalDownloadUtil
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.cloud.MochyOfflineBackupCodec
 import com.mochyy.mochymusic.db.entities.Playlist
+import com.mochyy.mochymusic.db.entities.PlaylistEntity
 import com.mochyy.mochymusic.db.entities.SpeedDialItem
 import com.mochyy.mochymusic.db.entities.PlaylistSong
 import com.mochyy.mochymusic.db.entities.Song
@@ -68,6 +74,7 @@ import com.mochyy.mochymusic.ui.component.NewAction
 import com.mochyy.mochymusic.ui.component.NewActionGrid
 import com.mochyy.mochymusic.ui.component.PlaylistListItem
 import com.mochyy.mochymusic.ui.component.TextFieldDialog
+import com.mochyy.mochymusic.ui.component.TopToaster
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -136,6 +143,7 @@ fun PlaylistMenu(
     }
 
     val menuState = LocalMenuState.current
+    var sharingMochypl by remember { mutableStateOf(false) }
 
     var showRemoveDownloadDialog by remember {
         mutableStateOf(false)
@@ -537,6 +545,39 @@ fun PlaylistMenu(
                             )
                         )
                     }
+                    if (autoPlaylist != true &&
+                        playlist.playlist.browseId == null &&
+                        playlist.id != PlaylistEntity.LIKED_PLAYLIST_ID &&
+                        playlist.id != PlaylistEntity.DOWNLOADED_PLAYLIST_ID
+                    ) {
+                        add(
+                            Material3MenuItemData(
+                                title = { Text(text = "Chia sẻ tệp Playlist (.mochypl)") },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.share),
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    if (!sharingMochypl) {
+                                        sharingMochypl = true
+                                        shareSinglePlaylistMochypl(
+                                            context = context,
+                                            coroutineScope = coroutineScope,
+                                            playlistId = playlist.id,
+                                            playlistName = playlist.playlist.name,
+                                            onFinished = {
+                                                sharingMochypl = false
+                                                onDismiss()
+                                            },
+                                            onFailed = { sharingMochypl = false },
+                                        )
+                                    }
+                                },
+                            )
+                        )
+                    }
                     playlist.playlist.shareLink?.let { shareLink ->
                         add(
                             Material3MenuItemData(
@@ -562,6 +603,51 @@ fun PlaylistMenu(
                     }
                 }
             )
+        }
+    }
+}
+
+internal fun shareSinglePlaylistMochypl(
+    context: Context,
+    coroutineScope: CoroutineScope,
+    playlistId: String,
+    playlistName: String,
+    onFinished: () -> Unit,
+    onFailed: () -> Unit,
+) {
+    coroutineScope.launch {
+        val result = MochyOfflineBackupCodec.exportSinglePlaylistToFile(context, playlistId)
+        withContext(Dispatchers.Main) {
+            result.onSuccess { file ->
+                runCatching {
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.FileProvider",
+                        file,
+                    )
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/octet-stream"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, file.name)
+                        clipData = ClipData.newUri(context.contentResolver, file.name, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    val chooser = Intent.createChooser(sendIntent, playlistName).apply {
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        if (context !is Activity) {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    }
+                    context.startActivity(chooser)
+                    onFinished()
+                }.onFailure { err ->
+                    onFailed()
+                    TopToaster.error(err.message ?: "Không thể chia sẻ tệp playlist .mochypl.")
+                }
+            }.onFailure { err ->
+                onFailed()
+                TopToaster.error(err.message ?: "Không thể xuất tệp playlist .mochypl.")
+            }
         }
     }
 }

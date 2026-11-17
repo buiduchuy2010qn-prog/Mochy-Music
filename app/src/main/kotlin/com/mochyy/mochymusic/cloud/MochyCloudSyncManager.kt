@@ -2,6 +2,8 @@ package com.mochyy.mochymusic.cloud
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.datastore.preferences.core.edit
 import com.mochyy.mochymusic.constants.AudioNormalizationKey
 import com.mochyy.mochymusic.constants.AudioQualityKey
@@ -22,6 +24,7 @@ import com.mochyy.mochymusic.di.AudioLabEntryPoint
 import com.mochyy.mochymusic.di.CloudSyncEntryPoint
 import com.mochyy.mochymusic.eq.AudioLabStore
 import com.mochyy.mochymusic.eq.EqSettings
+import com.mochyy.mochymusic.models.MediaMetadata
 import com.mochyy.mochymusic.ui.screens.profile.ProfileStore
 import com.mochyy.mochymusic.utils.dataStore
 import dagger.hilt.android.EntryPointAccessors
@@ -42,6 +45,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
 import java.time.Instant
@@ -50,8 +55,23 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
+
+data class CloudPlaybackResume(
+    val deviceId: String,
+    val deviceName: String,
+    val songId: String,
+    val title: String,
+    val artists: String,
+    val albumName: String?,
+    val durationSec: Int,
+    val thumbnailUrl: String?,
+    val positionMs: Long,
+    val queueTracks: List<CloudPlaylistTrack>,
+    val updatedAtEpochMs: Long,
+)
 
 data class MochyCloudState(
     val isConfigured: Boolean = false,
@@ -67,6 +87,7 @@ data class MochyCloudState(
     val syncing: Boolean = false,
     val lastSyncEpochMs: Long = 0L,
     val lastError: String? = null,
+    val remoteResume: CloudPlaybackResume? = null,
 )
 
 /**
@@ -108,6 +129,11 @@ object MochyCloudSyncManager {
 
     @Volatile
     private var lastSessionExpired: Boolean = false
+
+    @Volatile
+    private var cachedDeviceId: String? = null
+
+    private const val DeviceIdFileName = "mochy_cloud_device_id.txt"
 
     fun start(context: Context, scope: CoroutineScope) {
         val app = context.applicationContext
@@ -314,6 +340,7 @@ object MochyCloudSyncManager {
                     historyCount = 0,
                     lastSyncEpochMs = System.currentTimeMillis(),
                     lastError = null,
+                    remoteResume = null,
                 )
             }.onFailure { err ->
                 if (err is MochyCloudAuthExpiredException) {
@@ -327,6 +354,118 @@ object MochyCloudSyncManager {
         val scope = appScope ?: return
         scope.launch(Dispatchers.IO) {
             syncNowInternal(context.applicationContext, fromUser = fromUser)
+        }
+    }
+
+    fun localDeviceId(context: Context): String {
+        cachedDeviceId?.let { return it }
+        val app = context.applicationContext
+        val file = File(app.noBackupFilesDir, DeviceIdFileName)
+        val persisted = runCatching { file.takeIf { it.exists() }?.readText(Charsets.UTF_8)?.trim() }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() }
+        if (persisted != null) {
+            cachedDeviceId = persisted
+            return persisted
+        }
+        val androidId = runCatching {
+            Settings.Secure.getString(app.contentResolver, Settings.Secure.ANDROID_ID)
+        }.getOrNull()?.trim().orEmpty()
+        val seed = if (androidId.isNotBlank() && androidId != "9774d56d682e549c") {
+            "mochy:$androidId:${Build.MANUFACTURER}:${Build.MODEL}"
+        } else {
+            "mochy-uuid:${UUID.randomUUID()}"
+        }
+        val derived = sha256Hex(seed).take(24)
+        runCatching { file.writeText(derived, Charsets.UTF_8) }
+        cachedDeviceId = derived
+        return derived
+    }
+
+    fun localDeviceName(): String =
+        Build.MODEL?.trim()?.takeIf { it.isNotBlank() }?.take(40) ?: "Thiết bị Mochy"
+
+    suspend fun pushPlaybackResume(
+        context: Context,
+        song: MediaMetadata,
+        positionMs: Long,
+        queueTracks: List<CloudPlaylistTrack>,
+    ): Result<Unit> = withContext(NonCancellable + Dispatchers.IO) {
+        runCatching {
+            val app = context.applicationContext
+            if (song.localUri != null || !isCloudSafeId(song.id)) {
+                throw MochyCloudException("Chỉ hỗ trợ lưu vị trí đang nghe cho bài hát trực tuyến.")
+            }
+            val session = getValidSession(app)
+                ?: throw MochyCloudException(lastSessionFailureReason ?: "Bạn chưa đăng nhập Mochy Cloud.")
+
+            val sanitizedQueue = queueTracks
+                .asSequence()
+                .filter { isCloudSafeId(it.songId) && it.songId != song.id }
+                .distinctBy { it.songId }
+                .take(25)
+                .map { t ->
+                    t.copy(
+                        title = t.title.trim().ifBlank { "Bài hát" }.take(120),
+                        artists = t.artists.trim().ifBlank { "Nghệ sĩ" }.take(120),
+                        albumName = t.albumName?.trim()?.takeIf { it.isNotBlank() && it != "null" }?.take(120),
+                        thumbnailUrl = sanitizeHttpUrl(t.thumbnailUrl),
+                    )
+                }
+                .toList()
+
+            val resume = CloudPlaybackResume(
+                deviceId = localDeviceId(app),
+                deviceName = localDeviceName(),
+                songId = song.id,
+                title = song.title.trim().ifBlank { "Bài hát" }.take(140),
+                artists = song.artists.joinToString(", ") { it.name }.trim().ifBlank { "Nghệ sĩ" }.take(140),
+                albumName = song.album?.title?.trim()?.takeIf { it.isNotBlank() && it != "null" }?.take(120),
+                durationSec = song.duration.coerceIn(-1, 86_400),
+                thumbnailUrl = sanitizeHttpUrl(song.thumbnailUrl),
+                positionMs = positionMs.coerceAtLeast(0L),
+                queueTracks = sanitizedQueue,
+                updatedAtEpochMs = System.currentTimeMillis(),
+            )
+            val encoded = MochyPlaybackResumeCodec.encode(resume)
+            if (encoded.isBlank()) {
+                throw MochyCloudException("Không thể đóng gói vị trí đang nghe.")
+            }
+            MochySupabaseClient.updateUserMetadata(
+                context = app,
+                session = session,
+                playbackResumeGz = encoded,
+            )
+            _state.value = _state.value.copy(
+                remoteResume = resume,
+                lastError = null,
+            )
+        }.onFailure { err ->
+            if (err is MochyCloudAuthExpiredException) {
+                handleSessionExpired(context.applicationContext, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+            } else {
+                _state.value = _state.value.copy(lastError = err.message)
+            }
+        }
+    }
+
+    suspend fun refreshRemoteResume(context: Context) = withContext(Dispatchers.IO) {
+        val app = context.applicationContext
+        val session = getValidSession(app) ?: return@withContext
+        runCatching {
+            val remoteMeta = MochySupabaseClient.fetchUserMetadata(app, session) ?: return@runCatching
+            val decoded = MochyPlaybackResumeCodec.decode(remoteMeta.playbackResumeGz)
+            val current = _state.value.remoteResume
+            val next = when {
+                remoteMeta.playbackResumeGz.isNullOrBlank() -> null
+                decoded != null && current != null && current.updatedAtEpochMs > decoded.updatedAtEpochMs -> current
+                else -> decoded
+            }
+            _state.value = _state.value.copy(remoteResume = next)
+        }.onFailure { err ->
+            if (err is MochyCloudAuthExpiredException) {
+                handleSessionExpired(app, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+            }
         }
     }
 
@@ -714,6 +853,20 @@ object MochyCloudSyncManager {
             val finalSession = MochyCloudVault.loadSession(app)
                 ?.takeIf { it.userId == activeSession.userId }
                 ?: activeSession
+            val decodedRemoteResume = if (remoteMeta != null) {
+                MochyPlaybackResumeCodec.decode(remoteMeta.playbackResumeGz)
+            } else {
+                _state.value.remoteResume
+            }
+            val currentResume = _state.value.remoteResume
+            val resolvedResume = when {
+                remoteMeta == null -> currentResume
+                remoteMeta.playbackResumeGz.isNullOrBlank() -> null
+                decodedRemoteResume != null &&
+                    currentResume != null &&
+                    currentResume.updatedAtEpochMs > decodedRemoteResume.updatedAtEpochMs -> currentResume
+                else -> decodedRemoteResume
+            }
             _state.value = _state.value.copy(
                 isConfigured = true,
                 signedIn = true,
@@ -728,6 +881,7 @@ object MochyCloudSyncManager {
                 syncing = false,
                 lastSyncEpochMs = System.currentTimeMillis(),
                 lastError = null,
+                remoteResume = resolvedResume,
             )
         } catch (err: MochyCloudAuthExpiredException) {
             handleSessionExpired(app, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
@@ -1262,13 +1416,26 @@ object MochyCloudSyncManager {
         File(path.removePrefix("file://")).takeIf { it.exists() && it.isFile && it.length() > 0L }
     }.getOrNull()
 
+    private fun isCloudSafeId(id: String): Boolean =
+        id.isNotBlank() &&
+            id.length <= 64 &&
+            !id.startsWith("LA") &&
+            !id.contains("://") &&
+            !id.contains("/")
+
     private fun isCloudTrackEligible(song: SongEntity): Boolean =
-        !song.isLocal &&
-            song.id.isNotBlank() &&
-            song.id.length <= 64 &&
-            !song.id.startsWith("LA") &&
-            !song.id.contains("://") &&
-            !song.id.contains("/")
+        !song.isLocal && isCloudSafeId(song.id)
+
+    private fun sanitizeHttpUrl(raw: String?): String? {
+        val trimmed = raw?.trim().orEmpty()
+        if (trimmed.isBlank() || trimmed == "null") return null
+        if (!trimmed.startsWith("http://", ignoreCase = true) &&
+            !trimmed.startsWith("https://", ignoreCase = true)
+        ) {
+            return null
+        }
+        return if (trimmed.length <= 320) trimmed else trimmed.substringBefore('?').takeIf { it.length <= 320 }
+    }
 
     private fun database(context: Context): MusicDatabase =
         EntryPointAccessors.fromApplication(context.applicationContext, CloudSyncEntryPoint::class.java)
@@ -1277,4 +1444,102 @@ object MochyCloudSyncManager {
     private fun audioLab(context: Context): AudioLabStore =
         EntryPointAccessors.fromApplication(context.applicationContext, AudioLabEntryPoint::class.java)
             .audioLabStore()
+}
+
+internal object MochyPlaybackResumeCodec {
+
+    private const val MaxEncodedChars = 2_950 // luôn nhỏ hơn 3 KB
+    private const val MaxQueueTracks = 25
+    private val QueueCaps = intArrayOf(25, 15, 8, 3, 0)
+
+    fun encode(resume: CloudPlaybackResume): String {
+        for (cap in QueueCaps) {
+            val candidate = compressToBase64(resume, cap)
+            if (candidate.length <= MaxEncodedChars) return candidate
+        }
+        return compressToBase64(
+            resume.copy(
+                title = resume.title.take(80),
+                artists = resume.artists.take(80),
+                albumName = resume.albumName?.take(80),
+                thumbnailUrl = resume.thumbnailUrl?.take(180),
+            ),
+            0,
+        ).takeIf { it.length <= MaxEncodedChars }.orEmpty()
+    }
+
+    fun decode(playbackResumeGz: String?): CloudPlaybackResume? {
+        if (playbackResumeGz.isNullOrBlank()) return null
+        return runCatching {
+            val jsonStr = gunzipFromBase64(playbackResumeGz)
+            val root = JSONObject(jsonStr)
+            val deviceId = root.optString("deviceId").trim()
+            val songId = root.optString("songId").trim()
+            if (deviceId.isBlank() || songId.isBlank()) return@runCatching null
+
+            val arr = root.optJSONArray("queueTracks") ?: JSONArray()
+            val queue = buildList(minOf(arr.length(), MaxQueueTracks)) {
+                for (i in 0 until minOf(arr.length(), MaxQueueTracks)) {
+                    val row = arr.optJSONArray(i) ?: continue
+                    val qId = row.optString(0).trim()
+                    if (qId.isBlank()) continue
+                    add(
+                        CloudPlaylistTrack(
+                            songId = qId,
+                            title = row.optString(1).ifBlank { "Bài hát" },
+                            artists = row.optString(2).ifBlank { "Nghệ sĩ" },
+                            albumName = row.optString(3).takeIf { it.isNotBlank() && it != "null" },
+                            duration = row.optInt(4, -1),
+                            thumbnailUrl = row.optString(5).takeIf { it.isNotBlank() && it != "null" },
+                        ),
+                    )
+                }
+            }
+
+            CloudPlaybackResume(
+                deviceId = deviceId,
+                deviceName = root.optString("deviceName").trim().ifBlank { "Thiết bị khác" },
+                songId = songId,
+                title = root.optString("title").trim().ifBlank { "Bài hát" },
+                artists = root.optString("artists").trim().ifBlank { "Nghệ sĩ" },
+                albumName = root.optString("albumName").takeIf { it.isNotBlank() && it != "null" },
+                durationSec = root.optInt("durationSec", -1),
+                thumbnailUrl = root.optString("thumbnailUrl").takeIf { it.isNotBlank() && it != "null" },
+                positionMs = root.optLong("positionMs", 0L).coerceAtLeast(0L),
+                queueTracks = queue,
+                updatedAtEpochMs = root.optLong("updatedAtEpochMs", 0L).coerceAtLeast(0L),
+            )
+        }.getOrNull()
+    }
+
+    private fun compressToBase64(resume: CloudPlaybackResume, maxTracks: Int): String {
+        val arr = JSONArray()
+        for (t in resume.queueTracks.take(maxTracks)) {
+            arr.put(
+                JSONArray().apply {
+                    put(t.songId.take(64))
+                    put(t.title.take(100))
+                    put(t.artists.take(100))
+                    put(t.albumName.orEmpty().take(100))
+                    put(t.duration.coerceIn(-1, 86_400))
+                    put(t.thumbnailUrl.orEmpty().take(280))
+                },
+            )
+        }
+        val root = JSONObject().apply {
+            put("v", 1)
+            put("deviceId", resume.deviceId.take(64))
+            put("deviceName", resume.deviceName.take(40))
+            put("songId", resume.songId.take(64))
+            put("title", resume.title.take(140))
+            put("artists", resume.artists.take(140))
+            if (!resume.albumName.isNullOrBlank()) put("albumName", resume.albumName.take(120))
+            put("durationSec", resume.durationSec.coerceIn(-1, 86_400))
+            if (!resume.thumbnailUrl.isNullOrBlank()) put("thumbnailUrl", resume.thumbnailUrl.take(320))
+            put("positionMs", resume.positionMs.coerceAtLeast(0L))
+            put("queueTracks", arr)
+            put("updatedAtEpochMs", resume.updatedAtEpochMs)
+        }.toString()
+        return gzipToBase64(root)
+    }
 }

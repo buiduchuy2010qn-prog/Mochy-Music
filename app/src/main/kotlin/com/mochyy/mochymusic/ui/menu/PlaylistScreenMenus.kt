@@ -31,6 +31,7 @@ import androidx.navigation.NavController
 import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.db.entities.Playlist
+import com.mochyy.mochymusic.db.entities.PlaylistEntity
 import com.mochyy.mochymusic.db.entities.PlaylistSong
 import com.mochyy.mochymusic.playback.AutoDownloads
 import com.mochyy.mochymusic.ui.component.AppSwitch
@@ -73,6 +74,8 @@ fun LocalPlaylistMenu(
 ) {
     val isYouTubePlaylist = playlist.playlist.browseId != null
     val resync = rememberPlaylistResync(playlist.id, playlist.playlist.browseId, navController, onDismiss)
+    val coroutineScope = rememberCoroutineScope()
+    var sharingMochypl by remember { mutableStateOf(false) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
     val topSong = remember(songs) {
         songs.minWithOrNull(compareBy({ it.map.position }, { it.map.id }))?.song
@@ -242,6 +245,39 @@ fun LocalPlaylistMenu(
                         }
                     )
                 )
+
+                if (!isYouTubePlaylist &&
+                    playlist.id != PlaylistEntity.LIKED_PLAYLIST_ID &&
+                    playlist.id != PlaylistEntity.DOWNLOADED_PLAYLIST_ID
+                ) {
+                    add(
+                        Material3MenuItemData(
+                            title = { Text("Chia sẻ tệp Playlist (.mochypl)") },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.share),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                if (!sharingMochypl) {
+                                    sharingMochypl = true
+                                    shareSinglePlaylistMochypl(
+                                        context = context,
+                                        coroutineScope = coroutineScope,
+                                        playlistId = playlist.id,
+                                        playlistName = playlist.playlist.name,
+                                        onFinished = {
+                                            sharingMochypl = false
+                                            onDismiss()
+                                        },
+                                        onFailed = { sharingMochypl = false },
+                                    )
+                                }
+                            },
+                        )
+                    )
+                }
 
                 add(
                     Material3MenuItemData(
