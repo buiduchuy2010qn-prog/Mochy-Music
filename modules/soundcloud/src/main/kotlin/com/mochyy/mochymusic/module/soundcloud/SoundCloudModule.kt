@@ -123,8 +123,8 @@ class SoundCloudModule : SourceModule {
         }
 
         report(DiagnosticStep("Kết nối SoundCloud", null, "Đang kiểm tra khóa phiên SoundCloud…"))
-        var clientId = obtainClientId(forceRefresh = false)
-        if (clientId == null) {
+        val initialClientId = obtainClientId(forceRefresh = false)
+        if (initialClientId == null) {
             val reason = "Không lấy được client_id của SoundCloud"
             report(DiagnosticStep("Kết nối SoundCloud", false, reason))
             markUnreachable(reason)
@@ -137,7 +137,7 @@ class SoundCloudModule : SourceModule {
             listOf(MatchedSc(cached, TrackMatcher.score(track, cached.catalog).coerceAtLeast(0.9f)))
         } ?: run {
             val query = "${TrackMatcher.core(track.title)} ${track.artists.firstOrNull().orEmpty()}".trim()
-            val response = searchWithRetry(query, limit = SearchLimit, initialClientId = clientId)
+            val response = searchWithRetry(query, limit = SearchLimit, initialClientId = initialClientId)
             if (response == null) {
                 val reason = "SoundCloud không phản hồi"
                 report(DiagnosticStep("Tìm bài hát", false, reason))
@@ -150,8 +150,6 @@ class SoundCloudModule : SourceModule {
                 return ResolveResult.Unavailable(reason)
             }
             host.storage.set(UnreachableKey, null)
-            // Refresh local clientId in case searchWithRetry rotated it on 401/403
-            clientId = host.storage.get(ClientIdKey) ?: clientId
 
             val tracks = tracksIn(response.text)
             val byCatalog = tracks.associateBy { it.catalog }
@@ -177,11 +175,12 @@ class SoundCloudModule : SourceModule {
         )
 
         report(DiagnosticStep("Luồng phát", null, "Đang lấy liên kết phát…"))
+        val activeClientId = host.storage.get(ClientIdKey)?.takeIf { it.isNotBlank() } ?: initialClientId
         val pref = picks[ChoiceStreamPref] ?: OptionMp3
         val nearEqual = ranked.filter { it.score >= best.score - 0.06f }.take(4)
         var lastProblem = "Không có luồng phát khả dụng cho bài hát này"
         for (candidate in nearEqual) {
-            val stream = resolveStream(candidate.track, pref, track, clientId)
+            val stream = resolveStream(candidate.track, pref, track, activeClientId)
             if (stream != null) {
                 matches[key] = candidate.track
                 report(DiagnosticStep("Luồng phát", true, stream.qualityLabel))
