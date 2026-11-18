@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="assets/github%20banner.png" width="100%" alt="Mochy Music Banner" />
+<img src="assets/github-banner.png" width="100%" alt="Mochy Music Banner" />
 
-# 🇻🇳 Mochy Music — Bản Việt Hóa 100% (Android • Windows • Linux)
+# Mochy Music — Bản Việt Hóa Toàn Diện (Android • Windows • Linux)
 
 **Ứng dụng nghe nhạc mã nguồn mở hiện đại, không quảng cáo dành cho Android (`.apk`), Windows (`.exe`) và Linux (`.AppImage` / `.deb`) — được chỉnh sửa, Việt hóa toàn diện 100% và tích hợp cập nhật tự động (OTA) bởi [Đức Huy (@buiduchuy2010qn-prog)](https://github.com/buiduchuy2010qn-prog).**
 
@@ -19,8 +19,10 @@
 
 ## 🌟 Điểm nổi bật của Bản Chỉnh Sửa & Việt Hóa (`@buiduchuy2010qn-prog`)
 
-- 🇻🇳 **Việt hóa 100% toàn diện:** Toàn bộ giao diện, trình phát nhạc, lời bài hát, bộ chỉnh âm (Equalizer / AutoEq), Audio Pass, Kết nối thiết bị, cài đặt, cử chỉ vuốt và thông báo đều được dịch sang Tiếng Việt tự nhiên, đồng thời tự động nhận diện ngôn ngữ mặc định theo thiết bị.
-- 🆕 **Hợp nhất trọn vẹn Mochy gốc 8.4.2 + tính năng độc quyền (v11.0.0):** Giữ nguyên 100% giao diện & chất lượng Mochy Music 8.4.2 gốc (Audio Pass, CrossMix, Floating Lyrics, Device Integration, Sửa thông tin bài hát, Android Auto / Car mode), đồng thời tích hợp **Mochy Cloud**, **Duchi Locket**, bộ biểu tượng **Logo mới**, **Kawarp backdrop** và nhập nhạc qua link **SoundCloud**.
+- 🌐 **Việt hóa 100% toàn diện:** Toàn bộ giao diện, trình phát nhạc, lời bài hát Karaoke, AudioLab (Equalizer / AutoEq / Audio Pass), Module mở rộng, Kết nối thiết bị, cài đặt và thông báo đều được dịch sang Tiếng Việt tự nhiên (`values-vi` & `values-vi-rVN` đồng bộ 100%).
+- 🧩 **Hệ sinh thái Module nguồn nhạc & Giao diện (v11.5.0):** Giữ nguyên 100% nền tảng Mochy Music 8.4.2 gốc (Audio Pass, CrossMix, Floating Lyrics, Android Auto / Car mode), đồng thời tích hợp sẵn **Zing MP3**, **SoundCloud**, **Monochrome (Hi-Res Lossless FLAC, ưu tiên IPv4 & tự phục hồi 60s)**, **JioSaavn**, **Apple Music** cùng kho giao diện **Look Modules** (*Kính Lỏng Trong Suốt, Đen Tuyệt Đối OLED, iPod Cổ Điển, Đĩa Than Phòng Thu*).
+- ☁️ **Mochy Cloud, Cloud Handoff & Mã chia sẻ Playlist:** Đồng bộ hai chiều Yêu thích, Playlist cá nhân, Lịch sử nghe, Thẻ ID/Avatar; chuyển tiếp bài đang phát tức thời giữa các thiết bị (**Cloud Handoff**) và chia sẻ/nhập nhanh **Mã Playlist**.
+- 🎤 **Lời bài hát Karaoke, Nhận diện nhạc & Wikipedia Tiếng Việt:** Hỗ trợ lời bài hát đồng bộ từng từ/dòng, tiện ích lời nổi, tra cứu tiểu sử ca sĩ/bài hát qua **Wikipedia Tiếng Việt**, nhận diện nhạc xung quanh và nhập nhạc nhanh từ link **TikTok / SoundCloud**.
 - 📱 **Hỗ trợ cả ARM64 & Universal (32-bit/64-bit, Android 7.0+):** Phát hành song song bản `arm64` cho máy đời mới và bản `universal` cho máy 32-bit `armeabi-v7a` (Galaxy J6 / J7 Android 8.1), kèm công tắc **Tối ưu cho máy yếu** ngay trong **Cài đặt › Tùy chỉnh › Làm mờ** (tự động bật lần đầu trên Android ≤ 8.1 / RAM ≤ 3 GB; tắt đi tự khôi phục cấu hình cũ).
 - 🔄 **Pop-up Cập nhật tự động (OTA) đồng bộ khi mở ứng dụng:** Khi có phiên bản mới trên GitHub Releases, cả bản **Android** và bản **Windows / Linux** đều tự động hiện bảng thông báo nổi (kèm pop-up **Có gì mới**) để bạn xem nội dung cập nhật và nhấn **"Cập nhật ngay"** cài đè trực tiếp không mất dữ liệu.
 - 📤 **Chia sẻ bài hát & Đăng lên Locket nhanh trong menu 3 chấm (`⋮`):** Đưa nút **Chia sẻ bài hát** và **Đăng lên Locket** ra ngay menu 3 chấm (`⋮`) của trình phát nhạc và danh sách bài hát.
