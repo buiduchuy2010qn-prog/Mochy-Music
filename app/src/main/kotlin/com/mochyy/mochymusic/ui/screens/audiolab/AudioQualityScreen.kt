@@ -150,8 +150,10 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
         // a module added from a link: its name, and the stream it picked when it offers a choice
         else -> {
             val entry = entries.firstOrNull { it.id == first }
-            val choice = entry?.module?.choices?.firstOrNull { it.id == "quality" } ?: entry?.module?.choices?.firstOrNull()
-            val picked = choice?.options?.firstOrNull { it.id == entry.picks[choice.id] } ?: choice?.options?.firstOrNull()
+            val choice = entry?.module?.choices?.let { list ->
+                list.firstOrNull { it.id == "quality" } ?: list.firstOrNull()
+            }
+            val picked = choice?.options?.firstOrNull { it.id == entry?.picks?.get(choice.id) } ?: choice?.options?.firstOrNull()
             Effective(AudioQuality.HIGH, entry?.module?.info?.name ?: first, picked?.label ?: stringResource(R.string.quality_module_stream))
         }
     }
