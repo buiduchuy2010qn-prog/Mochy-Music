@@ -1,5 +1,6 @@
 package com.mochyy.mochymusic.module.jiosaavn
 
+import com.mochyy.mochymusic.module.AccountState
 import com.mochyy.mochymusic.module.HttpRequest
 import com.mochyy.mochymusic.module.HttpResponse
 import com.mochyy.mochymusic.module.ModuleHost
@@ -88,5 +89,15 @@ class JioSaavnModuleTest {
         val (saavn, _) = module()
         val stream = saavn.streamAt("https://aac.saavncdn.com/1/abc_96.mp4?t=1", 160)
         assertEquals("https://aac.saavncdn.com/1/abc_160.mp4?t=1", stream.url)
+    }
+
+    @Test
+    fun `unreachable cooldown expires after 60 seconds`() {
+        val (saavn, host) = module()
+        host.storage.set("unreachable", "JioSaavn không phản hồi")
+        host.storage.set("unreachable_at", (System.currentTimeMillis() - 30_000L).toString())
+        assertTrue(saavn.accountState() is AccountState.Expired)
+        host.storage.set("unreachable_at", (System.currentTimeMillis() - 61_000L).toString())
+        assertTrue(saavn.accountState() is AccountState.SignedIn)
     }
 }

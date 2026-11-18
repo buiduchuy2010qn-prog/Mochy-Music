@@ -53,31 +53,26 @@ private data class WhatsNewHighlight(
     val summary: String,
 )
 
-private val V114Highlights = listOf(
+private val V115Highlights = listOf(
     WhatsNewHighlight(
-        icon = R.drawable.cloud,
-        title = "Tự động nghe tiếp giữa các thiết bị (Auto-Handoff)",
-        summary = "Khi bạn tạm dừng ở thiết bị này, máy khác cùng tài khoản Mochy Cloud sẽ hiện thẻ nhắc để phát tiếp đúng đoạn nhạc và hàng đợi.",
+        icon = R.drawable.music_note,
+        title = "Nguồn nhạc Zing MP3 & SoundCloud chính thức",
+        summary = "Tích hợp sẵn Zing MP3 (MP3 128–320 kbps) chuyên nhạc Việt và SoundCloud không cần tài khoản, tự động làm mới phiên khi hết hạn.",
     ),
     WhatsNewHighlight(
         icon = R.drawable.palette,
-        title = "Nguồn nhạc SoundCloud & 4 giao diện chính thức",
-        summary = "Tích hợp sẵn SoundCloud không cần đăng nhập và bổ sung 4 giao diện Kính Lỏng, Đen OLED, iPod Cổ Điển, Đĩa Than Phòng Thu trong danh mục Module.",
+        title = "Biểu tượng chính thức cho các mô-đun nguồn phát",
+        summary = "Bổ sung logo chuẩn cho Zing MP3, SoundCloud và JioSaavn xuyên suốt trang Mô-đun, Chất lượng âm thanh và bảng Thông tin bài hát.",
     ),
     WhatsNewHighlight(
-        icon = R.drawable.share,
-        title = "Chia sẻ & nhập nhanh mã Playlist mochypl1:",
-        summary = "Sao chép mã chia sẻ Playlist gọn nhẹ để gửi qua tin nhắn hoặc dán vào mục Nhập thư viện, đồng bộ thêm Đĩa quay nhanh và lịch sử nhận diện.",
+        icon = R.drawable.refresh,
+        title = "Tối ưu mạng IPv4 & khôi phục mô-đun trong 60 giây",
+        summary = "Ưu tiên DNS IPv4 cho Monochrome/mô-đun không cần tài khoản, giảm thời gian chờ xuống 60 giây và mở khóa nút bật lại cùng tự kiểm tra để thử lại ngay.",
     ),
     WhatsNewHighlight(
-        icon = R.drawable.lyrics,
-        title = "Karaoke từng chữ & xuất tệp lời .lrc",
-        summary = "Hiển thị lời bài hát tiếng Việt chạy mượt theo từng chữ từ Zing MP3/NhacCuaTui và cho phép xuất tệp .lrc chuẩn kèm mốc thời gian.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.info,
-        title = "Thông tin bài hát bằng Wikipedia Tiếng Việt",
-        summary = "Tự động ưu tiên tra cứu tiểu sử nghệ sĩ và thông tin ca khúc từ Wikipedia Tiếng Việt, lọc bỏ trang định hướng chính xác hơn.",
+        icon = R.drawable.tune,
+        title = "Hoàn thiện AudioLab, Discord & đồng bộ đám mây",
+        summary = "Cập nhật hiển thị chất lượng nguồn phát trong AudioLab, Việt hóa đầy đủ Discord & Android Auto, đồng bộ toàn bộ cài đặt giao diện và thống nhất phông chữ Inter.",
     ),
 )
 
@@ -180,13 +175,13 @@ private fun WhatsNewSheetContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            V114Highlights.forEachIndexed { index, item ->
+            V115Highlights.forEachIndexed { index, item ->
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
                         .fillMaxWidth()
                         .revealOnAppear(
-                            key = "v114_highlight_$index",
+                            key = "v115_highlight_$index",
                             seenState = revealSeen,
                             cascade = true,
                         )

@@ -107,7 +107,7 @@ internal fun ModuleTest(entry: ModuleEntry, viewModel: ModulesViewModel) {
             ResultRow(
                 song = song,
                 running = testing && tested == key,
-                enabled = signedIn && !testing,
+                enabled = (signedIn || entry.module.signIn == null) && !testing,
                 onTest = {
                     tested = key
                     viewModel.runTest(entry.id, song.track)

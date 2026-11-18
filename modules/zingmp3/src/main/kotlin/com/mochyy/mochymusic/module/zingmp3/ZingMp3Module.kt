@@ -94,6 +94,7 @@ class ZingMp3Module : SourceModule {
         matches.clear()
         misses.clear()
         cookie = null
+        cookieAt = 0L
     }
 
     override suspend fun resolve(track: TrackQuery, picks: Map<String, String>): ResolveResult =
@@ -207,6 +208,16 @@ class ZingMp3Module : SourceModule {
      * itself isn't signed
      */
     private fun signedGet(path: String, params: Map<String, String>, extra: String? = null): JsonObject {
+        val first = executeSignedGet(path, params, extra)
+        if (first.int("err") !in SessionExpiredErrors) return first
+        // Zing invalidates session cookies early with -201 / -1023; clear, re-warm, re-sign, and retry once
+        cookie = null
+        cookieAt = 0L
+        return executeSignedGet(path, params, extra)
+    }
+
+    private fun executeSignedGet(path: String, params: Map<String, String>, extra: String? = null): JsonObject {
+        val session = sessionCookie()
         val ctime = (System.currentTimeMillis() / 1000).toString()
         val signed = params + mapOf("ctime" to ctime, "version" to Version)
         val sig = signature(path, signed)
@@ -218,7 +229,7 @@ class ZingMp3Module : SourceModule {
         }.joinToString("&")
         val headers = buildMap {
             putAll(apiHeaders)
-            sessionCookie()?.let { put("Cookie", it) }
+            session?.let { put("Cookie", it) }
         }
         val response = host.http(HttpRequest("$Site$path?$query", headers = headers))
         return json.parseToJsonElement(response.text) as JsonObject
@@ -278,11 +289,12 @@ class ZingMp3Module : SourceModule {
         private const val GeoBlocked = -1110
         private const val VipOnly = 2
         private const val SearchLimit = 10
+        private val SessionExpiredErrors = setOf(-201, -1023)
         private const val UnreachableKey = "unreachable"
         private const val UnreachableAtKey = "unreachable_at"
         private const val CookieTtlMs = 20L * 60 * 1000
         private const val MissMemoryMs = 30L * 60 * 1000
-        private const val UnreachableRetryMs = 10L * 60 * 1000
+        private const val UnreachableRetryMs = 60_000L
         private const val UserAgent =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
         private val apiHeaders = mapOf("Accept" to "application/json", "User-Agent" to UserAgent, "Referer" to "$Site/")

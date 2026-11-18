@@ -124,7 +124,12 @@ class ModulesViewModel @Inject constructor(
         return result
     }
 
-    fun setEnabled(id: String, on: Boolean) = modules.setEnabled(id, on)
+    fun setEnabled(id: String, on: Boolean) {
+        modules.setEnabled(id, on)
+        if (on && entries.value.firstOrNull { it.id == id }?.let { it.module.signIn == null && it.account is AccountState.Expired } == true) {
+            verify(id)
+        }
+    }
 
     /** puts a look above the others that are on, so what it brings wins where they meet */
     fun raise(id: String) {
@@ -338,6 +343,7 @@ class ModulesViewModel @Inject constructor(
             if (ModuleFeature.Metadata in any.adds && any is MetadataModule) testMetadata(any, track)
             val module = modules.module(id)
             if (module == null) {
+                modules.refresh()
                 _testing.value = false
                 return@launch
             }
@@ -349,6 +355,7 @@ class ModulesViewModel @Inject constructor(
                         null
                     }
             }
+            modules.refresh()
             val stream = (result as? ResolveResult.Found)?.stream
             val drm = stream?.drm as? StreamDrm.Widevine
             var licensed = stream != null && drm == null

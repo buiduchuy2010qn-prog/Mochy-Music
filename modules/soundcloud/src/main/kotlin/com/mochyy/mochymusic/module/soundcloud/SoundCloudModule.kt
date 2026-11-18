@@ -434,7 +434,7 @@ class SoundCloudModule : SourceModule {
         private const val SearchLimit = 10
         private const val MaxScriptProbe = 8
         private const val MissMemoryMs = 30L * 60 * 1000
-        private const val UnreachableRetryMs = 10L * 60 * 1000
+        private const val UnreachableRetryMs = 60_000L
 
         private val SupportedProtocols = setOf("progressive", "hls")
         private val AssetScriptPattern = Regex("""https://a-v2\.sndcdn\.com/assets/[A-Za-z0-9._-]+\.js""")

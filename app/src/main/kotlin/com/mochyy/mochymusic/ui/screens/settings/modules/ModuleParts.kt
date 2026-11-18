@@ -144,7 +144,17 @@ internal fun moduleStatus(entry: ModuleEntry): String = when (val account = entr
     AccountState.SignedOut -> stringResource(R.string.module_status_signed_out)
     // a module with no account can't be signed in again, its reason is only that the server didn't answer
     is AccountState.Expired -> if (entry.module.signIn == null) account.reason else stringResource(R.string.module_status_expired, account.reason)
-    is AccountState.SignedIn -> stringResource(if (entry.enabled) R.string.module_status_on else R.string.module_status_off, account.label)
+    is AccountState.SignedIn -> {
+        val label = if (
+            account.label.equals("No account needed", ignoreCase = true) ||
+            account.label.equals("Không cần tài khoản", ignoreCase = true)
+        ) {
+            stringResource(R.string.module_no_account_needed)
+        } else {
+            account.label
+        }
+        stringResource(if (entry.enabled) R.string.module_status_on else R.string.module_status_off, label)
+    }
 }
 
 /** the dot beside a module's name: green while it's working for you */

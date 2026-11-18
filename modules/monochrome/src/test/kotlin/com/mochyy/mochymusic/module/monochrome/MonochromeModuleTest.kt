@@ -115,7 +115,9 @@ class MonochromeModuleTest {
     fun `an old unreachable mark is tried again`() {
         val (module, host) = module()
         host.storage.set("unreachable@https://tracks.monochrome.st", "tracks.monochrome.st didn't answer")
-        host.storage.set("unreachable_at@https://tracks.monochrome.st", (System.currentTimeMillis() - 11 * 60 * 1000).toString())
+        host.storage.set("unreachable_at@https://tracks.monochrome.st", (System.currentTimeMillis() - 30_000L).toString())
+        assertTrue(module.accountState() is AccountState.Expired)
+        host.storage.set("unreachable_at@https://tracks.monochrome.st", (System.currentTimeMillis() - 61_000L).toString())
         assertTrue(module.accountState() is AccountState.SignedIn)
         // a mark with no time is old too
         host.storage.set("unreachable_at@https://tracks.monochrome.st", null)

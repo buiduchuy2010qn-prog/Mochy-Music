@@ -9,6 +9,7 @@
     <string name="module_status_expired">Đăng nhập lại · %1$s</string>
     <string name="module_status_on">Bật · %1$s</string>
     <string name="module_status_off">Tắt · %1$s</string>
+    <string name="module_no_account_needed">Không cần tài khoản</string>
     <string name="module_origin_built_in">Tích hợp sẵn · v%1$s</string>
     <string name="module_origin_app">Ứng dụng module · v%1$s</string>
     <string name="module_origin_web">Từ liên kết · v%1$s</string>

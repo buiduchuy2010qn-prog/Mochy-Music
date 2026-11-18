@@ -69,7 +69,8 @@ internal fun EnableCard(entry: ModuleEntry, onChange: (Boolean) -> Unit) {
     val name = entry.module.info.name
     val needsAccount = entry.module.signIn != null
     val signedIn = entry.account is AccountState.SignedIn
-    val on = entry.enabled && signedIn
+    val canToggle = signedIn || !needsAccount
+    val on = if (needsAccount) (entry.enabled && signedIn) else entry.enabled
     val what = buildList {
         if (entry.adds(ModuleFeature.AudioSource)) add(stringResource(R.string.module_use_songs, name))
         if (entry.adds(ModuleFeature.Lyrics)) add(stringResource(R.string.module_use_lyrics))
@@ -79,7 +80,7 @@ internal fun EnableCard(entry: ModuleEntry, onChange: (Boolean) -> Unit) {
     PageCard(padding = 14) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable(enabled = signedIn) { onChange(!on) },
+            modifier = Modifier.clickable(enabled = canToggle) { onChange(!on) },
         ) {
             Box(
                 Modifier.size(24.dp).clip(CircleShape).background(Color.White.copy(alpha = if (on) 0.9f else 0.35f)),
@@ -92,7 +93,7 @@ internal fun EnableCard(entry: ModuleEntry, onChange: (Boolean) -> Unit) {
                 stringResource(R.string.module_enable), fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp, color = Color.White, modifier = Modifier.weight(1f),
             )
-            AppSwitch(checked = on, onCheckedChange = onChange, enabled = signedIn)
+            AppSwitch(checked = on, onCheckedChange = onChange, enabled = canToggle)
         }
         val detail = if (needsAccount && !signedIn) stringResource(R.string.module_use_sign_in_first) else what.joinToString(" ")
         if (detail.isNotBlank()) {

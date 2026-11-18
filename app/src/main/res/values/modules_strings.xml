@@ -10,6 +10,7 @@
     <string name="module_status_expired">Sign in again · %1$s</string>
     <string name="module_status_on">On · %1$s</string>
     <string name="module_status_off">Off · %1$s</string>
+    <string name="module_no_account_needed">No account needed</string>
     <string name="module_origin_built_in">Built in · v%1$s</string>
     <string name="module_origin_app">Module app · v%1$s</string>
     <string name="module_origin_web">From a link · v%1$s</string>

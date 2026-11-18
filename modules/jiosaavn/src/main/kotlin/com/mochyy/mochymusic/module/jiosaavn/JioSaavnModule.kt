@@ -232,7 +232,7 @@ class JioSaavnModule : SourceModule {
         private const val Api = "https://www.jiosaavn.com/api.php"
         private const val MediaKey = "38346591"
         private const val MissMemoryMs = 30L * 60 * 1000
-        private const val UnreachableRetryMs = 10L * 60 * 1000
+        private const val UnreachableRetryMs = 60_000L
         private val RenditionPattern = Regex("_(12|48|96|160|320)\\.(mp4|m4a|aac|mp3)(?=[?#]|$)", RegexOption.IGNORE_CASE)
         private const val UserAgent =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"

@@ -556,7 +556,7 @@ class MonochromeModule : SourceModule, ServerListModule {
         private const val SearchLimit = 8
         private const val MissMemoryMs = 30L * 60 * 1000
         // how long a server that didn't answer is left alone before it's tried again
-        private const val UnreachableRetryMs = 10L * 60 * 1000
+        private const val UnreachableRetryMs = 60_000L
         // a site has a script or two of its own, and only a handful of its links look like servers
         private const val MaxScripts = 4
         private const val MaxCandidates = 8

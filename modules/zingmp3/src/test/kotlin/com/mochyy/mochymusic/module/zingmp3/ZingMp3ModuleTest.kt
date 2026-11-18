@@ -1,5 +1,6 @@
 package com.mochyy.mochymusic.module.zingmp3
 
+import com.mochyy.mochymusic.module.AccountState
 import com.mochyy.mochymusic.module.HttpRequest
 import com.mochyy.mochymusic.module.HttpResponse
 import com.mochyy.mochymusic.module.ModuleHost
@@ -125,5 +126,111 @@ class ZingMp3ModuleTest {
         val (zingGeo, _) = module("""{"err":-1110,"msg":"Blocked"}""")
         val blocked = zingGeo.resolve(track, emptyMap())
         assertTrue(blocked is ResolveResult.Unavailable)
+    }
+
+    @Test
+    fun `refreshes session cookie and retries once on -201 and -1023 errors`() = runBlocking {
+        val searchPayload = """
+            {
+              "err": 0,
+              "data": {
+                "items": [
+                  {
+                    "encodeId": "Z6ABC123",
+                    "title": "Chúng Ta Của Hiện Tại",
+                    "artistsNames": "Sơn Tùng M-TP",
+                    "duration": 301,
+                    "streamingStatus": 1
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+        val streamPayload = """{"err":0,"data":{"128":"https://cdn.zingmp3.vn/audio/128.mp3","320":"https://cdn.zingmp3.vn/audio/320.mp3"}}"""
+
+        // -201 during search triggers cookie re-warm and retry
+        var homeHits = 0
+        var searchHits = 0
+        val searchRetryHost = FakeHost { request ->
+            when {
+                request.url == "https://zingmp3.vn/" -> {
+                    homeHits++
+                    HttpResponse(200, ByteArray(0), mapOf("set-cookie" to "zmp3_session=cookie_$homeHits; Path=/"))
+                }
+                "/api/v2/search?" in request.url -> {
+                    searchHits++
+                    if (searchHits == 1) HttpResponse(200, """{"err":-201,"msg":"Invalid cookie"}""".toByteArray())
+                    else HttpResponse(200, searchPayload.toByteArray())
+                }
+                "/api/v2/song/get/streaming?" in request.url ->
+                    HttpResponse(200, streamPayload.toByteArray())
+                else -> HttpResponse(404, ByteArray(0))
+            }
+        }
+        val zingSearchRetry = ZingMp3Module().also { it.attach(searchRetryHost) }
+        val foundAfterSearchRefresh = zingSearchRetry.resolve(track, emptyMap()) as ResolveResult.Found
+        assertEquals("https://cdn.zingmp3.vn/audio/320.mp3", foundAfterSearchRefresh.stream.url)
+        assertEquals(2, homeHits)
+        assertEquals(2, searchHits)
+        val searchReqs = searchRetryHost.requests.filter { "/api/v2/search?" in it.url }
+        assertEquals("zmp3_session=cookie_1", searchReqs[0].headers["Cookie"])
+        assertEquals("zmp3_session=cookie_2", searchReqs[1].headers["Cookie"])
+        val streamReq = searchRetryHost.requests.first { "/api/v2/song/get/streaming?" in it.url }
+        assertEquals("zmp3_session=cookie_2", streamReq.headers["Cookie"])
+
+        // -1023 during streaming triggers cookie re-warm and retry
+        var streamHomeHits = 0
+        var streamHits = 0
+        val streamRetryHost = FakeHost { request ->
+            when {
+                request.url == "https://zingmp3.vn/" -> {
+                    streamHomeHits++
+                    HttpResponse(200, ByteArray(0), mapOf("set-cookie" to "zmp3_session=stream_$streamHomeHits; Path=/"))
+                }
+                "/api/v2/search?" in request.url ->
+                    HttpResponse(200, searchPayload.toByteArray())
+                "/api/v2/song/get/streaming?" in request.url -> {
+                    streamHits++
+                    if (streamHits == 1) HttpResponse(200, """{"err":-1023,"msg":"Session expired"}""".toByteArray())
+                    else HttpResponse(200, streamPayload.toByteArray())
+                }
+                else -> HttpResponse(404, ByteArray(0))
+            }
+        }
+        val zingStreamRetry = ZingMp3Module().also { it.attach(streamRetryHost) }
+        val foundAfterStreamRefresh = zingStreamRetry.resolve(track, emptyMap()) as ResolveResult.Found
+        assertEquals("https://cdn.zingmp3.vn/audio/320.mp3", foundAfterStreamRefresh.stream.url)
+        assertEquals(2, streamHomeHits)
+        assertEquals(2, streamHits)
+        val streamReqs = streamRetryHost.requests.filter { "/api/v2/song/get/streaming?" in it.url }
+        assertEquals("zmp3_session=stream_1", streamReqs[0].headers["Cookie"])
+        assertEquals("zmp3_session=stream_2", streamReqs[1].headers["Cookie"])
+
+        // Persistent -201 retries at most once before failing
+        var persistentSearchHits = 0
+        val persistentHost = FakeHost { request ->
+            when {
+                request.url == "https://zingmp3.vn/" ->
+                    HttpResponse(200, ByteArray(0), mapOf("set-cookie" to "zmp3_session=bad; Path=/"))
+                "/api/v2/search?" in request.url -> {
+                    persistentSearchHits++
+                    HttpResponse(200, """{"err":-201,"msg":"Expired"}""".toByteArray())
+                }
+                else -> HttpResponse(404, ByteArray(0))
+            }
+        }
+        val zingPersistent = ZingMp3Module().also { it.attach(persistentHost) }
+        assertTrue(zingPersistent.resolve(track, emptyMap()) is ResolveResult.Unavailable)
+        assertEquals(2, persistentSearchHits)
+    }
+
+    @Test
+    fun `unreachable cooldown expires after 60 seconds`() {
+        val (zing, host) = module()
+        host.storage.set("unreachable", "Zing MP3 không phản hồi")
+        host.storage.set("unreachable_at", (System.currentTimeMillis() - 30_000L).toString())
+        assertTrue(zing.accountState() is AccountState.Expired)
+        host.storage.set("unreachable_at", (System.currentTimeMillis() - 61_000L).toString())
+        assertTrue(zing.accountState() is AccountState.SignedIn)
     }
 }
