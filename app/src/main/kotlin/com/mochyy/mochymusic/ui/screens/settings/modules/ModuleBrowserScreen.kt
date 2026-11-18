@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.core.updater.DiscordUrl
 import com.mochyy.mochymusic.modules.ModuleRegistry.LinkCheck
@@ -74,6 +75,7 @@ fun ModuleBrowserScreen(
     // the versions of what's added already, by id, so a card can say added or update
     val added = remember(entries) { entries.associate { it.id to it.module.info.version } }
     val top = WindowInsets.stableStatusBars.asPaddingValues().calculateTopPadding()
+    val bottomBarInset = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
 
     fun signIn() {
         try {
@@ -107,7 +109,7 @@ fun ModuleBrowserScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Color.Black),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top + 12.dp, bottom = 140.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = top + 12.dp, bottom = maxOf(100.dp, bottomBarInset + 36.dp)),
     ) {
         item(key = "header", contentType = "header") {
             BrowserHeader(person, onBack = { navController.navigateUp() })

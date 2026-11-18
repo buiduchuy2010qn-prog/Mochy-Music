@@ -115,7 +115,7 @@ class DiscordAuth @Inject constructor(
         val verifier = prefs[DiscordLoginVerifierKey]
         // a link that doesn't belong to the login we started is ignored, not trusted
         if (expectedState == null || verifier == null || redirect.getQueryParameter("state") != expectedState) {
-            _login.value = DiscordLogin.Failed("That sign-in link had expired. Try logging in again.")
+            _login.value = DiscordLogin.Failed("Liên kết đăng nhập đã hết hạn. Vui lòng thử đăng nhập lại.")
             return
         }
         context.dataStore.edit {
@@ -126,9 +126,9 @@ class DiscordAuth @Inject constructor(
         if (code == null) {
             _login.value = DiscordLogin.Failed(
                 if (redirect.getQueryParameter("error") == "access_denied") {
-                    "You said no on Discord's page, so Mochy isn't connected."
+                    "Bạn đã từ chối quyền trên trang Discord nên Mochy chưa được kết nối."
                 } else {
-                    "Discord didn't let the sign-in through. Try again."
+                    "Discord không cho phép đăng nhập. Vui lòng thử lại."
                 },
             )
             return
@@ -155,7 +155,7 @@ class DiscordAuth @Inject constructor(
             throw e
         } catch (e: Exception) {
             Timber.tag(LogTag).w(e, "Discord sign-in didn't finish")
-            _login.value = DiscordLogin.Failed("Couldn't finish signing in to Discord. Check your connection and try again.")
+            _login.value = DiscordLogin.Failed("Không thể hoàn tất đăng nhập Discord. Hãy kiểm tra mạng và thử lại.")
         }
     }
 

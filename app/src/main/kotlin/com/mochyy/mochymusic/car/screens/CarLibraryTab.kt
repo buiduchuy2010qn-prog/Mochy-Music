@@ -27,7 +27,7 @@ internal class CarLibraryTab(app: CarApp) : CarDataTab<CarLibraryTab.Data>(app, 
     override fun empty() = Data(0, 0)
 
     override fun build(data: Data): Template {
-        val songs = { count: Int -> app.carContext.resources.getQuantityString(R.plurals.n_song, count, count) }
+        val songs = { count: Int -> app.plural(R.plurals.n_song, count, count) }
         val rows = listOf(
             entry(R.string.car_liked, songs(data.liked), R.drawable.favorite) {
                 app.push(CarSongsScreen(app, app.string(R.string.car_liked)) { app.catalog.liked() })

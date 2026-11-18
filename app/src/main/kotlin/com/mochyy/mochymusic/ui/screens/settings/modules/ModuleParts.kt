@@ -39,11 +39,10 @@ import coil3.compose.SubcomposeAsyncImage
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.module.AccountState
 import com.mochyy.mochymusic.module.ModuleFeature
-import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
-import com.mochyy.mochymusic.module.monochrome.MonochromeModule
 import com.mochyy.mochymusic.modules.ModuleEntry
 import com.mochyy.mochymusic.modules.ModuleOrigin
 import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
+import com.mochyy.mochymusic.ui.screens.audiolab.providerLogo
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import java.io.File
 
@@ -55,11 +54,8 @@ internal val StatusOn = Color(0xFF30D158)
 internal val StatusOff = Color(0xFF5C5C63)
 internal val StatusTrouble = Color(0xFFFFB340)
 
-private fun logoFor(id: String): Int? = when (id) {
-    AppleMusicModule.Id -> R.drawable.provider_apple_music
-    MonochromeModule.Id -> R.drawable.provider_monochrome
-    else -> null
-}
+// the same logos the audio quality page and the player's source sheet show, so a module looks the same everywhere
+private fun logoFor(id: String): Int? = providerLogo(id)
 
 /** a module's picture as coil reads it: a file the zip brought, or a link */
 internal fun artModel(art: String?): Any? = art?.let { if (it.startsWith("/")) File(it) else it }

@@ -73,6 +73,7 @@ private val ControlMinHeight = 46.dp
 internal fun SheetLabel(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
+        fontFamily = InterFontFamily,
         fontSize = 17.sp,
         fontWeight = FontWeight.Bold,
         color = Color.White,
@@ -129,6 +130,7 @@ internal fun SheetTextField(
                     if (value.isEmpty()) {
                         Text(
                             text = placeholder,
+                            fontFamily = InterFontFamily,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.White.copy(alpha = 0.4f),
@@ -191,6 +193,7 @@ internal fun SheetPillButton(
     ) {
         Text(
             text = text,
+            fontFamily = InterFontFamily,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             color = Color.White,
@@ -242,6 +245,7 @@ internal fun SheetOptionRow(
             Text(
                 text = title,
                 color = Color.White,
+                fontFamily = InterFontFamily,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -251,6 +255,7 @@ internal fun SheetOptionRow(
                 Text(
                     text = subtitle,
                     color = Color.White.copy(alpha = 0.55f),
+                    fontFamily = InterFontFamily,
                     fontSize = 12.sp,
                     maxLines = subtitleLines,
                     overflow = TextOverflow.Ellipsis,
@@ -324,6 +329,7 @@ internal fun SheetHeader(
             Text(
                 text = title,
                 color = Color.White,
+                fontFamily = InterFontFamily,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -333,6 +339,7 @@ internal fun SheetHeader(
                 Text(
                     text = subtitle,
                     color = Color.White.copy(alpha = 0.6f),
+                    fontFamily = InterFontFamily,
                     fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -446,6 +453,7 @@ internal fun SheetActionCard(
         Text(
             text = title,
             color = Color.White,
+            fontFamily = InterFontFamily,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 2,
@@ -520,6 +528,7 @@ internal fun SheetSearchLauncher(
     ) {
         Text(
             text = placeholder,
+            fontFamily = InterFontFamily,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = Color.White.copy(alpha = 0.4f),

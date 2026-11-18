@@ -31,6 +31,7 @@
     <string name="car_pair_connected">Đã kết nối với %1$s</string>
     <string name="car_pair_getting_code">Đang chuẩn bị mã…</string>
     <plurals name="car_pair_connected_more">
+        <item quantity="one">Đã kết nối với %1$s và %2$d điện thoại khác</item>
         <item quantity="other">Đã kết nối với %1$s và %2$d điện thoại khác</item>
     </plurals>
 </resources>

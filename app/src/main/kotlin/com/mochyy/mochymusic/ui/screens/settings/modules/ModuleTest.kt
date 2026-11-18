@@ -116,7 +116,12 @@ internal fun ModuleTest(entry: ModuleEntry, viewModel: ModulesViewModel) {
             )
         }
         if (!signedIn) {
-            Text(stringResource(R.string.module_use_sign_in_first), fontFamily = InterFontFamily, fontSize = 12.sp, color = PageSoftText, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
+            val hint = if (entry.module.signIn != null) {
+                stringResource(R.string.module_use_sign_in_first)
+            } else {
+                (entry.account as? AccountState.Expired)?.reason ?: stringResource(R.string.module_unavailable)
+            }
+            Text(hint, fontFamily = InterFontFamily, fontSize = 12.sp, color = PageSoftText, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
         }
     }
     if (steps.isNotEmpty()) {
@@ -202,7 +207,7 @@ private fun ResultRow(song: TestSong, running: Boolean, enabled: Boolean, onTest
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.module_run_test)) },
+                    text = { Text(stringResource(R.string.module_run_test), fontFamily = InterFontFamily) },
                     enabled = enabled,
                     onClick = {
                         menu = false
@@ -211,7 +216,7 @@ private fun ResultRow(song: TestSong, running: Boolean, enabled: Boolean, onTest
                 )
                 if (onPlay != null) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.module_test_play)) },
+                        text = { Text(stringResource(R.string.module_test_play), fontFamily = InterFontFamily) },
                         onClick = {
                             menu = false
                             onPlay()

@@ -776,7 +776,7 @@
     <string name="discord_placeholder_app_desc">Mochy</string>
     <string name="discord_placeholder_quality_desc">Định dạng và bitrate, ví dụ: OPUS · 160 kbps</string>
     <string name="discord_placeholder_apple_desc">Logo Apple (chỉ thiết bị Apple mới hiển thị được)</string>
-    <string name="discord_placeholder_example_template">{name} by {artist} on {album}</string>
+    <string name="discord_placeholder_example_template">{name} · {artist}</string>
     <string name="speed_dial">Nghe lại ngay</string>
     <string name="pin_to_speed_dial">Ghim vào thư viện</string>
     <string name="unpin_from_speed_dial">Bỏ ghim khỏi thư viện</string>

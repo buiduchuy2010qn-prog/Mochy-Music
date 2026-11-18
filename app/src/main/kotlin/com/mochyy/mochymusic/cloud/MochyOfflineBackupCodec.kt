@@ -299,6 +299,11 @@ object MochyOfflineBackupCodec {
                         for ((k, v) in modulesCfg.picks) put(k, v)
                     })
                 }
+                if (modulesCfg.fields.isNotEmpty()) {
+                    put("fields", JSONObject().apply {
+                        for ((k, v) in modulesCfg.fields) put(k, v)
+                    })
+                }
                 modulesCfg.moduleOrder?.let { put("moduleOrder", it) }
                 fullWebModules?.let { put("webModulesJson", it) }
                 modulesCfg.monochromeServersJson?.let { put("monochromeServersJson", it) }
@@ -697,10 +702,24 @@ object MochyOfflineBackupCodec {
                         }
                     }
                 }
+                val fldObj = modulesObj.optJSONObject("fields")
+                val fieldsMap = buildMap {
+                    if (fldObj != null) {
+                        val keys = fldObj.keys()
+                        while (keys.hasNext()) {
+                            val k = keys.next().trim()
+                            val v = fldObj.optString(k).takeIf { it.isNotBlank() && it != "null" }
+                            if (k.isNotBlank() && v != null) put(k, v)
+                        }
+                    }
+                }
                 val cfg = CloudModulesConfig(
                     enabled = enabledMap,
                     picks = picksMap,
+                    fields = fieldsMap,
                     moduleOrder = modulesObj.optString("moduleOrder").takeIf { it.isNotBlank() && it != "null" },
+                    providerOrder = modulesObj.optString("providerOrder").takeIf { it.isNotBlank() && it != "null" },
+                    downloadOrder = modulesObj.optString("downloadOrder").takeIf { it.isNotBlank() && it != "null" },
                     webModulesJson = modulesObj.optString("webModulesJson").takeIf { it.isNotBlank() && it != "null" },
                     monochromeServersJson = modulesObj.optString("monochromeServersJson")
                         .takeIf { it.isNotBlank() && it != "null" },

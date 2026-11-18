@@ -33,6 +33,7 @@ import com.mochyy.mochymusic.ui.component.PopupSheetState
 import com.mochyy.mochymusic.ui.component.SheetPillButton
 import com.mochyy.mochymusic.ui.component.SheetTextField
 import com.mochyy.mochymusic.ui.screens.search.SearchColors
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.viewmodels.ModulesViewModel
 import kotlinx.coroutines.launch
 
@@ -77,9 +78,9 @@ private fun AddServerContent(id: String, viewModel: ModulesViewModel, onAdded: (
     }
 
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-        Text(stringResource(R.string.module_server_add), color = SearchColors.Primary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.module_server_add), color = SearchColors.Primary, fontFamily = InterFontFamily, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        Text(stringResource(R.string.module_server_add_body), color = SearchColors.Secondary, fontSize = 14.sp, lineHeight = 20.sp)
+        Text(stringResource(R.string.module_server_add_body), color = SearchColors.Secondary, fontFamily = InterFontFamily, fontSize = 14.sp, lineHeight = 20.sp)
         Spacer(Modifier.height(22.dp))
         SheetTextField(
             value = link,
@@ -92,7 +93,7 @@ private fun AddServerContent(id: String, viewModel: ModulesViewModel, onAdded: (
             keyboardActions = KeyboardActions(onDone = { add() }),
         )
         problem?.let {
-            Text(it, color = ProblemColor, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 10.dp, start = 4.dp))
+            Text(it, color = ProblemColor, fontFamily = InterFontFamily, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 10.dp, start = 4.dp))
         }
         Spacer(Modifier.height(14.dp))
         SheetPillButton(

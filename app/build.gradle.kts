@@ -497,6 +497,7 @@ dependencies {
     implementation(project(":modules:monochrome"))
     implementation(project(":modules:jiosaavn"))
     implementation(project(":modules:soundcloud"))
+    implementation(project(":modules:zingmp3"))
     implementation(project(":modules:bridge"))
 
 

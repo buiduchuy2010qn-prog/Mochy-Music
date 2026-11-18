@@ -93,7 +93,7 @@ fun ModulePageScreen(navController: NavController, id: String, pageId: String, v
                 return@SubSettingsScaffold
             }
             PageBlocks(page.blocks, entry, skin, viewModel, navController, glass)
-            Spacer(Modifier.height(120.dp))
+            Spacer(Modifier.height(36.dp))
         }
     }
 }

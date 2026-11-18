@@ -65,6 +65,7 @@ import com.mochyy.mochymusic.discord.PresenceKind
 import com.mochyy.mochymusic.discord.PresencePicture
 import com.mochyy.mochymusic.discord.PresenceSettings
 import com.mochyy.mochymusic.ui.component.AppSwitch
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.delay
 
 private val BannerHeight = 104.dp
@@ -103,10 +104,11 @@ internal fun DiscordToggleCard(
             Text(
                 stringResource(R.string.discord_enable_rich_presence),
                 color = DiscordColors.Primary,
+                fontFamily = InterFontFamily,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(status, color = DiscordColors.Secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(status, color = DiscordColors.Secondary, fontFamily = InterFontFamily, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
         AppSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
@@ -145,6 +147,7 @@ internal fun DiscordProfileCard(
             Text(
                 text = profile?.displayName ?: stringResource(R.string.discord_not_connected),
                 color = DiscordColors.Primary,
+                fontFamily = InterFontFamily,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -155,6 +158,7 @@ internal fun DiscordProfileCard(
                     profile?.let { listOfNotNull(it.username, it.pronouns).joinToString(" · ") }
                         ?: stringResource(R.string.discord_login_to_show_profile),
                 color = DiscordColors.Secondary,
+                fontFamily = InterFontFamily,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -164,6 +168,7 @@ internal fun DiscordProfileCard(
                 Text(
                     text = bio,
                     color = DiscordColors.Secondary,
+                    fontFamily = InterFontFamily,
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
                     fontWeight = FontWeight.Normal,
@@ -257,6 +262,7 @@ internal fun DiscordActivityPreview(
         Text(
             text = prefix + activity.name,
             color = DiscordColors.Primary,
+            fontFamily = InterFontFamily,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -289,7 +295,7 @@ internal fun DiscordActivityPreview(
                                 .clip(CircleShape)
                                 .background(DiscordColors.Profile),
                     ) {
-                        Text(button.label, color = DiscordColors.Primary, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                        Text(button.label, color = DiscordColors.Primary, fontFamily = InterFontFamily, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
                 }
             }
@@ -304,7 +310,7 @@ private fun Line(
     weight: FontWeight = FontWeight.Normal,
     color: Color = DiscordColors.Secondary,
 ) {
-    Text(text, color = color, fontSize = size.sp, fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(text, color = color, fontFamily = InterFontFamily, fontSize = size.sp, fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
 /** listening shows a bar from start to end, playing counts up, a paused song shows neither */

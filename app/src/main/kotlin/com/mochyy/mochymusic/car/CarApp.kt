@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.media3.common.util.UnstableApi
 import com.mochyy.mochymusic.car.screens.CarLyricsScreen
 import com.mochyy.mochymusic.car.screens.CarNowPlayingScreen
+import com.mochyy.mochymusic.i18n.AppLanguage
 import com.mochyy.mochymusic.link.phone.PhoneLinkHost
 import com.mochyy.mochymusic.link.phone.PhonePairing
 import com.mochyy.mochymusic.playback.queues.Queue
@@ -76,7 +77,12 @@ class CarApp(
 
     fun toast(text: CharSequence) = CarToast.makeText(carContext, text, CarToast.LENGTH_LONG).show()
 
-    fun string(id: Int, vararg args: Any): String = carContext.getString(id, *args)
+    private val localizedContext by lazy { AppLanguage.wrapActivityContext(carContext) }
+
+    fun string(id: Int, vararg args: Any): String = localizedContext.getString(id, *args)
+
+    fun plural(id: Int, count: Int, vararg args: Any): String =
+        localizedContext.resources.getQuantityString(id, count, *args)
 
     private fun limit(type: Int, fallback: Int): Int =
         runCatching { carContext.getCarService(ConstraintManager::class.java).getContentLimit(type) }.getOrDefault(fallback).coerceIn(1, MaxItems)

@@ -25,7 +25,7 @@ import timber.log.Timber
 // fixes local songs imported before file names were read: a title that was the file's link and no artist, and with a folder's files the lyrics and covers beside them
 object LocalSongRepair {
     // raised when an update needs every saved folder read again for the lyrics and covers beside songs already in
-    private const val FolderPass = 1
+    private const val FolderPass = 2
     private val FolderPassKey = intPreferencesKey("localSongFolderPass")
 
     // when the library opens: link titles are fixed every time, and once per FolderPass the saved folders are read so songs already in get what sits beside them
@@ -67,7 +67,7 @@ object LocalSongRepair {
         val cover = beside?.cover?.takeIf { song.song.thumbnailUrl == null }
             ?.let { LocalSidecars.readCover(context, it) }
             ?.let { LocalArtwork.save(context, song.id, it) }
-        val lyrics = beside?.lyrics?.takeIf { hasNoLyrics(database, song.id) }?.let { LocalSidecars.readLyrics(context, it) }
+        val lyrics = if (hasNoLyrics(database, song.id)) { beside?.lyrics?.let { LocalSidecars.readLyrics(context, it) } ?: com.mochyy.mochymusic.lyrics.readSidecarLyrics(context, uri) } else null
         if (title == null && artist == null && cover == null && lyrics == null) return false
 
         database.withTransaction {

@@ -6,6 +6,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.datastore.preferences.core.edit
 import com.mochyy.mochymusic.constants.AudioNormalizationKey
+import com.mochyy.mochymusic.constants.SkipSilenceKey
 import com.mochyy.mochymusic.constants.AudioQualityKey
 import com.mochyy.mochymusic.constants.ProfileCardNumberKey
 import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
@@ -28,6 +29,12 @@ import com.mochyy.mochymusic.di.AudioLabEntryPoint
 import com.mochyy.mochymusic.di.CloudSyncEntryPoint
 import com.mochyy.mochymusic.eq.AudioLabStore
 import com.mochyy.mochymusic.eq.EqSettings
+import com.mochyy.mochymusic.eq.LoudnessSettings
+import com.mochyy.mochymusic.eq.NormalizeSettings
+import com.mochyy.mochymusic.eq.PlaybackSettings
+import com.mochyy.mochymusic.eq.ReverbSettings
+import com.mochyy.mochymusic.eq.SpatialSettings
+import com.mochyy.mochymusic.eq.VolumeSettings
 import com.mochyy.mochymusic.models.MediaMetadata
 import com.mochyy.mochymusic.ui.screens.profile.ProfileStore
 import com.mochyy.mochymusic.utils.dataStore
@@ -1282,54 +1289,32 @@ object MochyCloudSyncManager {
             }
         }
 
-        // C. Cài đặt Equalizer & âm thanh
+        // C. Cài đặt Audio Lab (Equalizer + Reverb + Loudness + Spatial + Normalize + Volume + Playback) & âm thanh
         val audioLab = audioLab(app)
-        val initialEq = audioLab.eq.value
-        val initialEqJson = audioLabJson.encodeToString(EqSettings.serializer(), initialEq)
         val initialPrefs = app.dataStore.data.first()
-        val initialAudioDigest = sha256Hex(
-            canonicalAudioConfig(
-                eqJson = initialEqJson,
-                norm = initialPrefs[AudioNormalizationKey],
-                quality = initialPrefs[AudioQualityKey],
-            ),
-        )
+        val initialAudio = snapshotLocalAudioConfig(audioLab, initialPrefs)
+        val initialAudioDigest = sha256Hex(canonicalAudioConfig(initialAudio))
         val prevEqDigest = MochyCloudVault.loadSyncedEqDigest(app, session.userId)
         val remoteAudio = remoteExtra?.audio
-        val remoteEqJson = remoteAudio?.eqSettingsJson
 
         if (remoteAudio != null) {
-            val remoteAudioDigest = sha256Hex(
-                canonicalAudioConfig(
-                    eqJson = remoteEqJson ?: initialEqJson,
-                    norm = remoteAudio.audioNormalization ?: initialPrefs[AudioNormalizationKey],
-                    quality = remoteAudio.audioQuality ?: initialPrefs[AudioQualityKey],
-                ),
+            val mergedRemoteAudio = CloudAudioConfig(
+                eqSettingsJson = remoteAudio.eqSettingsJson ?: initialAudio.eqSettingsJson,
+                audioNormalization = remoteAudio.audioNormalization ?: initialAudio.audioNormalization,
+                audioQuality = remoteAudio.audioQuality ?: initialAudio.audioQuality,
+                reverbJson = remoteAudio.reverbJson ?: initialAudio.reverbJson,
+                loudnessJson = remoteAudio.loudnessJson ?: initialAudio.loudnessJson,
+                spatialJson = remoteAudio.spatialJson ?: initialAudio.spatialJson,
+                normalizeJson = remoteAudio.normalizeJson ?: initialAudio.normalizeJson,
+                volumeJson = remoteAudio.volumeJson ?: initialAudio.volumeJson,
+                playbackJson = remoteAudio.playbackJson ?: initialAudio.playbackJson,
+                skipSilence = remoteAudio.skipSilence ?: initialAudio.skipSilence,
             )
+            val remoteAudioDigest = sha256Hex(canonicalAudioConfig(mergedRemoteAudio))
             if (prevEqDigest == null) {
-                if (!remoteEqJson.isNullOrBlank() && initialEq == EqSettings()) {
-                    runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), remoteEqJson) }
-                        .getOrNull()
-                        ?.let { decodedEq -> audioLab.updateEq { decodedEq } }
-                }
-                app.dataStore.edit { p ->
-                    if (p[AudioNormalizationKey] == null) {
-                        remoteAudio.audioNormalization?.let { p[AudioNormalizationKey] = it }
-                    }
-                    if (p[AudioQualityKey].isNullOrBlank()) {
-                        remoteAudio.audioQuality?.takeIf { it.isNotBlank() }?.let { p[AudioQualityKey] = it }
-                    }
-                }
+                applyAudioConfig(app, audioLab, remoteAudio, onlyIfDefault = true)
             } else if (initialAudioDigest == prevEqDigest && remoteAudioDigest != prevEqDigest) {
-                if (!remoteEqJson.isNullOrBlank()) {
-                    runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), remoteEqJson) }
-                        .getOrNull()
-                        ?.let { decodedEq -> audioLab.updateEq { decodedEq } }
-                }
-                app.dataStore.edit { p ->
-                    remoteAudio.audioNormalization?.let { p[AudioNormalizationKey] = it }
-                    remoteAudio.audioQuality?.takeIf { it.isNotBlank() }?.let { p[AudioQualityKey] = it }
-                }
+                applyAudioConfig(app, audioLab, remoteAudio, onlyIfDefault = false)
             }
         }
 
@@ -1487,7 +1472,7 @@ object MochyCloudSyncManager {
             .associate { it.id to it.lyricsOffset }
         val finalModules = readLocalModulesConfig(app)
         val finalPrefs = app.dataStore.data.first()
-        val finalEqJson = audioLabJson.encodeToString(EqSettings.serializer(), audioLab.eq.value)
+        val finalAudio = snapshotLocalAudioConfig(audioLab, finalPrefs)
         val extraPayload = CloudLibraryExtra(
             albums = finalAlbums.take(MaxCloudExtraItems).map { alb ->
                 val epochSec = (alb.album.bookmarkedAt ?: LocalDateTime.now())
@@ -1519,11 +1504,7 @@ object MochyCloudSyncManager {
                     bookmarkedEpochSec = epochSec,
                 )
             },
-            audio = CloudAudioConfig(
-                eqSettingsJson = finalEqJson,
-                audioNormalization = finalPrefs[AudioNormalizationKey],
-                audioQuality = finalPrefs[AudioQualityKey],
-            ),
+            audio = finalAudio,
             speedDial = finalSpeedDial.map { sd ->
                 CloudSpeedDialRecord(
                     id = sd.id,
@@ -1560,7 +1541,10 @@ object MochyCloudSyncManager {
             modulesConfig = finalModules.takeIf {
                 it.enabled.isNotEmpty() ||
                     it.picks.isNotEmpty() ||
+                    it.fields.isNotEmpty() ||
                     !it.moduleOrder.isNullOrBlank() ||
+                    !it.providerOrder.isNullOrBlank() ||
+                    !it.downloadOrder.isNullOrBlank() ||
                     !it.webModulesJson.isNullOrBlank() ||
                     !it.monochromeServersJson.isNullOrBlank()
             },
@@ -1583,13 +1567,7 @@ object MochyCloudSyncManager {
         saveExtraIdSet(app, session.userId, "recTrackIds", finalRecs.map { it.trackId }.toSet())
         saveExtraOffsetsMap(app, session.userId, finalOffsets)
         saveExtraString(app, session.userId, "modulesDigest", sha256Hex(canonicalModulesConfig(finalModules)))
-        val finalAudioDigest = sha256Hex(
-            canonicalAudioConfig(
-                eqJson = finalEqJson,
-                norm = finalPrefs[AudioNormalizationKey],
-                quality = finalPrefs[AudioQualityKey],
-            ),
-        )
+        val finalAudioDigest = sha256Hex(canonicalAudioConfig(finalAudio))
         MochyCloudVault.saveSyncedEqDigest(app, session.userId, finalAudioDigest)
         return finalAlbums.size to finalArtists.size
     }
@@ -1696,13 +1674,110 @@ object MochyCloudSyncManager {
     private fun computePlaylistsDigest(items: List<String>): String =
         sha256Hex(items.sorted().joinToString("\n"))
 
-    private fun canonicalAudioConfig(eqJson: String?, norm: Boolean?, quality: String?): String =
-        "${eqJson.orEmpty()}\u0000${norm?.toString().orEmpty()}\u0000${quality.orEmpty()}"
+    private fun snapshotLocalAudioConfig(
+        audioLab: AudioLabStore,
+        prefs: androidx.datastore.preferences.core.Preferences,
+    ): CloudAudioConfig = CloudAudioConfig(
+        eqSettingsJson = audioLabJson.encodeToString(EqSettings.serializer(), audioLab.eq.value),
+        audioNormalization = prefs[AudioNormalizationKey],
+        audioQuality = prefs[AudioQualityKey],
+        reverbJson = audioLabJson.encodeToString(ReverbSettings.serializer(), audioLab.reverb.value),
+        loudnessJson = audioLabJson.encodeToString(LoudnessSettings.serializer(), audioLab.loudness.value),
+        spatialJson = audioLabJson.encodeToString(SpatialSettings.serializer(), audioLab.spatial.value),
+        normalizeJson = audioLabJson.encodeToString(NormalizeSettings.serializer(), audioLab.normalize.value),
+        volumeJson = audioLabJson.encodeToString(VolumeSettings.serializer(), audioLab.volume.value),
+        playbackJson = audioLabJson.encodeToString(PlaybackSettings.serializer(), audioLab.playback.value),
+        skipSilence = prefs[SkipSilenceKey],
+    )
+
+    private suspend fun applyAudioConfig(
+        app: Context,
+        audioLab: AudioLabStore,
+        remote: CloudAudioConfig,
+        onlyIfDefault: Boolean,
+    ) {
+        remote.eqSettingsJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            if (!onlyIfDefault || audioLab.eq.value == EqSettings()) {
+                runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), raw) }
+                    .getOrNull()?.let { decoded -> audioLab.updateEq { decoded } }
+            }
+        }
+        remote.reverbJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            if (!onlyIfDefault || audioLab.reverb.value == ReverbSettings()) {
+                runCatching { audioLabJson.decodeFromString(ReverbSettings.serializer(), raw) }
+                    .getOrNull()?.let { decoded -> audioLab.updateReverb { decoded } }
+            }
+        }
+        remote.loudnessJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            if (!onlyIfDefault || audioLab.loudness.value == LoudnessSettings()) {
+                runCatching { audioLabJson.decodeFromString(LoudnessSettings.serializer(), raw) }
+                    .getOrNull()?.let { decoded -> audioLab.updateLoudness { decoded } }
+            }
+        }
+        remote.spatialJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            if (!onlyIfDefault || audioLab.spatial.value == SpatialSettings()) {
+                runCatching { audioLabJson.decodeFromString(SpatialSettings.serializer(), raw) }
+                    .getOrNull()?.let { decoded -> audioLab.updateSpatial { decoded } }
+            }
+        }
+        remote.normalizeJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            if (!onlyIfDefault || audioLab.normalize.value == NormalizeSettings()) {
+                runCatching { audioLabJson.decodeFromString(NormalizeSettings.serializer(), raw) }
+                    .getOrNull()?.let { decoded -> audioLab.updateNormalize { decoded } }
+            }
+        }
+        remote.volumeJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            if (!onlyIfDefault || audioLab.volume.value == VolumeSettings()) {
+                runCatching { audioLabJson.decodeFromString(VolumeSettings.serializer(), raw) }
+                    .getOrNull()?.let { decoded -> audioLab.updateVolume { decoded } }
+            }
+        }
+        remote.playbackJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            if (!onlyIfDefault || audioLab.playback.value == PlaybackSettings()) {
+                runCatching { audioLabJson.decodeFromString(PlaybackSettings.serializer(), raw) }
+                    .getOrNull()?.let { decoded -> audioLab.updatePlayback { decoded } }
+            }
+        }
+        app.dataStore.edit { p ->
+            if (!onlyIfDefault || p[AudioNormalizationKey] == null) {
+                remote.audioNormalization?.let { p[AudioNormalizationKey] = it }
+            }
+            if (!onlyIfDefault || p[AudioQualityKey].isNullOrBlank()) {
+                remote.audioQuality?.takeIf { it.isNotBlank() }?.let { p[AudioQualityKey] = it }
+            }
+            if (!onlyIfDefault || p[SkipSilenceKey] == null) {
+                remote.skipSilence?.let { p[SkipSilenceKey] = it }
+            }
+        }
+    }
+
+    private fun canonicalAudioConfig(cfg: CloudAudioConfig): String = listOf(
+        cfg.eqSettingsJson.orEmpty(),
+        cfg.audioNormalization?.toString().orEmpty(),
+        cfg.audioQuality.orEmpty(),
+        cfg.reverbJson.orEmpty(),
+        cfg.loudnessJson.orEmpty(),
+        cfg.spatialJson.orEmpty(),
+        cfg.normalizeJson.orEmpty(),
+        cfg.volumeJson.orEmpty(),
+        cfg.playbackJson.orEmpty(),
+        cfg.skipSilence?.toString().orEmpty(),
+    ).joinToString("\u0000")
 
     private fun canonicalModulesConfig(cfg: CloudModulesConfig): String {
         val en = cfg.enabled.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }
         val pk = cfg.picks.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }
-        return "$en\u0000$pk\u0000${cfg.moduleOrder.orEmpty()}\u0000${cfg.webModulesJson.orEmpty()}\u0000${cfg.monochromeServersJson.orEmpty()}"
+        val fld = cfg.fields.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }
+        return listOf(
+            en,
+            pk,
+            fld,
+            cfg.moduleOrder.orEmpty(),
+            cfg.providerOrder.orEmpty(),
+            cfg.downloadOrder.orEmpty(),
+            cfg.webModulesJson.orEmpty(),
+            cfg.monochromeServersJson.orEmpty(),
+        ).joinToString("\u0000")
     }
 
     internal fun readLocalModulesConfig(context: Context): CloudModulesConfig {
@@ -1710,6 +1785,7 @@ object MochyCloudSyncManager {
         val prefs = app.getSharedPreferences(SourceModulesPrefsName, Context.MODE_PRIVATE)
         val enabled = sortedMapOf<String, Boolean>()
         val picks = sortedMapOf<String, String>()
+        val fields = sortedMapOf<String, String>()
         for ((k, v) in prefs.all) {
             when {
                 k.startsWith("enabled_") && v is Boolean -> {
@@ -1720,9 +1796,15 @@ object MochyCloudSyncManager {
                     val suffix = k.removePrefix("pick_")
                     if (suffix.isNotBlank()) picks[suffix] = v
                 }
+                k.startsWith("field_") && v is String -> {
+                    val suffix = k.removePrefix("field_")
+                    if (suffix.isNotBlank() && v.length <= 512) fields[suffix] = v
+                }
             }
         }
         val order = prefs.getString("module_order", null)?.takeIf { it.isNotBlank() }
+        val provOrder = prefs.getString("provider_order", null)?.takeIf { it.isNotBlank() }
+        val dlOrder = prefs.getString("download_order", null)?.takeIf { it.isNotBlank() }
         val web = prefs.getString("web_modules", null)
             ?.takeIf { it.isNotBlank() && it != "[]" && it.length <= 16_384 }
         val monoServers = app.getSharedPreferences(MonochromePrimaryPrefsName, Context.MODE_PRIVATE)
@@ -1734,7 +1816,10 @@ object MochyCloudSyncManager {
         return CloudModulesConfig(
             enabled = enabled,
             picks = picks,
+            fields = fields,
             moduleOrder = order,
+            providerOrder = provOrder,
+            downloadOrder = dlOrder,
             webModulesJson = web,
             monochromeServersJson = monoServers,
         )
@@ -1770,10 +1855,33 @@ object MochyCloudSyncManager {
                 changed = true
             }
         }
+        for ((suffix, fval) in remote.fields) {
+            if (suffix.isBlank() || fval.length > 512) continue
+            val key = "field_$suffix"
+            val cur = prefs.getString(key, null)
+            if ((overwriteScalars || cur == null) && cur != fval) {
+                editor.putString(key, fval)
+                changed = true
+            }
+        }
         remote.moduleOrder?.takeIf { it.isNotBlank() }?.let { ord ->
             val cur = prefs.getString("module_order", null)
             if ((overwriteScalars || cur.isNullOrBlank()) && cur != ord) {
                 editor.putString("module_order", ord)
+                changed = true
+            }
+        }
+        remote.providerOrder?.takeIf { it.isNotBlank() }?.let { pord ->
+            val cur = prefs.getString("provider_order", null)
+            if ((overwriteScalars || cur.isNullOrBlank()) && cur != pord) {
+                editor.putString("provider_order", pord)
+                changed = true
+            }
+        }
+        remote.downloadOrder?.takeIf { it.isNotBlank() }?.let { dord ->
+            val cur = prefs.getString("download_order", null)
+            if ((overwriteScalars || cur.isNullOrBlank()) && cur != dord) {
+                editor.putString("download_order", dord)
                 changed = true
             }
         }

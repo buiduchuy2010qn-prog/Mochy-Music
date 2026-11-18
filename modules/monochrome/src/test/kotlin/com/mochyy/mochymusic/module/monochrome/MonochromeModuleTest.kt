@@ -216,4 +216,39 @@ class MonochromeModuleTest {
         val tracks = module.tracksIn("""{"tracks":[{"trackId":"1","title":"A","artistNames":["X"],"duration":173799},{"trackId":"2","title":"B","artistNames":["X"],"duration":174},{"trackId":"3","title":"C","playable":false}]}""")
         assertEquals(listOf(173_799L, 174_000L), tracks.map { it.durationMs })
     }
+
+    @Test
+    fun `retries transient 502 search responses before succeeding`() = runBlocking {
+        var hits = 0
+        val (module, _) = module { request ->
+            if ("/search/tracks?" in request.url && hits++ < 2) HttpResponse(502, ByteArray(0)) else null
+        }
+        val stream = (module.resolve(eastside, emptyMap()) as ResolveResult.Found).stream
+        assertEquals("https://tracks.monochrome.st/track/157948484734181376", stream.url)
+        assertTrue(module.accountState() is AccountState.SignedIn)
+    }
+
+    @Test
+    fun `hifi server search and base64 manifest resolve lossless FLAC`() = runBlocking {
+        val searchPayload = """{"version":"2.3","data":{"items":[{"id":778899,"title":"Eastside","artists":[{"name":"benny blanco"},{"name":"Halsey"},{"name":"Khalid"}],"album":{"title":"Eastside"},"duration":173,"allowStreaming":true,"streamReady":true,"isrc":"USUM71809132"}]}}"""
+        val dashManifest = java.util.Base64.getEncoder().encodeToString("""<?xml version="1.0"?><MPD></MPD>""".toByteArray())
+        val btsManifest = java.util.Base64.getEncoder().encodeToString("""{"mimeType":"audio/flac","codecs":"flac","urls":["https://cdn.hifi.example.dev/eastside.flac"]}""".toByteArray())
+        val (module, _) = module { request ->
+            when {
+                request.url == "https://hifi.example.dev/search/tracks?q=test&limit=1" -> HttpResponse(404, ByteArray(0))
+                request.url.startsWith("https://hifi.example.dev/search/?s=") -> HttpResponse(200, searchPayload.toByteArray())
+                request.url == "https://hifi.example.dev/track/?id=778899&quality=HI_RES_LOSSLESS" ->
+                    HttpResponse(200, """{"data":{"manifest":"$dashManifest"}}""".toByteArray())
+                request.url == "https://hifi.example.dev/track/?id=778899&quality=LOSSLESS" ->
+                    HttpResponse(200, """{"data":{"manifest":"$btsManifest"}}""".toByteArray())
+                request.url == "https://cdn.hifi.example.dev/eastside.flac" -> HttpResponse(206, eastsideHead)
+                else -> null
+            }
+        }
+        assertNull(module.addServer("hifi.example.dev"))
+        val stream = (module.resolve(eastside, emptyMap()) as ResolveResult.Found).stream
+        assertEquals("https://cdn.hifi.example.dev/eastside.flac", stream.url)
+        assertEquals("FLAC", stream.codec)
+        assertEquals("benny blanco, Halsey, Khalid", stream.matched.artist)
+    }
 }

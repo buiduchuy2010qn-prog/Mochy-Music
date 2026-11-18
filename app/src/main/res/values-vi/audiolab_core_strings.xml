@@ -14,6 +14,9 @@
     <string name="lab_transition_crossmix">CrossMix</string>
     <string name="lab_quality_monochrome">Monochrome · Lossless</string>
     <string name="lab_quality_apple_music">Apple Music · AAC</string>
+    <string name="lab_quality_jiosaavn">JioSaavn · AAC %1$s</string>
+    <string name="lab_quality_soundcloud">SoundCloud · %1$s</string>
+    <string name="lab_quality_zingmp3">Zing MP3 · MP3 %1$s</string>
     <string name="lab_quality_youtube">YouTube · %1$s</string>
     <string name="lab_quality_low">Thấp</string>
     <string name="lab_quality_medium">Trung bình</string>

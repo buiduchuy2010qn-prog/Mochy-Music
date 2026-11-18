@@ -56,6 +56,7 @@ import com.mochyy.mochymusic.discord.PresenceKind
 import com.mochyy.mochymusic.discord.PresenceSettings
 import com.mochyy.mochymusic.ui.component.SubSettingsScaffold
 import com.mochyy.mochymusic.ui.screens.settings.integrations.IntegrationPageSubtitle
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.viewmodels.DiscordViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -219,6 +220,7 @@ private fun AccountButton(
         Text(
             text = text,
             color = if (action != null) Color.White else DiscordColors.Secondary,
+            fontFamily = InterFontFamily,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
         )
@@ -235,6 +237,7 @@ private fun LoginNote(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         color = DiscordColors.Secondary,
+        fontFamily = InterFontFamily,
         fontSize = 12.sp,
         textAlign = TextAlign.Center,
         modifier = modifier
@@ -348,6 +351,7 @@ private fun CustomizeSection(
     Text(
         text = stringResource(R.string.discord_buttons_note),
         color = DiscordColors.Secondary,
+        fontFamily = InterFontFamily,
         fontSize = 12.sp,
         modifier = Modifier.padding(start = 4.dp, top = 10.dp),
     )

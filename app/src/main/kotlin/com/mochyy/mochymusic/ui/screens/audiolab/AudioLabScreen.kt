@@ -101,6 +101,7 @@ fun AudioLabScreen(
         if (id == com.mochyy.mochymusic.modules.SourceModules.YouTubeId) youTubeOn
         else modules.any { it.module.info.id == id && it.enabled && it.account is com.mochyy.mochymusic.module.AccountState.SignedIn }
     }
+    val firstEntry = firstProvider?.let { id -> modules.firstOrNull { it.module.info.id == id } }
     val (mode) = rememberEnumPreference(CrossmixModeKey, defaultValue = DefaultTransitionMode)
 
     val effects = activeEffects(reverb, loudness, spatial, playback, volume)
@@ -130,10 +131,10 @@ fun AudioLabScreen(
         val qualityCard: @Composable (Modifier) -> Unit = { modifier ->
             SmallHubCard(
                 title = stringResource(R.string.lab_audio_quality),
-                status = qualityName(quality, firstProvider),
+                status = qualityName(quality, firstEntry, firstProvider),
                 onClick = { navController.navigate("audio_quality") },
                 modifier = modifier,
-            ) { QualitySketch(quality, firstProvider) }
+            ) { QualitySketch(quality, firstEntry, firstProvider) }
         }
         val transition: @Composable (Modifier) -> Unit = { modifier ->
             SmallHubCard(
@@ -213,9 +214,31 @@ private fun equalizerStatus(eq: EqSettings, userPresets: Map<String, String>): S
 }
 
 @Composable
-private fun qualityName(q: AudioQuality, firstProvider: String?): String = when (firstProvider) {
+private fun qualityName(
+    q: AudioQuality,
+    firstEntry: com.mochyy.mochymusic.modules.ModuleEntry?,
+    firstProvider: String?,
+): String = when (firstProvider) {
     com.mochyy.mochymusic.module.monochrome.MonochromeModule.Id -> stringResource(R.string.lab_quality_monochrome)
     com.mochyy.mochymusic.module.applemusic.AppleMusicModule.Id -> stringResource(R.string.lab_quality_apple_music)
+    com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule.Id -> {
+        val pick = firstEntry?.picks?.get(com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule.ChoiceQuality)
+            ?: com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule.Option320
+        stringResource(R.string.lab_quality_jiosaavn, pick)
+    }
+    com.mochyy.mochymusic.module.soundcloud.SoundCloudModule.Id -> {
+        val pick = firstEntry?.picks?.get(com.mochyy.mochymusic.module.soundcloud.SoundCloudModule.ChoiceStreamPref)
+            ?: com.mochyy.mochymusic.module.soundcloud.SoundCloudModule.OptionMp3
+        stringResource(
+            R.string.lab_quality_soundcloud,
+            if (pick == com.mochyy.mochymusic.module.soundcloud.SoundCloudModule.OptionHls) "HLS" else "MP3 128",
+        )
+    }
+    com.mochyy.mochymusic.module.zingmp3.ZingMp3Module.Id -> {
+        val pick = firstEntry?.picks?.get(com.mochyy.mochymusic.module.zingmp3.ZingMp3Module.ChoiceQuality)
+            ?: com.mochyy.mochymusic.module.zingmp3.ZingMp3Module.Option320
+        stringResource(R.string.lab_quality_zingmp3, pick)
+    }
     else -> stringResource(
         R.string.lab_quality_youtube,
         stringResource(
@@ -388,10 +411,25 @@ private fun BoxScope.FxSketch(active: Boolean) {
 
 /** a little waveform, as coarse as what's streaming */
 @Composable
-private fun BoxScope.QualitySketch(quality: AudioQuality, firstProvider: String?) {
+private fun BoxScope.QualitySketch(
+    quality: AudioQuality,
+    firstEntry: com.mochyy.mochymusic.modules.ModuleEntry?,
+    firstProvider: String?,
+) {
     val fine = when {
         firstProvider == com.mochyy.mochymusic.module.monochrome.MonochromeModule.Id -> 1f
         firstProvider == com.mochyy.mochymusic.module.applemusic.AppleMusicModule.Id -> 0.65f
+        firstProvider == com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule.Id ->
+            when (firstEntry?.picks?.get(com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule.ChoiceQuality)) {
+                com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule.Option96 -> 0.35f
+                com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule.Option160 -> 0.55f
+                else -> 0.8f
+            }
+        firstProvider == com.mochyy.mochymusic.module.soundcloud.SoundCloudModule.Id -> 0.55f
+        firstProvider == com.mochyy.mochymusic.module.zingmp3.ZingMp3Module.Id ->
+            if (firstEntry?.picks?.get(com.mochyy.mochymusic.module.zingmp3.ZingMp3Module.ChoiceQuality) ==
+                com.mochyy.mochymusic.module.zingmp3.ZingMp3Module.Option128
+            ) 0.45f else 0.78f
         quality == AudioQuality.LOW -> 0f
         quality == AudioQuality.MEDIUM -> 0.35f
         else -> 0.65f

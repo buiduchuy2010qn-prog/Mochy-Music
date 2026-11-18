@@ -49,6 +49,8 @@ import androidx.compose.runtime.collectAsState
 import com.mochyy.mochymusic.module.AccountState
 import com.mochyy.mochymusic.module.ModuleFeature
 import com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule
+import com.mochyy.mochymusic.module.soundcloud.SoundCloudModule
+import com.mochyy.mochymusic.module.zingmp3.ZingMp3Module
 import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
 import com.mochyy.mochymusic.modules.SourceModules
@@ -121,7 +123,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
     val first = order.firstOrNull(usable)
     val effective = when (first) {
         null -> Effective(AudioQuality.LOW, stringResource(R.string.aq_nothing_on), stringResource(R.string.aq_turn_provider_on))
-        MonochromeModule.Id -> Effective(AudioQuality.LOSSLESS, "Monochrome", "FLAC · lossless")
+        MonochromeModule.Id -> Effective(AudioQuality.LOSSLESS, "Monochrome", "FLAC · Lossless")
         AppleMusicModule.Id -> {
             val pick = entries.firstOrNull { it.module.info.id == first }?.picks?.get(AppleMusicModule.ChoiceQuality)
             if (pick == AppleMusicModule.OptionHe64) Effective(AudioQuality.MEDIUM, "Apple Music", "HE-AAC 64")
@@ -131,6 +133,15 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
             val pick = entries.firstOrNull { it.id == first }?.picks?.get(JioSaavnModule.ChoiceQuality) ?: JioSaavnModule.Option320
             Effective(if (pick == JioSaavnModule.Option96) AudioQuality.MEDIUM else AudioQuality.HIGH, "JioSaavn", "AAC $pick")
         }
+        SoundCloudModule.Id -> {
+            val pick = entries.firstOrNull { it.id == first }?.picks?.get(SoundCloudModule.ChoiceStreamPref)
+                ?: SoundCloudModule.OptionMp3
+            Effective(AudioQuality.HIGH, "SoundCloud", if (pick == SoundCloudModule.OptionHls) "HLS · AAC / Opus" else "MP3 · 128")
+        }
+        ZingMp3Module.Id -> {
+            val pick = entries.firstOrNull { it.id == first }?.picks?.get(ZingMp3Module.ChoiceQuality) ?: ZingMp3Module.Option320
+            Effective(AudioQuality.HIGH, "Zing MP3", "MP3 $pick")
+        }
         SourceModules.YouTubeId -> {
             val tier = if (quality == AudioQuality.AUTO) (if (metered) AudioQuality.MEDIUM else AudioQuality.HIGH) else quality
             val option = YouTubeOptions.first { it.quality == tier }
@@ -139,7 +150,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
         // a module added from a link: its name, and the stream it picked when it offers a choice
         else -> {
             val entry = entries.firstOrNull { it.id == first }
-            val choice = entry?.module?.choices?.firstOrNull { it.id == "quality" }
+            val choice = entry?.module?.choices?.firstOrNull { it.id == "quality" } ?: entry?.module?.choices?.firstOrNull()
             val picked = choice?.options?.firstOrNull { it.id == entry.picks[choice.id] } ?: choice?.options?.firstOrNull()
             Effective(AudioQuality.HIGH, entry?.module?.info?.name ?: first, picked?.label ?: stringResource(R.string.quality_module_stream))
         }
@@ -172,7 +183,7 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
                 val active = entry.enabled && entry.account is AccountState.SignedIn
                 Spacer(Modifier.height(6.dp))
                 ProviderCaption(logo = providerLogo(id), name = entry.module.info.name, status = moduleStatus(entry), on = active)
-                val qualityChoice = entry.module.choices.firstOrNull { it.id == "quality" }
+                val qualityChoice = entry.module.choices.firstOrNull { it.id == "quality" } ?: entry.module.choices.firstOrNull()
                 if (qualityChoice != null) {
                     val picked = entry.picks[qualityChoice.id]?.takeIf { p -> qualityChoice.options.any { it.id == p } }
                         ?: qualityChoice.options.first().id
@@ -270,6 +281,9 @@ private fun Footnote(text: String) {
 internal fun providerLogo(id: String): Int? = when (id) {
     AppleMusicModule.Id -> R.drawable.provider_apple_music
     MonochromeModule.Id -> R.drawable.provider_monochrome
+    JioSaavnModule.Id -> R.drawable.provider_jiosaavn
+    SoundCloudModule.Id -> R.drawable.provider_soundcloud
+    ZingMp3Module.Id -> R.drawable.provider_zingmp3
     SourceModules.YouTubeId -> R.drawable.provider_youtube_music
     else -> null
 }
@@ -290,7 +304,7 @@ private fun ProviderCaption(logo: Int?, name: String, status: String, on: Boolea
     }
 }
 
-// a provider with no logo of its own (jiosaavn, a module from a link) shows its first letter instead of a blank tile
+// a provider with no logo of its own (a module from a link) shows its first letter instead of a blank tile
 @Composable
 internal fun ProviderLogo(logo: Int?, size: Int, name: String? = null) {
     Box(

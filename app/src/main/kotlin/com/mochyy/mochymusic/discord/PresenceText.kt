@@ -27,12 +27,12 @@ object PresenceText {
 
     /** the placeholder, and what it means, in the order the Discord page lists them */
     val Placeholders = listOf(
-        "{name}" to "Song name",
-        "{artist}" to "Artist name",
-        "{album}" to "Album",
+        "{name}" to "Tên bài hát",
+        "{artist}" to "Tên nghệ sĩ",
+        "{album}" to "Tên album",
         "{app}" to AppName,
-        "{quality}" to "Format and bitrate, like OPUS · 160 kbps",
-        "{apple}" to "The Apple logo (only Apple devices can show it)",
+        "{quality}" to "Định dạng và tốc độ bit, ví dụ: FLAC · Lossless",
+        "{apple}" to "Logo Apple (chỉ thiết bị Apple mới hiển thị được)",
     )
 
     /** returns localized placeholder descriptions from [context] resources */

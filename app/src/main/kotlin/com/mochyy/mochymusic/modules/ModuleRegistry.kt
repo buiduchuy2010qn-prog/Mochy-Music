@@ -32,6 +32,7 @@ import com.mochyy.mochymusic.module.bridge.BridgedModule
 import com.mochyy.mochymusic.module.jiosaavn.JioSaavnModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
 import com.mochyy.mochymusic.module.soundcloud.SoundCloudModule
+import com.mochyy.mochymusic.module.zingmp3.ZingMp3Module
 import com.mochyy.mochymusic.modules.code.CodeModules
 import com.mochyy.mochymusic.modules.local.LocalModule
 import com.mochyy.mochymusic.modules.skin.ActiveSkin
@@ -577,6 +578,7 @@ class ModuleRegistry @Inject constructor(
             MonochromeModule(),
             JioSaavnModule(),
             SoundCloudModule(),
+            ZingMp3Module(),
         ).map { it to ModuleOrigin.BuiltIn }
         val apps = discover()
         val savedCode = savedCodeModules()
@@ -639,7 +641,10 @@ class ModuleRegistry @Inject constructor(
             val bodiless = request.method == "GET" || request.method == "HEAD"
             builder.method(request.method, if (bodiless) null else body ?: ByteArray(0).toRequestBody())
             client.newCall(builder.build()).execute().use { response ->
-                return HttpResponse(response.code, response.body.bytes(), response.headers.associate { (name, value) -> name.lowercase() to value })
+                // a site sets several cookies in several headers, so those are kept one per line instead of only the last
+                val headers = response.headers.groupBy({ it.first.lowercase() }, { it.second })
+                    .mapValues { (name, values) -> values.joinToString(if (name == "set-cookie") "\n" else ", ") }
+                return HttpResponse(response.code, response.body.bytes(), headers)
             }
         }
 

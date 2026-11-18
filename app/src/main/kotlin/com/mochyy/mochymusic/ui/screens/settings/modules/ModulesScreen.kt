@@ -113,7 +113,7 @@ fun ModulesScreen(navController: NavController, viewModel: ModulesViewModel = hi
         )
         Spacer(Modifier.height(12.dp))
         DashedSlot(stringResource(R.string.modules_add_more), onClick = findMore, compact = true)
-        Spacer(Modifier.height(120.dp))
+        Spacer(Modifier.height(48.dp))
     }
 
     removing?.let { entry ->

@@ -17,9 +17,9 @@
     <string name="modules_bar">Tìm thêm module tại Mochy’s Bar &lt;3</string>
     <string name="modules_third_party">Module do người khác tạo ra, nên mọi báo cáo về module bên thứ ba sẽ bị bỏ qua. Muốn tự làm module của riêng bạn?</string>
     <string name="modules_third_party_docs">Xem tài liệu</string>
-    <string name="modules_looks">Module giao diện</string>
+    <string name="modules_looks">Mô-đun giao diện</string>
     <string name="modules_looks_empty">Chưa có gì ở đây, hãy thêm một module</string>
-    <string name="modules_sources">Module JS &amp; nguồn</string>
+    <string name="modules_sources">Mô-đun nguồn phát</string>
     <string name="modules_swipe_to_delete">Vuốt để xóa, kéo các thanh để sắp xếp lại</string>
     <string name="modules_add_more">Thêm module</string>
     <string name="module_version">v%1$s</string>
@@ -70,6 +70,7 @@
     <string name="module_server_already_added">Máy chủ này đã có trong danh sách.</string>
     <string name="module_sign_out">Đăng xuất</string>
     <string name="module_use_sign_in_first">Hãy đăng nhập trước, rồi bật nó tại đây.</string>
+    <string name="module_unavailable">Hiện không khả dụng</string>
     <string name="module_use_songs">Bài hát sẽ phát từ %1$s nếu có, theo thứ tự đã đặt trong Chất lượng âm thanh.</string>
     <string name="module_use_lyrics">Lời bài hát của nó sẽ được thêm vào các nguồn lời bài hát của bạn.</string>
     <string name="module_use_look">Giao diện của nó sẽ thay thế cài đặt giao diện của bạn khi đang bật, và cài đặt của bạn sẽ trở lại khi bạn tắt nó.</string>

@@ -2329,6 +2329,7 @@ val SubSettingsRoutes = setOf(
     "crossmix_settings",
     "modules",
     "module/{id}",
+    "module_page/{id}/{page}",
 )
 
 val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database provided") }

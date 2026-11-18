@@ -38,6 +38,7 @@ import com.mochyy.mochymusic.ui.component.SheetLabel
 import com.mochyy.mochymusic.ui.component.SheetPillButton
 import com.mochyy.mochymusic.ui.component.SheetTextField
 import com.mochyy.mochymusic.ui.screens.search.SearchColors
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.viewmodels.ModulesViewModel
 import com.mochyy.mochymusic.viewmodels.ModulesViewModel.ItemsOutcome
 import kotlinx.coroutines.launch
@@ -96,9 +97,9 @@ private fun AddItemsContent(id: String, name: String, viewModel: ModulesViewMode
     }
 
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-        Text(stringResource(R.string.module_items_add_to, name), color = SearchColors.Primary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.module_items_add_to, name), color = SearchColors.Primary, fontFamily = InterFontFamily, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        Text(stringResource(R.string.module_items_add_body, name), color = SearchColors.Secondary, fontSize = 14.sp, lineHeight = 20.sp)
+        Text(stringResource(R.string.module_items_add_body, name), color = SearchColors.Secondary, fontFamily = InterFontFamily, fontSize = 14.sp, lineHeight = 20.sp)
         Spacer(Modifier.height(22.dp))
         SheetPillButton(
             text = stringResource(if (adding && problemFromFile) R.string.module_items_adding else R.string.modules_choose_zip),

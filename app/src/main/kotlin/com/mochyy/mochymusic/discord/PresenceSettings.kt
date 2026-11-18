@@ -28,21 +28,21 @@ import com.mochyy.mochymusic.constants.EnableDiscordRPCKey
 
 /** The line Discord writes above the status: "Listening to ..." or "Playing ...". */
 enum class PresenceKind(val prefValue: String, val label: String, val discordType: Int) {
-    LISTENING("listening", "Listening", 2),
-    PLAYING("playing", "Playing", 0),
+    LISTENING("listening", "Đang nghe", 2),
+    PLAYING("playing", "Đang phát", 0),
 }
 
 /** What a status picture shows. Discord shows the big one as a square and the small one as a circle. */
 enum class PresenceImage(val label: String, val forLargeImage: Boolean) {
-    OFF("Turn it off", false),
-    ARTWORK("Music artwork", true),
-    ARTIST("Artist artwork", true),
-    PLAYBACK_STATUS("Playback status", false),
-    APP_LOGO("Mochy logo", true),
-    SPINNING_ARTIST("Rotating artist artwork", false),
-    SPINNING_ARTWORK("Rotating music artwork", false),
+    OFF("Tắt", false),
+    ARTWORK("Bìa bài hát", true),
+    ARTIST("Ảnh nghệ sĩ", true),
+    PLAYBACK_STATUS("Trạng thái phát", false),
+    APP_LOGO("Logo Mochy", true),
+    SPINNING_ARTIST("Ảnh nghệ sĩ xoay tròn", false),
+    SPINNING_ARTWORK("Bìa bài hát xoay tròn", false),
     // a picture from the phone, put on a free host for discord like the rotating ones
-    CUSTOM("Your own picture", true),
+    CUSTOM("Ảnh của bạn", true),
     ;
 
     /** a looping GIF of the artwork turning, made and uploaded by SpinningArtwork */
@@ -60,7 +60,7 @@ enum class PresenceButtonTarget(val label: String, @DrawableRes val icon: Int) {
     SPOTIFY("Spotify", R.drawable.provider_spotify),
     APPLE_MUSIC("Apple Music", R.drawable.provider_apple_music),
     TIDAL("Tidal", R.drawable.provider_tidal),
-    MOCHY("Mochy on GitHub", R.drawable.github),
+    MOCHY("Mochy trên GitHub", R.drawable.github),
 }
 
 data class PresenceButton(val text: String, val target: PresenceButtonTarget)
@@ -73,15 +73,15 @@ data class PresenceSettings(
     val enabled: Boolean = true,
     val kind: PresenceKind = PresenceKind.LISTENING,
     val refreshSeconds: Int = DefaultRefreshSeconds,
-    val name: String = "{artist} on {app}",
+    val name: String = "{artist} trên {app}",
     val details: String = "{name}",
     val state: String = "{artist}",
-    val largeText: String = "",
+    val largeText: String = "{album}",
     val smallText: String = "{quality}",
     val largeImage: PresenceImage = PresenceImage.ARTWORK,
     val smallImage: PresenceImage = PresenceImage.PLAYBACK_STATUS,
-    val button1: PresenceButton = PresenceButton("See on YouTube Music", PresenceButtonTarget.YOUTUBE_MUSIC),
-    val button2: PresenceButton = PresenceButton("Open Mochy", PresenceButtonTarget.MOCHY),
+    val button1: PresenceButton = PresenceButton("Nghe bài hát", PresenceButtonTarget.YOUTUBE_MUSIC),
+    val button2: PresenceButton = PresenceButton("Mở Mochy Music", PresenceButtonTarget.MOCHY),
     /** how long one full turn of the rotating artwork takes */
     val spinSeconds: Int = DefaultSpinSeconds,
     /** frames per second of the rotating artwork's GIF, one of [SpinFpsSteps] */

@@ -55,6 +55,7 @@ import com.mochyy.mochymusic.ui.component.SheetPillButton
 import com.mochyy.mochymusic.ui.component.SheetTextField
 import com.mochyy.mochymusic.ui.screens.audiolab.LabColors
 import com.mochyy.mochymusic.ui.screens.search.SearchColors
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.viewmodels.ModulesViewModel
 import kotlinx.coroutines.launch
 
@@ -168,9 +169,9 @@ private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) ->
             .verticalScroll(rememberScrollState())
             .padding(bottom = 12.dp),
     ) {
-        Text(stringResource(R.string.modules_find_more), color = SearchColors.Primary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.modules_find_more), color = SearchColors.Primary, fontFamily = InterFontFamily, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        Text(stringResource(R.string.modules_find_more_body), color = SearchColors.Secondary, fontSize = 14.sp, lineHeight = 20.sp)
+        Text(stringResource(R.string.modules_find_more_body), color = SearchColors.Secondary, fontFamily = InterFontFamily, fontSize = 14.sp, lineHeight = 20.sp)
         Spacer(Modifier.height(22.dp))
 
         val confirming = ready
@@ -218,7 +219,7 @@ private fun FindModulesContent(viewModel: ModulesViewModel, onAdded: (String) ->
         Spacer(Modifier.height(26.dp))
         SheetLabel(stringResource(R.string.modules_add_from_file))
         Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.modules_add_from_file_body), color = SearchColors.Secondary, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 4.dp))
+        Text(stringResource(R.string.modules_add_from_file_body), color = SearchColors.Secondary, fontFamily = InterFontFamily, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 4.dp))
         Spacer(Modifier.height(12.dp))
         SheetPillButton(
             text = stringResource(R.string.modules_choose_zip),
@@ -250,7 +251,7 @@ internal fun linkProblem(context: android.content.Context, result: LinkCheck): S
 
 @Composable
 internal fun ProblemText(text: String) {
-    Text(text, color = ProblemColor, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 10.dp, start = 4.dp))
+    Text(text, color = ProblemColor, fontFamily = InterFontFamily, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 10.dp, start = 4.dp))
 }
 
 @Composable
@@ -270,7 +271,7 @@ private fun CatalogList(catalog: Result<List<CatalogModule>>?, busy: Boolean, on
 
 @Composable
 private fun CatalogNote(text: String) {
-    Text(text, color = SearchColors.Secondary, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 4.dp))
+    Text(text, color = SearchColors.Secondary, fontFamily = InterFontFamily, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 4.dp))
 }
 
 @Composable
@@ -287,9 +288,9 @@ private fun CatalogRow(item: CatalogModule, enabled: Boolean, onClick: () -> Uni
         ModuleLogo(item.url, item.name, size = 40, art = item.icon)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(item.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(item.name, color = Color.White, fontFamily = InterFontFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             if (item.description.isNotBlank()) {
-                Text(item.description, color = SearchColors.Secondary, fontSize = 12.sp, lineHeight = 16.sp)
+                Text(item.description, color = SearchColors.Secondary, fontFamily = InterFontFamily, fontSize = 12.sp, lineHeight = 16.sp)
             }
             if (item.adds.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
@@ -313,8 +314,8 @@ private fun ConfirmAdd(ready: LinkCheck.Ready, adding: Boolean, onAdd: () -> Uni
             ModuleLogo(ready.from, ready.name, size = 46)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(ready.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                Text(ready.from, color = SearchColors.Secondary, fontSize = 12.sp)
+                Text(ready.name, color = Color.White, fontFamily = InterFontFamily, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(ready.from, color = SearchColors.Secondary, fontFamily = InterFontFamily, fontSize = 12.sp)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -323,6 +324,7 @@ private fun ConfirmAdd(ready: LinkCheck.Ready, adding: Boolean, onAdd: () -> Uni
         Text(
             stringResource(if (ready.alreadyAdded) R.string.modules_confirm_update else R.string.modules_confirm_add),
             color = SearchColors.Secondary,
+            fontFamily = InterFontFamily,
             fontSize = 13.sp,
             lineHeight = 18.sp,
         )
@@ -332,6 +334,7 @@ private fun ConfirmAdd(ready: LinkCheck.Ready, adding: Boolean, onAdd: () -> Uni
     Text(
         stringResource(R.string.modules_cancel),
         color = SearchColors.Secondary,
+        fontFamily = InterFontFamily,
         fontSize = 14.sp,
         modifier = Modifier
             .fillMaxWidth()

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zing MP3's mark: a bold white Z on the brand purple -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#8D22C3" android:pathData="M0,0h48v48h-48z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M13.5,13h21v4.6L20.6,30.4H34.5V35h-21v-4.6L27.4,17.6H13.5Z" />
+</vector>

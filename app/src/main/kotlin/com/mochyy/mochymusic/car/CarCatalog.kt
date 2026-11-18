@@ -92,8 +92,9 @@ class CarCatalog(
     }
 
     suspend fun recentCollections(): List<CarCollection> = io {
+        val res = com.mochyy.mochymusic.i18n.AppLanguage.wrapActivityContext(context).resources
         val albums = database.recentlyPlayedAlbums(limit = RecentLists).first().map { it.toCollection() }
-        val playlists = database.recentlyPlayedPlaylists(limit = RecentLists).first().map { it.toCollection() }
+        val playlists = database.recentlyPlayedPlaylists(limit = RecentLists).first().map { it.toCollection(res) }
         albums + playlists
     }
 
@@ -105,11 +106,17 @@ class CarCatalog(
 
     suspend fun downloaded(): List<CarSong> = io { database.downloadedSongs(SongSortType.CREATE_DATE, true).first().map { it.toCarSong() } }
 
-    suspend fun playlists(): List<CarCollection> = io { database.playlistsByCreateDateAsc().first().asReversed().map { it.toCollection() } }
+    suspend fun playlists(): List<CarCollection> = io {
+        val res = com.mochyy.mochymusic.i18n.AppLanguage.wrapActivityContext(context).resources
+        database.playlistsByCreateDateAsc().first().asReversed().map { it.toCollection(res) }
+    }
 
     suspend fun albums(): List<CarCollection> = io { database.albumsByCreateDateAsc().first().asReversed().map { it.toCollection() } }
 
-    suspend fun artists(): List<CarCollection> = io { database.artistsByCreateDateAsc().first().asReversed().map { it.toCollection() } }
+    suspend fun artists(): List<CarCollection> = io {
+        val res = com.mochyy.mochymusic.i18n.AppLanguage.wrapActivityContext(context).resources
+        database.artistsByCreateDateAsc().first().asReversed().map { it.toCollection(res) }
+    }
 
     // a song picked on its own starts its radio, the same as on the phone's home
     fun radio(song: CarSong): Queue = YouTubeQueue(song.endpoint ?: WatchEndpoint(videoId = song.id), song.metadata)
@@ -150,10 +157,10 @@ class CarCatalog(
         endpoint = endpoint,
     )
 
-    private fun Playlist.toCollection() = CarCollection(
+    private fun Playlist.toCollection(res: android.content.res.Resources) = CarCollection(
         key = "playlist/$id",
         title = playlist.name,
-        subtitle = context.resources.getQuantityString(com.mochyy.mochymusic.R.plurals.n_song, songCount, songCount),
+        subtitle = res.getQuantityString(com.mochyy.mochymusic.R.plurals.n_song, songCount, songCount),
         thumbnail = playlist.thumbnailUrl ?: songThumbnails.firstOrNull { !it.isNullOrBlank() },
     ) { io { database.playlistSongs(id).first().map { it.song.toCarSong() } } }
 
@@ -164,10 +171,10 @@ class CarCatalog(
         thumbnail = album.thumbnailUrl,
     ) { io { database.albumSongs(id).first().map { it.toCarSong() } } }
 
-    private fun Artist.toCollection() = CarCollection(
+    private fun Artist.toCollection(res: android.content.res.Resources) = CarCollection(
         key = "artist/$id",
         title = artist.name,
-        subtitle = context.resources.getQuantityString(com.mochyy.mochymusic.R.plurals.n_song, songCount, songCount),
+        subtitle = res.getQuantityString(com.mochyy.mochymusic.R.plurals.n_song, songCount, songCount),
         thumbnail = artist.thumbnailUrl,
         round = true,
     ) { io { database.artistSongsByCreateDateAsc(id).first().asReversed().map { it.toCarSong() } } }

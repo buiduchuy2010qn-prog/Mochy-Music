@@ -71,6 +71,7 @@
     <string name="module_server_already_added">That server is already on the list.</string>
     <string name="module_sign_out">Sign out</string>
     <string name="module_use_sign_in_first">Sign in first, then turn it on here.</string>
+    <string name="module_unavailable">Currently unavailable</string>
     <string name="module_use_songs">Songs play from %1$s when it has them, in the order set under Audio Quality.</string>
     <string name="module_use_lyrics">Its lyrics join your lyrics sources.</string>
     <string name="module_use_look">Its look replaces your look settings while it\'s on, and yours come back when you turn it off.</string>

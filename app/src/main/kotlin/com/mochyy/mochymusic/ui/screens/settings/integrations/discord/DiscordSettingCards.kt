@@ -112,6 +112,7 @@ internal fun DiscordSectionTitle(
     Text(
         text = text,
         color = Color.White.copy(alpha = 0.5f),
+        fontFamily = InterFontFamily,
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = modifier.padding(start = 4.dp, top = 22.dp, bottom = 10.dp),
@@ -137,7 +138,7 @@ internal fun DiscordCard(
 
 @Composable
 internal fun DiscordCardTitle(text: String) {
-    Text(text, color = DiscordColors.Primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+    Text(text, color = DiscordColors.Primary, fontFamily = InterFontFamily, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
 }
 
 /** a card that turns one behaviour on or off, with a line saying what it does */
@@ -159,6 +160,7 @@ internal fun DiscordSwitchCard(
                 Text(
                     text = description,
                     color = DiscordColors.Secondary,
+                    fontFamily = InterFontFamily,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(top = 2.dp),
@@ -175,6 +177,7 @@ private fun FieldLabel(text: String) {
     Text(
         text = text,
         color = DiscordColors.Secondary,
+        fontFamily = InterFontFamily,
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
         modifier = Modifier.padding(top = 8.dp, bottom = 6.dp),
@@ -214,7 +217,7 @@ internal fun DiscordTextField(
                         .padding(horizontal = 16.dp),
             ) {
                 if (value.isEmpty()) {
-                    Text(hint, color = DiscordColors.Hint, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                    Text(hint, color = DiscordColors.Hint, fontFamily = InterFontFamily, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                 }
                 inner()
             }
@@ -344,6 +347,7 @@ private fun DropdownRow(
             Text(
                 text = text,
                 color = color,
+                fontFamily = InterFontFamily,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -406,6 +410,7 @@ internal fun DiscordImageSourceCard(
             Text(
                 text = stringResource(R.string.discord_spin_note),
                 color = DiscordColors.Secondary,
+                fontFamily = InterFontFamily,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 modifier = Modifier.padding(start = 4.dp, top = 10.dp),
@@ -448,6 +453,7 @@ private fun CustomPictureRow(
             Text(
                 text = stringResource(if (picture.isBlank()) R.string.discord_custom_pick else R.string.discord_custom_change),
                 color = Color.White,
+                fontFamily = InterFontFamily,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -456,6 +462,7 @@ private fun CustomPictureRow(
     Text(
         text = stringResource(R.string.discord_custom_note),
         color = DiscordColors.Secondary,
+        fontFamily = InterFontFamily,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         modifier = Modifier.padding(start = 4.dp, top = 10.dp),
@@ -536,6 +543,7 @@ internal fun <T> DiscordSegmented(
                 Text(
                     text = label(option),
                     color = if (isSelected) DiscordColors.Primary else DiscordColors.Secondary,
+                    fontFamily = InterFontFamily,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                 )
@@ -620,7 +628,7 @@ private val SliderLabelWidth = 52.dp
 @Composable
 internal fun DiscordNoticeCard(text: String) {
     DiscordCard {
-        Text(text, color = DiscordColors.Primary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(text, color = DiscordColors.Primary, fontFamily = InterFontFamily, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -640,6 +648,7 @@ internal fun DiscordPlaceholderCard() {
         Text(
             stringResource(R.string.discord_placeholder_list_title),
             color = DiscordColors.Primary,
+            fontFamily = InterFontFamily,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
         )

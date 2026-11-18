@@ -206,7 +206,7 @@ interface MochyModule {
 }
 
 /** what a module that needs no account says about it */
-const val NO_ACCOUNT_LABEL = "No account needed"
+const val NO_ACCOUNT_LABEL = "Không cần tài khoản"
 
 /** a place songs play from */
 interface SourceModule : MochyModule {

@@ -25,8 +25,10 @@ import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.importer.account.AccountService
 import com.mochyy.mochymusic.modules.SourceModules
 import com.mochyy.mochymusic.playback.PlayingFrom
+import com.mochyy.mochymusic.ui.screens.audiolab.providerLogo
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProviderSquircle
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.SquircleShape
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 
 /** a provider's own icon, the same squircle the onboarding uses; a letter for a module with none */
 @Composable
@@ -51,11 +53,19 @@ internal fun ProviderLogo(providerId: String, name: String, size: Dp) {
                 modifier = Modifier.size(size * 0.5f),
             )
         }
-        else -> Box(
+        // a built-in module with a logo of its own (jiosaavn, soundcloud, zing mp3), the same one its settings row shows
+        else -> providerLogo(providerId)?.let { logo ->
+            Image(
+                painter = painterResource(logo),
+                contentDescription = name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(size).clip(SquircleShape),
+            )
+        } ?: Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(size).clip(SquircleShape).background(Color.White.copy(alpha = 0.16f)),
         ) {
-            Text(text = name.take(1).uppercase(), color = Color.White, fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.Bold)
+            Text(text = name.take(1).uppercase(), color = Color.White, fontFamily = InterFontFamily, fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.Bold)
         }
     }
 }

@@ -161,7 +161,7 @@
     <string name="discord_placeholder_list_title">Danh sách biến thay thế</string>
     <string name="discord_placeholder_example_title">Ví dụ, tên hoạt động này</string>
     <string name="discord_placeholder_shows_up_as">sẽ hiển thị là</string>
-    <string name="discord_placeholder_example_result">Listening to Fake Plastic Trees by Radiohead on The Bends</string>
+    <string name="discord_placeholder_example_result">Đang nghe Chúng Ta Của Hiện Tại · Sơn Tùng M-TP</string>
     <string name="discord_placeholder_footer_note">Các biến này hoạt động ở mọi ô văn bản trên trang này, bao gồm cả các nút bấm.</string>
     <string name="discord_kind_listening">Đang nghe</string>
     <string name="discord_kind_playing">Đang chơi</string>

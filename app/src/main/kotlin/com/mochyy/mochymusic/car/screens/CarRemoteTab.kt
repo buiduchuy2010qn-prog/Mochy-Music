@@ -40,7 +40,7 @@ internal class CarRemoteTab(
         val status = when (shown.phones.size) {
             0 -> app.string(R.string.car_pair_waiting)
             1 -> app.string(R.string.car_pair_connected, shown.phones.first())
-            else -> app.carContext.resources.getQuantityString(
+            else -> app.plural(
                 R.plurals.car_pair_connected_more,
                 shown.phones.size - 1,
                 shown.phones.first(),

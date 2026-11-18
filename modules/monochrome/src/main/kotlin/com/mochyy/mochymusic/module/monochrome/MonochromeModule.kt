@@ -32,21 +32,23 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import java.net.URI
 import java.net.URLEncoder
+import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.cancellation.CancellationException
 
-// lossless flac from monochrome's own track streamer, and from any server people add off a monochrome site (docs/notes/modules.md)
+// lossless flac from monochrome's streamer, hifi-api instances, and any relay forks (docs/notes/modules.md)
 class MonochromeModule : SourceModule, ServerListModule {
 
     override val info = ModuleInfo(
         id = Id,
         name = "Monochrome",
-        version = "2.1",
+        version = "2.2",
         description = "Nhạc Lossless FLAC cho mọi bài hát Monochrome có sẵn, không cần tài khoản, hỗ trợ đầy đủ hiệu ứng Audio Lab",
         sourceUrl = "https://github.com/monochrome-music/monochrome",
     )
 
-    // the two kinds of server monochrome sites play from: its own track streamer, and the audio relay some forks run
-    internal enum class Kind { Streamer, Relay }
+    // the three kinds of server monochrome sites play from: its track streamer, hifi-api instances, and the audio relay some forks run
+    internal enum class Kind { Streamer, HiFi, Relay }
 
     internal data class Server(val url: String, val kind: Kind, val name: String)
 
@@ -124,7 +126,11 @@ class MonochromeModule : SourceModule, ServerListModule {
         report(DiagnosticStep("Tìm bài hát", null, "Đang tìm trên ${server.name}…"))
         val found = matches[key] ?: run {
             val query = "${track.artists.firstOrNull().orEmpty()} ${TrackMatcher.core(track.title)}".trim()
-            val response = runCatching { host.http(searchRequest(server, query, SearchLimit)) }.getOrElse {
+            val response = try {
+                host.httpWithRetry(searchRequest(server, query, SearchLimit))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
                 val reason = "${server.name} không phản hồi"
                 report(DiagnosticStep("Tìm bài hát", false, reason))
                 markDown(server.url, reason)
@@ -184,23 +190,91 @@ class MonochromeModule : SourceModule, ServerListModule {
     private fun open(server: Server, id: String): Opened? = when (server.kind) {
         Kind.Streamer -> {
             val url = "${server.url}/track/$id"
-            host.httpOrNull(HttpRequest(url, headers = streamHeaders + HeadRange))?.takeIf { it.ok }?.let { Opened(url, it.body) }
+            host.httpRetryOrNull(HttpRequest(url, headers = streamHeaders + HeadRange))?.takeIf { it.ok }?.let { Opened(url, it.body) }
         }
+        Kind.HiFi -> openHiFi(server, id)
         // the relay finds the file on the first ask and hands back a link of its own, which plays without the relay's header
         Kind.Relay -> {
-            val response = host.httpOrNull(HttpRequest("${server.url}/s/${enc(id)}?q=flac", headers = relayHeaders + HeadRange))?.takeIf { it.ok }
+            val response = host.httpRetryOrNull(HttpRequest("${server.url}/s/${enc(id)}?q=flac", headers = relayHeaders + HeadRange))?.takeIf { it.ok }
             val link = response?.header("X-Relay-Stream")?.takeIf { it.startsWith("${originOf(server.url)}/") }
             if (response != null && link != null) Opened(link, response.body) else null
         }
     }
 
+    private fun openHiFi(server: Server, id: String): Opened? {
+        var fallback: Opened? = null
+        for (quality in HiFiQualities) {
+            val response = host.httpRetryOrNull(
+                HttpRequest("${server.url}/track/?id=${enc(id)}&quality=$quality", headers = headers),
+            )?.takeIf { it.ok } ?: continue
+            val streamUrl = extractHiFiStreamUrl(response.text) ?: continue
+            val head = host.httpRetryOrNull(HttpRequest(streamUrl, headers = streamHeaders + HeadRange))
+                ?.takeIf { it.ok } ?: continue
+            val opened = Opened(streamUrl, head.body)
+            if (flacInfo(opened.head) != null) return opened
+            if (fallback == null) fallback = opened
+        }
+        return fallback
+    }
+
+    internal fun extractHiFiStreamUrl(text: String): String? {
+        val root = runCatching { json.parseToJsonElement(text) }.getOrNull() ?: return null
+        val payload = (root as? JsonObject)?.get("data") ?: root
+        val objects = when (payload) {
+            is JsonObject -> listOf(payload)
+            is JsonArray -> payload.mapNotNull { it as? JsonObject }
+            else -> emptyList()
+        }
+        for (obj in objects) {
+            val manifest = obj["manifest"]
+            if (manifest is JsonPrimitive && manifest.isString) {
+                fromHiFiManifestText(manifest.content)?.let { return it }
+            } else if (manifest is JsonObject) {
+                urlFromHiFiManifestJson(manifest)?.let { return it }
+            }
+            obj.string("OriginalTrackUrl")?.takeIf { it.startsWith("http") }?.let { return it }
+        }
+        return null
+    }
+
+    private fun fromHiFiManifestText(raw: String): String? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        val decoded = runCatching { Base64.getDecoder().decode(trimmed).decodeToString() }
+            .recoverCatching { Base64.getUrlDecoder().decode(trimmed).decodeToString() }
+            .getOrElse { trimmed }
+        if ("<MPD" in decoded) return null
+        val parsed = runCatching { json.parseToJsonElement(decoded) as? JsonObject }.getOrNull()
+        if (parsed != null) return urlFromHiFiManifestJson(parsed)
+        return HttpUrlRegex.find(decoded)?.value
+    }
+
+    private fun urlFromHiFiManifestJson(manifest: JsonObject): String? {
+        val urls = (manifest["urls"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.takeIf { u -> u.startsWith("http") } }
+            .orEmpty()
+        if (urls.isEmpty()) return null
+        return urls.minByOrNull { url ->
+            val low = url.lowercase()
+            when {
+                "flac" in low -> 0
+                "lossless" in low -> 1
+                "hi-res" in low || "hires" in low -> 2
+                "high" in low -> 3
+                else -> 4
+            }
+        } ?: urls.first()
+    }
+
     private fun searchRequest(server: Server, query: String, limit: Int): HttpRequest = when (server.kind) {
         Kind.Streamer -> HttpRequest("${server.url}/search/tracks?q=${enc(query)}&limit=$limit", headers = headers)
+        Kind.HiFi -> HttpRequest("${server.url}/search/?s=${enc(query)}", headers = headers)
         Kind.Relay -> HttpRequest("${server.url}/search?q=${enc(query)}&n=$limit", headers = relayHeaders)
     }
 
     private fun tracksIn(kind: Kind, text: String): List<CatalogTrack> = when (kind) {
         Kind.Streamer -> tracksIn(text)
+        Kind.HiFi -> hifiTracksIn(text)
         Kind.Relay -> relayTracksIn(text)
     }
 
@@ -223,6 +297,46 @@ class MonochromeModule : SourceModule, ServerListModule {
                 isrc = t.string("isrc"),
             )
         }
+    }
+
+    internal fun hifiTracksIn(text: String): List<CatalogTrack> {
+        val root = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return emptyList()
+        val items = hifiItems(root) ?: return emptyList()
+        return items.mapNotNull { element ->
+            val t = element as? JsonObject ?: return@mapNotNull null
+            if ((t["allowStreaming"] as? JsonPrimitive)?.booleanOrNull == false) return@mapNotNull null
+            if ((t["streamReady"] as? JsonPrimitive)?.booleanOrNull == false) return@mapNotNull null
+            if ((t["playable"] as? JsonPrimitive)?.booleanOrNull == false) return@mapNotNull null
+            val id = t.string("id") ?: t.string("trackId") ?: return@mapNotNull null
+            val title = t.string("title") ?: return@mapNotNull null
+            val artists = (t["artists"] as? JsonArray)
+                ?.mapNotNull { (it as? JsonObject)?.string("name") }
+                ?.filter { it.isNotBlank() }
+                .orEmpty()
+                .ifEmpty {
+                    listOfNotNull(
+                        (t["artist"] as? JsonObject)?.string("name") ?: t.string("artistName"),
+                    ).filter { it.isNotBlank() }
+                }
+            val album = (t["album"] as? JsonObject)?.string("title") ?: t.string("albumTitle")
+            val duration = (t["duration"] as? JsonPrimitive)?.longOrNull?.let { if (it > 10_000) it else it * 1000 }
+            CatalogTrack(
+                id = id,
+                title = title,
+                artist = artists.joinToString(", "),
+                album = album?.takeIf { it.isNotBlank() },
+                durationMs = duration,
+                isrc = t.string("isrc"),
+            )
+        }
+    }
+
+    private fun hifiItems(root: JsonObject): JsonArray? {
+        val data = root["data"] as? JsonObject
+        return (data?.get("items") as? JsonArray)
+            ?: ((data?.get("tracks") as? JsonObject)?.get("items") as? JsonArray)
+            ?: ((root["tracks"] as? JsonObject)?.get("items") as? JsonArray)
+            ?: (root["items"] as? JsonArray)
     }
 
     // the relay's search: every artist on one line joined by a bare &, and seconds
@@ -277,7 +391,11 @@ class MonochromeModule : SourceModule, ServerListModule {
     // a real search answer of that kind, not a web page or some other api that happens to say 200
     private fun answersSearch(kind: Kind, text: String): Boolean {
         val root = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return false
-        return root[if (kind == Kind.Streamer) "tracks" else "data"] is JsonArray
+        return when (kind) {
+            Kind.Streamer -> root["tracks"] is JsonArray
+            Kind.HiFi -> hifiItems(root) != null
+            Kind.Relay -> root["data"] is JsonArray
+        }
     }
 
     // a monochrome site names its server in its own scripts, so each server-looking link in them gets tried
@@ -287,7 +405,11 @@ class MonochromeModule : SourceModule, ServerListModule {
         .take(MaxScripts)
         .mapNotNull { script -> host.httpOrNull(HttpRequest(script, headers = pageHeaders))?.takeIf { it.ok }?.text }
         .flatMap { script -> ServerLink.findAll(script).map { it.value } }
-        .filter { link -> hostOf(link).let { it.startsWith("tracks.") || "relay" in it } }
+        .filter { link ->
+            hostOf(link).let {
+                it.startsWith("tracks.") || "relay" in it || "hifi" in it || "monochrome" in it || "squid" in it || "lossless" in it
+            }
+        }
         .distinct()
         .take(MaxCandidates)
         .firstNotNullOfOrNull { identify(it) }
@@ -327,7 +449,7 @@ class MonochromeModule : SourceModule, ServerListModule {
 
     // one small search, and the server's mark set or cleared by how it went
     private fun reachable(server: Server): Boolean {
-        val response = host.httpOrNull(searchRequest(server, "test", 1))
+        val response = host.httpRetryOrNull(searchRequest(server, "test", 1), attempts = 2)
         if (response?.ok == true) {
             clearDown(server.url)
             return true
@@ -374,7 +496,48 @@ class MonochromeModule : SourceModule, ServerListModule {
 
     private fun JsonObject.string(name: String): String? = (this[name] as? JsonPrimitive)?.contentOrNull
 
-    private fun ModuleHost.httpOrNull(request: HttpRequest): HttpResponse? = runCatching { http(request) }.getOrNull()
+    private fun ModuleHost.httpOrNull(request: HttpRequest): HttpResponse? =
+        try {
+            http(request)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            null
+        }
+
+    private fun ModuleHost.httpWithRetry(request: HttpRequest, attempts: Int = 3): HttpResponse {
+        var lastResponse: HttpResponse? = null
+        var lastError: Throwable? = null
+        for (attempt in 1..attempts) {
+            try {
+                val response = http(request)
+                lastResponse = response
+                if (response.code !in RetryableCodes || attempt == attempts) return response
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                lastError = t
+                if (attempt == attempts) throw t
+            }
+            try {
+                Thread.sleep(80L * attempt)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                break
+            }
+        }
+        lastResponse?.let { return it }
+        throw lastError ?: IllegalStateException("Request failed")
+    }
+
+    private fun ModuleHost.httpRetryOrNull(request: HttpRequest, attempts: Int = 3): HttpResponse? =
+        try {
+            httpWithRetry(request, attempts)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            null
+        }
 
     private fun enc(text: String) = URLEncoder.encode(text, "UTF-8").replace("+", "%20")
 
@@ -385,6 +548,8 @@ class MonochromeModule : SourceModule, ServerListModule {
     companion object {
         const val Id = "monochrome"
         private val DefaultServer = Server("https://tracks.monochrome.st", Kind.Streamer, "tracks.monochrome.st")
+        private val HiFiQualities = listOf("HI_RES_LOSSLESS", "LOSSLESS")
+        private val RetryableCodes = setOf(429, 502, 503, 504)
         private const val ServersKey = "servers"
         private const val DownKey = "unreachable@"
         private const val DownAtKey = "unreachable_at@"
@@ -407,5 +572,6 @@ class MonochromeModule : SourceModule, ServerListModule {
         private val RelayArtistJoin = Regex("""(?<! )&(?! )""")
         private val ScriptSrc = Regex("""<script[^>]+src=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
         private val ServerLink = Regex("""https://[a-z0-9-]+(?:\.[a-z0-9-]+)+""")
+        private val HttpUrlRegex = Regex("""https?://[^\s"'<>]+""")
     }
 }

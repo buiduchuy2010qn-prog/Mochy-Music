@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.importer.account.AccountService
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlinx.coroutines.launch
 
 /** one spring for the sheet and the page behind it so the two never drift apart */
@@ -146,6 +147,7 @@ internal fun BrowserSheetBar(
             Text(
                 title,
                 color = Color.White,
+                fontFamily = InterFontFamily,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -154,6 +156,7 @@ internal fun BrowserSheetBar(
             Text(
                 url.removePrefix("https://").removePrefix("www.").substringBefore('?').ifEmpty { "https://" },
                 color = Color.White.copy(alpha = 0.6f),
+                fontFamily = InterFontFamily,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,

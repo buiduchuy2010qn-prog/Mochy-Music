@@ -234,11 +234,14 @@ private val SettingsIndex = listOf(
     SettingsEntry("Dolby Atmos", "Audio Lab", "audio_fx", "atmos spatial surround 3d immersive"),
     SettingsEntry("Playback speed", "Audio Lab", "audio_fx", "tempo pitch slowed nightcore preserve pitch"),
     SettingsEntry("Exponential volume", "Audio Lab", "audio_fx", "volume curve logarithmic limit"),
-    SettingsEntry("Modules", "Modules", "modules", "apple music source module plugin extension stream subscription"),
+    SettingsEntry("Modules", "Modules", "modules", "apple music monochrome jiosaavn soundcloud zingmp3 zing mp3 mô-đun nguồn phát source module plugin extension stream subscription"),
     SettingsEntry("Apple Music", "Modules", "module/applemusic", "apple music itunes subscription stream aac"),
     SettingsEntry("Monochrome", "Modules", "module/monochrome", "monochrome lossless flac hi-res tidal"),
-    SettingsEntry("Provider order", "Audio Lab", "audio_quality", "source order apple music monochrome youtube priority"),
-    SettingsEntry("YouTube Music", "Audio Lab", "audio_quality", "youtube turn off disable provider only monochrome apple music"),
+    SettingsEntry("JioSaavn", "Modules", "module/jiosaavn", "jiosaavn saavn aac 320 stream"),
+    SettingsEntry("SoundCloud", "Modules", "module/mochy.source.soundcloud", "soundcloud sc mp3 hls indie stream"),
+    SettingsEntry("Zing MP3", "Modules", "module/zingmp3", "zingmp3 zing mp3 vpop vietnamese 320 128"),
+    SettingsEntry("Provider order", "Audio Lab", "audio_quality", "source order apple music monochrome jiosaavn soundcloud zingmp3 youtube priority"),
+    SettingsEntry("YouTube Music", "Audio Lab", "audio_quality", "youtube turn off disable provider only monochrome apple music jiosaavn soundcloud zingmp3"),
 
     // Integrations
     SettingsEntry("Discord", "Integrations", DiscordRoute, "discord rich presence rpc status activity listening playing profile behaviour pause clear"),

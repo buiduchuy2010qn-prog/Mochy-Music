@@ -139,9 +139,9 @@ internal class WebModule(
         val response = runCatching { host.http(HttpRequest("$base/manifest.json", headers = headers)) }.getOrNull()
         return if (response?.ok == true) {
             host.storage.set("unreachable", null)
-            AccountState.SignedIn("$NO_ACCOUNT_LABEL · $siteName answers")
+            AccountState.SignedIn("$NO_ACCOUNT_LABEL · $siteName phản hồi tốt")
         } else {
-            val reason = "$siteName didn't answer (${response?.code ?: "offline"})"
+            val reason = "$siteName không phản hồi (${response?.code ?: "ngoại tuyến"})"
             markUnreachable(reason)
             AccountState.Expired(reason)
         }
@@ -157,7 +157,7 @@ internal class WebModule(
     override suspend fun resolve(track: TrackQuery, picks: Map<String, String>): ResolveResult = diagnose(track, picks) {}
 
     override suspend fun diagnose(track: TrackQuery, picks: Map<String, String>, report: (DiagnosticStep) -> Unit): ResolveResult {
-        if (ModuleFeature.AudioSource !in adds) return ResolveResult.Unavailable("${info.name} doesn't play songs")
+        if (ModuleFeature.AudioSource !in adds) return ResolveResult.Unavailable("${info.name} không hỗ trợ phát nhạc")
         val tier = picks[ChoiceQuality]?.takeIf { it in TidalNames } ?: OptionLossless
         // the atmos mix only when this phone can decode it, otherwise the stereo one plays instead of silence
         val atmos = picks[ChoiceMix] == OptionAtmos && DeviceDecoders.canPlay(AtmosCodec)
@@ -165,35 +165,35 @@ internal class WebModule(
         val key = "${track.title}|${track.artists.joinToString(",")}|$asked"
         val missedAt = misses[key]
         if (missedAt != null && System.currentTimeMillis() - missedAt < MissMemoryMs) {
-            report(DiagnosticStep("Find the song", false, "Not on ${info.name}"))
-            return ResolveResult.NotFound("Not on ${info.name}")
+            report(DiagnosticStep("Tìm bài hát", false, "Không có trên ${info.name}"))
+            return ResolveResult.NotFound("Không có trên ${info.name}")
         }
 
-        report(DiagnosticStep("Find the song", null, "Searching ${info.name}…"))
+        report(DiagnosticStep("Tìm bài hát", null, "Đang tìm trên ${info.name}…"))
         val found = matches[key] ?: run {
             val query = "${track.artists.firstOrNull().orEmpty()} ${TrackMatcher.core(track.title)}".trim()
             val response = runCatching { host.http(HttpRequest("$base/search?q=${enc(query)}&${paramsFor(tier, atmos)}", headers = headers)) }.getOrElse {
-                report(DiagnosticStep("Find the song", false, "$siteName didn't answer"))
-                markUnreachable("$siteName didn't answer")
-                return ResolveResult.Unavailable("$siteName didn't answer")
+                report(DiagnosticStep("Tìm bài hát", false, "$siteName không phản hồi"))
+                markUnreachable("$siteName không phản hồi")
+                return ResolveResult.Unavailable("$siteName không phản hồi")
             }
             if (!response.ok) {
-                report(DiagnosticStep("Find the song", false, "$siteName answered ${response.code}"))
-                return ResolveResult.Unavailable("$siteName answered ${response.code}")
+                report(DiagnosticStep("Tìm bài hát", false, "$siteName phản hồi ${response.code}"))
+                return ResolveResult.Unavailable("$siteName phản hồi ${response.code}")
             }
             host.storage.set("unreachable", null)
             val best = pick(TrackMatcher.ranked(track, tracksIn(response.text, asked)), atmos)
             if (best == null) {
                 misses[key] = System.currentTimeMillis()
-                report(DiagnosticStep("Find the song", false, "No matching recording of “${track.title}”"))
-                return ResolveResult.NotFound("No matching recording on ${info.name}")
+                report(DiagnosticStep("Tìm bài hát", false, "Không tìm thấy bản thu khớp với “${track.title}”"))
+                return ResolveResult.NotFound("Không tìm thấy bản thu khớp trên ${info.name}")
             }
             matches[key] = best
             best
         }
-        report(DiagnosticStep("Find the song", true, "${found.title} · ${found.artist}"))
+        report(DiagnosticStep("Tìm bài hát", true, "${found.title} · ${found.artist}"))
 
-        report(DiagnosticStep("Stream", null, "Asking for the stream…"))
+        report(DiagnosticStep("Luồng phát", null, "Đang mở luồng phát…"))
         val asTiered = streamFor(found, tier, atmos)
         // a 192 khz master this phone can't decode would be passed over, the same song in cd quality is the better answer
         val stream = if (asTiered != null && tier == OptionHiRes && !DeviceDecoders.canPlay(asTiered)) {
@@ -202,10 +202,10 @@ internal class WebModule(
             asTiered
         }
         if (stream == null) {
-            report(DiagnosticStep("Stream", false, "$siteName gave no stream Mochy can play"))
-            return ResolveResult.Unavailable("$siteName gave no stream Mochy can play")
+            report(DiagnosticStep("Luồng phát", false, "$siteName không trả về luồng Mochy phát được"))
+            return ResolveResult.Unavailable("$siteName không trả về luồng Mochy phát được")
         }
-        report(DiagnosticStep("Stream", true, stream.qualityLabel))
+        report(DiagnosticStep("Luồng phát", true, stream.qualityLabel))
         return ResolveResult.Found(
             stream.copy(
                 matched = MatchedTrack(

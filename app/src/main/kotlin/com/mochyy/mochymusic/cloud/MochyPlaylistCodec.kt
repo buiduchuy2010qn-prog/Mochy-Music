@@ -191,6 +191,13 @@ data class CloudAudioConfig(
     val eqSettingsJson: String? = null,
     val audioNormalization: Boolean? = null,
     val audioQuality: String? = null,
+    val reverbJson: String? = null,
+    val loudnessJson: String? = null,
+    val spatialJson: String? = null,
+    val normalizeJson: String? = null,
+    val volumeJson: String? = null,
+    val playbackJson: String? = null,
+    val skipSilence: Boolean? = null,
 )
 
 data class CloudSpeedDialRecord(
@@ -226,7 +233,10 @@ data class CloudRecognitionRecord(
 data class CloudModulesConfig(
     val enabled: Map<String, Boolean> = emptyMap(),
     val picks: Map<String, String> = emptyMap(),
+    val fields: Map<String, String> = emptyMap(),
     val moduleOrder: String? = null,
+    val providerOrder: String? = null,
+    val downloadOrder: String? = null,
     val webModulesJson: String? = null,
     val monochromeServersJson: String? = null,
 )
@@ -273,12 +283,22 @@ object MochyLibraryExtraCodec {
         val hasAudio = extra.audio != null && (
             !extra.audio.eqSettingsJson.isNullOrBlank() ||
                 extra.audio.audioNormalization != null ||
-                !extra.audio.audioQuality.isNullOrBlank()
+                !extra.audio.audioQuality.isNullOrBlank() ||
+                !extra.audio.reverbJson.isNullOrBlank() ||
+                !extra.audio.loudnessJson.isNullOrBlank() ||
+                !extra.audio.spatialJson.isNullOrBlank() ||
+                !extra.audio.normalizeJson.isNullOrBlank() ||
+                !extra.audio.volumeJson.isNullOrBlank() ||
+                !extra.audio.playbackJson.isNullOrBlank() ||
+                extra.audio.skipSilence != null
             )
         val hasModules = extra.modulesConfig != null && (
             extra.modulesConfig.enabled.isNotEmpty() ||
                 extra.modulesConfig.picks.isNotEmpty() ||
+                extra.modulesConfig.fields.isNotEmpty() ||
                 !extra.modulesConfig.moduleOrder.isNullOrBlank() ||
+                !extra.modulesConfig.providerOrder.isNullOrBlank() ||
+                !extra.modulesConfig.downloadOrder.isNullOrBlank() ||
                 !extra.modulesConfig.webModulesJson.isNullOrBlank() ||
                 !extra.modulesConfig.monochromeServersJson.isNullOrBlank()
             )
@@ -357,8 +377,9 @@ object MochyLibraryExtraCodec {
                 tryEncode(cap, 0, 0, cappedSpeedDial, modulesNoWeb, extra.audio)?.let { return it }
             }
         }
-        // 4. Fallback cuối: chỉ giữ cấu hình nhẹ + audio
+        // 4. Fallback cuối: giữ cấu hình nhẹ (bỏ fields trước, rồi mới bỏ toàn bộ modules nếu vẫn vượt) + audio
         tryEncode(0, 0, 0, emptyList(), modulesNoWeb, extra.audio)?.let { return it }
+        tryEncode(0, 0, 0, emptyList(), modulesNoWeb?.copy(fields = emptyMap()), extra.audio)?.let { return it }
         return tryEncode(0, 0, 0, emptyList(), null, extra.audio).orEmpty()
     }
 
@@ -412,11 +433,28 @@ object MochyLibraryExtraCodec {
             val eqJson = root.optString("eq").takeIf { it.isNotBlank() && it != "null" }
             val norm = if (root.has("an")) root.optBoolean("an") else null
             val quality = root.optString("aq").takeIf { it.isNotBlank() && it != "null" }
-            val audio = if (eqJson != null || norm != null || quality != null) {
+            val revJson = root.optString("rev").takeIf { it.isNotBlank() && it != "null" }
+            val loudJson = root.optString("ld").takeIf { it.isNotBlank() && it != "null" }
+            val spatJson = root.optString("sp").takeIf { it.isNotBlank() && it != "null" }
+            val normJson = root.optString("nm").takeIf { it.isNotBlank() && it != "null" }
+            val volJson = root.optString("vl").takeIf { it.isNotBlank() && it != "null" }
+            val pbJson = root.optString("pb").takeIf { it.isNotBlank() && it != "null" }
+            val skipSil = if (root.has("ss")) root.optBoolean("ss") else null
+            val audio = if (eqJson != null || norm != null || quality != null ||
+                revJson != null || loudJson != null || spatJson != null ||
+                normJson != null || volJson != null || pbJson != null || skipSil != null
+            ) {
                 CloudAudioConfig(
                     eqSettingsJson = eqJson,
                     audioNormalization = norm,
                     audioQuality = quality,
+                    reverbJson = revJson,
+                    loudnessJson = loudJson,
+                    spatialJson = spatJson,
+                    normalizeJson = normJson,
+                    volumeJson = volJson,
+                    playbackJson = pbJson,
+                    skipSilence = skipSil,
                 )
             } else null
 
@@ -511,15 +549,33 @@ object MochyLibraryExtraCodec {
                         }
                     }
                 }
+                val fldObj = modObj.optJSONObject("fld")
+                val fields = buildMap {
+                    if (fldObj != null) {
+                        val keys = fldObj.keys()
+                        while (keys.hasNext()) {
+                            val k = keys.next().trim()
+                            val v = fldObj.optString(k).takeIf { it.isNotBlank() && it != "null" }
+                            if (k.isNotBlank() && v != null) put(k, v)
+                        }
+                    }
+                }
                 val order = modObj.optString("ord").takeIf { it.isNotBlank() && it != "null" }
+                val provOrder = modObj.optString("pord").takeIf { it.isNotBlank() && it != "null" }
+                val dlOrder = modObj.optString("dord").takeIf { it.isNotBlank() && it != "null" }
                 val web = modObj.optString("web")
                     .takeIf { it.isNotBlank() && it != "null" && it.length <= MaxWebModulesChars }
                 val mono = modObj.optString("mono").takeIf { it.isNotBlank() && it != "null" }
-                if (enabled.isNotEmpty() || picks.isNotEmpty() || order != null || web != null || mono != null) {
+                if (enabled.isNotEmpty() || picks.isNotEmpty() || fields.isNotEmpty() ||
+                    order != null || provOrder != null || dlOrder != null || web != null || mono != null
+                ) {
                     CloudModulesConfig(
                         enabled = enabled,
                         picks = picks,
+                        fields = fields,
                         moduleOrder = order,
+                        providerOrder = provOrder,
+                        downloadOrder = dlOrder,
                         webModulesJson = web,
                         monochromeServersJson = mono,
                     )
@@ -595,6 +651,13 @@ object MochyLibraryExtraCodec {
                 if (!audio.eqSettingsJson.isNullOrBlank()) put("eq", audio.eqSettingsJson)
                 if (audio.audioNormalization != null) put("an", audio.audioNormalization)
                 if (!audio.audioQuality.isNullOrBlank()) put("aq", audio.audioQuality)
+                if (!audio.reverbJson.isNullOrBlank()) put("rev", audio.reverbJson)
+                if (!audio.loudnessJson.isNullOrBlank()) put("ld", audio.loudnessJson)
+                if (!audio.spatialJson.isNullOrBlank()) put("sp", audio.spatialJson)
+                if (!audio.normalizeJson.isNullOrBlank()) put("nm", audio.normalizeJson)
+                if (!audio.volumeJson.isNullOrBlank()) put("vl", audio.volumeJson)
+                if (!audio.playbackJson.isNullOrBlank()) put("pb", audio.playbackJson)
+                if (audio.skipSilence != null) put("ss", audio.skipSilence)
             }
             if (speedDial.isNotEmpty()) {
                 val sdArr = JSONArray()
@@ -662,8 +725,19 @@ object MochyLibraryExtraCodec {
                     for ((k, v) in modulesConfig.picks) pkObj.put(k, v)
                     modObj.put("pk", pkObj)
                 }
+                if (modulesConfig.fields.isNotEmpty()) {
+                    val fldObj = JSONObject()
+                    for ((k, v) in modulesConfig.fields) fldObj.put(k, v)
+                    modObj.put("fld", fldObj)
+                }
                 if (!modulesConfig.moduleOrder.isNullOrBlank()) {
                     modObj.put("ord", modulesConfig.moduleOrder)
+                }
+                if (!modulesConfig.providerOrder.isNullOrBlank()) {
+                    modObj.put("pord", modulesConfig.providerOrder)
+                }
+                if (!modulesConfig.downloadOrder.isNullOrBlank()) {
+                    modObj.put("dord", modulesConfig.downloadOrder)
                 }
                 if (!modulesConfig.webModulesJson.isNullOrBlank() &&
                     modulesConfig.webModulesJson.length <= MaxWebModulesChars

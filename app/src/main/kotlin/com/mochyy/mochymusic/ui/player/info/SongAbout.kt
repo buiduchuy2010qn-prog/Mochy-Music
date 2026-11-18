@@ -16,7 +16,10 @@ import com.music.musixmatch.MusixmatchSong
 import com.music.genius.Genius
 import com.music.genius.GeniusSong
 import com.music.wikipedia.WikiSong
+import com.mochyy.mochymusic.utils.followAppProxy
 import com.music.wikipedia.Wikipedia
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -83,9 +86,20 @@ object SongAboutLoader {
     // kept for the run, so closing and opening the sheet again is instant
     private val cache = ConcurrentHashMap<String, SongAbout>()
 
+    private val wikipediaClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .followAppProxy()
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(12, TimeUnit.SECONDS)
+            .build()
+    }
+
     fun load(song: MediaMetadata, database: MusicDatabase, context: Context): Flow<SongAbout> = channelFlow {
         // here rather than at app start: it reads its saved key from disk, which belongs off the main thread
         Musixmatch.init(context)
+        if (Wikipedia.httpClientProvider == null) {
+            Wikipedia.httpClientProvider = { wikipediaClient }
+        }
         val cached = cache[song.id]
         if (cached != null && cached.factsDone && cached.youtubeDone && cached.musixmatchPageDone) {
             send(cached)

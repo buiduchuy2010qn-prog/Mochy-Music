@@ -90,7 +90,7 @@ constructor(
         // offline. Read before anything goes online, so offline mode still has them.
         // Off the caller's thread: the player asks from the main one, and this reads the file.
         mediaMetadata.localUri?.let { uri ->
-            withContext(Dispatchers.IO) { readEmbeddedLyrics(context, android.net.Uri.parse(uri)) }?.let { lyrics ->
+            withContext(Dispatchers.IO) { readLocalSongLyrics(context, android.net.Uri.parse(uri)) }?.let { lyrics ->
                 return LyricsWithProvider(lyrics, EmbeddedLyrics.Provider).also { bestCache.put(mediaMetadata.id, it) }
             }
         }
