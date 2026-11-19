@@ -53,26 +53,26 @@ private data class WhatsNewHighlight(
     val summary: String,
 )
 
-private val V117Highlights = listOf(
+private val V118Highlights = listOf(
     WhatsNewHighlight(
         icon = R.drawable.cloud,
-        title = "Đăng nhập Google 1 chạm cho Mochy Cloud",
-        summary = "Bổ sung nút Tiếp tục với Google (OAuth PKCE an toàn qua Chrome trên máy), tự nhận tên hiển thị, ảnh đại diện và đồng bộ thư viện tức thì.",
+        title = "Liên kết hai chiều @username ↔ Google trên cùng 1 tài khoản",
+        summary = "Liên kết trực tiếp Google vào tài khoản @username hiện có, hoặc đặt mật khẩu cho tài khoản Google để sang máy khác chỉ cần gõ @username vẫn vào đúng 1 tài khoản duy nhất.",
     ),
     WhatsNewHighlight(
         icon = R.drawable.account,
-        title = "Chọn nhanh tài khoản Google trên máy cho YouTube Music",
-        summary = "Tự điền sẵn Gmail từ Mochy Cloud, thêm nút 1 chạm Chọn Gmail có sẵn trên máy và bật Autofill + lưu cookie bền vững.",
+        title = "Trạng thái tài khoản rõ ràng & đổi @username trực tiếp",
+        summary = "Phân biệt chuẩn tài khoản Google mới tạo và đã đăng ký trước đó, báo chính xác khi Google/tên đăng nhập đã tồn tại hoặc chưa đặt mật khẩu, kèm tùy chọn đổi @username.",
+    ),
+    WhatsNewHighlight(
+        icon = R.drawable.login,
+        title = "Chọn nhanh Gmail có sẵn trên máy cho YouTube Music",
+        summary = "Tự điền sẵn Gmail từ Mochy Cloud, thêm nút 1 chạm Chọn Gmail trên máy và bật Autofill + lưu cookie bền vững.",
     ),
     WhatsNewHighlight(
         icon = R.drawable.playlist_add,
-        title = "Trung tâm Tạo & Nhập Playlist nhanh tại Thư viện",
-        summary = "Nút + trực tiếp ở màn hình Danh sách phát để tạo mới, dán nhanh mã mochypl1:, mở tệp .mochypl và hiển thị đầy đủ mô tả playlist.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.music_note,
-        title = "Đồng bộ Đám mây bền vững & kiểm thử tự động",
-        summary = "Tối ưu nén dữ liệu đồng bộ ổn định lâu dài, tích hợp Zing MP3, SoundCloud, Monochrome ưu tiên IPv4 kèm kiểm thử tự động trên CI.",
+        title = "Trung tâm Playlist & Đồng bộ Đám mây bền vững",
+        summary = "Nút + tạo/nhập nhanh mochypl1: / .mochypl ngay tại Thư viện, tối ưu nén Cloud chống tràn phiên và kiểm thử tự động trên CI.",
     ),
 )
 
@@ -175,13 +175,13 @@ private fun WhatsNewSheetContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            V117Highlights.forEachIndexed { index, item ->
+            V118Highlights.forEachIndexed { index, item ->
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
                         .fillMaxWidth()
                         .revealOnAppear(
-                            key = "v117_highlight_$index",
+                            key = "v118_highlight_$index",
                             seenState = revealSeen,
                             cascade = true,
                         )

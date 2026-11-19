@@ -101,6 +101,7 @@ import java.util.Locale
 
 private val SheetErrorRed = Color(0xFFE0736B)
 private val ResumeAccentGreen = Color(0xFF9CF58A)
+private val StatusWarningAmber = Color(0xFFFFC168)
 private val CloudRowHighlight = RoundedHighlight(cornerRadius = 18.dp)
 private val BackupOpenMimeTypes = arrayOf(
     "application/gzip",
@@ -108,6 +109,18 @@ private val BackupOpenMimeTypes = arrayOf(
     "application/octet-stream",
     "*/*",
 )
+
+private fun filterStrictUsername(raw: String): String =
+    raw.lowercase()
+        .filter { ch -> ch in 'a'..'z' || ch in '0'..'9' || ch == '.' || ch == '_' }
+        .take(24)
+
+private fun filterSignInIdentifier(raw: String): String =
+    raw.lowercase()
+        .filter { ch ->
+            ch in 'a'..'z' || ch in '0'..'9' || ch == '.' || ch == '_' || ch == '@' || ch == '+' || ch == '-'
+        }
+        .take(64)
 
 @Stable
 private class CloudSheetUiController {
@@ -117,6 +130,7 @@ private class CloudSheetUiController {
     var passwordInput by mutableStateOf("")
     var busy by mutableStateOf(false)
     var statusNotice by mutableStateOf<String?>(null)
+    var statusNoticeIsError by mutableStateOf(false)
 }
 
 /** Mở bảng tài khoản Mochy Cloud qua [PopupSheetState] chuẩn Mochy 8.4.2. */
@@ -174,19 +188,25 @@ private fun MochyCloudButtonBar(
             )
         }
         state.signedIn -> {
-            val enabled = !controller.busy && !state.syncing
+            val enabled = !controller.busy && !state.syncing && !state.googleAuthInProgress
             CloudPrimaryButton(
                 text = if (state.syncing) "Đang đồng bộ…" else "Đồng bộ ngay",
                 enabled = enabled,
                 dimmed = !enabled,
                 onClick = {
                     controller.statusNotice = null
+                    controller.statusNoticeIsError = false
                     MochyCloudSyncManager.syncNow(context, fromUser = true)
                 },
             )
         }
         else -> {
-            val formReady = controller.usernameInput.length >= 3 && controller.passwordInput.length >= 6
+            val cleanId = if (controller.authTab == 0) {
+                controller.usernameInput.trim().removePrefix("@")
+            } else {
+                controller.usernameInput
+            }
+            val formReady = cleanId.length >= 3 && controller.passwordInput.length >= 6
             val enabled = !controller.busy && !state.googleAuthInProgress
             val buttonLabel = when {
                 state.googleAuthInProgress -> stringResource(R.string.mochy_cloud_google_connecting)
@@ -202,6 +222,7 @@ private fun MochyCloudButtonBar(
                 onClick = {
                     if (!formReady) {
                         controller.statusNotice = "Nhập tên đăng nhập từ 3 ký tự và mật khẩu từ 6 ký tự."
+                        controller.statusNoticeIsError = true
                         return@CloudPrimaryButton
                     }
                     focusManager.clearFocus()
@@ -209,6 +230,7 @@ private fun MochyCloudButtonBar(
                     scope.launch {
                         controller.busy = true
                         controller.statusNotice = null
+                        controller.statusNoticeIsError = false
                         val res = if (controller.authTab == 1) {
                             MochyCloudSyncManager.signUp(
                                 context = context,
@@ -226,9 +248,11 @@ private fun MochyCloudButtonBar(
                         controller.busy = false
                         res.onSuccess {
                             controller.passwordInput = ""
-                            controller.statusNotice = "Đã kết nối và đồng bộ Mochy Cloud."
+                            controller.statusNotice = null
+                            controller.statusNoticeIsError = false
                         }.onFailure { err ->
                             controller.statusNotice = err.message ?: "Không thể kết nối Mochy Cloud."
+                            controller.statusNoticeIsError = true
                         }
                     }
                 },
@@ -259,6 +283,13 @@ private fun MochyCloudSheetContent(
     val revealSeen = rememberRevealSeenState()
 
     val localDeviceId = remember(context) { MochyCloudSyncManager.localDeviceId(context) }
+    var dismissedSignedInError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(state.lastError) {
+        if (state.lastError != dismissedSignedInError) {
+            dismissedSignedInError = null
+        }
+    }
 
     LaunchedEffect(controller.busy) {
         onLockChanged(controller.busy)
@@ -277,12 +308,16 @@ private fun MochyCloudSheetContent(
         scope.launch {
             controller.busy = true
             controller.statusNotice = null
+            controller.statusNoticeIsError = false
             val res = MochyCloudSyncManager.updateProfileAndAvatar(context, null, uri)
             controller.busy = false
-            controller.statusNotice = res.fold(
-                onSuccess = { "Đã cập nhật ảnh đại diện Mochy Cloud." },
-                onFailure = { it.message ?: "Không thể cập nhật ảnh đại diện." },
-            )
+            res.onSuccess {
+                controller.statusNotice = "Đã cập nhật ảnh đại diện Mochy Cloud."
+                controller.statusNoticeIsError = false
+            }.onFailure { err ->
+                controller.statusNotice = err.message ?: "Không thể cập nhật ảnh đại diện."
+                controller.statusNoticeIsError = true
+            }
         }
     }
 
@@ -293,15 +328,18 @@ private fun MochyCloudSheetContent(
         scope.launch {
             controller.busy = true
             controller.statusNotice = null
+            controller.statusNoticeIsError = false
             val res = MochyOfflineBackupCodec.exportToUri(context, uri)
             controller.busy = false
-            controller.statusNotice = res.fold(
-                onSuccess = { s ->
+            res.onSuccess { s ->
+                controller.statusNotice =
                     "Đã xuất sao lưu: ${s.favoritesCount} yêu thích, ${s.playlistsCount} playlist, " +
                         "${s.albumsCount} album, ${s.artistsCount} nghệ sĩ, ${s.historyCount} lịch sử."
-                },
-                onFailure = { it.message ?: "Không thể xuất tệp sao lưu." },
-            )
+                controller.statusNoticeIsError = false
+            }.onFailure { err ->
+                controller.statusNotice = err.message ?: "Không thể xuất tệp sao lưu."
+                controller.statusNoticeIsError = true
+            }
         }
     }
 
@@ -312,16 +350,19 @@ private fun MochyCloudSheetContent(
         scope.launch {
             controller.busy = true
             controller.statusNotice = null
+            controller.statusNoticeIsError = false
             val res = MochyOfflineBackupCodec.importFromUri(context, uri)
             controller.busy = false
-            controller.statusNotice = res.fold(
-                onSuccess = { s ->
-                    val eqTag = if (s.eqRestored) " & EQ" else ""
+            res.onSuccess { s ->
+                val eqTag = if (s.eqRestored) " & EQ" else ""
+                controller.statusNotice =
                     "Đã khôi phục: ${s.favoritesCount} yêu thích, ${s.playlistsCount} playlist, " +
                         "${s.albumsCount} album, ${s.artistsCount} nghệ sĩ, ${s.historyCount} lịch sử$eqTag."
-                },
-                onFailure = { it.message ?: "Không thể khôi phục tệp sao lưu." },
-            )
+                controller.statusNoticeIsError = false
+            }.onFailure { err ->
+                controller.statusNotice = err.message ?: "Không thể khôi phục tệp sao lưu."
+                controller.statusNoticeIsError = true
+            }
         }
     }
 
@@ -420,10 +461,12 @@ private fun MochyCloudSheetContent(
                             onCancel = {
                                 MochyCloudSyncManager.cancelGoogleAuthInProgress()
                                 controller.statusNotice = null
+                                controller.statusNoticeIsError = false
                             },
                             onClick = {
                                 focusManager.clearFocus()
                                 controller.statusNotice = null
+                                controller.statusNoticeIsError = false
                                 val loginHint = accountEmail.trim().takeIf {
                                     it.contains("@") && !it.endsWith("@account.mochy.app", ignoreCase = true)
                                 }
@@ -431,6 +474,7 @@ private fun MochyCloudSheetContent(
                                     if (MochyCloudSyncManager.state.value.lastError.isNullOrBlank()) {
                                         controller.statusNotice =
                                             err.message ?: context.getString(R.string.mochy_cloud_google_launch_failed)
+                                        controller.statusNoticeIsError = true
                                     }
                                 }
                             },
@@ -490,7 +534,11 @@ private fun MochyCloudSheetContent(
                                         ) {
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             controller.authTab = idx
+                                            if (idx == 1) {
+                                                controller.usernameInput = filterStrictUsername(controller.usernameInput)
+                                            }
                                             controller.statusNotice = null
+                                            controller.statusNoticeIsError = false
                                         }
                                         .padding(vertical = 10.dp),
                                     contentAlignment = Alignment.Center,
@@ -510,18 +558,25 @@ private fun MochyCloudSheetContent(
                             modifier = Modifier.revealOnAppear("cloud_auth_inputs", revealSeen, cascade = true),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
+                            val isSignInTab = controller.authTab == 0
                             OnbPillInput(
                                 value = controller.usernameInput,
                                 onValueChange = {
-                                    controller.usernameInput = it.lowercase()
-                                        .filter { ch -> ch in 'a'..'z' || ch in '0'..'9' || ch == '.' || ch == '_' }
-                                        .take(24)
+                                    controller.usernameInput = if (isSignInTab) {
+                                        filterSignInIdentifier(it)
+                                    } else {
+                                        filterStrictUsername(it)
+                                    }
                                     controller.statusNotice = null
+                                    controller.statusNoticeIsError = false
                                 },
-                                placeholder = "tên đăng nhập",
-                                prefix = "@",
+                                placeholder = stringResource(
+                                    if (isSignInTab) R.string.mochy_cloud_login_id_placeholder
+                                    else R.string.mochy_cloud_signup_username_placeholder,
+                                ),
+                                prefix = if (isSignInTab && controller.usernameInput.contains('@')) null else "@",
                                 keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Ascii,
+                                    keyboardType = if (isSignInTab) KeyboardType.Email else KeyboardType.Ascii,
                                     imeAction = ImeAction.Next,
                                 ),
                                 keyboardActions = KeyboardActions(
@@ -529,7 +584,10 @@ private fun MochyCloudSheetContent(
                                 ),
                             )
                             Text(
-                                text = "Dùng 3–24 ký tự chữ thường, số, dấu chấm hoặc gạch dưới",
+                                text = stringResource(
+                                    if (isSignInTab) R.string.mochy_cloud_login_id_hint
+                                    else R.string.mochy_cloud_signup_username_hint,
+                                ),
                                 color = Onb.Muted,
                                 fontFamily = InterFontFamily,
                                 fontSize = 12.sp,
@@ -556,6 +614,7 @@ private fun MochyCloudSheetContent(
                                 onValueChange = {
                                     controller.passwordInput = it
                                     controller.statusNotice = null
+                                    controller.statusNoticeIsError = false
                                 },
                                 placeholder = "mật khẩu (tối thiểu 6 ký tự)",
                                 isPassword = true,
@@ -602,6 +661,33 @@ private fun MochyCloudSheetContent(
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Thông báo trạng thái tài khoản (xanh dịu chuẩn Mochy, chạm đóng)
+                        AnimatedVisibility(
+                            visible = !state.authStatusMessage.isNullOrBlank(),
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut(),
+                        ) {
+                            CloudAuthStatusBanner(
+                                message = state.authStatusMessage.orEmpty(),
+                                onDismiss = { MochyCloudSyncManager.clearAuthStatusMessage() },
+                            )
+                        }
+
+                        // Lỗi thao tác tài khoản khi đang đăng nhập (vd: Google đã gắn tài khoản khác)
+                        val signedInError = state.lastError?.takeIf {
+                            it.isNotBlank() && it != dismissedSignedInError
+                        }
+                        AnimatedVisibility(
+                            visible = signedInError != null,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut(),
+                        ) {
+                            CloudErrorStatusBanner(
+                                message = signedInError.orEmpty(),
+                                onDismiss = { dismissedSignedInError = state.lastError },
+                            )
+                        }
+
                         // Thẻ hồ sơ với hiệu ứng nghiêng 3D chuẩn Mochy
                         Box(
                             modifier = Modifier
@@ -693,9 +779,13 @@ private fun MochyCloudSheetContent(
                                             enabled = !controller.busy,
                                             onClick = {
                                                 controller.statusNotice = null
+                                                controller.statusNoticeIsError = false
                                                 popup.showRenameSheet(
                                                     initialName = state.displayName.ifBlank { state.username },
-                                                    onSaved = { msg -> controller.statusNotice = msg },
+                                                    onSaved = { msg ->
+                                                        controller.statusNotice = msg
+                                                        controller.statusNoticeIsError = false
+                                                    },
                                                 )
                                             },
                                         )
@@ -703,6 +793,50 @@ private fun MochyCloudSheetContent(
                                 }
                             }
                         }
+
+                        // Thẻ "Liên kết & đăng nhập đa thiết bị" chuẩn Stock Mochy 8.4.2
+                        CloudAccountLinkCard(
+                            state = state,
+                            busy = controller.busy,
+                            modifier = Modifier.revealOnAppear("cloud_account_link_card", revealSeen, cascade = true),
+                            onLinkGoogle = {
+                                focusManager.clearFocus()
+                                controller.statusNotice = null
+                                controller.statusNoticeIsError = false
+                                val loginHint = accountEmail.trim().takeIf {
+                                    it.contains("@") && !it.endsWith("@account.mochy.app", ignoreCase = true)
+                                }
+                                scope.launch {
+                                    MochyCloudSyncManager.startLinkGoogleAccount(context, loginHint)
+                                }
+                            },
+                            onCancelGoogleLink = {
+                                MochyCloudSyncManager.cancelGoogleAuthInProgress()
+                            },
+                            onChangeUsername = {
+                                controller.statusNotice = null
+                                controller.statusNoticeIsError = false
+                                popup.showEditUsernameSheet(
+                                    currentUsername = state.username,
+                                    onUpdated = {
+                                        controller.statusNotice = null
+                                        controller.statusNoticeIsError = false
+                                    },
+                                )
+                            },
+                            onOpenPasswordSheet = {
+                                controller.statusNotice = null
+                                controller.statusNoticeIsError = false
+                                popup.showChangePasswordSheet(
+                                    hasPasswordLogin = state.hasPasswordLogin,
+                                    username = state.username,
+                                    onChanged = {
+                                        controller.statusNotice = null
+                                        controller.statusNoticeIsError = false
+                                    },
+                                )
+                            },
+                        )
 
                         // Thẻ "Nghe tiếp từ thiết bị khác"
                         val otherResume = state.remoteResume?.takeIf { it.deviceId != localDeviceId }
@@ -864,9 +998,11 @@ private fun MochyCloudSheetContent(
                                                 )
                                                 controller.statusNotice =
                                                     "Đã lưu vị trí \"${currentPlayingSong.title}\" lên Mochy Cloud."
+                                                controller.statusNoticeIsError = false
                                             }.onFailure { err ->
                                                 controller.statusNotice =
                                                     err.message ?: "Không thể lưu vị trí đang nghe."
+                                                controller.statusNoticeIsError = true
                                             }
                                         }
                                     },
@@ -891,12 +1027,21 @@ private fun MochyCloudSheetContent(
                             )
                             CloudActionRow(
                                 icon = R.drawable.lock,
-                                label = "Đổi mật khẩu",
+                                label = stringResource(
+                                    if (state.hasPasswordLogin) R.string.mochy_cloud_change_password_btn
+                                    else R.string.mochy_cloud_set_password_title,
+                                ),
                                 enabled = !controller.busy,
                                 onClick = {
                                     controller.statusNotice = null
+                                    controller.statusNoticeIsError = false
                                     popup.showChangePasswordSheet(
-                                        onChanged = { msg -> controller.statusNotice = msg },
+                                        hasPasswordLogin = state.hasPasswordLogin,
+                                        username = state.username,
+                                        onChanged = {
+                                            controller.statusNotice = null
+                                            controller.statusNoticeIsError = false
+                                        },
                                     )
                                 },
                             )
@@ -910,6 +1055,7 @@ private fun MochyCloudSheetContent(
                                         MochyCloudSyncManager.signOut(context)
                                         controller.busy = false
                                         controller.statusNotice = "Đã đăng xuất tài khoản Mochy Cloud."
+                                        controller.statusNoticeIsError = false
                                     }
                                 },
                             )
@@ -920,8 +1066,12 @@ private fun MochyCloudSheetContent(
                                 enabled = !controller.busy,
                                 onClick = {
                                     controller.statusNotice = null
+                                    controller.statusNoticeIsError = false
                                     popup.showConfirmWipeCloudSheet(
-                                        onWiped = { msg -> controller.statusNotice = msg },
+                                        onWiped = { msg ->
+                                            controller.statusNotice = msg
+                                            controller.statusNoticeIsError = false
+                                        },
                                     )
                                 },
                             )
@@ -931,18 +1081,28 @@ private fun MochyCloudSheetContent(
             }
         }
 
-        val notice = controller.statusNotice ?: state.lastError
+        val notice = if (state.signedIn) controller.statusNotice else (controller.statusNotice ?: state.lastError)
+        val noticeIsError = if (controller.statusNotice != null) {
+            controller.statusNoticeIsError
+        } else {
+            !state.lastError.isNullOrBlank()
+        }
         if (!notice.isNullOrBlank()) {
+            val noticeShape = RoundedCornerShape(16.dp)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MenuRowSurface)
+                    .clip(noticeShape)
+                    .background(if (noticeIsError) SheetErrorRed.copy(alpha = 0.14f) else MenuRowSurface)
+                    .then(
+                        if (noticeIsError) Modifier.border(1.dp, SheetErrorRed.copy(alpha = 0.34f), noticeShape)
+                        else Modifier,
+                    )
                     .padding(horizontal = 14.dp, vertical = 12.dp),
             ) {
                 Text(
                     text = notice,
-                    color = if (state.lastError != null && controller.statusNotice == null) SheetErrorRed else Color.White,
+                    color = if (noticeIsError) SheetErrorRed else Color.White,
                     fontFamily = InterFontFamily,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -1078,6 +1238,673 @@ private fun PlaybackResumeCard(
     }
 }
 
+@Composable
+private fun CloudAuthStatusBanner(
+    message: String,
+    onDismiss: () -> Unit,
+) {
+    val closeInteraction = remember { MutableInteractionSource() }
+    val haptic = LocalHapticFeedback.current
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(ResumeAccentGreen.copy(alpha = 0.14f))
+            .border(1.dp, ResumeAccentGreen.copy(alpha = 0.32f), shape)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(ResumeAccentGreen.copy(alpha = 0.2f)),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.check),
+                contentDescription = null,
+                tint = ResumeAccentGreen,
+                modifier = Modifier.size(15.dp),
+            )
+        }
+        Text(
+            text = message,
+            color = Color.White,
+            fontFamily = InterFontFamily,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(28.dp)
+                .pressBounce(closeInteraction, pressedScale = 0.92f)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.10f))
+                .clickable(
+                    interactionSource = closeInteraction,
+                    indication = RemoteFocus,
+                ) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onDismiss()
+                },
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.close),
+                contentDescription = stringResource(R.string.close),
+                tint = Color.White.copy(alpha = 0.82f),
+                modifier = Modifier.size(14.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CloudErrorStatusBanner(
+    message: String,
+    onDismiss: () -> Unit,
+) {
+    val closeInteraction = remember { MutableInteractionSource() }
+    val haptic = LocalHapticFeedback.current
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(SheetErrorRed.copy(alpha = 0.14f))
+            .border(1.dp, SheetErrorRed.copy(alpha = 0.36f), shape)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(SheetErrorRed.copy(alpha = 0.22f)),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.warning),
+                contentDescription = null,
+                tint = SheetErrorRed,
+                modifier = Modifier.size(15.dp),
+            )
+        }
+        Text(
+            text = message,
+            color = SheetErrorRed,
+            fontFamily = InterFontFamily,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(28.dp)
+                .pressBounce(closeInteraction, pressedScale = 0.92f)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.10f))
+                .clickable(
+                    interactionSource = closeInteraction,
+                    indication = RemoteFocus,
+                ) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onDismiss()
+                },
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.close),
+                contentDescription = stringResource(R.string.close),
+                tint = Color.White.copy(alpha = 0.82f),
+                modifier = Modifier.size(14.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CloudAccountLinkCard(
+    state: MochyCloudState,
+    busy: Boolean,
+    onLinkGoogle: () -> Unit,
+    onCancelGoogleLink: () -> Unit,
+    onChangeUsername: () -> Unit,
+    onOpenPasswordSheet: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = LocalHapticFeedback.current
+    val linkBtnInteraction = remember { MutableInteractionSource() }
+    val cancelBtnInteraction = remember { MutableInteractionSource() }
+    val setPwdInteraction = remember { MutableInteractionSource() }
+    val cardShape = RoundedCornerShape(18.dp)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(cardShape)
+            .background(MenuRowSurface)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), cardShape)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // Tiêu đề thẻ
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.link),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = stringResource(R.string.mochy_cloud_link_card_title),
+                    color = Color.White,
+                    fontFamily = InterFontFamily,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.3).sp,
+                )
+            }
+            Text(
+                text = stringResource(R.string.mochy_cloud_link_card_subtitle),
+                color = Onb.Subtitle,
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.08f)),
+        )
+
+        // 1) Liên kết Google
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color.White),
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_google_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    if (state.hasGoogleLinked) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(ResumeAccentGreen.copy(alpha = 0.16f))
+                                .border(1.dp, ResumeAccentGreen.copy(alpha = 0.36f), CircleShape)
+                                .padding(horizontal = 9.dp, vertical = 3.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.check),
+                                contentDescription = null,
+                                tint = ResumeAccentGreen,
+                                modifier = Modifier.size(12.dp),
+                            )
+                            Text(
+                                text = stringResource(R.string.mochy_cloud_google_linked_badge),
+                                color = ResumeAccentGreen,
+                                fontFamily = InterFontFamily,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                            )
+                        }
+                        val email = state.linkedGoogleEmail?.trim()
+                        if (!email.isNullOrBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = email,
+                                color = Onb.Subtitle,
+                                fontFamily = InterFontFamily,
+                                fontSize = 12.5.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.mochy_cloud_google_not_linked),
+                            color = Color.White,
+                            fontFamily = InterFontFamily,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.mochy_cloud_google_link_hint),
+                            color = Onb.Subtitle,
+                            fontFamily = InterFontFamily,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                        )
+                    }
+                }
+            }
+
+            if (!state.hasGoogleLinked) {
+                if (state.googleAuthInProgress) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.10f))
+                            .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
+                            .padding(horizontal = 14.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White,
+                        )
+                        Text(
+                            text = stringResource(R.string.mochy_cloud_google_linking),
+                            color = Color.White,
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .pressBounce(cancelBtnInteraction, pressedScale = 0.94f)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.14f))
+                                .clickable(
+                                    interactionSource = cancelBtnInteraction,
+                                    indication = RemoteFocus,
+                                ) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onCancelGoogleLink()
+                                }
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.cancel),
+                                color = Color.White,
+                                fontFamily = InterFontFamily,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp)
+                            .pressBounce(linkBtnInteraction, pressedScale = 0.97f)
+                            .graphicsLayer { alpha = if (!busy) 1f else 0.52f }
+                            .clip(CircleShape)
+                            .background(Onb.ButtonPrimary)
+                            .clickable(
+                                enabled = !busy,
+                                interactionSource = linkBtnInteraction,
+                                indication = RemoteFocus,
+                            ) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onLinkGoogle()
+                            }
+                            .padding(horizontal = 16.dp),
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_google_logo),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.mochy_cloud_link_google_btn),
+                            color = Color.White,
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.08f)),
+        )
+
+        // 2) Tên đăng nhập (@username) & Đổi @username
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.10f)),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.account),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.mochy_cloud_username_section_label),
+                    color = Onb.Muted,
+                    fontFamily = InterFontFamily,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = "@${state.username}",
+                    color = Color.White,
+                    fontFamily = InterFontFamily,
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            CloudProfileChip(
+                label = stringResource(R.string.mochy_cloud_change_username_btn),
+                highlighted = false,
+                enabled = !busy && !state.googleAuthInProgress,
+                onClick = onChangeUsername,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.08f)),
+        )
+
+        // 3) Mật khẩu đăng nhập bằng @username
+        if (state.hasPasswordLogin) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(ResumeAccentGreen.copy(alpha = 0.16f)),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.check),
+                        contentDescription = null,
+                        tint = ResumeAccentGreen,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.mochy_cloud_password_enabled_status, state.username),
+                    color = Color.White,
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.5.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                CloudProfileChip(
+                    label = stringResource(R.string.mochy_cloud_change_password_btn),
+                    highlighted = false,
+                    enabled = !busy && !state.googleAuthInProgress,
+                    onClick = onOpenPasswordSheet,
+                )
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(StatusWarningAmber.copy(alpha = 0.16f)),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.lock),
+                            contentDescription = null,
+                            tint = StatusWarningAmber,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.mochy_cloud_password_missing_hint, state.username),
+                        color = Color.White,
+                        fontFamily = InterFontFamily,
+                        fontSize = 12.5.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .pressBounce(setPwdInteraction, pressedScale = 0.97f)
+                        .graphicsLayer { alpha = if (!busy && !state.googleAuthInProgress) 1f else 0.52f }
+                        .clip(CircleShape)
+                        .background(Onb.ButtonPrimary)
+                        .clickable(
+                            enabled = !busy && !state.googleAuthInProgress,
+                            interactionSource = setPwdInteraction,
+                            indication = RemoteFocus,
+                        ) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onOpenPasswordSheet()
+                        }
+                        .padding(horizontal = 16.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.mochy_cloud_set_password_btn),
+                        color = Color.White,
+                        fontFamily = InterFontFamily,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Stable
+private class EditUsernameSheetState(initialUsername: String) {
+    var usernameInput by mutableStateOf(filterStrictUsername(initialUsername))
+    var saving by mutableStateOf(false)
+    var errorMsg by mutableStateOf<String?>(null)
+}
+
+/** Tầng sheet con Đổi @username đẩy qua [PopupSheetState]. */
+private fun PopupSheetState.showEditUsernameSheet(
+    currentUsername: String,
+    onUpdated: () -> Unit,
+) {
+    val form = EditUsernameSheetState(currentUsername)
+    var handle: PopupSheetHandle? = null
+    handle = showWithHandle(
+        buttonBar = {
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            val focusManager = LocalFocusManager.current
+            val clean = form.usernameInput.trim()
+            val unchanged = clean == currentUsername.trim().lowercase()
+            val ready = !form.saving && clean.length in 3..24 && !unchanged
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                CloudPrimaryButton(
+                    text = if (form.saving) {
+                        stringResource(R.string.mochy_cloud_saving)
+                    } else {
+                        stringResource(R.string.mochy_cloud_save_username_btn)
+                    },
+                    enabled = !form.saving,
+                    dimmed = !ready,
+                    onClick = {
+                        if (clean.length !in 3..24) {
+                            form.errorMsg = context.getString(R.string.mochy_cloud_username_invalid_error)
+                            return@CloudPrimaryButton
+                        }
+                        if (unchanged) {
+                            form.errorMsg = context.getString(R.string.mochy_cloud_username_unchanged_error)
+                            return@CloudPrimaryButton
+                        }
+                        focusManager.clearFocus()
+                        scope.launch {
+                            form.saving = true
+                            form.errorMsg = null
+                            handle?.setLocked(true)
+                            val res = MochyCloudSyncManager.updateUsername(context, clean)
+                            form.saving = false
+                            handle?.setLocked(false)
+                            res.onSuccess {
+                                onUpdated()
+                                handle?.dismiss()
+                            }.onFailure { err ->
+                                form.errorMsg = err.message
+                                    ?: context.getString(R.string.mochy_cloud_username_update_failed)
+                            }
+                        }
+                    },
+                )
+                CloudPrimaryButton(
+                    text = stringResource(R.string.cancel),
+                    enabled = !form.saving,
+                    secondary = true,
+                    onClick = { handle?.dismiss() },
+                )
+            }
+        },
+    ) {
+        val focusManager = LocalFocusManager.current
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Spacer(Modifier.height(2.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                PageBadge(painterResource(R.drawable.account), size = 40.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.mochy_cloud_change_username_title),
+                        color = Color.White,
+                        fontFamily = InterFontFamily,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.03).em,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.mochy_cloud_change_username_subtitle),
+                        color = Onb.Subtitle,
+                        fontFamily = InterFontFamily,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OnbPillInput(
+                    value = form.usernameInput,
+                    onValueChange = {
+                        form.usernameInput = filterStrictUsername(it)
+                        form.errorMsg = null
+                    },
+                    placeholder = stringResource(R.string.mochy_cloud_signup_username_placeholder),
+                    prefix = "@",
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Ascii,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus() },
+                    ),
+                )
+                Text(
+                    text = stringResource(R.string.mochy_cloud_signup_username_hint),
+                    color = Onb.Muted,
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 10.dp),
+                )
+            }
+
+            val err = form.errorMsg
+            if (!err.isNullOrBlank()) {
+                Text(
+                    text = err,
+                    color = SheetErrorRed,
+                    fontFamily = InterFontFamily,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+    }
+}
+
 @Stable
 private class RenameSheetState(initialName: String) {
     var nameInput by mutableStateOf(initialName.take(40))
@@ -1202,9 +2029,11 @@ private class PasswordSheetState {
     var errorMsg by mutableStateOf<String?>(null)
 }
 
-/** Tầng sheet con Đổi mật khẩu đẩy qua [PopupSheetState]. */
+/** Tầng sheet con Đặt / Đổi mật khẩu đẩy qua [PopupSheetState]. */
 private fun PopupSheetState.showChangePasswordSheet(
-    onChanged: (String) -> Unit,
+    hasPasswordLogin: Boolean,
+    username: String,
+    onChanged: () -> Unit,
 ) {
     val form = PasswordSheetState()
     var handle: PopupSheetHandle? = null
@@ -1216,7 +2045,11 @@ private fun PopupSheetState.showChangePasswordSheet(
             val ready = !form.saving && form.newPassword.length >= 6 && form.newPassword == form.confirmPassword
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 CloudPrimaryButton(
-                    text = if (form.saving) "Đang cập nhật…" else "Cập nhật mật khẩu",
+                    text = when {
+                        form.saving -> stringResource(R.string.mochy_cloud_updating_password)
+                        hasPasswordLogin -> stringResource(R.string.mochy_cloud_change_password_confirm_btn)
+                        else -> stringResource(R.string.mochy_cloud_set_password_confirm_btn)
+                    },
                     enabled = !form.saving,
                     dimmed = !ready,
                     onClick = {
@@ -1237,16 +2070,17 @@ private fun PopupSheetState.showChangePasswordSheet(
                             form.saving = false
                             handle?.setLocked(false)
                             res.onSuccess {
-                                onChanged("Đã đổi mật khẩu Mochy Cloud thành công.")
+                                onChanged()
                                 handle?.dismiss()
                             }.onFailure { err ->
-                                form.errorMsg = err.message ?: "Không thể đổi mật khẩu."
+                                form.errorMsg = err.message
+                                    ?: context.getString(R.string.mochy_cloud_password_update_failed)
                             }
                         }
                     },
                 )
                 CloudPrimaryButton(
-                    text = "Hủy",
+                    text = stringResource(R.string.cancel),
                     enabled = !form.saving,
                     secondary = true,
                     onClick = { handle?.dismiss() },
@@ -1269,7 +2103,10 @@ private fun PopupSheetState.showChangePasswordSheet(
                 PageBadge(painterResource(R.drawable.lock), size = 40.dp)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Đổi mật khẩu tài khoản",
+                        text = stringResource(
+                            if (hasPasswordLogin) R.string.mochy_cloud_change_password_title
+                            else R.string.mochy_cloud_set_password_title,
+                        ),
                         color = Color.White,
                         fontFamily = InterFontFamily,
                         fontSize = 20.sp,
@@ -1278,7 +2115,11 @@ private fun PopupSheetState.showChangePasswordSheet(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Dùng tối thiểu 6 ký tự để bảo vệ tài khoản Mochy Cloud.",
+                        text = if (hasPasswordLogin) {
+                            stringResource(R.string.mochy_cloud_change_password_subtitle)
+                        } else {
+                            stringResource(R.string.mochy_cloud_set_password_subtitle, username)
+                        },
                         color = Onb.Subtitle,
                         fontFamily = InterFontFamily,
                         fontSize = 13.sp,

@@ -114,6 +114,9 @@ data class MochyCloudState(
     val remoteResume: CloudPlaybackResume? = null,
     val googleAuthInProgress: Boolean = false,
     val linkedGoogleEmail: String? = null,
+    val hasGoogleLinked: Boolean = false,
+    val hasPasswordLogin: Boolean = true,
+    val authStatusMessage: String? = null,
 )
 
 /**
@@ -201,6 +204,7 @@ object MochyCloudSyncManager {
             username = cached?.username.orEmpty(),
             displayName = cached?.displayName.orEmpty(),
             linkedGoogleEmail = savedGoogleEmail,
+            hasGoogleLinked = savedGoogleEmail != null,
         )
         if (configured && cached != null) {
             MochyCloudVault.loadPendingHistory(app, cached.userId).forEach { rec ->
@@ -263,6 +267,9 @@ object MochyCloudSyncManager {
                 avatarLocalPath = localAvatarPath,
                 googleAuthInProgress = false,
                 linkedGoogleEmail = null,
+                hasGoogleLinked = false,
+                hasPasswordLogin = true,
+                authStatusMessage = "Đăng ký tài khoản @${session.username} thành công! Bạn có thể liên kết thêm Google bên dưới.",
                 lastError = null,
             )
             lastSessionFailureReason = null
@@ -281,9 +288,9 @@ object MochyCloudSyncManager {
     ): Result<Unit> = withContext(NonCancellable + Dispatchers.IO) {
         runCatching {
             val app = context.applicationContext
-            val session = MochySupabaseClient.signIn(app, username, password)
+            val (session, identity) = MochySupabaseClient.signInDetailed(app, username, password)
             MochyCloudVault.saveSession(app, session)
-            MochyCloudVault.saveGoogleEmail(app, null)
+            MochyCloudVault.saveGoogleEmail(app, identity.googleEmail)
             val existingAvatar = readLocalAvatarFile(app)
             ProfileStore.save(app, session.displayName, null, syncToCloud = false)
             _state.value = _state.value.copy(
@@ -293,7 +300,10 @@ object MochyCloudSyncManager {
                 displayName = session.displayName,
                 avatarLocalPath = existingAvatar?.absolutePath ?: _state.value.avatarLocalPath,
                 googleAuthInProgress = false,
-                linkedGoogleEmail = null,
+                linkedGoogleEmail = identity.googleEmail,
+                hasGoogleLinked = identity.hasGoogleLinked,
+                hasPasswordLogin = true,
+                authStatusMessage = "Đăng nhập @${session.username} thành công — đang đồng bộ dữ liệu…",
                 lastError = null,
             )
             lastSessionFailureReason = null
@@ -305,21 +315,14 @@ object MochyCloudSyncManager {
         }
     }
 
-    fun startGoogleSignIn(
-        context: Context,
-        loginHintEmail: String? = null,
-    ): Result<Unit> = runCatching {
+    fun clearAuthStatusMessage() {
+        if (_state.value.authStatusMessage != null) {
+            _state.value = _state.value.copy(authStatusMessage = null)
+        }
+    }
+
+    private fun launchOAuthCustomTab(context: Context, authorizeUrl: String) {
         val app = context.applicationContext
-        val (baseUrl, _) = MochyCloudVault.revealEndpoint(app)
-            ?: throw MochyCloudException("Bản dựng này chưa cấu hình Mochy Cloud.")
-        val verifier = MochyGoogleOAuthHelper.generatePkceVerifier()
-        val challenge = MochyGoogleOAuthHelper.computePkceChallenge(verifier)
-        MochyCloudVault.savePendingPkceVerifier(app, verifier)
-        val authorizeUrl = MochyGoogleOAuthHelper.buildGoogleAuthorizeUrl(
-            baseUrl = baseUrl,
-            codeChallenge = challenge,
-            loginHintEmail = loginHintEmail,
-        )
         val uri = Uri.parse(authorizeUrl)
         val customTabBundle = Bundle().apply {
             putBinder("android.support.customtabs.extra.SESSION", null)
@@ -348,17 +351,81 @@ object MochyCloudSyncManager {
             }
             context.startActivity(fallback)
         }
+    }
+
+    fun startGoogleSignIn(
+        context: Context,
+        loginHintEmail: String? = null,
+    ): Result<Unit> = runCatching {
+        val app = context.applicationContext
+        val (baseUrl, _) = MochyCloudVault.revealEndpoint(app)
+            ?: throw MochyCloudException("Bản dựng này chưa cấu hình Mochy Cloud.")
+        val verifier = MochyGoogleOAuthHelper.generatePkceVerifier()
+        val challenge = MochyGoogleOAuthHelper.computePkceChallenge(verifier)
+        MochyCloudVault.savePendingPkceFlow(app, verifier, MochyCloudVault.PkceModeSignIn)
+        val authorizeUrl = MochyGoogleOAuthHelper.buildGoogleAuthorizeUrl(
+            baseUrl = baseUrl,
+            codeChallenge = challenge,
+            loginHintEmail = loginHintEmail,
+        )
+        launchOAuthCustomTab(context, authorizeUrl)
         _state.value = _state.value.copy(
             googleAuthInProgress = true,
             lastError = null,
+            authStatusMessage = null,
         )
     }.onFailure { err ->
+        MochyCloudVault.consumePendingPkceFlow(context.applicationContext)
         val msg = err.message?.takeIf { it.isNotBlank() }
             ?: "Không tìm thấy trình duyệt để đăng nhập Google."
         _state.value = _state.value.copy(
             googleAuthInProgress = false,
             lastError = msg,
         )
+    }
+
+    suspend fun startLinkGoogleAccount(
+        context: Context,
+        loginHintEmail: String? = null,
+    ): Result<Unit> = withContext(NonCancellable + Dispatchers.IO) {
+        runCatching {
+            val app = context.applicationContext
+            val session = getValidSession(app)
+                ?: throw MochyCloudException(lastSessionFailureReason ?: "Bạn chưa đăng nhập Mochy Cloud.")
+            _state.value = _state.value.copy(
+                googleAuthInProgress = true,
+                lastError = null,
+                authStatusMessage = null,
+            )
+            val verifier = MochyGoogleOAuthHelper.generatePkceVerifier()
+            val challenge = MochyGoogleOAuthHelper.computePkceChallenge(verifier)
+            val authorizeUrl = MochySupabaseClient.requestGoogleLinkAuthorizeUrl(
+                context = app,
+                session = session,
+                codeChallenge = challenge,
+                loginHintEmail = loginHintEmail,
+            )
+            MochyCloudVault.savePendingPkceFlow(app, verifier, MochyCloudVault.PkceModeLink)
+            withContext(Dispatchers.Main) {
+                launchOAuthCustomTab(context, authorizeUrl)
+            }
+            Unit
+        }.onFailure { err ->
+            MochyCloudVault.consumePendingPkceFlow(context.applicationContext)
+            if (err is MochyCloudAuthExpiredException) {
+                handleSessionExpired(
+                    context.applicationContext,
+                    err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
+                )
+            } else {
+                val msg = err.message?.takeIf { it.isNotBlank() }
+                    ?: "Không thể bắt đầu liên kết tài khoản Google."
+                _state.value = _state.value.copy(
+                    googleAuthInProgress = false,
+                    lastError = msg,
+                )
+            }
+        }
     }
 
     fun cancelGoogleAuthInProgress() {
@@ -380,9 +447,18 @@ object MochyCloudSyncManager {
                     rawQuery = uri.encodedQuery,
                     rawFragment = uri.encodedFragment,
                 )
-                if (!parsed.error.isNullOrBlank() || !parsed.errorDescription.isNullOrBlank()) {
+                val pendingFlow = MochyCloudVault.consumePendingPkceFlow(app)
+                val isLinkMode = pendingFlow?.mode == MochyCloudVault.PkceModeLink
+
+                if (!parsed.error.isNullOrBlank() ||
+                    !parsed.errorCode.isNullOrBlank() ||
+                    !parsed.errorDescription.isNullOrBlank()
+                ) {
+                    val combinedError = listOfNotNull(parsed.errorCode, parsed.error)
+                        .joinToString(" ")
+                        .ifBlank { null }
                     val msg = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese(
-                        error = parsed.error,
+                        error = combinedError,
                         errorDescription = parsed.errorDescription,
                     )
                     _state.value = _state.value.copy(
@@ -395,11 +471,7 @@ object MochyCloudSyncManager {
                     return@withLock
                 }
 
-                val verifier = if (!parsed.code.isNullOrBlank()) {
-                    MochyCloudVault.consumePendingPkceVerifier(app)
-                } else {
-                    null
-                }
+                val verifier = pendingFlow?.verifier
                 if (!parsed.code.isNullOrBlank() && verifier == null) {
                     if (_state.value.signedIn && MochyCloudVault.loadSession(app) != null) {
                         _state.value = _state.value.copy(googleAuthInProgress = false)
@@ -412,6 +484,88 @@ object MochyCloudSyncManager {
                     )
                     withContext(Dispatchers.Main) {
                         TopToaster.error(expiredMsg)
+                    }
+                    return@withLock
+                }
+
+                if (isLinkMode) {
+                    val existingSession = MochyCloudVault.loadSession(app)
+                    val linkOutcome = runCatching {
+                        val authResult: OAuthAuthResult = when {
+                            !parsed.code.isNullOrBlank() && verifier != null -> {
+                                MochySupabaseClient.exchangePkceCode(app, parsed.code, verifier)
+                            }
+                            !parsed.accessToken.isNullOrBlank() -> {
+                                MochySupabaseClient.fetchSessionFromAccessToken(
+                                    context = app,
+                                    accessToken = parsed.accessToken,
+                                    refreshToken = parsed.refreshToken.orEmpty(),
+                                    expiresInSec = parsed.expiresIn ?: 3600L,
+                                )
+                            }
+                            else -> {
+                                throw MochyCloudException("Không nhận được phản hồi hợp lệ từ Google.")
+                            }
+                        }
+
+                        var linkedSession = if (existingSession != null && authResult.session.userId == existingSession.userId) {
+                            authResult.session.copy(
+                                username = existingSession.username.ifBlank { authResult.session.username },
+                                displayName = existingSession.displayName.ifBlank { authResult.session.displayName },
+                            )
+                        } else {
+                            authResult.session
+                        }
+                        MochyCloudVault.saveSession(app, linkedSession)
+
+                        val freshMeta = runCatching {
+                            MochySupabaseClient.fetchUserMetadata(app, linkedSession)
+                        }.getOrNull()
+                        val resolvedGoogleEmail = freshMeta?.googleEmail
+                            ?: authResult.email
+                            ?: MochyCloudVault.loadGoogleEmail(app)
+                        val resolvedUsername = freshMeta?.username?.takeIf { it.isNotBlank() }
+                            ?: linkedSession.username
+                        if (resolvedUsername != linkedSession.username) {
+                            linkedSession = linkedSession.copy(username = resolvedUsername)
+                            MochyCloudVault.saveSession(app, linkedSession)
+                        }
+                        MochyCloudVault.saveGoogleEmail(app, resolvedGoogleEmail)
+
+                        val statusMsg = "Đã liên kết Google (${resolvedGoogleEmail ?: "Google"}) vào tài khoản @${linkedSession.username}! Giờ bạn có thể đăng nhập bằng cả Google lẫn @${linkedSession.username}."
+                        _state.value = _state.value.copy(
+                            isConfigured = true,
+                            signedIn = true,
+                            username = linkedSession.username,
+                            displayName = linkedSession.displayName,
+                            hasGoogleLinked = freshMeta?.hasGoogleLinked ?: true,
+                            linkedGoogleEmail = resolvedGoogleEmail,
+                            hasPasswordLogin = freshMeta?.hasPasswordLogin ?: true,
+                            googleAuthInProgress = false,
+                            lastError = null,
+                            authStatusMessage = statusMsg,
+                        )
+                        lastSessionFailureReason = null
+                        lastSessionExpired = false
+                        appScope?.let { startObservers(app, it) }
+                        statusMsg
+                    }
+
+                    linkOutcome.onSuccess { statusMsg ->
+                        withContext(Dispatchers.Main) {
+                            TopToaster.show(statusMsg)
+                        }
+                        syncNowInternal(app, fromUser = true)
+                    }.onFailure { err ->
+                        val msg = err.message?.takeIf { it.isNotBlank() }
+                            ?: "Liên kết tài khoản Google thất bại."
+                        _state.value = _state.value.copy(
+                            googleAuthInProgress = false,
+                            lastError = msg,
+                        )
+                        withContext(Dispatchers.Main) {
+                            TopToaster.error(msg)
+                        }
                     }
                     return@withLock
                 }
@@ -436,28 +590,44 @@ object MochyCloudSyncManager {
 
                     val initialSession = authResult.session
                     MochyCloudVault.saveSession(app, initialSession)
-                    MochyCloudVault.saveGoogleEmail(app, authResult.email)
 
-                    val ensuredUsername = MochySupabaseClient.ensureProfileRow(
-                        context = app,
-                        session = initialSession,
-                        displayName = initialSession.displayName,
-                    )
-                    var effectiveSession = if (ensuredUsername != initialSession.username) {
-                        initialSession.copy(username = ensuredUsername)
-                    } else {
-                        initialSession
+                    val existingProfileLookup = runCatching {
+                        MochySupabaseClient.fetchProfile(app, initialSession)
                     }
-                    if (effectiveSession != initialSession) {
-                        MochyCloudVault.saveSession(app, effectiveSession)
-                    }
+                    val existingProfileBeforeEnsure = existingProfileLookup.getOrNull()
+                    val hadNoProfileBeforeEnsure = existingProfileLookup.isSuccess && existingProfileBeforeEnsure == null
 
-                    val existingProfile = runCatching {
-                        MochySupabaseClient.fetchProfile(app, effectiveSession)
+                    val freshMeta = runCatching {
+                        MochySupabaseClient.fetchUserMetadata(app, initialSession)
                     }.getOrNull()
-                    if (existingProfile != null) {
-                        val resolvedUsername = existingProfile.username.trim().ifBlank { effectiveSession.username }
-                        val resolvedDisplay = existingProfile.displayName.trim().ifBlank { effectiveSession.displayName }
+                    val resolvedGoogleEmail = freshMeta?.googleEmail ?: authResult.email
+                    MochyCloudVault.saveGoogleEmail(app, resolvedGoogleEmail)
+
+                    val createdAtIso = freshMeta?.createdAtIso ?: authResult.createdAtIso
+                    val lastSignInAtIso = freshMeta?.lastSignInAtIso ?: authResult.lastSignInAtIso
+                    val isNewAccount = MochyGoogleOAuthHelper.isNewlyRegisteredAccount(createdAtIso, lastSignInAtIso) ||
+                        hadNoProfileBeforeEnsure
+
+                    var effectiveSession = initialSession
+                    val effectiveProfile: CloudProfileRecord? = if (existingProfileBeforeEnsure != null) {
+                        existingProfileBeforeEnsure
+                    } else {
+                        val ensuredUsername = MochySupabaseClient.ensureProfileRow(
+                            context = app,
+                            session = initialSession,
+                            displayName = initialSession.displayName,
+                        )
+                        if (ensuredUsername != initialSession.username) {
+                            effectiveSession = initialSession.copy(username = ensuredUsername)
+                            MochyCloudVault.saveSession(app, effectiveSession)
+                        }
+                        runCatching {
+                            MochySupabaseClient.fetchProfile(app, effectiveSession)
+                        }.getOrNull()
+                    }
+                    if (effectiveProfile != null) {
+                        val resolvedUsername = effectiveProfile.username.trim().ifBlank { effectiveSession.username }
+                        val resolvedDisplay = effectiveProfile.displayName.trim().ifBlank { effectiveSession.displayName }
                         if (resolvedUsername != effectiveSession.username || resolvedDisplay != effectiveSession.displayName) {
                             effectiveSession = effectiveSession.copy(
                                 username = resolvedUsername,
@@ -476,7 +646,7 @@ object MochyCloudSyncManager {
 
                     val existingLocalAvatar = readLocalAvatarFile(app)
                     var resolvedAvatarPath = existingLocalAvatar?.absolutePath
-                    val remoteAvatarFile = existingProfile?.avatarWebp?.let {
+                    val remoteAvatarFile = effectiveProfile?.avatarWebp?.let {
                         MochyAvatarCodec.decodeDataUriToFile(app, it)
                     }
                     if (remoteAvatarFile != null) {
@@ -504,7 +674,16 @@ object MochyCloudSyncManager {
                         ProfileStore.save(app, effectiveSession.displayName, null, syncToCloud = false)
                     }
 
-                    val savedEmail = MochyCloudVault.loadGoogleEmail(app) ?: authResult.email
+                    val savedEmail = MochyCloudVault.loadGoogleEmail(app) ?: resolvedGoogleEmail
+                    val hasGoogleLinked = freshMeta?.hasGoogleLinked ?: authResult.hasGoogleLinked
+                    val hasPasswordLogin = freshMeta?.hasPasswordLogin ?: authResult.hasPasswordLogin
+                    val finalUsername = effectiveSession.username
+                    val statusMsg = if (isNewAccount) {
+                        "Đăng ký tài khoản mới bằng Google thành công! Tên đăng nhập của bạn: @$finalUsername. Bạn có thể đặt thêm mật khẩu bên dưới để đăng nhập bằng @$finalUsername trên máy khác."
+                    } else {
+                        "Tài khoản Google này đã được đăng ký từ trước (@$finalUsername) — đã đăng nhập lại và đang đồng bộ dữ liệu."
+                    }
+
                     _state.value = _state.value.copy(
                         isConfigured = true,
                         signedIn = true,
@@ -513,17 +692,20 @@ object MochyCloudSyncManager {
                         avatarLocalPath = resolvedAvatarPath ?: _state.value.avatarLocalPath,
                         googleAuthInProgress = false,
                         linkedGoogleEmail = savedEmail,
+                        hasGoogleLinked = hasGoogleLinked,
+                        hasPasswordLogin = hasPasswordLogin,
+                        authStatusMessage = statusMsg,
                         lastError = null,
                     )
                     lastSessionFailureReason = null
                     lastSessionExpired = false
                     appScope?.let { startObservers(app, it) }
-                    effectiveSession
+                    statusMsg
                 }
 
-                outcome.onSuccess { session ->
+                outcome.onSuccess { statusMsg ->
                     withContext(Dispatchers.Main) {
-                        TopToaster.show("Đã đăng nhập Mochy Cloud (${session.displayName})")
+                        TopToaster.show(statusMsg)
                     }
                     syncNowInternal(app, fromUser = true)
                 }.onFailure { err ->
@@ -618,6 +800,38 @@ object MochyCloudSyncManager {
         }
     }
 
+    suspend fun updateUsername(
+        context: Context,
+        rawNewUsername: String,
+    ): Result<String> = withContext(NonCancellable + Dispatchers.IO) {
+        runCatching {
+            val app = context.applicationContext
+            val clean = MochySupabaseClient.normalizeUsername(rawNewUsername).removePrefix("@")
+            if (!MochySupabaseClient.isValidUsername(clean)) {
+                throw MochyCloudException("Tên đăng nhập 3–24 ký tự, chỉ gồm chữ thường, số, dấu chấm hoặc gạch dưới.")
+            }
+            val session = getValidSession(app)
+                ?: throw MochyCloudException(lastSessionFailureReason ?: "Bạn chưa đăng nhập Mochy Cloud.")
+            val updated = MochySupabaseClient.updateUsername(app, session, clean)
+            val latestSession = MochyCloudVault.loadSession(app)
+                ?.takeIf { it.userId == session.userId }
+                ?: session
+            MochyCloudVault.saveSession(app, latestSession.copy(username = updated))
+            _state.value = _state.value.copy(
+                username = updated,
+                authStatusMessage = "Đã đổi tên đăng nhập thành @$updated.",
+                lastError = null,
+            )
+            updated
+        }.onFailure { err ->
+            if (err is MochyCloudAuthExpiredException) {
+                handleSessionExpired(context.applicationContext, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+            } else {
+                _state.value = _state.value.copy(lastError = err.message)
+            }
+        }
+    }
+
     suspend fun changePassword(
         context: Context,
         newPassword: String,
@@ -626,11 +840,25 @@ object MochyCloudSyncManager {
             val app = context.applicationContext
             val session = getValidSession(app)
                 ?: throw MochyCloudException(lastSessionFailureReason ?: "Bạn chưa đăng nhập Mochy Cloud.")
+            val hadPasswordBefore = _state.value.hasPasswordLogin
             MochySupabaseClient.updatePassword(app, session, newPassword)
+            val effectiveUsername = _state.value.username.ifBlank { session.username }
+            val statusMsg = if (!hadPasswordBefore) {
+                "Đã đặt mật khẩu thành công! Giờ bạn có thể sang máy khác đăng nhập trực tiếp bằng @$effectiveUsername hoặc Google đều vào cùng 1 tài khoản."
+            } else {
+                "Đã đổi mật khẩu Mochy Cloud thành công."
+            }
+            _state.value = _state.value.copy(
+                hasPasswordLogin = true,
+                authStatusMessage = statusMsg,
+                lastError = null,
+            )
             Unit
         }.onFailure { err ->
             if (err is MochyCloudAuthExpiredException) {
                 handleSessionExpired(context.applicationContext, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+            } else {
+                _state.value = _state.value.copy(lastError = err.message)
             }
         }
     }
@@ -1305,10 +1533,37 @@ object MochyCloudSyncManager {
                     currentResume.updatedAtEpochMs > decodedRemoteResume.updatedAtEpochMs -> currentResume
                 else -> decodedRemoteResume
             }
+            val resolvedUsername = profile?.username?.trim()?.takeIf { it.isNotBlank() }
+                ?: remoteMeta?.username?.trim()?.takeIf { it.isNotBlank() }
+                ?: finalSession.username
+            if (resolvedUsername != finalSession.username || activeDisplay != finalSession.displayName) {
+                MochyCloudVault.saveSession(
+                    app,
+                    finalSession.copy(
+                        username = resolvedUsername,
+                        displayName = activeDisplay,
+                    ),
+                )
+            }
+            val resolvedGoogleEmail = if (remoteMeta != null) {
+                remoteMeta.googleEmail?.also { MochyCloudVault.saveGoogleEmail(app, it) }
+                    ?: run {
+                        if (!remoteMeta.hasGoogleLinked) {
+                            MochyCloudVault.saveGoogleEmail(app, null)
+                            null
+                        } else {
+                            MochyCloudVault.loadGoogleEmail(app) ?: _state.value.linkedGoogleEmail
+                        }
+                    }
+            } else {
+                MochyCloudVault.loadGoogleEmail(app) ?: _state.value.linkedGoogleEmail
+            }
+            val resolvedHasGoogle = remoteMeta?.hasGoogleLinked ?: _state.value.hasGoogleLinked
+            val resolvedHasPassword = remoteMeta?.hasPasswordLogin ?: _state.value.hasPasswordLogin
             _state.value = _state.value.copy(
                 isConfigured = true,
                 signedIn = true,
-                username = finalSession.username,
+                username = resolvedUsername,
                 displayName = activeDisplay,
                 avatarLocalPath = avatarPath,
                 favoritesCount = finalSyncedIds.size,
@@ -1320,6 +1575,9 @@ object MochyCloudSyncManager {
                 lastSyncEpochMs = System.currentTimeMillis(),
                 lastError = null,
                 remoteResume = resolvedResume,
+                hasGoogleLinked = resolvedHasGoogle,
+                hasPasswordLogin = resolvedHasPassword,
+                linkedGoogleEmail = resolvedGoogleEmail,
             )
         } catch (err: MochyCloudAuthExpiredException) {
             handleSessionExpired(app, err.message ?: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")

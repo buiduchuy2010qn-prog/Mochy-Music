@@ -25,6 +25,11 @@ data class MochyCloudSession(
     val displayName: String,
 )
 
+data class PendingPkceFlow(
+    val verifier: String,
+    val mode: String,
+)
+
 /**
  * Kho bảo mật phiên đăng nhập và cấu hình Mochy Cloud.
  * - Cấu hình cloud được giải mã từ mảng byte XOR lúc build (`BuildConfig.MOCHY_CLOUD_*`), không lưu chuỗi gốc.
@@ -32,6 +37,9 @@ data class MochyCloudSession(
  * - Phiên JWT được mã hóa bằng Android Keystore (`AES/GCM/NoPadding`) trong `noBackupFilesDir`.
  */
 object MochyCloudVault {
+
+    const val PkceModeSignIn = "signin"
+    const val PkceModeLink = "link"
 
     private const val KeystoreProvider = "AndroidKeyStore"
     private const val KeyAlias = "mochy_cloud_vault_v1"
@@ -181,16 +189,26 @@ object MochyCloudVault {
     }
 
     @Synchronized
-    fun savePendingPkceVerifier(context: Context, verifier: String) {
+    fun savePendingPkceFlow(
+        context: Context,
+        verifier: String,
+        mode: String = PkceModeSignIn,
+    ) {
         val file = pendingPkceFile(context)
         val clean = verifier.trim()
         if (clean.isEmpty()) {
             file.delete()
             return
         }
+        val cleanMode = if (mode.trim().equals(PkceModeLink, ignoreCase = true)) {
+            PkceModeLink
+        } else {
+            PkceModeSignIn
+        }
         runCatching {
             val json = JSONObject().apply {
                 put("verifier", clean)
+                put("mode", cleanMode)
                 put("createdAtMs", System.currentTimeMillis())
             }
             file.writeText(json.toString(), Charsets.UTF_8)
@@ -200,25 +218,40 @@ object MochyCloudVault {
     }
 
     @Synchronized
-    fun consumePendingPkceVerifier(context: Context): String? {
+    fun consumePendingPkceFlow(context: Context): PendingPkceFlow? {
         val file = pendingPkceFile(context)
         if (!file.exists()) return null
         return try {
             runCatching {
                 val json = JSONObject(file.readText(Charsets.UTF_8))
                 val verifier = json.optString("verifier").trim()
+                val rawMode = json.optString("mode").trim()
+                val mode = if (rawMode.equals(PkceModeLink, ignoreCase = true)) {
+                    PkceModeLink
+                } else {
+                    PkceModeSignIn
+                }
                 val createdAtMs = json.optLong("createdAtMs", 0L)
                 val ageMs = System.currentTimeMillis() - createdAtMs
                 if (verifier.isBlank() || createdAtMs <= 0L || ageMs > PendingPkceTtlMs) {
                     null
                 } else {
-                    verifier
+                    PendingPkceFlow(verifier = verifier, mode = mode)
                 }
             }.getOrNull()
         } finally {
             file.delete()
         }
     }
+
+    @Synchronized
+    fun savePendingPkceVerifier(context: Context, verifier: String) {
+        savePendingPkceFlow(context, verifier, mode = PkceModeSignIn)
+    }
+
+    @Synchronized
+    fun consumePendingPkceVerifier(context: Context): String? =
+        consumePendingPkceFlow(context)?.verifier
 
     @Synchronized
     fun saveGoogleEmail(context: Context, email: String?) {

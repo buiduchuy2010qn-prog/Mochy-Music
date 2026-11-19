@@ -210,4 +210,215 @@ class MochyGoogleAuthTest {
             assertTrue("Derived username '$candidate' must match ^[a-z0-9._]{3,24}$", validUsernameRegex.matches(candidate))
         }
     }
+
+    @Test
+    fun buildGoogleLinkAuthorizeUrlFormatsManualLinkingParamsAndHint() {
+        val challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        val baseUrl = "https://cloud.example.test/"
+
+        val noHintUrl = MochyGoogleOAuthHelper.buildGoogleLinkAuthorizeUrl(baseUrl, challenge)
+        assertTrue(noHintUrl.startsWith("https://cloud.example.test/auth/v1/user/identities/authorize?"))
+        assertTrue(noHintUrl.contains("provider=google"))
+        assertTrue(noHintUrl.contains("redirect_to=mochy-cloud%3A%2F%2Fauth-callback"))
+        assertTrue(noHintUrl.contains("code_challenge=$challenge"))
+        assertTrue(noHintUrl.contains("code_challenge_method=s256"))
+        assertTrue(noHintUrl.contains("skip_http_redirect=true"))
+        assertTrue(noHintUrl.contains("prompt=select_account"))
+        assertFalse(noHintUrl.contains("login_hint="))
+
+        val syntheticFiltered = MochyGoogleOAuthHelper.buildGoogleLinkAuthorizeUrl(
+            baseUrl = baseUrl,
+            codeChallenge = challenge,
+            loginHintEmail = "duchuy@account.mochy.app",
+        )
+        assertFalse(syntheticFiltered.contains("login_hint="))
+
+        val withHint = MochyGoogleOAuthHelper.buildGoogleLinkAuthorizeUrl(
+            baseUrl = baseUrl,
+            codeChallenge = challenge,
+            loginHintEmail = "  Huy2010qn@gmail.com ",
+        )
+        assertTrue(withHint.contains("&login_hint=Huy2010qn%40gmail.com"))
+    }
+
+    @Test
+    fun mapOAuthErrorToVietnameseCoversLinkingProviderAndCancelErrors() {
+        val dupCode = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese("identity_already_exists", null)
+        assertEquals(
+            "Tài khoản Google này đã được đăng ký hoặc liên kết với một tài khoản Mochy khác.",
+            dupCode,
+        )
+        val dupDesc = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese(
+            "server_error",
+            "Identity is already linked to another user",
+        )
+        assertEquals(dupCode, dupDesc)
+
+        val parsedDupCallback = MochyGoogleOAuthHelper.parseOAuthCallbackParams(
+            rawQuery = "error=server_error&error_code=identity_already_exists&error_description=Identity+is+already+linked",
+            rawFragment = null,
+        )
+        assertEquals("identity_already_exists", parsedDupCallback.errorCode)
+        assertEquals(
+            dupCode,
+            MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese(
+                parsedDupCallback.errorCode,
+                parsedDupCallback.errorDescription,
+            ),
+        )
+
+        val manualDisabled = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese(
+            "manual_linking_disabled",
+            "Manual linking is disabled",
+        )
+        assertEquals(
+            "Chưa bật tính năng liên kết thủ công trên Supabase (Authentication › Settings › Allow manual linking).",
+            manualDisabled,
+        )
+
+        val providerDisabled = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese(
+            "validation_failed",
+            "Unsupported provider: provider is not enabled",
+        )
+        assertEquals(
+            "Đăng nhập Google chưa được bật trên máy chủ Supabase (Authentication › Providers › Google).",
+            providerDisabled,
+        )
+
+        val emailExists = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese("email_exists", "User already registered")
+        assertEquals("Tài khoản hoặc tên đăng nhập này đã được đăng ký.", emailExists)
+
+        val userExists = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese("user_already_exists", null)
+        assertEquals("Tài khoản hoặc tên đăng nhập này đã được đăng ký.", userExists)
+
+        val canceled = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese("access_denied", "User cancelled")
+        assertEquals("Bạn đã hủy thao tác đăng nhập/liên kết Google.", canceled)
+    }
+
+    @Test
+    fun isNewlyRegisteredAccountDistinguishesFreshVsExistingAccounts() {
+        assertTrue(
+            MochyGoogleOAuthHelper.isNewlyRegisteredAccount(
+                createdAtIso = "2026-11-19T07:36:00Z",
+                lastSignInAtIso = "2026-11-19T07:36:00Z",
+            ),
+        )
+        assertTrue(
+            MochyGoogleOAuthHelper.isNewlyRegisteredAccount(
+                createdAtIso = "2026-11-19T07:36:00.125000Z",
+                lastSignInAtIso = "2026-11-19T07:36:20.125000+00:00",
+            ),
+        )
+        assertFalse(
+            MochyGoogleOAuthHelper.isNewlyRegisteredAccount(
+                createdAtIso = "2026-11-19T07:36:00Z",
+                lastSignInAtIso = "2026-11-19T07:36:21Z",
+            ),
+        )
+        assertFalse(
+            MochyGoogleOAuthHelper.isNewlyRegisteredAccount(
+                createdAtIso = "2026-10-01T07:36:00Z",
+                lastSignInAtIso = "2026-11-19T07:36:00Z",
+            ),
+        )
+        assertFalse(MochyGoogleOAuthHelper.isNewlyRegisteredAccount(null, "2026-11-19T07:36:00Z"))
+        assertFalse(MochyGoogleOAuthHelper.isNewlyRegisteredAccount("2026-11-19T07:36:00Z", null))
+        assertFalse(MochyGoogleOAuthHelper.isNewlyRegisteredAccount("not-a-timestamp", "2026-11-19T07:36:00Z"))
+    }
+
+    @Test
+    fun parseIdentityInfoAccuratelyClassifiesAllUnifiedAccountStates() {
+        // 1. Google-only without password
+        val googleOnlyJson = """
+            {
+              "id": "u-google-1",
+              "email": "Huy2010qn@gmail.com",
+              "created_at": "2026-11-19T07:00:00Z",
+              "last_sign_in_at": "2026-11-19T07:00:02Z",
+              "app_metadata": { "provider": "google", "providers": ["google"] },
+              "user_metadata": { "full_name": "Đức Huy" },
+              "identities": [
+                { "provider": "google", "identity_data": { "email": "Huy2010qn@gmail.com" } }
+              ]
+            }
+        """.trimIndent()
+        val googleOnly = MochyGoogleOAuthHelper.parseIdentityInfo(googleOnlyJson)
+        assertTrue(googleOnly.hasGoogleLinked)
+        assertEquals("huy2010qn@gmail.com", googleOnly.googleEmail)
+        assertFalse(googleOnly.hasPasswordLogin)
+        assertNull(googleOnly.username)
+        assertEquals("2026-11-19T07:00:00Z", googleOnly.createdAtIso)
+        assertEquals("2026-11-19T07:00:02Z", googleOnly.lastSignInAtIso)
+
+        // 2. Google account after setting password
+        val googleWithPasswordJson = """
+            {
+              "id": "u-google-2",
+              "email": "huy2010qn@gmail.com",
+              "created_at": "2026-11-01T07:00:00Z",
+              "last_sign_in_at": "2026-11-19T07:00:00Z",
+              "app_metadata": { "provider": "google", "providers": ["google"] },
+              "user_metadata": { "username": "huy.music", "has_password": true },
+              "identities": [
+                { "provider": "google", "identity_data": { "email": "huy2010qn@gmail.com" } }
+              ]
+            }
+        """.trimIndent()
+        val googleWithPassword = MochyGoogleOAuthHelper.parseIdentityInfo(googleWithPasswordJson)
+        assertTrue(googleWithPassword.hasGoogleLinked)
+        assertEquals("huy2010qn@gmail.com", googleWithPassword.googleEmail)
+        assertTrue(googleWithPassword.hasPasswordLogin)
+        assertEquals("huy.music", googleWithPassword.username)
+
+        // 3. @username-only account (synthetic email, no Google)
+        val usernameOnlyJson = """
+            {
+              "id": "u-user-3",
+              "email": "duchuy@account.mochy.app",
+              "created_at": "2026-10-15T12:00:00Z",
+              "last_sign_in_at": "2026-11-19T07:10:00Z",
+              "app_metadata": { "provider": "email", "providers": ["email"] },
+              "user_metadata": { "username": "duchuy", "display_name": "Đức Huy" },
+              "identities": [
+                { "provider": "email", "identity_data": { "email": "duchuy@account.mochy.app" } }
+              ]
+            }
+        """.trimIndent()
+        val usernameOnly = MochyGoogleOAuthHelper.parseIdentityInfo(usernameOnlyJson)
+        assertFalse(usernameOnly.hasGoogleLinked)
+        assertNull(usernameOnly.googleEmail)
+        assertTrue(usernameOnly.hasPasswordLogin)
+        assertEquals("duchuy", usernameOnly.username)
+
+        // 4. @username account linked with Google (wrapped session object + synthetic primary email)
+        val usernameLinkedGoogleJson = """
+            {
+              "access_token": "jwt.token.here",
+              "user": {
+                "id": "u-user-4",
+                "email": "duchuy@account.mochy.app",
+                "created_at": "2026-10-15T12:00:00Z",
+                "last_sign_in_at": "2026-11-19T07:20:00Z",
+                "app_metadata": { "provider": "email", "providers": ["email", "google"] },
+                "user_metadata": { "username": "duchuy", "display_name": "Đức Huy" },
+                "identities": [
+                  { "provider": "email", "identity_data": { "email": "duchuy@account.mochy.app" } },
+                  { "provider": "google", "identity_data": { "email": "Huy.Linked@gmail.com" } }
+                ]
+              }
+            }
+        """.trimIndent()
+        val linked = MochyGoogleOAuthHelper.parseIdentityInfo(usernameLinkedGoogleJson)
+        assertTrue(linked.hasGoogleLinked)
+        assertEquals("huy.linked@gmail.com", linked.googleEmail)
+        assertTrue(linked.hasPasswordLogin)
+        assertEquals("duchuy", linked.username)
+
+        // 5. Blank / malformed JSON fails safely
+        val empty = MochyGoogleOAuthHelper.parseIdentityInfo("not-json")
+        assertFalse(empty.hasGoogleLinked)
+        assertNull(empty.googleEmail)
+        assertFalse(empty.hasPasswordLogin)
+        assertNull(empty.username)
+    }
 }

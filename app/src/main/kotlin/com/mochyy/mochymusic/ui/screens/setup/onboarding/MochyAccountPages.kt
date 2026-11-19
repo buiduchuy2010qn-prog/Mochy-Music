@@ -81,6 +81,11 @@ private enum class AccountSubStep { Hub, SignUp, SignIn }
 private fun filterUsernameInput(raw: String): String =
     raw.lowercase().filter { it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '_' }.take(24)
 
+private fun filterSignInIdentifier(raw: String): String =
+    raw.lowercase()
+        .filter { it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '_' || it == '@' || it == '+' || it == '-' }
+        .take(64)
+
 @Composable
 internal fun MochyWelcomeAccountStep(
     standaloneWelcome: Boolean,
@@ -141,6 +146,9 @@ internal fun MochyWelcomeAccountStep(
     fun navigateTo(target: AccountSubStep) {
         forward = target != AccountSubStep.Hub
         errorMsg = null
+        if (target == AccountSubStep.SignUp) {
+            usernameInput = filterUsernameInput(usernameInput)
+        }
         subStep = target
     }
 
@@ -176,7 +184,8 @@ internal fun MochyWelcomeAccountStep(
     }
 
     fun submitSignIn() {
-        if (busy || usernameInput.length < 3 || passwordInput.length < 6) return
+        val cleanId = usernameInput.trim().removePrefix("@")
+        if (busy || cleanId.length < 3 || passwordInput.length < 6) return
         focusManager.clearFocus()
         scope.launch {
             busy = true
@@ -316,6 +325,50 @@ internal fun MochyWelcomeAccountStep(
                         description = "vào thẳng ứng dụng không cần đăng ký · dữ liệu lưu trên máy, có thể tạo tài khoản bất cứ lúc nào",
                         onClick = onGuest,
                     )
+                    val authStatus = cloudState.authStatusMessage
+                    if (!authStatus.isNullOrBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xFF9CF58A).copy(alpha = 0.14f))
+                                .border(1.dp, Color(0xFF9CF58A).copy(alpha = 0.32f), RoundedCornerShape(18.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.check),
+                                contentDescription = null,
+                                tint = Color(0xFF9CF58A),
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                text = authStatus,
+                                color = Color.White,
+                                fontFamily = InterFontFamily,
+                                fontSize = 12.5.sp,
+                                lineHeight = 17.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.10f))
+                                    .clickable { MochyCloudSyncManager.clearAuthStatusMessage() },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.close),
+                                    contentDescription = stringResource(R.string.close),
+                                    tint = Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            }
+                        }
+                    }
                     val hubError = errorMsg ?: cloudState.lastError
                     if (!hubError.isNullOrBlank()) {
                         Text(
@@ -525,7 +578,7 @@ internal fun MochyWelcomeAccountStep(
                     OnbButton(
                         text = if (busy) "Đang đăng nhập & đồng bộ…" else "Đăng nhập & Đồng bộ",
                         onClick = ::submitSignIn,
-                        enabled = !busy && usernameInput.length >= 3 && passwordInput.length >= 6,
+                        enabled = !busy && usernameInput.trim().removePrefix("@").length >= 3 && passwordInput.length >= 6,
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -551,7 +604,7 @@ internal fun MochyWelcomeAccountStep(
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "tên đăng nhập",
+                            text = stringResource(R.string.mochy_cloud_login_id_label),
                             color = Onb.Subtitle,
                             fontFamily = InterFontFamily,
                             fontSize = 14.sp,
@@ -561,18 +614,25 @@ internal fun MochyWelcomeAccountStep(
                         OnbPillInput(
                             value = usernameInput,
                             onValueChange = {
-                                usernameInput = filterUsernameInput(it)
+                                usernameInput = filterSignInIdentifier(it)
                                 errorMsg = null
                             },
-                            placeholder = "ten_nguoi_dung",
-                            prefix = "@",
+                            placeholder = stringResource(R.string.mochy_cloud_login_id_placeholder),
+                            prefix = if (usernameInput.contains('@')) null else "@",
                             keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Ascii,
+                                keyboardType = KeyboardType.Email,
                                 imeAction = ImeAction.Next,
                             ),
                             keyboardActions = KeyboardActions(
                                 onNext = { focusManager.moveFocus(FocusDirection.Down) },
                             ),
+                        )
+                        Text(
+                            text = stringResource(R.string.mochy_cloud_login_id_hint),
+                            color = Onb.Faint,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.5.sp,
+                            modifier = Modifier.padding(start = 10.dp),
                         )
                     }
 
