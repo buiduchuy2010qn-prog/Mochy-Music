@@ -81,7 +81,7 @@ private val CinematicMarkGap = 28.dp
 private val CinematicHeaderGap = 22.dp
 private val CinematicLineGap = 2.dp
 private const val CinematicTextSize = 23f
-private const val CinematicSmallestText = 12f
+private const val CinematicSmallestText = 11f
 
 /** Room the words get when the song sits with them: the picture less the margins, the mark and the song. */
 private val CinematicWordsRoom = ShareHeight - CinematicTop - CinematicMarkBottom - 16.dp - CinematicMarkGap - 38.dp - CinematicHeaderGap
@@ -221,7 +221,7 @@ internal fun CinematicLayout(
 
 /**
  * The biggest text size, up to the usual one, at which every picked line fits above the mark. Up
- * to 40 words with big ones mixed in can't all sit at full size.
+ * to 52 words with big ones mixed in can't all sit at full size.
  */
 @Composable
 private fun rememberCinematicTextSize(session: LyricsShareSession, readings: List<List<String>>): Float {
@@ -246,7 +246,9 @@ private fun rememberCinematicTextSize(session: LyricsShareSession, readings: Lis
         if (full <= room) return@remember CinematicTextSize
         // text area grows with the square of its size, so this lands close; then step down to be sure
         var size = (CinematicTextSize * sqrt(room / full)).coerceAtLeast(CinematicSmallestText)
-        while (size > CinematicSmallestText && heightAt(size) > room) size -= 1f
+        while (size > CinematicSmallestText && heightAt(size) > room) {
+            size = (size - 0.5f).coerceAtLeast(CinematicSmallestText)
+        }
         size
     }
 }

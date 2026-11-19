@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
@@ -52,9 +54,9 @@ private const val StillLines = 5
 
 // the picked lines on a picture: this size, stepping down to the smallest when there are too many for the room
 private const val StillTextSize = 19f
-private const val SmallestStillText = 12f
+private const val SmallestStillText = 10.5f
 
-// the most room the lyrics take on the card, so even 25 one-word lines keep the card inside the picture
+// the most room the lyrics take on the card, so even 36 words keep the card inside the picture with generous margins
 private val LyricsRoom = 400.dp
 
 // the card's lyrics column: the card less its padding on both sides
@@ -164,7 +166,7 @@ private fun CardLyrics(session: SongShareSession, ink: Color, sung: Boolean, pos
     }
     val size = rememberCardTextSize(shown)
     val lyricsPosition = remember(session, positionMs) { { positionMs() + session.lyricsOffsetMs } }
-    Column {
+    Column(Modifier.heightIn(max = LyricsRoom).clipToBounds()) {
         shown.forEachIndexed { index, line ->
             key(index) {
                 val text = line.entry.text.trim()
@@ -203,7 +205,9 @@ private fun rememberCardTextSize(lines: List<ShareLine>): Float {
                 line.under.sumOf { measurer.measure(it, underText(size, Color.White), constraints = constraints).size.height }
         }
         var size = StillTextSize
-        while (size > SmallestStillText && heightAt(size) > room) size -= 1f
+        while (size > SmallestStillText && heightAt(size) > room) {
+            size = (size - 0.5f).coerceAtLeast(SmallestStillText)
+        }
         size
     }
 }
