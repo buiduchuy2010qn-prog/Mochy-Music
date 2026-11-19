@@ -265,4 +265,42 @@ class AudioLabDspTest {
         for (i in out.size / 2 until out.size step 2) assertEquals(out[i].toInt(), out[i + 1].toInt())
         assertEquals(rmsDb(leftOnly) - 6.02 + 3.01, rmsDb(out), 0.5)
     }
+
+    @Test
+    fun `surround LFE channel attenuates high frequencies above 120 Hz`() {
+        val fx = AudioFxService()
+        fx.spatial = SpatialParams(surround = true)
+
+        fun lfeSignal(hz: Double) = ShortArray(rate * 6) { i ->
+            if (i % 6 == 3) (12_000 * sin(2 * PI * hz * (i / 6) / rate)).toInt().toShort() else 0
+        }
+
+        val lowProc = SpatialAudioProcessor(fx).also { configure(it, channels = 6) }
+        val out50 = run(lowProc, lfeSignal(50.0), channels = 6, outChannels = 2)
+
+        val highProc = SpatialAudioProcessor(fx).also { configure(it, channels = 6) }
+        val out1000 = run(highProc, lfeSignal(1000.0), channels = 6, outChannels = 2)
+
+        assertTrue(
+            "LFE 50 Hz (${rmsDb(out50)} dB) should sit well above attenuated 1000 Hz (${rmsDb(out1000)} dB)",
+            rmsDb(out50) > rmsDb(out1000) + 12.0,
+        )
+    }
+
+    @Test
+    fun `virtual speakers at 192 kHz stay clean without overflowing delay line`() {
+        val fx = AudioFxService()
+        fx.spatial = SpatialParams(enabled = true, mode = SpatialMode.Speakers, speakerAngle = 90f)
+        val spatial = SpatialAudioProcessor(fx)
+        spatial.configure(AudioProcessor.AudioFormat(192_000, 2, C.ENCODING_PCM_16BIT))
+        spatial.flush()
+
+        val input = stereo(4_096) { f ->
+            val v = 0.3 * sin(2 * PI * 1000.0 * f / 192_000)
+            v to v
+        }
+        val out = run(spatial, input)
+        assertTrue("192 kHz speaker output went unexpectedly quiet: ${rmsDb(out)} dB", rmsDb(out) > -30.0)
+        assertTrue("192 kHz speaker output clipped", out.maxOf { abs(it.toInt()) } < 32_767)
+    }
 }
