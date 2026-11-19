@@ -127,6 +127,9 @@ jobs:
           fi
           echo "Restored persistent signing keystore with alias androiddebugkey."
 
+      - name: Run Module & Cloud Unit Tests
+        run: ./gradlew :modules:bridge:test :modules:applemusic:test :modules:jiosaavn:test :modules:monochrome:test :modules:zingmp3:test :modules:soundcloud:test :app:testUniversalGmsReleaseUnitTest --tests "com.mochyy.mochymusic.cloud.MochyPlaylistCodecTest" --no-configuration-cache --no-daemon
+
       - name: Build Arm64 & Universal Release APKs via Single-Pass ABI Splits
         env:
           APP_VER: ${{ needs.detect-changes.outputs.app_ver }}

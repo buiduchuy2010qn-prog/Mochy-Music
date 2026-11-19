@@ -270,18 +270,18 @@ object MochySupabaseClient {
             if (joinedEpochDay != null && joinedEpochDay > 0L) put("joined_epoch_day", joinedEpochDay)
             if (clearPlaylists) {
                 put("playlists_gz", "")
-            } else if (playlistsGz != null) {
-                put("playlists_gz", playlistsGz.take(16_384))
+            } else if (playlistsGz != null && playlistsGz.length <= 6_000) {
+                put("playlists_gz", playlistsGz)
             }
             if (clearLibraryExtra) {
                 put("library_extra_gz", "")
-            } else if (libraryExtraGz != null) {
-                put("library_extra_gz", libraryExtraGz.take(16_384))
+            } else if (libraryExtraGz != null && libraryExtraGz.length <= 4_200) {
+                put("library_extra_gz", libraryExtraGz)
             }
             if (clearPlaybackResume) {
                 put("playback_resume_gz", "")
-            } else if (playbackResumeGz != null) {
-                put("playback_resume_gz", playbackResumeGz.take(3_072))
+            } else if (playbackResumeGz != null && playbackResumeGz.length <= 1_500) {
+                put("playback_resume_gz", playbackResumeGz)
             }
         }
         if (data.length() == 0) return@withContext
@@ -628,8 +628,15 @@ object MochySupabaseClient {
         runCatching { http.newCall(request).execute().close() }
     }
 
-    private fun isCloudSafeSongId(id: String): Boolean =
-        id.isNotBlank() && id.length <= 64 && !id.startsWith("LA") && !id.contains("://") && !id.contains("/")
+    private fun isCloudSafeSongId(id: String): Boolean {
+        val clean = id.trim()
+        return clean.isNotEmpty() &&
+            clean.length <= 64 &&
+            !clean.startsWith("LA") &&
+            !clean.startsWith("LOCAL_", ignoreCase = true) &&
+            !clean.contains("://") &&
+            !clean.contains("/")
+    }
 
     private fun sanitizeCloudUrl(raw: String?): Any {
         val trimmed = raw?.trim().orEmpty()

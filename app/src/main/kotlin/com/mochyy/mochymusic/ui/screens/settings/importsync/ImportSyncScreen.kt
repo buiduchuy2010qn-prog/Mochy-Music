@@ -93,7 +93,7 @@ fun ImportSyncScreen(
                 style = SettingsGroupStyle.Grouped,
                 items = listOf(
                     SettingsItem(
-                        title = { Text(if (progress.isRunning) "See progress" else "See results") },
+                        title = { Text(stringResource(if (progress.isRunning) R.string.import_sync_see_progress else R.string.import_sync_see_results)) },
                         icon = painterResource(R.drawable.playlist_play),
                         iconShape = CircleShape,
                         onClick = { navController.navigate(ImportProgressRoute) { launchSingleTop = true } },

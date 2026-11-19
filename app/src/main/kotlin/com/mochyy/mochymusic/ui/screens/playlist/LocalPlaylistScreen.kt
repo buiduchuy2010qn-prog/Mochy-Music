@@ -395,6 +395,7 @@ fun LocalPlaylistScreen(
     val creatorAvatar = profilePicUri.takeIf { it.isNotBlank() }?.let { if (it.contains("://")) it else "file://$it" }
 
     fun play(items: List<com.mochyy.mochymusic.db.entities.PlaylistSong>, startIndex: Int = 0) {
+        if (items.isEmpty()) return
         val current = playlist ?: return
         playerConnection.playQueue(
             ListQueue(
@@ -569,22 +570,17 @@ fun LocalPlaylistScreen(
             return@PlaylistDetailScaffold
         }
 
-        if (songs.isEmpty() && currentPlaylist.playlist.remoteSongCount == 0) {
-            item(key = "empty_placeholder") {
-                EmptyPlaceholder(
-                    icon = R.drawable.music_note,
-                    text = stringResource(R.string.playlist_is_empty),
-                    modifier = Modifier.animateItem()
-                )
-            }
-        } else if (!isSearching) {
+        if (!isSearching) {
             item(key = "playlist_header") {
-                val isThisQueue = queueTitle == currentPlaylist.playlist.name
+                val isThisQueue = queueTitle == currentPlaylist.playlist.name && songs.isNotEmpty()
                 val savedRemote = currentPlaylist.playlist.browseId != null && !currentPlaylist.playlist.isEditable
                 PlaylistHeader(
-                    onSearchClick = { isSearching = true },
+                    onSearchClick = if (songs.isNotEmpty()) {
+                        { isSearching = true }
+                    } else null,
                     title = currentPlaylist.playlist.name,
                     creators = if (accountName.isNotBlank()) listOf(CreatorUi(name = accountName, avatarUrl = creatorAvatar)) else emptyList(),
+                    description = currentPlaylist.playlist.description,
                     stats = playlistStats(
                         context.resources.getQuantityString(R.plurals.n_song, songs.size, songs.size),
                         playlistLength,
@@ -598,17 +594,29 @@ fun LocalPlaylistScreen(
                     onSaveClick = {
                         database.query { update(currentPlaylist.playlist.toggleLike()) }
                     },
-                    sortControl = {
-                        PlaylistSortControl(
-                            current = sortType,
-                            descending = sortDescending,
-                            options = PlaylistSongSortType.entries,
-                            label = { stringResource(playlistSortLabel(it)) },
-                            onSelect = onSortTypeChange,
-                            onToggleDirection = { onSortDescendingChange(!sortDescending) },
-                            showDirection = { it != PlaylistSongSortType.CUSTOM },
-                        )
-                    },
+                    sortControl = if (songs.isNotEmpty()) {
+                        {
+                            PlaylistSortControl(
+                                current = sortType,
+                                descending = sortDescending,
+                                options = PlaylistSongSortType.entries,
+                                label = { stringResource(playlistSortLabel(it)) },
+                                onSelect = onSortTypeChange,
+                                onToggleDirection = { onSortDescendingChange(!sortDescending) },
+                                showDirection = { it != PlaylistSongSortType.CUSTOM },
+                            )
+                        }
+                    } else null,
+                )
+            }
+        }
+
+        if (songs.isEmpty() && currentPlaylist.playlist.remoteSongCount == 0) {
+            item(key = "empty_placeholder") {
+                EmptyPlaceholder(
+                    icon = R.drawable.music_note,
+                    text = stringResource(R.string.playlist_is_empty),
+                    modifier = Modifier.animateItem()
                 )
             }
         }

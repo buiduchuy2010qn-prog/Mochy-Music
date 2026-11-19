@@ -53,26 +53,26 @@ private data class WhatsNewHighlight(
     val summary: String,
 )
 
-private val V115Highlights = listOf(
+private val V116Highlights = listOf(
+    WhatsNewHighlight(
+        icon = R.drawable.playlist_add,
+        title = "Trung tâm Tạo & Nhập Playlist nhanh ngay tại Thư viện",
+        summary = "Thêm nút + trực tiếp ở màn hình Danh sách phát để tạo mới, dán nhanh mã mochypl1:, mở tệp .mochypl hoặc nhập từ dịch vụ ngoài; hiển thị đầy đủ mô tả playlist.",
+    ),
+    WhatsNewHighlight(
+        icon = R.drawable.queue_music,
+        title = "Hoàn thiện thao tác thêm & sắp xếp bài hát trong Playlist",
+        summary = "Khắc phục lỗi thêm playlist YouTube từ ngoài trang chi tiết, chống nhân đôi khi thêm nhiều bài và xóa chính xác thứ tự bài đã chọn.",
+    ),
+    WhatsNewHighlight(
+        icon = R.drawable.backup,
+        title = "Tối ưu Mochy Cloud bền vững lâu dài",
+        summary = "Nén gọn dữ liệu ảnh bìa, bảo vệ giới hạn phiên đăng nhập ổn định lâu dài khi lưu nhiều playlist và giữ an toàn các bài nhạc nội bộ trên máy.",
+    ),
     WhatsNewHighlight(
         icon = R.drawable.music_note,
-        title = "Nguồn nhạc Zing MP3 & SoundCloud chính thức",
-        summary = "Tích hợp sẵn Zing MP3 (MP3 128–320 kbps) chuyên nhạc Việt và SoundCloud không cần tài khoản, tự động làm mới phiên khi hết hạn.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.palette,
-        title = "Biểu tượng chính thức cho các mô-đun nguồn phát",
-        summary = "Bổ sung logo chuẩn cho Zing MP3, SoundCloud và JioSaavn xuyên suốt trang Mô-đun, Chất lượng âm thanh và bảng Thông tin bài hát.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.refresh,
-        title = "Tối ưu mạng IPv4 & khôi phục mô-đun trong 60 giây",
-        summary = "Ưu tiên DNS IPv4 cho Monochrome/mô-đun không cần tài khoản, giảm thời gian chờ xuống 60 giây và mở khóa nút bật lại cùng tự kiểm tra để thử lại ngay.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.tune,
-        title = "Hoàn thiện AudioLab, Discord & đồng bộ đám mây",
-        summary = "Cập nhật hiển thị chất lượng nguồn phát trong AudioLab, Việt hóa đầy đủ Discord & Android Auto, đồng bộ toàn bộ cài đặt giao diện và thống nhất phông chữ Inter.",
+        title = "Tích hợp Zing MP3, SoundCloud & kiểm thử tự động nguồn phát",
+        summary = "Hỗ trợ sẵn Zing MP3, SoundCloud, Monochrome ưu tiên IPv4 hồi phục 60 giây kèm bộ kiểm thử tự động trên toàn bộ mô-đun.",
     ),
 )
 
@@ -175,13 +175,13 @@ private fun WhatsNewSheetContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            V115Highlights.forEachIndexed { index, item ->
+            V116Highlights.forEachIndexed { index, item ->
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
                         .fillMaxWidth()
                         .revealOnAppear(
-                            key = "v115_highlight_$index",
+                            key = "v116_highlight_$index",
                             seenState = revealSeen,
                             cascade = true,
                         )

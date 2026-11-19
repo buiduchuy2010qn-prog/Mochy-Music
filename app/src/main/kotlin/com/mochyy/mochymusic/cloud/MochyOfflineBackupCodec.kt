@@ -98,6 +98,8 @@ object MochyOfflineBackupCodec {
     private const val MaxSinglePlaylistBytes = 8 * 1024 * 1024
     private const val MaxPlaylistCodeBytes = 2 * 1024 * 1024
     private const val DefaultMaxPlaylistCodeTracks = 250
+    private const val LocalOnlyPlaylistShareErrorMessage =
+        "Playlist này chỉ chứa nhạc nội bộ trên máy nên chưa thể chia sẻ trực tuyến."
     private val PlaylistCodeRegex = Regex("mochypl1:[A-Za-z0-9_-]{16,}")
     private val CombiningMarksRegex = Regex("\\p{M}+")
 
@@ -830,11 +832,15 @@ object MochyOfflineBackupCodec {
                 val trackIds = JSONArray()
                 for (ps in tracks) {
                     val song = ps.song
-                    if (song.id.isBlank()) continue
-                    if (!songsObj.has(song.id)) {
-                        songsObj.put(song.id, songToJson(song, sanitizeLocalThumb = true))
+                    val songId = song.id.trim()
+                    if (songId.isBlank() || isLocalOnlyPlaylistSong(song, songId)) continue
+                    if (!songsObj.has(songId)) {
+                        songsObj.put(songId, songToJson(song, sanitizeLocalThumb = true))
                     }
-                    trackIds.put(song.id)
+                    trackIds.put(songId)
+                }
+                if (tracks.isNotEmpty() && trackIds.length() == 0) {
+                    throw MochyCloudException(LocalOnlyPlaylistShareErrorMessage)
                 }
 
                 val playlistObj = JSONObject().apply {
@@ -888,7 +894,7 @@ object MochyOfflineBackupCodec {
             if (songsArr.length() >= limit) break
             val song = ps.song
             val songId = song.id.trim()
-            if (songId.isBlank() || !seen.add(songId)) continue
+            if (songId.isBlank() || isLocalOnlyPlaylistSong(song, songId) || !seen.add(songId)) continue
             val artistsStr = song.artists.joinToString(", ") { it.name }.trim()
             val safeThumb = song.thumbnailUrl?.takeIf(::isHttpUrl).orEmpty()
             songsArr.put(
@@ -903,7 +909,12 @@ object MochyOfflineBackupCodec {
                 },
             )
         }
-        if (songsArr.length() == 0) return@withContext null
+        if (songsArr.length() == 0) {
+            if (tracks.isNotEmpty()) {
+                throw MochyCloudException(LocalOnlyPlaylistShareErrorMessage)
+            }
+            return@withContext null
+        }
 
         val root = JSONObject().apply {
             put("v", 1)
@@ -956,7 +967,7 @@ object MochyOfflineBackupCodec {
                 for (i in 0 until songsArr.length()) {
                     val row = songsArr.optJSONArray(i) ?: continue
                     val songId = row.optString(0).trim()
-                    if (songId.isBlank()) continue
+                    if (songId.isBlank() || isLocalOnlySongId(songId)) continue
                     trackIds.add(songId)
                     if (!songsObj.has(songId)) {
                         val artistsJson = JSONArray()
@@ -968,7 +979,7 @@ object MochyOfflineBackupCodec {
                             JSONObject().apply {
                                 put("title", row.optString(1).trim().ifBlank { "Bài hát được chia sẻ" })
                                 put("duration", row.optInt(3, -1))
-                                row.optString(4).takeIf(::isHttpUrl)?.let { put("thumbnailUrl", it) }
+                                expandCloudThumbUrl(row.optString(4))?.takeIf(::isHttpUrl)?.let { put("thumbnailUrl", it) }
                                 row.optString(5).takeIf { it.isNotBlank() && it != "null" }?.let { put("albumName", it) }
                                 put("isVideo", row.optInt(6, 0) != 0)
                                 put("artists", artistsJson)
@@ -1039,8 +1050,11 @@ object MochyOfflineBackupCodec {
         val trackIds = buildList(trackIdsArr.length()) {
             for (i in 0 until trackIdsArr.length()) {
                 val songId = trackIdsArr.optString(i).trim()
-                if (songId.isNotBlank()) add(songId)
+                if (songId.isNotBlank() && !isLocalOnlySongId(songId)) add(songId)
             }
+        }
+        if (trackIdsArr.length() > 0 && trackIds.isEmpty()) {
+            throw MochyCloudException(LocalOnlyPlaylistShareErrorMessage)
         }
         return insertImportedSinglePlaylist(
             app = app,
@@ -1138,6 +1152,12 @@ object MochyOfflineBackupCodec {
             }
         }
     }
+
+    private fun isLocalOnlySongId(songId: String): Boolean =
+        songId.startsWith("LOCAL_", ignoreCase = true) || songId.startsWith("LA")
+
+    private fun isLocalOnlyPlaylistSong(song: Song, songId: String = song.id.trim()): Boolean =
+        song.song.isLocal || isLocalOnlySongId(songId)
 
     private fun isHttpUrl(raw: String?): Boolean =
         !raw.isNullOrBlank() &&

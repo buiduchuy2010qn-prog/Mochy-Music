@@ -555,7 +555,7 @@ fun PlaylistMenu(
                     ) {
                         add(
                             Material3MenuItemData(
-                                title = { Text(text = "Chia sẻ tệp Playlist (.mochypl)") },
+                                title = { Text(text = stringResource(R.string.playlist_share_mochypl_file)) },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.share),
@@ -582,7 +582,7 @@ fun PlaylistMenu(
                         )
                         add(
                             Material3MenuItemData(
-                                title = { Text(text = "Sao chép mã chia sẻ Playlist") },
+                                title = { Text(text = stringResource(R.string.playlist_copy_share_code)) },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.content_copy),
@@ -672,11 +672,11 @@ internal fun shareSinglePlaylistMochypl(
                     onFinished()
                 }.onFailure { err ->
                     onFailed()
-                    TopToaster.error(err.message ?: "Không thể chia sẻ tệp playlist .mochypl.")
+                    TopToaster.error(err.message ?: context.getString(R.string.playlist_share_mochypl_failed))
                 }
             }.onFailure { err ->
                 onFailed()
-                TopToaster.error(err.message ?: "Không thể xuất tệp playlist .mochypl.")
+                TopToaster.error(err.message ?: context.getString(R.string.playlist_export_mochypl_failed))
             }
         }
     }
@@ -704,24 +704,24 @@ internal fun copySinglePlaylistCode(
             result.onSuccess { code ->
                 if (code.isNullOrBlank()) {
                     onFailed()
-                    TopToaster.error("Playlist trống, chưa thể tạo mã")
+                    TopToaster.error(context.getString(R.string.playlist_code_empty_error))
                 } else {
                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                     if (cm != null) {
                         cm.setPrimaryClip(ClipData.newPlainText("Mochy Playlist Code", code))
                         TopToaster.show(
-                            text = "Đã sao chép mã Playlist! Dán vào tin nhắn hoặc bình luận để chia sẻ",
+                            text = context.getString(R.string.playlist_code_copied_toast),
                             iconRes = R.drawable.content_copy,
                         )
                         onFinished()
                     } else {
                         onFailed()
-                        TopToaster.error("Không thể truy cập khay nhớ tạm.")
+                        TopToaster.error(context.getString(R.string.playlist_clipboard_unavailable))
                     }
                 }
             }.onFailure { err ->
                 onFailed()
-                TopToaster.error(err.message ?: "Không thể tạo mã chia sẻ playlist.")
+                TopToaster.error(err.message ?: context.getString(R.string.playlist_code_create_failed))
             }
         }
     }

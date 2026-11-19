@@ -254,7 +254,7 @@ fun LocalPlaylistMenu(
                 ) {
                     add(
                         Material3MenuItemData(
-                            title = { Text("Chia sẻ tệp Playlist (.mochypl)") },
+                            title = { Text(stringResource(R.string.playlist_share_mochypl_file)) },
                             icon = {
                                 Icon(
                                     painter = painterResource(R.drawable.share),
@@ -281,7 +281,7 @@ fun LocalPlaylistMenu(
                     )
                     add(
                         Material3MenuItemData(
-                            title = { Text("Sao chép mã chia sẻ Playlist") },
+                            title = { Text(stringResource(R.string.playlist_copy_share_code)) },
                             icon = {
                                 Icon(
                                     painter = painterResource(R.drawable.content_copy),

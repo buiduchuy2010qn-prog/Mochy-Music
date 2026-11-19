@@ -57,6 +57,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -978,14 +984,14 @@ object MochyCloudSyncManager {
                 }
             }
 
-            // 4. Playlist cá nhân hai chiều (GZIP <= 16 KB, tối đa 25 playlist)
+            // 4. Playlist cá nhân hai chiều (Base64 <= 5.600 ký tự, tối đa 25 playlist)
             val playlistsCount = if (remoteMeta != null) {
                 syncPersonalPlaylists(app, activeSession, db, remoteMeta.playlistsGz)
             } else {
                 db.playlistsByCreateDateAsc().first().count { isSyncablePlaylist(it.playlist) }
             }
 
-            // 5. Album đã lưu, Nghệ sĩ theo dõi & Equalizer (`library_extra_gz` <= 16 KB)
+            // 5. Album đã lưu, Nghệ sĩ theo dõi & Equalizer (`library_extra_gz` <= 3.800 ký tự)
             val (albumsCount, artistsCount) = if (remoteMeta != null) {
                 syncLibraryExtra(app, activeSession, db, remoteMeta.libraryExtraGz)
             } else {
@@ -1001,6 +1007,21 @@ object MochyCloudSyncManager {
                 MochyPlaybackResumeCodec.decode(remoteMeta.playbackResumeGz)
             } else {
                 _state.value.remoteResume
+            }
+            if (remoteMeta != null &&
+                decodedRemoteResume != null &&
+                (remoteMeta.playbackResumeGz?.length ?: 0) > MochyPlaybackResumeCodec.MaxEncodedChars
+            ) {
+                val compactedResume = MochyPlaybackResumeCodec.encode(decodedRemoteResume)
+                if (compactedResume.isNotEmpty() && compactedResume != remoteMeta.playbackResumeGz) {
+                    runCatching {
+                        MochySupabaseClient.updateUserMetadata(
+                            context = app,
+                            session = finalSession,
+                            playbackResumeGz = compactedResume,
+                        )
+                    }.onFailure { err -> if (err is MochyCloudAuthExpiredException) throw err }
+                }
             }
             val currentResume = _state.value.remoteResume
             val resolvedResume = when {
@@ -1100,8 +1121,14 @@ object MochyCloudSyncManager {
             }
         }
 
-        for (remotePl in remotePlaylists) {
-            if (remotePl.id in removedLocally) continue
+        for (rawRemotePl in remotePlaylists) {
+            if (rawRemotePl.id in removedLocally) continue
+            val cleanRemoteTracks = rawRemotePl.tracks.filter { isCloudSafeId(it.songId) }
+            val remotePl = if (cleanRemoteTracks.size == rawRemotePl.tracks.size) {
+                rawRemotePl
+            } else {
+                rawRemotePl.copy(tracks = cleanRemoteTracks)
+            }
             val existing = localMap[remotePl.id]
             val remoteLocalTime = Instant.ofEpochSecond(remotePl.updatedEpochSec.coerceAtLeast(1L))
                 .atZone(ZoneId.systemDefault())
@@ -1125,10 +1152,19 @@ object MochyCloudSyncManager {
                     .atZone(ZoneId.systemDefault())
                     .toEpochSecond()
                 val existingTracks = db.playlistSongs(remotePl.id).first()
-                val existingTrackIds = existingTracks.take(200).map { it.song.id }
+                val existingTrackIds = existingTracks
+                    .filter { isCloudTrackEligible(it.song.song) }
+                    .take(200)
+                    .map { it.song.id }
+                val localOnlySongIds = existingTracks
+                    .asSequence()
+                    .filter { !isCloudTrackEligible(it.song.song) }
+                    .map { it.song.id }
+                    .filter { it.isNotBlank() }
+                    .toList()
                 val remoteTrackIds = remotePl.tracks.map { it.songId }
                 val remoteIsNewer = remotePl.updatedEpochSec > localEpochSec + 2L ||
-                    (existingTracks.isEmpty() && remotePl.tracks.isNotEmpty()) ||
+                    (existingTrackIds.isEmpty() && remotePl.tracks.isNotEmpty()) ||
                     (remotePl.updatedEpochSec >= localEpochSec && (existing.playlist.name != remotePl.name || existingTrackIds != remoteTrackIds))
                 if (remoteIsNewer) {
                     suppressObserverUntilMs = System.currentTimeMillis() + 3_000L
@@ -1140,7 +1176,7 @@ object MochyCloudSyncManager {
                         ),
                     )
                     db.clearPlaylist(remotePl.id)
-                    writePlaylistTracks(db, remotePl)
+                    writePlaylistTracks(db, remotePl, preservedLocalSongIds = localOnlySongIds)
                 }
             }
         }
@@ -1149,7 +1185,11 @@ object MochyCloudSyncManager {
             .filter { isSyncablePlaylist(it.playlist) }
             .take(25)
         val recordsToPush = finalLocal.map { pl ->
-            val songs = db.playlistSongs(pl.id).first().take(200)
+            val songs = db.playlistSongs(pl.id).first()
+                .asSequence()
+                .filter { isCloudTrackEligible(it.song.song) }
+                .take(200)
+                .toList()
             val updatedSec = (pl.playlist.lastUpdateTime ?: pl.playlist.createdAt ?: LocalDateTime.now())
                 .atZone(ZoneId.systemDefault())
                 .toEpochSecond()
@@ -1165,7 +1205,7 @@ object MochyCloudSyncManager {
                         artists = ps.song.artists.joinToString(", ") { it.name }.ifBlank { "Nghệ sĩ" },
                         albumName = ps.song.song.albumName,
                         duration = ps.song.song.duration,
-                        thumbnailUrl = ps.song.thumbnailUrl,
+                        thumbnailUrl = sanitizeHttpUrl(ps.song.thumbnailUrl),
                     )
                 },
             )
@@ -1572,8 +1612,14 @@ object MochyCloudSyncManager {
         return finalAlbums.size to finalArtists.size
     }
 
-    private fun writePlaylistTracks(db: MusicDatabase, remotePl: CloudPlaylistRecord) {
-        remotePl.tracks.forEachIndexed { idx, track ->
+    private fun writePlaylistTracks(
+        db: MusicDatabase,
+        remotePl: CloudPlaylistRecord,
+        preservedLocalSongIds: List<String> = emptyList(),
+    ) {
+        var nextPosition = 0
+        for (track in remotePl.tracks) {
+            if (!isCloudSafeId(track.songId)) continue
             if (db.getSongByIdBlocking(track.songId) == null) {
                 insertSkeletonSong(
                     db = db,
@@ -1582,7 +1628,7 @@ object MochyCloudSyncManager {
                     artists = track.artists,
                     albumName = track.albumName,
                     duration = track.duration,
-                    thumbnailUrl = track.thumbnailUrl,
+                    thumbnailUrl = sanitizeHttpUrl(track.thumbnailUrl),
                     liked = false,
                     likedDate = null,
                 )
@@ -1591,9 +1637,20 @@ object MochyCloudSyncManager {
                 PlaylistSongMap(
                     playlistId = remotePl.id,
                     songId = track.songId,
-                    position = idx,
+                    position = nextPosition++,
                 ),
             )
+        }
+        for (localSongId in preservedLocalSongIds) {
+            if (db.getSongByIdBlocking(localSongId) != null) {
+                db.insert(
+                    PlaylistSongMap(
+                        playlistId = remotePl.id,
+                        songId = localSongId,
+                        position = nextPosition++,
+                    ),
+                )
+            }
         }
     }
 
@@ -1663,7 +1720,11 @@ object MochyCloudSyncManager {
         playlists.filter { isSyncablePlaylist(it.playlist) }
             .take(25)
             .map { pl ->
-                val trackIds = db.playlistSongs(pl.id).first().take(200).joinToString(",") { it.song.id }
+                val trackIds = db.playlistSongs(pl.id).first()
+                    .asSequence()
+                    .filter { isCloudTrackEligible(it.song.song) }
+                    .take(200)
+                    .joinToString(",") { it.song.id }
                 val updatedSec = (pl.playlist.lastUpdateTime ?: pl.playlist.createdAt)
                     ?.atZone(ZoneId.systemDefault())
                     ?.toEpochSecond()
@@ -2153,12 +2214,15 @@ object MochyCloudSyncManager {
         File(path.removePrefix("file://")).takeIf { it.exists() && it.isFile && it.length() > 0L }
     }.getOrNull()
 
-    private fun isCloudSafeId(id: String): Boolean =
-        id.isNotBlank() &&
-            id.length <= 64 &&
-            !id.startsWith("LA") &&
-            !id.contains("://") &&
-            !id.contains("/")
+    private fun isCloudSafeId(id: String): Boolean {
+        val clean = id.trim()
+        return clean.isNotEmpty() &&
+            clean.length <= 64 &&
+            !clean.startsWith("LA") &&
+            !clean.startsWith("LOCAL_", ignoreCase = true) &&
+            !clean.contains("://") &&
+            !clean.contains("/")
+    }
 
     private fun isCloudTrackEligible(song: SongEntity): Boolean =
         !song.isLocal && isCloudSafeId(song.id)
@@ -2185,9 +2249,10 @@ object MochyCloudSyncManager {
 
 internal object MochyPlaybackResumeCodec {
 
-    private const val MaxEncodedChars = 2_950 // luôn nhỏ hơn 3 KB
+    internal const val MaxEncodedChars = 1_200
     private const val MaxQueueTracks = 25
-    private val QueueCaps = intArrayOf(25, 15, 8, 3, 0)
+    private val QueueCaps = intArrayOf(25, 14, 7, 3, 0)
+    private val EmptyResumeJsonArray = JsonArray(emptyList())
 
     fun encode(resume: CloudPlaybackResume): String {
         for (cap in QueueCaps) {
@@ -2209,26 +2274,26 @@ internal object MochyPlaybackResumeCodec {
         if (playbackResumeGz.isNullOrBlank()) return null
         return runCatching {
             val jsonStr = gunzipFromBase64(playbackResumeGz)
-            val root = JSONObject(jsonStr)
-            val deviceId = root.optString("deviceId").trim()
-                .ifBlank { root.optString("device_id").trim() }
-            val songId = root.optString("songId").trim()
+            val root = CloudCodecJson.parseToJsonElement(jsonStr).jsonObject
+            val deviceId = root.optJsonString("deviceId").trim()
+                .ifBlank { root.optJsonString("device_id").trim() }
+            val songId = root.optJsonString("songId").trim()
             if (deviceId.isBlank() || songId.isBlank()) return@runCatching null
 
-            val arr = root.optJSONArray("queueTracks") ?: JSONArray()
-            val queue = buildList(minOf(arr.length(), MaxQueueTracks)) {
-                for (i in 0 until minOf(arr.length(), MaxQueueTracks)) {
-                    val row = arr.optJSONArray(i) ?: continue
-                    val qId = row.optString(0).trim()
+            val arr = root.optJsonArray("queueTracks") ?: EmptyResumeJsonArray
+            val queue = buildList(minOf(arr.size, MaxQueueTracks)) {
+                for (i in 0 until minOf(arr.size, MaxQueueTracks)) {
+                    val row = arr.optJsonArray(i) ?: continue
+                    val qId = row.optJsonString(0).trim()
                     if (qId.isBlank()) continue
                     add(
                         CloudPlaylistTrack(
                             songId = qId,
-                            title = row.optString(1).ifBlank { "Bài hát" },
-                            artists = row.optString(2).ifBlank { "Nghệ sĩ" },
-                            albumName = row.optString(3).takeIf { it.isNotBlank() && it != "null" },
-                            duration = row.optInt(4, -1),
-                            thumbnailUrl = row.optString(5).takeIf { it.isNotBlank() && it != "null" },
+                            title = row.optJsonString(1).ifBlank { "Bài hát" },
+                            artists = row.optJsonString(2).ifBlank { "Nghệ sĩ" },
+                            albumName = row.optJsonString(3).takeIf { it.isNotBlank() && it != "null" },
+                            duration = row.optJsonInt(4, -1),
+                            thumbnailUrl = expandCloudThumbUrl(row.optJsonString(5)),
                         ),
                     )
                 }
@@ -2236,35 +2301,37 @@ internal object MochyPlaybackResumeCodec {
 
             CloudPlaybackResume(
                 deviceId = deviceId,
-                deviceName = root.optString("deviceName").trim().ifBlank { "Thiết bị khác" },
+                deviceName = root.optJsonString("deviceName").trim().ifBlank { "Thiết bị khác" },
                 songId = songId,
-                title = root.optString("title").trim().ifBlank { "Bài hát" },
-                artists = root.optString("artists").trim().ifBlank { "Nghệ sĩ" },
-                albumName = root.optString("albumName").takeIf { it.isNotBlank() && it != "null" },
-                durationSec = root.optInt("durationSec", -1),
-                thumbnailUrl = root.optString("thumbnailUrl").takeIf { it.isNotBlank() && it != "null" },
-                positionMs = root.optLong("positionMs", 0L).coerceAtLeast(0L),
+                title = root.optJsonString("title").trim().ifBlank { "Bài hát" },
+                artists = root.optJsonString("artists").trim().ifBlank { "Nghệ sĩ" },
+                albumName = root.optJsonString("albumName").takeIf { it.isNotBlank() && it != "null" },
+                durationSec = root.optJsonInt("durationSec", -1),
+                thumbnailUrl = expandCloudThumbUrl(root.optJsonString("thumbnailUrl")),
+                positionMs = root.optJsonLong("positionMs", 0L).coerceAtLeast(0L),
                 queueTracks = queue,
-                updatedAtEpochMs = root.optLong("updatedAtEpochMs", 0L).coerceAtLeast(0L),
+                updatedAtEpochMs = root.optJsonLong("updatedAtEpochMs", 0L).coerceAtLeast(0L),
             )
         }.getOrNull()
     }
 
     private fun compressToBase64(resume: CloudPlaybackResume, maxTracks: Int): String {
-        val arr = JSONArray()
-        for (t in resume.queueTracks.take(maxTracks)) {
-            arr.put(
-                JSONArray().apply {
-                    put(t.songId.take(64))
-                    put(t.title.take(100))
-                    put(t.artists.take(100))
-                    put(t.albumName.orEmpty().take(100))
-                    put(t.duration.coerceIn(-1, 86_400))
-                    put(t.thumbnailUrl.orEmpty().take(280))
-                },
-            )
+        val arr = buildJsonArray {
+            for (t in resume.queueTracks.take(maxTracks)) {
+                add(
+                    buildJsonArray {
+                        add(JsonPrimitive(t.songId.take(64)))
+                        add(JsonPrimitive(t.title.take(100)))
+                        add(JsonPrimitive(t.artists.take(100)))
+                        add(JsonPrimitive(t.albumName.orEmpty().take(100)))
+                        add(JsonPrimitive(t.duration.coerceIn(-1, 86_400)))
+                        add(JsonPrimitive(compactCloudThumbUrl(t.thumbnailUrl).take(280)))
+                    },
+                )
+            }
         }
-        val root = JSONObject().apply {
+        val compactThumb = compactCloudThumbUrl(resume.thumbnailUrl).take(320)
+        val root = buildJsonObject {
             put("v", 1)
             put("deviceId", resume.deviceId.take(64))
             put("deviceName", resume.deviceName.take(40))
@@ -2273,7 +2340,7 @@ internal object MochyPlaybackResumeCodec {
             put("artists", resume.artists.take(140))
             if (!resume.albumName.isNullOrBlank()) put("albumName", resume.albumName.take(120))
             put("durationSec", resume.durationSec.coerceIn(-1, 86_400))
-            if (!resume.thumbnailUrl.isNullOrBlank()) put("thumbnailUrl", resume.thumbnailUrl.take(320))
+            if (compactThumb.isNotEmpty()) put("thumbnailUrl", compactThumb)
             put("positionMs", resume.positionMs.coerceAtLeast(0L))
             put("queueTracks", arr)
             put("updatedAtEpochMs", resume.updatedAtEpochMs)

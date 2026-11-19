@@ -122,14 +122,7 @@ fun SelectionSongMenu(
 
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
-        onGetSong = { playlist ->
-            coroutineScope.launch(Dispatchers.IO) {
-                songSelection.forEach { song ->
-                    playlist.playlist.browseId?.let { browseId ->
-                        YouTube.addToPlaylist(browseId, song.id)
-                    }
-                }
-            }
+        onGetSong = {
             songSelection.map { it.id }
         },
         onDismiss = {
@@ -146,7 +139,7 @@ fun SelectionSongMenu(
             onDismiss = { showRemoveDownloadDialog = false },
             content = {
                 Text(
-                    text = stringResource(R.string.remove_download_playlist_confirm, "selection"),
+                    text = stringResource(R.string.remove_download_playlist_confirm, stringResource(R.string.pc_selection)),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(horizontal = 18.dp),
                 )
@@ -457,9 +450,10 @@ fun SelectionSongMenu(
                                 },
                                 onClick = {
                                     onDismiss()
+                                    val sortedPositions = songPosition.sortedBy { it.position }
                                     var i = 0
                                     database.query {
-                                        songPosition.forEach { cur ->
+                                        sortedPositions.forEach { cur ->
                                             move(cur.playlistId, cur.position - i, Int.MAX_VALUE)
                                             delete(cur.copy(position = Int.MAX_VALUE))
                                             i++

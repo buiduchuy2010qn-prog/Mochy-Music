@@ -44,6 +44,9 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Run Module Unit Tests
+        run: ./gradlew --console=plain :modules:bridge:test :modules:applemusic:test :modules:jiosaavn:test :modules:monochrome:test :modules:zingmp3:test :modules:soundcloud:test
+
       - name: Build and Lint Universal FOSS Debug APK
         run: ./gradlew --console=plain assembleUniversalFossDebug :app:lintUniversalFossDebug --warning-mode summary
         env:
