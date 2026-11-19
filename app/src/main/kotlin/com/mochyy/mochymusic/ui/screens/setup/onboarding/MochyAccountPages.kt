@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,14 +35,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,6 +58,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -64,8 +69,10 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.cloud.MochyCloudSyncManager
+import com.mochyy.mochymusic.constants.AccountEmailKey
 import com.mochyy.mochymusic.ui.screens.setup.PhotoCropperContainer
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -87,6 +94,8 @@ internal fun MochyWelcomeAccountStep(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val cloudState by MochyCloudSyncManager.state.collectAsState()
+    val accountEmail by rememberPreference(AccountEmailKey, "")
+    val currentOnAuthenticated by rememberUpdatedState(onAuthenticated)
 
     var subStep by remember { mutableStateOf(AccountSubStep.Hub) }
     var forward by remember { mutableStateOf(true) }
@@ -95,7 +104,39 @@ internal fun MochyWelcomeAccountStep(
     var displayNameInput by rememberSaveable { mutableStateOf("") }
     var passwordInput by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    var waitingGoogleAuth by rememberSaveable { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(cloudState.signedIn, cloudState.googleAuthInProgress, waitingGoogleAuth) {
+        if (waitingGoogleAuth && cloudState.signedIn && !cloudState.googleAuthInProgress) {
+            waitingGoogleAuth = false
+            val resolvedName = cloudState.displayName.ifBlank { cloudState.username }
+            val resolvedAvatar = cloudState.avatarLocalPath?.let(::File)?.takeIf { it.exists() }?.let(Uri::fromFile)
+            currentOnAuthenticated(resolvedName, resolvedAvatar)
+        }
+    }
+
+    LaunchedEffect(cloudState.googleAuthInProgress, cloudState.lastError, waitingGoogleAuth) {
+        if (waitingGoogleAuth && !cloudState.googleAuthInProgress && !cloudState.lastError.isNullOrBlank()) {
+            waitingGoogleAuth = false
+            errorMsg = cloudState.lastError
+        }
+    }
+
+    fun startGoogleAuth() {
+        if (busy || cloudState.googleAuthInProgress) return
+        errorMsg = null
+        val loginHint = accountEmail.trim().takeIf {
+            it.contains("@") && !it.endsWith("@account.mochy.app", ignoreCase = true)
+        }
+        val res = MochyCloudSyncManager.startGoogleSignIn(context, loginHint)
+        res.onSuccess {
+            waitingGoogleAuth = true
+        }.onFailure { err ->
+            waitingGoogleAuth = false
+            errorMsg = err.message ?: context.getString(R.string.mochy_cloud_google_launch_failed)
+        }
+    }
 
     fun navigateTo(target: AccountSubStep) {
         forward = target != AccountSubStep.Hub
@@ -249,6 +290,14 @@ internal fun MochyWelcomeAccountStep(
                         }
                     }
 
+                    OnbGoogleChoiceCard(
+                        connecting = cloudState.googleAuthInProgress,
+                        onClick = ::startGoogleAuth,
+                        onCancel = {
+                            waitingGoogleAuth = false
+                            MochyCloudSyncManager.cancelGoogleAuthInProgress()
+                        },
+                    )
                     OnbChoiceCard(
                         icon = painterResource(R.drawable.group_add),
                         title = "Tạo tài khoản mới",
@@ -267,6 +316,17 @@ internal fun MochyWelcomeAccountStep(
                         description = "vào thẳng ứng dụng không cần đăng ký · dữ liệu lưu trên máy, có thể tạo tài khoản bất cứ lúc nào",
                         onClick = onGuest,
                     )
+                    val hubError = errorMsg ?: cloudState.lastError
+                    if (!hubError.isNullOrBlank()) {
+                        Text(
+                            text = hubError,
+                            color = Color(0xFFE0736B),
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 6.dp),
+                        )
+                    }
                 }
             }
 
@@ -565,6 +625,89 @@ internal fun MochyWelcomeAccountStep(
                             modifier = Modifier.padding(horizontal = 6.dp),
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnbGoogleChoiceCard(
+    connecting: Boolean,
+    onClick: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    OnbCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = if (connecting) null else onClick,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (connecting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.5.dp,
+                        color = Color(0xFF1C1C1C),
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(R.drawable.ic_google_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.width(18.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (connecting) {
+                        stringResource(R.string.mochy_cloud_google_connecting)
+                    } else {
+                        stringResource(R.string.mochy_cloud_continue_google)
+                    },
+                    color = Color.White,
+                    fontFamily = InterFontFamily,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (connecting) {
+                        stringResource(R.string.mochy_onb_google_connecting_desc)
+                    } else {
+                        stringResource(R.string.mochy_onb_google_desc)
+                    },
+                    color = Onb.Subtitle,
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    lineHeight = 15.sp,
+                )
+            }
+            if (connecting) {
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.14f))
+                        .clickable(onClick = onCancel)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.cancel),
+                        color = Color.White,
+                        fontFamily = InterFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
         }

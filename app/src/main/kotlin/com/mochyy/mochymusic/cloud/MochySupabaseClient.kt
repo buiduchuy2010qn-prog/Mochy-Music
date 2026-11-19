@@ -12,9 +12,14 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.URLDecoder
 import java.net.URLEncoder
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.time.Instant
+import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 data class CloudProfileRecord(
@@ -64,9 +69,173 @@ sealed class RefreshSessionResult {
     data class NetworkError(val message: String) : RefreshSessionResult()
 }
 
+data class OAuthAuthResult(
+    val session: MochyCloudSession,
+    val email: String?,
+    val avatarUrl: String?,
+)
+
+data class ParsedOAuthCallback(
+    val code: String? = null,
+    val accessToken: String? = null,
+    val refreshToken: String? = null,
+    val expiresIn: Long? = null,
+    val error: String? = null,
+    val errorDescription: String? = null,
+)
+
+/**
+ * Pure-JVM helpers for Supabase Google OAuth PKCE (RFC 7636 S256).
+ * Uses only standard JDK classes so unit tests run directly on the JVM without Android stubs.
+ */
+object MochyGoogleOAuthHelper {
+
+    const val GoogleOAuthRedirectUri = "mochy-cloud://auth-callback"
+
+    private const val SyntheticEmailSuffix = "@account.mochy.app"
+    private val secureRandom = SecureRandom()
+
+    fun generatePkceVerifier(): String {
+        val bytes = ByteArray(32)
+        secureRandom.nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    fun computePkceChallenge(verifier: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(verifier.toByteArray(Charsets.US_ASCII))
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+    }
+
+    fun isRealUserEmail(email: String?): Boolean {
+        val trimmed = email?.trim()?.lowercase() ?: return false
+        if (trimmed.isEmpty() || trimmed.length > 254 || trimmed.any { it.isWhitespace() }) return false
+        if (trimmed.endsWith(SyntheticEmailSuffix)) return false
+        val at = trimmed.indexOf('@')
+        if (at <= 0 || at != trimmed.lastIndexOf('@') || at >= trimmed.lastIndex) return false
+        val domain = trimmed.substring(at + 1)
+        val dot = domain.indexOf('.')
+        return dot > 0 && dot < domain.lastIndex
+    }
+
+    fun buildGoogleAuthorizeUrl(
+        baseUrl: String,
+        codeChallenge: String,
+        loginHintEmail: String? = null,
+    ): String {
+        val cleanBase = baseUrl.trim().trimEnd('/')
+        val base = "$cleanBase/auth/v1/authorize" +
+            "?provider=google" +
+            "&redirect_to=${encodeQueryComponent(GoogleOAuthRedirectUri)}" +
+            "&code_challenge=${encodeQueryComponent(codeChallenge)}" +
+            "&code_challenge_method=s256" +
+            "&prompt=select_account"
+        val hint = loginHintEmail?.trim()?.takeIf(::isRealUserEmail)
+        return if (hint != null) {
+            "$base&login_hint=${encodeQueryComponent(hint)}"
+        } else {
+            base
+        }
+    }
+
+    fun parseOAuthCallbackParams(
+        rawQuery: String?,
+        rawFragment: String?,
+    ): ParsedOAuthCallback {
+        val params = LinkedHashMap<String, String>()
+        parseUrlEncodedPairs(rawFragment?.removePrefix("#"), params)
+        parseUrlEncodedPairs(rawQuery?.removePrefix("?"), params)
+        return ParsedOAuthCallback(
+            code = params["code"]?.takeIf { it.isNotBlank() },
+            accessToken = params["access_token"]?.takeIf { it.isNotBlank() },
+            refreshToken = params["refresh_token"]?.takeIf { it.isNotBlank() },
+            expiresIn = params["expires_in"]?.toLongOrNull()?.takeIf { it > 0L },
+            error = params["error"]?.takeIf { it.isNotBlank() },
+            errorDescription = params["error_description"]?.takeIf { it.isNotBlank() }
+                ?: params["error_msg"]?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    fun deriveUsernameFromEmail(
+        email: String?,
+        userId: String,
+        withSuffix: Boolean = false,
+    ): String {
+        val rawPrefix = email
+            ?.trim()
+            ?.substringBefore('@')
+            ?.lowercase()
+            .orEmpty()
+        val cleaned = buildString(rawPrefix.length) {
+            for (ch in rawPrefix) {
+                if (ch in 'a'..'z' || ch in '0'..'9' || ch == '.' || ch == '_') {
+                    append(ch)
+                }
+            }
+        }.trim('.', '_')
+
+        val base = if (cleaned.length < 3) "mochy" else cleaned
+        if (!withSuffix) {
+            return base.take(24).trimEnd('.', '_').let { if (it.length < 3) "mochy" else it }
+        }
+        val suffixSource = buildString(4) {
+            for (ch in userId.lowercase()) {
+                if (ch in 'a'..'z' || ch in '0'..'9') append(ch)
+                if (length >= 4) break
+            }
+        }.padEnd(4, '0')
+        val maxBase = 24 - 1 - suffixSource.length
+        val shortBase = base.take(maxBase).trimEnd('.', '_').ifEmpty { "mochy" }
+        return "${shortBase}_$suffixSource"
+    }
+
+    fun mapOAuthErrorToVietnamese(
+        error: String?,
+        errorDescription: String?,
+    ): String {
+        val desc = errorDescription?.trim().orEmpty()
+        val err = error?.trim().orEmpty()
+        val combined = "$err $desc".lowercase()
+        return when {
+            "provider is not enabled" in combined || "unsupported provider" in combined ->
+                "Đăng nhập Google chưa được bật trên máy chủ Supabase (Authentication › Providers › Google)."
+            "access_denied" in combined || "cancel" in combined ->
+                "Bạn đã hủy đăng nhập bằng Google."
+            "flow_state" in combined || "bad_oauth_state" in combined || "code verifier" in combined ->
+                "Phiên xác thực Google đã hết hạn, vui lòng thử lại."
+            "redirect" in combined && ("not allowed" in combined || "mismatch" in combined || "invalid" in combined) ->
+                "Đường dẫn chuyển hướng Google chưa được cấp phép trên máy chủ."
+            desc.isNotBlank() -> desc
+            err.isNotBlank() -> "Đăng nhập Google thất bại ($err)."
+            else -> "Đăng nhập bằng Google thất bại."
+        }
+    }
+
+    private fun parseUrlEncodedPairs(raw: String?, out: MutableMap<String, String>) {
+        if (raw.isNullOrBlank()) return
+        for (segment in raw.split('&')) {
+            if (segment.isBlank()) continue
+            val eq = segment.indexOf('=')
+            val rawKey = if (eq >= 0) segment.substring(0, eq) else segment
+            val rawVal = if (eq >= 0) segment.substring(eq + 1) else ""
+            val key = decodeQueryComponent(rawKey).trim()
+            val value = decodeQueryComponent(rawVal).trim()
+            if (key.isNotEmpty() && value.isNotEmpty()) {
+                out[key] = value
+            }
+        }
+    }
+
+    private fun encodeQueryComponent(value: String): String =
+        URLEncoder.encode(value, "UTF-8").replace("+", "%20")
+
+    private fun decodeQueryComponent(raw: String): String =
+        runCatching { URLDecoder.decode(raw, "UTF-8") }.getOrDefault(raw)
+}
+
 /**
  * Giao tiếp HTTPS trực tiếp với Supabase Auth + PostgREST cho Mochy Cloud.
- * Tuân thủ quy tắc Publishable Key (`sb_publishable_...`):
+ * Tuân thủ quy tắc Publishable Key:
  * - Chỉ truyền qua header `apikey`, tuyệt đối không đặt Publishable Key vào `Authorization: Bearer`.
  * - Header `Authorization: Bearer` chỉ mang JWT truy cập của chính người dùng đã đăng nhập.
  */
@@ -126,8 +295,135 @@ object MochySupabaseClient {
 
         val responseJson = executeAuthRequest(request, isSignUp = true, isSignIn = false)
         val session = parseAuthSession(responseJson, fallbackUsername = username, fallbackDisplay = cleanDisplay)
-        ensureProfileRow(context, session, cleanDisplay)
-        session
+        val effectiveUsername = ensureProfileRow(context, session, cleanDisplay)
+        if (effectiveUsername != session.username) session.copy(username = effectiveUsername) else session
+    }
+
+    suspend fun exchangePkceCode(
+        context: Context,
+        authCode: String,
+        codeVerifier: String,
+    ): OAuthAuthResult = withContext(Dispatchers.IO) {
+        val cleanCode = authCode.trim()
+        val cleanVerifier = codeVerifier.trim()
+        if (cleanCode.isBlank() || cleanVerifier.isBlank()) {
+            throw MochyCloudException("Thiếu mã xác thực Google, vui lòng thử đăng nhập lại.")
+        }
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
+            ?: throw MochyCloudException("Bản dựng này chưa cấu hình Mochy Cloud.")
+
+        val body = JSONObject().apply {
+            put("auth_code", cleanCode)
+            put("code_verifier", cleanVerifier)
+        }.toString().toRequestBody(JsonMediaType)
+
+        val request = Request.Builder()
+            .url("$baseUrl/auth/v1/token?grant_type=pkce")
+            .header("apikey", publishableKey)
+            .header("Accept", "application/json")
+            .post(body)
+            .build()
+
+        val responseJson = executeAuthRequest(request, isSignUp = false, isSignIn = false)
+        parseOAuthSession(responseJson)
+    }
+
+    suspend fun fetchSessionFromAccessToken(
+        context: Context,
+        accessToken: String,
+        refreshToken: String,
+        expiresInSec: Long,
+    ): OAuthAuthResult = withContext(Dispatchers.IO) {
+        val cleanAccess = accessToken.trim()
+        if (cleanAccess.isBlank()) {
+            throw MochyCloudException("Không nhận được phiên đăng nhập Google hợp lệ.")
+        }
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
+            ?: throw MochyCloudException("Bản dựng này chưa cấu hình Mochy Cloud.")
+
+        val request = Request.Builder()
+            .url("$baseUrl/auth/v1/user")
+            .header("apikey", publishableKey)
+            .header("Authorization", "Bearer $cleanAccess")
+            .header("Accept", "application/json")
+            .get()
+            .build()
+
+        val responseJson = executeAuthRequest(request, isSignUp = false, isSignIn = false)
+        val userObj = responseJson.optJSONObject("user") ?: responseJson
+        val expiresAt = (System.currentTimeMillis() / 1000L) + expiresInSec.coerceAtLeast(60L)
+        buildOAuthAuthResult(
+            accessToken = cleanAccess,
+            refreshToken = refreshToken.trim(),
+            expiresAtEpochSec = expiresAt,
+            userObj = userObj,
+        )
+    }
+
+    suspend fun downloadImageBytes(url: String): ByteArray? = withContext(Dispatchers.IO) {
+        val cleanUrl = url.trim()
+        if (!cleanUrl.startsWith("https://", ignoreCase = true) || cleanUrl.length > 1024) {
+            return@withContext null
+        }
+        val maxBytes = 2 * 1024 * 1024
+        val request = Request.Builder()
+            .url(cleanUrl)
+            .header("Accept", "image/*")
+            .get()
+            .build()
+        runCatching {
+            http.newCall(request).execute().use { resp ->
+                if (resp.code != 200) return@runCatching null
+                val body = resp.body ?: return@runCatching null
+                val contentLength = body.contentLength()
+                if (contentLength > maxBytes) return@runCatching null
+                val out = ByteArrayOutputStream()
+                val buf = ByteArray(8192)
+                body.byteStream().use { input ->
+                    var total = 0
+                    while (true) {
+                        val read = input.read(buf)
+                        if (read <= 0) break
+                        total += read
+                        if (total > maxBytes) return@runCatching null
+                        out.write(buf, 0, read)
+                    }
+                }
+                out.toByteArray().takeIf { it.isNotEmpty() }
+            }
+        }.getOrNull()
+    }
+
+    suspend fun updateIdentityMetadata(
+        context: Context,
+        session: MochyCloudSession,
+        username: String? = null,
+        displayName: String? = null,
+    ): Unit = withContext(Dispatchers.IO) {
+        val data = JSONObject().apply {
+            username?.trim()?.let(::normalizeUsername)?.takeIf(::isValidUsername)?.let {
+                put("username", it)
+            }
+            displayName?.trim()?.takeIf { it.isNotBlank() }?.take(40)?.let {
+                put("display_name", it)
+            }
+        }
+        if (data.length() == 0) return@withContext
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return@withContext
+        val body = JSONObject().apply {
+            put("data", data)
+        }.toString().toRequestBody(JsonMediaType)
+        runCatching {
+            executeAuthenticatedAuthJson(context, session) { accessToken ->
+                Request.Builder()
+                    .url("$baseUrl/auth/v1/user")
+                    .header("apikey", publishableKey)
+                    .header("Authorization", "Bearer $accessToken")
+                    .header("Accept", "application/json")
+                    .put(body)
+                    .build()
+            }
+        }
     }
 
     suspend fun signIn(
@@ -607,25 +903,57 @@ object MochySupabaseClient {
         }
     }
 
-    internal fun ensureProfileRow(context: Context, session: MochyCloudSession, displayName: String) {
-        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return
+    internal fun ensureProfileRow(
+        context: Context,
+        session: MochyCloudSession,
+        displayName: String,
+    ): String {
+        val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context) ?: return session.username
         val activeToken = MochyCloudVault.loadSession(context)
             ?.takeIf { it.userId == session.userId }
             ?.accessToken
             ?: session.accessToken
-        val body = JSONObject().apply {
-            put("user_id", session.userId)
-            put("username", session.username)
-            put("display_name", displayName.trim().ifBlank { session.username }.take(40))
-        }.toString().toRequestBody(JsonMediaType)
-        val request = Request.Builder()
-            .url("$baseUrl/rest/v1/mochy_profiles?on_conflict=user_id")
-            .header("apikey", publishableKey)
-            .header("Authorization", "Bearer $activeToken")
-            .header("Prefer", "resolution=ignore-duplicates,return=minimal")
-            .post(body)
-            .build()
-        runCatching { http.newCall(request).execute().close() }
+        val cleanDisplay = displayName.trim().ifBlank { session.username }.take(40)
+
+        fun postProfileRow(candidateUsername: String): HttpCallResult? {
+            val body = JSONObject().apply {
+                put("user_id", session.userId)
+                put("username", candidateUsername)
+                put("display_name", cleanDisplay)
+            }.toString().toRequestBody(JsonMediaType)
+            val request = Request.Builder()
+                .url("$baseUrl/rest/v1/mochy_profiles?on_conflict=user_id")
+                .header("apikey", publishableKey)
+                .header("Authorization", "Bearer $activeToken")
+                .header("Prefer", "resolution=ignore-duplicates,return=minimal")
+                .post(body)
+                .build()
+            return runCatching {
+                http.newCall(request).execute().use { resp ->
+                    HttpCallResult(resp.code, resp.body?.string().orEmpty())
+                }
+            }.getOrNull()
+        }
+
+        val first = postProfileRow(session.username) ?: return session.username
+        if (first.code in 200..299) {
+            return session.username
+        }
+        val pgCode = runCatching { JSONObject(first.body).optString("code") }.getOrNull().orEmpty()
+        if (first.code == 409 || pgCode == "23505") {
+            val fallbackUsername = MochyGoogleOAuthHelper.deriveUsernameFromEmail(
+                email = session.username,
+                userId = session.userId,
+                withSuffix = true,
+            )
+            if (fallbackUsername != session.username) {
+                val retry = postProfileRow(fallbackUsername)
+                if (retry != null && retry.code in 200..299) {
+                    return fallbackUsername
+                }
+            }
+        }
+        return session.username
     }
 
     private fun isCloudSafeSongId(id: String): Boolean {
@@ -782,6 +1110,10 @@ object MochySupabaseClient {
         val friendly = when {
             code == 401 -> "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại."
             code == 429 || "rate limit" in lower -> "Thao tác quá nhanh, vui lòng thử lại sau ít phút."
+            "provider is not enabled" in lower || "unsupported provider" in lower ->
+                "Đăng nhập Google chưa được bật trên máy chủ Supabase (Authentication › Providers › Google)."
+            "code verifier" in lower || "invalid flow state" in lower || "flow_state" in lower ->
+                "Phiên xác thực Google đã hết hạn, vui lòng thử lại."
             isSignUp && ("already registered" in lower || "already exists" in lower) ->
                 "Tên đăng nhập này đã có người sử dụng."
             isSignIn && ("invalid login credentials" in lower || "invalid" in lower) ->
@@ -809,6 +1141,76 @@ object MochySupabaseClient {
         }
     }
 
+    private fun parseOAuthSession(json: JSONObject): OAuthAuthResult {
+        val access = json.optString("access_token").trim()
+        val refresh = json.optString("refresh_token").trim()
+        val expiresAt = json.optLong("expires_at", 0L).takeIf { it > 0L }
+            ?: ((System.currentTimeMillis() / 1000L) + json.optLong("expires_in", 3600L).coerceAtLeast(60L))
+        val userObj = json.optJSONObject("user")
+        return buildOAuthAuthResult(
+            accessToken = access,
+            refreshToken = refresh,
+            expiresAtEpochSec = expiresAt,
+            userObj = userObj,
+        )
+    }
+
+    private fun buildOAuthAuthResult(
+        accessToken: String,
+        refreshToken: String,
+        expiresAtEpochSec: Long,
+        userObj: JSONObject?,
+    ): OAuthAuthResult {
+        val userId = userObj?.optString("id")?.trim().orEmpty()
+        if (accessToken.isBlank() || userId.isBlank()) {
+            throw MochyCloudException("Không nhận được phiên đăng nhập hợp lệ.")
+        }
+        val meta = userObj?.optJSONObject("user_metadata")
+        val rawEmail = userObj?.optString("email")?.trim()?.takeIf { it.isNotBlank() && it != "null" }
+            ?: meta?.optString("email")?.trim()?.takeIf { it.isNotBlank() && it != "null" }
+        val realEmail = rawEmail?.takeIf { MochyGoogleOAuthHelper.isRealUserEmail(it) }?.lowercase()
+        val emailPrefix = rawEmail?.substringBefore('@')?.trim()?.takeIf { it.isNotBlank() }
+
+        val displayName = listOf(
+            meta?.optString("display_name"),
+            meta?.optString("full_name"),
+            meta?.optString("name"),
+            emailPrefix,
+        ).firstOrNull { !it.isNullOrBlank() && it != "null" }
+            ?.trim()
+            ?.take(40)
+            ?: "Mochy User"
+
+        val metaUsername = meta?.optString("username")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() && it != "null" }
+            ?.let(::normalizeUsername)
+            ?.takeIf(::isValidUsername)
+        val username = metaUsername
+            ?: MochyGoogleOAuthHelper.deriveUsernameFromEmail(rawEmail, userId, withSuffix = false)
+
+        val avatarUrl = listOf(
+            meta?.optString("avatar_url"),
+            meta?.optString("picture"),
+        ).firstOrNull { raw ->
+            val clean = raw?.trim().orEmpty()
+            clean.startsWith("https://", ignoreCase = true) && clean.length <= 1024
+        }?.trim()
+
+        return OAuthAuthResult(
+            session = MochyCloudSession(
+                accessToken = accessToken,
+                refreshToken = refreshToken,
+                expiresAtEpochSec = expiresAtEpochSec,
+                userId = userId,
+                username = username,
+                displayName = displayName,
+            ),
+            email = realEmail,
+            avatarUrl = avatarUrl,
+        )
+    }
+
     private fun parseAuthSession(
         json: JSONObject,
         fallbackUsername: String,
@@ -821,8 +1223,8 @@ object MochySupabaseClient {
         val userObj = json.optJSONObject("user")
         val userId = userObj?.optString("id").orEmpty()
         val meta = userObj?.optJSONObject("user_metadata")
-        val username = meta?.optString("username")?.takeIf { it.isNotBlank() } ?: fallbackUsername
-        val display = meta?.optString("display_name")?.takeIf { it.isNotBlank() } ?: fallbackDisplay
+        val username = meta?.optString("username")?.takeIf { it.isNotBlank() && it != "null" } ?: fallbackUsername
+        val display = meta?.optString("display_name")?.takeIf { it.isNotBlank() && it != "null" } ?: fallbackDisplay
         if (access.isBlank() || userId.isBlank()) {
             throw MochyCloudException("Không nhận được phiên đăng nhập hợp lệ.")
         }

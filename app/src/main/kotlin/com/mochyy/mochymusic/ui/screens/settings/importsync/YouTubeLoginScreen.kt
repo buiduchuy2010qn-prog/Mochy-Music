@@ -1,13 +1,25 @@
 package com.mochyy.mochymusic.ui.screens.settings.importsync
 
+import android.accounts.AccountManager
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.graphics.Bitmap
+import android.os.Build
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,8 +30,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,7 +42,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,24 +52,36 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.datastore.preferences.core.edit
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.cloud.MochyCloudVault
 import com.mochyy.mochymusic.constants.AccountChannelHandleKey
 import com.mochyy.mochymusic.constants.AccountEmailKey
 import com.mochyy.mochymusic.constants.AccountNameKey
 import com.mochyy.mochymusic.constants.DataSyncIdKey
 import com.mochyy.mochymusic.constants.InnerTubeCookieKey
 import com.mochyy.mochymusic.constants.VisitorDataKey
+import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.pressBounce
+import com.mochyy.mochymusic.ui.player.menu.MenuRowSurface
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.stableStatusBarsPadding
 import com.mochyy.mochymusic.utils.dataStore
+import com.mochyy.mochymusic.utils.rememberPreference
 import com.music.innertube.YouTube
 import com.music.innertube.models.AccountInfo
 import com.music.innertube.utils.parseCookieString
@@ -62,8 +90,50 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import timber.log.Timber
+import java.net.URLEncoder
 
 private const val LOGIN_URL = "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com"
+private const val YOUTUBE_MUSIC_ORIGIN = "https://music.youtube.com"
+
+private fun isValidEmailHint(email: String?): Boolean {
+    val trimmed = email?.trim().orEmpty()
+    val at = trimmed.indexOf('@')
+    return at > 0 &&
+        at < trimmed.length - 1 &&
+        !trimmed.endsWith("@account.mochy.app", ignoreCase = true)
+}
+
+internal fun buildYouTubeLoginUrl(emailHint: String?): String {
+    val clean = emailHint?.trim()?.takeIf(::isValidEmailHint)
+    return if (clean != null) {
+        "$LOGIN_URL&Email=${URLEncoder.encode(clean, "UTF-8")}"
+    } else {
+        LOGIN_URL
+    }
+}
+
+private fun mergeCookieHeaders(primary: String?, fallback: String?): String? {
+    val p = primary?.trim().orEmpty()
+    val f = fallback?.trim().orEmpty()
+    if (p.isEmpty() && f.isEmpty()) return null
+    if (p.isEmpty()) return f
+    if (f.isEmpty() || p == f) return p
+    val merged = LinkedHashMap<String, String>()
+    fun ingest(raw: String) {
+        raw.split(';').forEach { part ->
+            val trimmed = part.trim()
+            val eq = trimmed.indexOf('=')
+            if (eq > 0) {
+                val name = trimmed.substring(0, eq).trim()
+                val value = trimmed.substring(eq + 1).trim()
+                if (name.isNotEmpty()) merged[name] = value
+            }
+        }
+    }
+    ingest(f)
+    ingest(p)
+    return merged.entries.joinToString("; ") { "${it.key}=${it.value}" }.ifBlank { p }
+}
 
 /** reads the session ids youtube music keeps in its page config */
 private const val READ_CONFIG_JS = """
@@ -79,11 +149,102 @@ private const val READ_CONFIG_JS = """
 })();
 """
 
+@Composable
+private fun rememberDeviceGoogleAccountPicker(
+    onPicked: (String) -> Unit,
+): () -> Unit {
+    val context = LocalContext.current
+    val currentOnPicked by rememberUpdatedState(onPicked)
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val pickedEmail = result.data
+                ?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
+                ?.trim()
+                ?.takeIf(::isValidEmailHint)
+            if (pickedEmail != null) {
+                currentOnPicked(pickedEmail)
+            }
+        }
+    }
+    return remember(context, launcher) {
+        {
+            try {
+                val intent = AccountManager.newChooseAccountIntent(
+                    null,
+                    null,
+                    arrayOf("com.google"),
+                    null,
+                    null,
+                    null,
+                    null,
+                )
+                launcher.launch(intent)
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.yt_login_device_picker_unavailable),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceGmailPickerChip(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val haptic = LocalHapticFeedback.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        modifier = modifier
+            .pressBounce(interaction, pressedScale = 0.95f)
+            .clip(CircleShape)
+            .background(MenuRowSurface)
+            .border(1.dp, Color.White.copy(alpha = 0.16f), CircleShape)
+            .clickable(
+                interactionSource = interaction,
+                indication = RemoteFocus,
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = 11.dp, vertical = 7.dp),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_google_logo),
+            contentDescription = null,
+            modifier = Modifier.size(15.dp),
+        )
+        Text(
+            text = stringResource(R.string.yt_login_pick_device_gmail),
+            color = Color.White,
+            fontFamily = InterFontFamily,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 /** the full-screen sign-in page used from the sync settings */
 @Composable
 fun YouTubeLoginScreen(navController: NavController) {
     val context = LocalContext.current
     var pageLoading by remember { mutableStateOf(true) }
+    var pickedEmail by remember { mutableStateOf<String?>(null) }
+    var pickedEmailVersion by remember { mutableIntStateOf(0) }
+
+    val launchDeviceAccountPicker = rememberDeviceGoogleAccountPicker { email ->
+        pickedEmail = email
+        pickedEmailVersion++
+    }
 
     Column(
         modifier =
@@ -98,7 +259,7 @@ fun YouTubeLoginScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(start = 8.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
         ) {
             IconButton(onClick = { navController.navigateUp() }) {
                 Icon(
@@ -109,13 +270,23 @@ fun YouTubeLoginScreen(navController: NavController) {
             }
             Spacer(Modifier.width(4.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.yt_login_title), style = MaterialTheme.typography.titleLarge, color = Color.White)
                 Text(
-                    stringResource(R.string.yt_login_subtitle),
+                    text = stringResource(R.string.yt_login_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.yt_login_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
+            Spacer(Modifier.width(8.dp))
+            DeviceGmailPickerChip(onClick = launchDeviceAccountPicker)
         }
         Box(modifier = Modifier.height(2.dp).fillMaxWidth()) {
             if (pageLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -133,6 +304,9 @@ fun YouTubeLoginScreen(navController: NavController) {
             },
             onExit = { navController.navigateUp() },
             onLoadingChange = { pageLoading = it },
+            showDeviceAccountPicker = false,
+            externalEmailHint = pickedEmail,
+            externalEmailRequestVersion = pickedEmailVersion,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
     }
@@ -147,22 +321,51 @@ fun YouTubeLoginWebContent(
     modifier: Modifier = Modifier,
     onUrlChange: (String) -> Unit = {},
     onLoadingChange: (Boolean) -> Unit = {},
+    showDeviceAccountPicker: Boolean = true,
+    externalEmailHint: String? = null,
+    externalEmailRequestVersion: Int = 0,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val currentOnSignedIn by rememberUpdatedState(onSignedIn)
     val currentOnUrlChange by rememberUpdatedState(onUrlChange)
     val currentOnLoadingChange by rememberUpdatedState(onLoadingChange)
+    val savedAccountEmail by rememberPreference(AccountEmailKey, "")
+    val initialEmailHint = remember(context) {
+        MochyCloudVault.loadGoogleEmail(context)?.trim()?.takeIf(::isValidEmailHint)
+            ?: savedAccountEmail.trim().takeIf(::isValidEmailHint)
+    }
+    var activeEmailHint by remember(initialEmailHint) {
+        mutableStateOf(externalEmailHint?.trim()?.takeIf(::isValidEmailHint) ?: initialEmailHint)
+    }
     var webView by remember { mutableStateOf<WebView?>(null) }
     var saving by remember { mutableStateOf(false) }
     var finished by remember { mutableStateOf(false) }
+
+    val launchDeviceAccountPicker = rememberDeviceGoogleAccountPicker { email ->
+        activeEmailHint = email
+        webView?.loadUrl(buildYouTubeLoginUrl(email))
+    }
+
+    LaunchedEffect(externalEmailRequestVersion) {
+        if (externalEmailRequestVersion > 0) {
+            val clean = externalEmailHint?.trim()?.takeIf(::isValidEmailHint) ?: return@LaunchedEffect
+            activeEmailHint = clean
+            webView?.loadUrl(buildYouTubeLoginUrl(clean))
+        }
+    }
 
     fun finishLogin(
         view: WebView,
         url: String,
     ) {
         if (saving || finished) return
-        val cookie = CookieManager.getInstance().getCookie(url) ?: return
+        val cookieManager = CookieManager.getInstance()
+        runCatching { cookieManager.flush() }
+        val cookie = mergeCookieHeaders(
+            primary = cookieManager.getCookie(url),
+            fallback = cookieManager.getCookie(YOUTUBE_MUSIC_ORIGIN),
+        ) ?: return
         if ("SAPISID" !in runCatching { parseCookieString(cookie) }.getOrDefault(emptyMap())) return
         saving = true
         view.evaluateJavascript(READ_CONFIG_JS) { raw ->
@@ -189,6 +392,7 @@ fun YouTubeLoginWebContent(
                         settings[AccountEmailKey] = info?.email.orEmpty()
                         settings[AccountChannelHandleKey] = info?.channelHandle.orEmpty()
                     }
+                    runCatching { CookieManager.getInstance().flush() }
                     withContext(Dispatchers.Main) {
                         finished = true
                         currentOnSignedIn(info)
@@ -219,61 +423,99 @@ fun YouTubeLoginWebContent(
         }
     }
 
-    Box(modifier = modifier) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    // see CaptureWebContent: wrap_content makes chromium lay pages out at zero height
-                    layoutParams =
-                        android.view.ViewGroup.LayoutParams(
-                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        )
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.setSupportZoom(true)
-                    settings.builtInZoomControls = true
-                    settings.displayZoomControls = false
-                    // google refuses sign-in from pages that announce themselves as an embedded webview
-                    settings.userAgentString = settings.userAgentString.replace("; wv", "")
-                    disableForcedDarkening()
-                    CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                    webViewClient =
-                        object : WebViewClient() {
-                            override fun onPageStarted(
-                                view: WebView,
-                                url: String?,
-                                favicon: Bitmap?,
-                            ) {
-                                currentOnLoadingChange(true)
-                                url?.let(currentOnUrlChange)
-                            }
-
-                            override fun onPageFinished(
-                                view: WebView,
-                                url: String?,
-                            ) {
-                                currentOnLoadingChange(false)
-                                url?.let(currentOnUrlChange)
-                                if (url != null && url.startsWith("https://music.youtube.com")) finishLogin(view, url)
-                            }
-                        }
-                    loadUrl(LOGIN_URL)
-                    webView = this
-                }
-            },
-        )
-        if (saving) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.6f)),
+    Column(modifier = modifier) {
+        if (showDeviceAccountPicker) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1C1C1C))
+                    .padding(start = 16.dp, end = 14.dp, top = 12.dp, bottom = 8.dp),
             ) {
-                CircularProgressIndicator()
+                Text(
+                    text = activeEmailHint?.let {
+                        stringResource(R.string.yt_login_prefilled_email, it)
+                    } ?: stringResource(R.string.yt_login_device_picker_prompt),
+                    color = Color.White.copy(alpha = 0.72f),
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                DeviceGmailPickerChip(onClick = launchDeviceAccountPicker)
+            }
+        }
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        // see CaptureWebContent: wrap_content makes chromium lay pages out at zero height
+                        layoutParams =
+                            android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            )
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
+                        }
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.setSupportZoom(true)
+                        settings.builtInZoomControls = true
+                        settings.displayZoomControls = false
+                        // google refuses sign-in from pages that announce themselves as an embedded webview
+                        settings.userAgentString = settings.userAgentString.replace("; wv", "")
+                        disableForcedDarkening()
+                        CookieManager.getInstance().setAcceptCookie(true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                        webViewClient =
+                            object : WebViewClient() {
+                                override fun onPageStarted(
+                                    view: WebView,
+                                    url: String?,
+                                    favicon: Bitmap?,
+                                ) {
+                                    currentOnLoadingChange(true)
+                                    url?.let(currentOnUrlChange)
+                                }
+
+                                override fun onPageFinished(
+                                    view: WebView,
+                                    url: String?,
+                                ) {
+                                    currentOnLoadingChange(false)
+                                    url?.let(currentOnUrlChange)
+                                    if (url != null && (
+                                            url.startsWith("https://accounts.google.com") ||
+                                                url.startsWith(YOUTUBE_MUSIC_ORIGIN)
+                                        )
+                                    ) {
+                                        runCatching { CookieManager.getInstance().flush() }
+                                    }
+                                    if (url != null && url.startsWith(YOUTUBE_MUSIC_ORIGIN)) {
+                                        finishLogin(view, url)
+                                    }
+                                }
+                            }
+                        loadUrl(buildYouTubeLoginUrl(activeEmailHint))
+                        webView = this
+                    }
+                },
+            )
+            if (saving) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.6f)),
+                ) {
+                    CircularProgressIndicator()
+                }
             }
         }
     }

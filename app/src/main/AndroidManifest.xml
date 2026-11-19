@@ -69,6 +69,8 @@
         <package android:name="com.facebook.katana" />
         <!-- Duchi Locket ecosystem companion app -->
         <package android:name="com.huylocket.app" />
+        <!-- Chrome Custom Tabs for Mochy Cloud Google OAuth -->
+        <package android:name="com.android.chrome" />
     </queries>
     <application
         android:name=".App"
@@ -1214,6 +1216,25 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="${discordRedirectScheme}" />
+            </intent-filter>
+        </activity>
+
+        <!-- Mochy Cloud Google OAuth (Supabase PKCE) sends the browser back here -->
+        <activity
+            android:name=".cloud.MochyCloudAuthCallbackActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="mochy-cloud" android:host="auth-callback" />
             </intent-filter>
         </activity>
 

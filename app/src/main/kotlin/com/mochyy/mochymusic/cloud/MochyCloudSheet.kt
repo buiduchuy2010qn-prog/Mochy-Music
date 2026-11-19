@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.AccountEmailKey
 import com.mochyy.mochymusic.extensions.toMediaItem
 import com.mochyy.mochymusic.models.MediaMetadata
 import com.mochyy.mochymusic.playback.queues.ListQueue
@@ -89,6 +92,7 @@ import com.mochyy.mochymusic.ui.screens.setup.onboarding.Onb
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.OnbPillInput
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.PageBadge
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
+import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -183,8 +187,9 @@ private fun MochyCloudButtonBar(
         }
         else -> {
             val formReady = controller.usernameInput.length >= 3 && controller.passwordInput.length >= 6
-            val enabled = !controller.busy
+            val enabled = !controller.busy && !state.googleAuthInProgress
             val buttonLabel = when {
+                state.googleAuthInProgress -> stringResource(R.string.mochy_cloud_google_connecting)
                 controller.busy && controller.authTab == 1 -> "Đang đăng ký & đồng bộ…"
                 controller.busy -> "Đang đăng nhập & đồng bộ…"
                 controller.authTab == 1 -> "Đăng ký & Đồng bộ"
@@ -200,6 +205,7 @@ private fun MochyCloudButtonBar(
                         return@CloudPrimaryButton
                     }
                     focusManager.clearFocus()
+                    MochyCloudSyncManager.cancelGoogleAuthInProgress()
                     scope.launch {
                         controller.busy = true
                         controller.statusNotice = null
@@ -243,6 +249,7 @@ private fun MochyCloudSheetContent(
     val focusManager = LocalFocusManager.current
     val haptic = LocalHapticFeedback.current
     val state by MochyCloudSyncManager.state.collectAsState()
+    val accountEmail by rememberPreference(AccountEmailKey, "")
     val playerConnection = LocalPlayerConnection.current
     val currentPlayingSong = if (playerConnection != null) {
         playerConnection.mediaMetadata.collectAsState().value
@@ -397,13 +404,65 @@ private fun MochyCloudSheetContent(
                                     modifier = Modifier.size(18.dp),
                                 )
                                 Text(
-                                    text = "Đăng ký nhanh bằng tên đăng nhập và mật khẩu, không cần email OTP.",
+                                    text = stringResource(R.string.mochy_cloud_auth_info),
                                     color = Onb.Subtitle,
                                     fontFamily = InterFontFamily,
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp,
                                 )
                             }
+                        }
+
+                        CloudGoogleSignInButton(
+                            loading = state.googleAuthInProgress,
+                            enabled = !controller.busy,
+                            modifier = Modifier.revealOnAppear("cloud_google_btn", revealSeen, cascade = true),
+                            onCancel = {
+                                MochyCloudSyncManager.cancelGoogleAuthInProgress()
+                                controller.statusNotice = null
+                            },
+                            onClick = {
+                                focusManager.clearFocus()
+                                controller.statusNotice = null
+                                val loginHint = accountEmail.trim().takeIf {
+                                    it.contains("@") && !it.endsWith("@account.mochy.app", ignoreCase = true)
+                                }
+                                MochyCloudSyncManager.startGoogleSignIn(context, loginHint).onFailure { err ->
+                                    if (MochyCloudSyncManager.state.value.lastError.isNullOrBlank()) {
+                                        controller.statusNotice =
+                                            err.message ?: context.getString(R.string.mochy_cloud_google_launch_failed)
+                                    }
+                                }
+                            },
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .revealOnAppear("cloud_auth_divider", revealSeen, cascade = true)
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(1.dp)
+                                    .background(Color.White.copy(alpha = 0.12f)),
+                            )
+                            Text(
+                                text = stringResource(R.string.mochy_cloud_or_username),
+                                color = Onb.Muted,
+                                fontFamily = InterFontFamily,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(1.dp)
+                                    .background(Color.White.copy(alpha = 0.12f)),
+                            )
                         }
 
                         Row(
@@ -425,7 +484,7 @@ private fun MochyCloudSheetContent(
                                         .clip(CircleShape)
                                         .background(if (selected) Onb.ButtonPrimary else Color.Transparent)
                                         .clickable(
-                                            enabled = !controller.busy,
+                                            enabled = !controller.busy && !state.googleAuthInProgress,
                                             interactionSource = tabInteraction,
                                             indication = RemoteFocus,
                                         ) {
@@ -600,8 +659,16 @@ private fun MochyCloudSheetContent(
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Spacer(Modifier.height(2.dp))
+                                    val subtitleText = buildString {
+                                        append("@${state.username}")
+                                        val linkedEmail = state.linkedGoogleEmail?.trim()
+                                        if (!linkedEmail.isNullOrBlank()) {
+                                            append(" · ")
+                                            append(linkedEmail)
+                                        }
+                                    }
                                     Text(
-                                        text = "@${state.username}",
+                                        text = subtitleText,
                                         color = Onb.Subtitle,
                                         fontFamily = InterFontFamily,
                                         fontSize = 13.sp,
@@ -1386,6 +1453,104 @@ private fun PopupSheetState.showConfirmWipeCloudSheet(
                 )
             }
             Spacer(Modifier.height(6.dp))
+        }
+    }
+}
+
+@Composable
+private fun CloudGoogleSignInButton(
+    loading: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val cancelInteraction = remember { MutableInteractionSource() }
+    val haptic = LocalHapticFeedback.current
+    val shape = RoundedCornerShape(18.dp)
+    val contentAlpha = if (enabled) 1f else 0.52f
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (loading) Arrangement.Start else Arrangement.Center,
+        modifier = modifier
+            .pressBounce(interaction, pressedScale = 0.97f)
+            .fillMaxWidth()
+            .height(54.dp)
+            .graphicsLayer { alpha = contentAlpha }
+            .clip(shape)
+            .background(MenuRowSurface)
+            .border(1.dp, Color.White.copy(alpha = 0.14f), shape)
+            .clickable(
+                enabled = enabled && !loading,
+                interactionSource = interaction,
+                indication = CloudRowHighlight,
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = 16.dp),
+    ) {
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = Color.White,
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = stringResource(R.string.mochy_cloud_google_connecting),
+                color = Color.White,
+                fontFamily = InterFontFamily,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.3).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .pressBounce(cancelInteraction, pressedScale = 0.95f)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.14f))
+                    .clickable(
+                        interactionSource = cancelInteraction,
+                        indication = RemoteFocus,
+                    ) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onCancel()
+                    }
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.cancel),
+                    color = Color.White,
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
+        } else {
+            Image(
+                painter = painterResource(R.drawable.ic_google_logo),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = stringResource(R.string.mochy_cloud_continue_google),
+                color = Color.White,
+                fontFamily = InterFontFamily,
+                fontSize = 15.5.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.3).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

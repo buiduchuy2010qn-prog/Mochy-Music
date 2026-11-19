@@ -1308,4 +1308,15 @@
     <string name="playlist_code_copied_toast">Playlist code copied! Paste it into a message or comment to share</string>
     <string name="playlist_clipboard_unavailable">Couldn\'t access clipboard.</string>
     <string name="playlist_code_create_failed">Couldn\'t create playlist share code.</string>
+    <string name="mochy_cloud_continue_google">Continue with Google</string>
+    <string name="mochy_cloud_google_connecting">Connecting Google account…</string>
+    <string name="mochy_cloud_or_username">or use username</string>
+    <string name="mochy_cloud_auth_info">Sign in with 1 tap using your device\'s Google account in Chrome, or sign up quickly with @username and password — no email OTP needed.</string>
+    <string name="mochy_cloud_google_launch_failed">Couldn\'t open Google sign-in on this device.</string>
+    <string name="mochy_onb_google_desc">use your device\'s Google account right away · auto-syncs your avatar &amp; library</string>
+    <string name="mochy_onb_google_connecting_desc">finish signing in via Chrome and Mochy will continue automatically</string>
+    <string name="yt_login_pick_device_gmail">Pick device Gmail</string>
+    <string name="yt_login_device_picker_prompt">Skip typing — pick a Gmail on this device</string>
+    <string name="yt_login_prefilled_email">Pre-filled: %1$s</string>
+    <string name="yt_login_device_picker_unavailable">No Google account picker is available on this device.</string>
 </resources>

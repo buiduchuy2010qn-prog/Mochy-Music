@@ -53,26 +53,26 @@ private data class WhatsNewHighlight(
     val summary: String,
 )
 
-private val V116Highlights = listOf(
+private val V117Highlights = listOf(
+    WhatsNewHighlight(
+        icon = R.drawable.cloud,
+        title = "Đăng nhập Google 1 chạm cho Mochy Cloud",
+        summary = "Bổ sung nút Tiếp tục với Google (OAuth PKCE an toàn qua Chrome trên máy), tự nhận tên hiển thị, ảnh đại diện và đồng bộ thư viện tức thì.",
+    ),
+    WhatsNewHighlight(
+        icon = R.drawable.account,
+        title = "Chọn nhanh tài khoản Google trên máy cho YouTube Music",
+        summary = "Tự điền sẵn Gmail từ Mochy Cloud, thêm nút 1 chạm Chọn Gmail có sẵn trên máy và bật Autofill + lưu cookie bền vững.",
+    ),
     WhatsNewHighlight(
         icon = R.drawable.playlist_add,
-        title = "Trung tâm Tạo & Nhập Playlist nhanh ngay tại Thư viện",
-        summary = "Thêm nút + trực tiếp ở màn hình Danh sách phát để tạo mới, dán nhanh mã mochypl1:, mở tệp .mochypl hoặc nhập từ dịch vụ ngoài; hiển thị đầy đủ mô tả playlist.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.queue_music,
-        title = "Hoàn thiện thao tác thêm & sắp xếp bài hát trong Playlist",
-        summary = "Khắc phục lỗi thêm playlist YouTube từ ngoài trang chi tiết, chống nhân đôi khi thêm nhiều bài và xóa chính xác thứ tự bài đã chọn.",
-    ),
-    WhatsNewHighlight(
-        icon = R.drawable.backup,
-        title = "Tối ưu Mochy Cloud bền vững lâu dài",
-        summary = "Nén gọn dữ liệu ảnh bìa, bảo vệ giới hạn phiên đăng nhập ổn định lâu dài khi lưu nhiều playlist và giữ an toàn các bài nhạc nội bộ trên máy.",
+        title = "Trung tâm Tạo & Nhập Playlist nhanh tại Thư viện",
+        summary = "Nút + trực tiếp ở màn hình Danh sách phát để tạo mới, dán nhanh mã mochypl1:, mở tệp .mochypl và hiển thị đầy đủ mô tả playlist.",
     ),
     WhatsNewHighlight(
         icon = R.drawable.music_note,
-        title = "Tích hợp Zing MP3, SoundCloud & kiểm thử tự động nguồn phát",
-        summary = "Hỗ trợ sẵn Zing MP3, SoundCloud, Monochrome ưu tiên IPv4 hồi phục 60 giây kèm bộ kiểm thử tự động trên toàn bộ mô-đun.",
+        title = "Đồng bộ Đám mây bền vững & kiểm thử tự động",
+        summary = "Tối ưu nén dữ liệu đồng bộ ổn định lâu dài, tích hợp Zing MP3, SoundCloud, Monochrome ưu tiên IPv4 kèm kiểm thử tự động trên CI.",
     ),
 )
 
@@ -175,13 +175,13 @@ private fun WhatsNewSheetContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            V116Highlights.forEachIndexed { index, item ->
+            V117Highlights.forEachIndexed { index, item ->
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
                         .fillMaxWidth()
                         .revealOnAppear(
-                            key = "v116_highlight_$index",
+                            key = "v117_highlight_$index",
                             seenState = revealSeen,
                             cascade = true,
                         )

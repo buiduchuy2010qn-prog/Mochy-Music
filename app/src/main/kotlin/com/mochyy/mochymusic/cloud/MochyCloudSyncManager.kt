@@ -1,8 +1,11 @@
 package com.mochyy.mochymusic.cloud
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import androidx.datastore.preferences.core.edit
 import com.mochyy.mochymusic.constants.AudioNormalizationKey
@@ -36,6 +39,7 @@ import com.mochyy.mochymusic.eq.ReverbSettings
 import com.mochyy.mochymusic.eq.SpatialSettings
 import com.mochyy.mochymusic.eq.VolumeSettings
 import com.mochyy.mochymusic.models.MediaMetadata
+import com.mochyy.mochymusic.ui.component.TopToaster
 import com.mochyy.mochymusic.ui.screens.profile.ProfileStore
 import com.mochyy.mochymusic.utils.dataStore
 import dagger.hilt.android.EntryPointAccessors
@@ -108,6 +112,8 @@ data class MochyCloudState(
     val lastSyncEpochMs: Long = 0L,
     val lastError: String? = null,
     val remoteResume: CloudPlaybackResume? = null,
+    val googleAuthInProgress: Boolean = false,
+    val linkedGoogleEmail: String? = null,
 )
 
 /**
@@ -142,6 +148,7 @@ object MochyCloudSyncManager {
     private val syncMutex = Mutex()
     private val sessionRefreshMutex = Mutex()
     private val historyFlushMutex = Mutex()
+    private val googleAuthMutex = Mutex()
     private val historyPlayCountCache = ConcurrentHashMap<String, Pair<Long, Long>>()
     private val pendingHistoryMap = ConcurrentHashMap<String, CloudHistoryRecord>()
     private val fallbackSyncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -187,11 +194,13 @@ object MochyCloudSyncManager {
         appScope = scope
         val configured = MochyCloudVault.isConfigured(app)
         val cached = MochyCloudVault.loadSession(app)
+        val savedGoogleEmail = if (configured && cached != null) MochyCloudVault.loadGoogleEmail(app) else null
         _state.value = _state.value.copy(
             isConfigured = configured,
             signedIn = configured && cached != null,
             username = cached?.username.orEmpty(),
             displayName = cached?.displayName.orEmpty(),
+            linkedGoogleEmail = savedGoogleEmail,
         )
         if (configured && cached != null) {
             MochyCloudVault.loadPendingHistory(app, cached.userId).forEach { rec ->
@@ -226,6 +235,7 @@ object MochyCloudSyncManager {
             val app = context.applicationContext
             val session = MochySupabaseClient.signUp(app, username, password, displayName)
             MochyCloudVault.saveSession(app, session)
+            MochyCloudVault.saveGoogleEmail(app, null)
             var localAvatarPath: String? = null
             if (avatarUri != null) {
                 val webpDataUri = MochyAvatarCodec.encodeUriToWebpDataUri(app, avatarUri)
@@ -251,6 +261,8 @@ object MochyCloudSyncManager {
                 username = session.username,
                 displayName = session.displayName,
                 avatarLocalPath = localAvatarPath,
+                googleAuthInProgress = false,
+                linkedGoogleEmail = null,
                 lastError = null,
             )
             lastSessionFailureReason = null
@@ -271,6 +283,7 @@ object MochyCloudSyncManager {
             val app = context.applicationContext
             val session = MochySupabaseClient.signIn(app, username, password)
             MochyCloudVault.saveSession(app, session)
+            MochyCloudVault.saveGoogleEmail(app, null)
             val existingAvatar = readLocalAvatarFile(app)
             ProfileStore.save(app, session.displayName, null, syncToCloud = false)
             _state.value = _state.value.copy(
@@ -279,6 +292,8 @@ object MochyCloudSyncManager {
                 username = session.username,
                 displayName = session.displayName,
                 avatarLocalPath = existingAvatar?.absolutePath ?: _state.value.avatarLocalPath,
+                googleAuthInProgress = false,
+                linkedGoogleEmail = null,
                 lastError = null,
             )
             lastSessionFailureReason = null
@@ -287,6 +302,264 @@ object MochyCloudSyncManager {
             syncNowInternal(app, fromUser = true)
         }.onFailure { err ->
             _state.value = _state.value.copy(lastError = err.message)
+        }
+    }
+
+    fun startGoogleSignIn(
+        context: Context,
+        loginHintEmail: String? = null,
+    ): Result<Unit> = runCatching {
+        val app = context.applicationContext
+        val (baseUrl, _) = MochyCloudVault.revealEndpoint(app)
+            ?: throw MochyCloudException("Bản dựng này chưa cấu hình Mochy Cloud.")
+        val verifier = MochyGoogleOAuthHelper.generatePkceVerifier()
+        val challenge = MochyGoogleOAuthHelper.computePkceChallenge(verifier)
+        MochyCloudVault.savePendingPkceVerifier(app, verifier)
+        val authorizeUrl = MochyGoogleOAuthHelper.buildGoogleAuthorizeUrl(
+            baseUrl = baseUrl,
+            codeChallenge = challenge,
+            loginHintEmail = loginHintEmail,
+        )
+        val uri = Uri.parse(authorizeUrl)
+        val customTabBundle = Bundle().apply {
+            putBinder("android.support.customtabs.extra.SESSION", null)
+        }
+        val baseIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+            putExtras(customTabBundle)
+            putExtra("android.support.customtabs.extra.TOOLBAR_COLOR", 0xFF121212.toInt())
+            putExtra("android.support.customtabs.extra.TITLE_VISIBILITY", 1)
+            if (context !is Activity) {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+        val chromeIntent = Intent(baseIntent).setPackage("com.android.chrome")
+        val launchIntent = if (app.packageManager.resolveActivity(chromeIntent, 0) != null) {
+            chromeIntent
+        } else {
+            baseIntent
+        }
+        try {
+            context.startActivity(launchIntent)
+        } catch (_: Throwable) {
+            val fallback = Intent(Intent.ACTION_VIEW, uri).apply {
+                if (context !is Activity) {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            }
+            context.startActivity(fallback)
+        }
+        _state.value = _state.value.copy(
+            googleAuthInProgress = true,
+            lastError = null,
+        )
+    }.onFailure { err ->
+        val msg = err.message?.takeIf { it.isNotBlank() }
+            ?: "Không tìm thấy trình duyệt để đăng nhập Google."
+        _state.value = _state.value.copy(
+            googleAuthInProgress = false,
+            lastError = msg,
+        )
+    }
+
+    fun cancelGoogleAuthInProgress() {
+        if (_state.value.googleAuthInProgress) {
+            _state.value = _state.value.copy(googleAuthInProgress = false)
+        }
+    }
+
+    fun handleGoogleOAuthCallback(context: Context, uri: Uri) {
+        val app = context.applicationContext
+        appContext = app
+        _state.value = _state.value.copy(
+            googleAuthInProgress = true,
+            lastError = null,
+        )
+        syncScope.launch(NonCancellable + Dispatchers.IO) {
+            googleAuthMutex.withLock {
+                val parsed = MochyGoogleOAuthHelper.parseOAuthCallbackParams(
+                    rawQuery = uri.encodedQuery,
+                    rawFragment = uri.encodedFragment,
+                )
+                if (!parsed.error.isNullOrBlank() || !parsed.errorDescription.isNullOrBlank()) {
+                    val msg = MochyGoogleOAuthHelper.mapOAuthErrorToVietnamese(
+                        error = parsed.error,
+                        errorDescription = parsed.errorDescription,
+                    )
+                    _state.value = _state.value.copy(
+                        googleAuthInProgress = false,
+                        lastError = msg,
+                    )
+                    withContext(Dispatchers.Main) {
+                        TopToaster.error(msg)
+                    }
+                    return@withLock
+                }
+
+                val verifier = if (!parsed.code.isNullOrBlank()) {
+                    MochyCloudVault.consumePendingPkceVerifier(app)
+                } else {
+                    null
+                }
+                if (!parsed.code.isNullOrBlank() && verifier == null) {
+                    if (_state.value.signedIn && MochyCloudVault.loadSession(app) != null) {
+                        _state.value = _state.value.copy(googleAuthInProgress = false)
+                        return@withLock
+                    }
+                    val expiredMsg = "Phiên xác thực Google đã hết hạn, vui lòng thử lại."
+                    _state.value = _state.value.copy(
+                        googleAuthInProgress = false,
+                        lastError = expiredMsg,
+                    )
+                    withContext(Dispatchers.Main) {
+                        TopToaster.error(expiredMsg)
+                    }
+                    return@withLock
+                }
+
+                val outcome = runCatching {
+                    val authResult: OAuthAuthResult = when {
+                        !parsed.code.isNullOrBlank() && verifier != null -> {
+                            MochySupabaseClient.exchangePkceCode(app, parsed.code, verifier)
+                        }
+                        !parsed.accessToken.isNullOrBlank() -> {
+                            MochySupabaseClient.fetchSessionFromAccessToken(
+                                context = app,
+                                accessToken = parsed.accessToken,
+                                refreshToken = parsed.refreshToken.orEmpty(),
+                                expiresInSec = parsed.expiresIn ?: 3600L,
+                            )
+                        }
+                        else -> {
+                            throw MochyCloudException("Không nhận được phản hồi hợp lệ từ Google.")
+                        }
+                    }
+
+                    val initialSession = authResult.session
+                    MochyCloudVault.saveSession(app, initialSession)
+                    MochyCloudVault.saveGoogleEmail(app, authResult.email)
+
+                    val ensuredUsername = MochySupabaseClient.ensureProfileRow(
+                        context = app,
+                        session = initialSession,
+                        displayName = initialSession.displayName,
+                    )
+                    var effectiveSession = if (ensuredUsername != initialSession.username) {
+                        initialSession.copy(username = ensuredUsername)
+                    } else {
+                        initialSession
+                    }
+                    if (effectiveSession != initialSession) {
+                        MochyCloudVault.saveSession(app, effectiveSession)
+                    }
+
+                    val existingProfile = runCatching {
+                        MochySupabaseClient.fetchProfile(app, effectiveSession)
+                    }.getOrNull()
+                    if (existingProfile != null) {
+                        val resolvedUsername = existingProfile.username.trim().ifBlank { effectiveSession.username }
+                        val resolvedDisplay = existingProfile.displayName.trim().ifBlank { effectiveSession.displayName }
+                        if (resolvedUsername != effectiveSession.username || resolvedDisplay != effectiveSession.displayName) {
+                            effectiveSession = effectiveSession.copy(
+                                username = resolvedUsername,
+                                displayName = resolvedDisplay,
+                            )
+                            MochyCloudVault.saveSession(app, effectiveSession)
+                        }
+                    }
+
+                    MochySupabaseClient.updateIdentityMetadata(
+                        context = app,
+                        session = effectiveSession,
+                        username = effectiveSession.username,
+                        displayName = effectiveSession.displayName,
+                    )
+
+                    val existingLocalAvatar = readLocalAvatarFile(app)
+                    var resolvedAvatarPath = existingLocalAvatar?.absolutePath
+                    val remoteAvatarFile = existingProfile?.avatarWebp?.let {
+                        MochyAvatarCodec.decodeDataUriToFile(app, it)
+                    }
+                    if (remoteAvatarFile != null) {
+                        resolvedAvatarPath = remoteAvatarFile.absolutePath
+                        ProfileStore.save(
+                            app,
+                            effectiveSession.displayName,
+                            Uri.fromFile(remoteAvatarFile),
+                            syncToCloud = false,
+                        )
+                    } else if (existingLocalAvatar == null && !authResult.avatarUrl.isNullOrBlank()) {
+                        val importedAvatarFile = importGoogleAvatar(app, effectiveSession, authResult.avatarUrl)
+                        if (importedAvatarFile != null) {
+                            resolvedAvatarPath = importedAvatarFile.absolutePath
+                            ProfileStore.save(
+                                app,
+                                effectiveSession.displayName,
+                                Uri.fromFile(importedAvatarFile),
+                                syncToCloud = false,
+                            )
+                        } else {
+                            ProfileStore.save(app, effectiveSession.displayName, null, syncToCloud = false)
+                        }
+                    } else {
+                        ProfileStore.save(app, effectiveSession.displayName, null, syncToCloud = false)
+                    }
+
+                    val savedEmail = MochyCloudVault.loadGoogleEmail(app) ?: authResult.email
+                    _state.value = _state.value.copy(
+                        isConfigured = true,
+                        signedIn = true,
+                        username = effectiveSession.username,
+                        displayName = effectiveSession.displayName,
+                        avatarLocalPath = resolvedAvatarPath ?: _state.value.avatarLocalPath,
+                        googleAuthInProgress = false,
+                        linkedGoogleEmail = savedEmail,
+                        lastError = null,
+                    )
+                    lastSessionFailureReason = null
+                    lastSessionExpired = false
+                    appScope?.let { startObservers(app, it) }
+                    effectiveSession
+                }
+
+                outcome.onSuccess { session ->
+                    withContext(Dispatchers.Main) {
+                        TopToaster.show("Đã đăng nhập Mochy Cloud (${session.displayName})")
+                    }
+                    syncNowInternal(app, fromUser = true)
+                }.onFailure { err ->
+                    val msg = err.message?.takeIf { it.isNotBlank() }
+                        ?: "Đăng nhập bằng Google thất bại."
+                    _state.value = _state.value.copy(
+                        googleAuthInProgress = false,
+                        lastError = msg,
+                    )
+                    withContext(Dispatchers.Main) {
+                        TopToaster.error(msg)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun importGoogleAvatar(
+        app: Context,
+        session: MochyCloudSession,
+        avatarUrl: String,
+    ): File? {
+        val rawBytes = MochySupabaseClient.downloadImageBytes(avatarUrl) ?: return null
+        val tmpFile = File(app.cacheDir, "mochy_google_avatar_${System.currentTimeMillis()}.img")
+        return try {
+            tmpFile.writeBytes(rawBytes)
+            val webpDataUri = MochyAvatarCodec.encodeUriToWebpDataUri(app, Uri.fromFile(tmpFile))
+                ?: return null
+            runCatching {
+                MochySupabaseClient.updateProfile(app, session, session.displayName, webpDataUri)
+            }
+            MochyAvatarCodec.decodeDataUriToFile(app, webpDataUri)
+        } catch (_: Throwable) {
+            null
+        } finally {
+            tmpFile.delete()
         }
     }
 

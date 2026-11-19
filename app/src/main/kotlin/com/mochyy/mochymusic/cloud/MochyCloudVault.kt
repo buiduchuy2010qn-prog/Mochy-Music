@@ -38,6 +38,9 @@ object MochyCloudVault {
     private const val VaultFileName = "mochy_cloud_vault.bin"
     private const val SyncStateFileName = "mochy_cloud_sync_state.json"
     private const val PendingHistoryFileName = "mochy_cloud_pending_history.json"
+    private const val PendingPkceFileName = "mochy_cloud_pkce.json"
+    private const val GoogleEmailFileName = "mochy_cloud_google_email.txt"
+    private const val PendingPkceTtlMs = 15L * 60L * 1000L
     private const val AesGcmMode = "AES/GCM/NoPadding"
     private const val GcmTagBits = 128
 
@@ -173,6 +176,77 @@ object MochyCloudVault {
         vaultFile(context).delete()
         syncStateFile(context).delete()
         pendingHistoryFile(context).delete()
+        pendingPkceFile(context).delete()
+        googleEmailFile(context).delete()
+    }
+
+    @Synchronized
+    fun savePendingPkceVerifier(context: Context, verifier: String) {
+        val file = pendingPkceFile(context)
+        val clean = verifier.trim()
+        if (clean.isEmpty()) {
+            file.delete()
+            return
+        }
+        runCatching {
+            val json = JSONObject().apply {
+                put("verifier", clean)
+                put("createdAtMs", System.currentTimeMillis())
+            }
+            file.writeText(json.toString(), Charsets.UTF_8)
+        }.onFailure {
+            file.delete()
+        }
+    }
+
+    @Synchronized
+    fun consumePendingPkceVerifier(context: Context): String? {
+        val file = pendingPkceFile(context)
+        if (!file.exists()) return null
+        return try {
+            runCatching {
+                val json = JSONObject(file.readText(Charsets.UTF_8))
+                val verifier = json.optString("verifier").trim()
+                val createdAtMs = json.optLong("createdAtMs", 0L)
+                val ageMs = System.currentTimeMillis() - createdAtMs
+                if (verifier.isBlank() || createdAtMs <= 0L || ageMs > PendingPkceTtlMs) {
+                    null
+                } else {
+                    verifier
+                }
+            }.getOrNull()
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Synchronized
+    fun saveGoogleEmail(context: Context, email: String?) {
+        val file = googleEmailFile(context)
+        val clean = email?.trim()?.lowercase()?.takeIf {
+            MochyGoogleOAuthHelper.isRealUserEmail(it)
+        }
+        if (clean == null) {
+            file.delete()
+            return
+        }
+        runCatching {
+            file.writeText(clean, Charsets.UTF_8)
+        }.onFailure {
+            file.delete()
+        }
+    }
+
+    @Synchronized
+    fun loadGoogleEmail(context: Context): String? {
+        val file = googleEmailFile(context)
+        if (!file.exists()) return null
+        return runCatching {
+            file.readText(Charsets.UTF_8)
+                .trim()
+                .lowercase()
+                .takeIf { MochyGoogleOAuthHelper.isRealUserEmail(it) }
+        }.getOrNull()
     }
 
     @Synchronized
@@ -349,6 +423,12 @@ object MochyCloudVault {
 
     private fun pendingHistoryFile(context: Context): File =
         File(context.applicationContext.noBackupFilesDir, PendingHistoryFileName)
+
+    private fun pendingPkceFile(context: Context): File =
+        File(context.applicationContext.noBackupFilesDir, PendingPkceFileName)
+
+    private fun googleEmailFile(context: Context): File =
+        File(context.applicationContext.noBackupFilesDir, GoogleEmailFileName)
 
     private fun getExistingKey(): SecretKey? {
         val ks = KeyStore.getInstance(KeystoreProvider).apply { load(null) }

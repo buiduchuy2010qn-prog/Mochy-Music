@@ -1162,4 +1162,15 @@
     <string name="playlist_code_copied_toast">Đã sao chép mã Playlist! Dán vào tin nhắn hoặc bình luận để chia sẻ</string>
     <string name="playlist_clipboard_unavailable">Không thể truy cập khay nhớ tạm.</string>
     <string name="playlist_code_create_failed">Không thể tạo mã chia sẻ playlist.</string>
+    <string name="mochy_cloud_continue_google">Tiếp tục với Google</string>
+    <string name="mochy_cloud_google_connecting">Đang kết nối tài khoản Google…</string>
+    <string name="mochy_cloud_or_username">hoặc dùng tên đăng nhập</string>
+    <string name="mochy_cloud_auth_info">Đăng nhập 1 chạm bằng tài khoản Google có sẵn trên máy qua Chrome, hoặc đăng ký nhanh bằng @tên_đăng_nhập và mật khẩu không cần email OTP.</string>
+    <string name="mochy_cloud_google_launch_failed">Không thể mở trang đăng nhập Google trên thiết bị này.</string>
+    <string name="mochy_onb_google_desc">dùng nhanh tài khoản Google có sẵn trên máy · tự đồng bộ ảnh đại diện &amp; thư viện</string>
+    <string name="mochy_onb_google_connecting_desc">hoàn tất đăng nhập trên Chrome để Mochy tự động tiếp tục</string>
+    <string name="yt_login_pick_device_gmail">Chọn Gmail trên máy</string>
+    <string name="yt_login_device_picker_prompt">Bỏ qua nhập tay — chọn Gmail trên máy</string>
+    <string name="yt_login_prefilled_email">Đã điền sẵn: %1$s</string>
+    <string name="yt_login_device_picker_unavailable">Thiết bị này không hỗ trợ hộp thoại chọn tài khoản Google.</string>
 </resources>
