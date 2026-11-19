@@ -127,10 +127,10 @@ jobs:
           fi
           echo "Restored persistent signing keystore with alias androiddebugkey."
 
-      - name: Run Module & Cloud Unit Tests
+      - name: Run Module, Cloud & Audio DSP Unit Tests
         run: |
           ./gradlew :modules:bridge:test :modules:applemusic:test :modules:jiosaavn:test :modules:monochrome:test :modules:zingmp3:test :modules:soundcloud:test --no-configuration-cache
-          ./gradlew :app:testUniversalGmsReleaseUnitTest --tests "com.mochyy.mochymusic.cloud.*" --no-configuration-cache --no-daemon
+          ./gradlew :app:testUniversalGmsReleaseUnitTest --tests "com.mochyy.mochymusic.cloud.*" --tests "com.mochyy.mochymusic.eq.AudioLabDspTest" --tests "com.mochyy.mochymusic.crossmix.CrossmixTest" --no-configuration-cache --no-daemon
 
       - name: Build Arm64 & Universal Release APKs via Single-Pass ABI Splits
         env:

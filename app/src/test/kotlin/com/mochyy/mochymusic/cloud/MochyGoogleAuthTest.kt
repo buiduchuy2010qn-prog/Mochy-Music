@@ -1,5 +1,6 @@
 package com.mochyy.mochymusic.cloud
 
+import com.mochyy.mochymusic.ui.screens.settings.importsync.buildYouTubeLoginUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -524,5 +525,18 @@ class MochyGoogleAuthTest {
 
         assertEquals(EdgeSignInOutcome.Unavailable, MochyUsernameLoginEdgeHelper.parseSignInResponse(500, "not-json"))
         assertEquals(EdgeCheckSignUpOutcome.Unavailable, MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(500, ""))
+    }
+
+    @Test
+    fun youTubeLoginUrlUsesAccountChooserAndFiltersSyntheticHints() {
+        val baseChooser = "https://accounts.google.com/AccountChooser?continue=https%3A%2F%2Fmusic.youtube.com&service=youtube"
+        assertEquals(baseChooser, buildYouTubeLoginUrl(null))
+        assertEquals(baseChooser, buildYouTubeLoginUrl("   "))
+        assertEquals(baseChooser, buildYouTubeLoginUrl("duchuy@account.mochy.app"))
+        assertEquals(baseChooser, buildYouTubeLoginUrl("not-an-email"))
+        assertEquals(
+            "$baseChooser&Email=Huy.Music%2Byt%40gmail.com",
+            buildYouTubeLoginUrl("  Huy.Music+yt@gmail.com  "),
+        )
     }
 }
