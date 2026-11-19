@@ -411,6 +411,86 @@ object MochyGoogleOAuthHelper {
         runCatching { URLDecoder.decode(raw, "UTF-8") }.getOrDefault(raw)
 }
 
+sealed class EdgeSignInOutcome {
+    data class Success(val sessionRawJson: String) : EdgeSignInOutcome()
+    data object NotFound : EdgeSignInOutcome()
+    data object GoogleNoPassword : EdgeSignInOutcome()
+    data class InvalidCredentials(val hasGoogle: Boolean = false) : EdgeSignInOutcome()
+    data class RateLimited(val retryAfterSec: Int? = null) : EdgeSignInOutcome()
+    data object Unavailable : EdgeSignInOutcome()
+}
+
+sealed class EdgeCheckSignUpOutcome {
+    data object Available : EdgeCheckSignUpOutcome()
+    data class Taken(val hasGoogle: Boolean = false) : EdgeCheckSignUpOutcome()
+    data class RateLimited(val retryAfterSec: Int? = null) : EdgeCheckSignUpOutcome()
+    data object Unavailable : EdgeCheckSignUpOutcome()
+}
+
+/**
+ * Pure-JVM helpers for the `mochy-username-login` Supabase Edge Function protocol.
+ * Only treats a response as authoritative when `"source": "mochy-edge"` is present,
+ * ensuring safe fallback if the Edge Function has not been deployed yet or JWT verification
+ * is still enabled on the gateway.
+ */
+object MochyUsernameLoginEdgeHelper {
+
+    const val EdgeFunctionPath = "/functions/v1/mochy-username-login"
+    const val ExpectedSourceTag = "mochy-edge"
+
+    fun buildEndpointUrl(baseUrl: String): String =
+        baseUrl.trim().trimEnd('/') + EdgeFunctionPath
+
+    fun parseSignInResponse(httpCode: Int, rawBody: String): EdgeSignInOutcome {
+        if (rawBody.isBlank()) return EdgeSignInOutcome.Unavailable
+        return runCatching {
+            val root = CloudCodecJson.parseToJsonElement(rawBody).jsonObject
+            if (root.optJsonString("source") != ExpectedSourceTag) {
+                return@runCatching EdgeSignInOutcome.Unavailable
+            }
+            when (root.optJsonString("status").trim().lowercase()) {
+                "ok" -> {
+                    val sessionObj = root.optJsonObject("session")
+                        ?: return@runCatching EdgeSignInOutcome.Unavailable
+                    if (sessionObj.optJsonString("access_token").isBlank()) {
+                        return@runCatching EdgeSignInOutcome.Unavailable
+                    }
+                    EdgeSignInOutcome.Success(sessionObj.toString())
+                }
+                "not_found" -> EdgeSignInOutcome.NotFound
+                "google_no_password" -> EdgeSignInOutcome.GoogleNoPassword
+                "invalid_credentials" -> EdgeSignInOutcome.InvalidCredentials(
+                    hasGoogle = root.optJsonBoolean("has_google", false),
+                )
+                "rate_limited" -> EdgeSignInOutcome.RateLimited(
+                    retryAfterSec = root.optJsonInt("retry_after", 0).takeIf { it > 0 },
+                )
+                else -> if (httpCode == 429) EdgeSignInOutcome.RateLimited() else EdgeSignInOutcome.Unavailable
+            }
+        }.getOrDefault(EdgeSignInOutcome.Unavailable)
+    }
+
+    fun parseCheckSignUpResponse(httpCode: Int, rawBody: String): EdgeCheckSignUpOutcome {
+        if (rawBody.isBlank()) return EdgeCheckSignUpOutcome.Unavailable
+        return runCatching {
+            val root = CloudCodecJson.parseToJsonElement(rawBody).jsonObject
+            if (root.optJsonString("source") != ExpectedSourceTag) {
+                return@runCatching EdgeCheckSignUpOutcome.Unavailable
+            }
+            when (root.optJsonString("status").trim().lowercase()) {
+                "available" -> EdgeCheckSignUpOutcome.Available
+                "taken" -> EdgeCheckSignUpOutcome.Taken(
+                    hasGoogle = root.optJsonBoolean("has_google", false),
+                )
+                "rate_limited" -> EdgeCheckSignUpOutcome.RateLimited(
+                    retryAfterSec = root.optJsonInt("retry_after", 0).takeIf { it > 0 },
+                )
+                else -> if (httpCode == 429) EdgeCheckSignUpOutcome.RateLimited() else EdgeCheckSignUpOutcome.Unavailable
+            }
+        }.getOrDefault(EdgeCheckSignUpOutcome.Unavailable)
+    }
+}
+
 /**
  * Giao tiếp HTTPS trực tiếp với Supabase Auth + PostgREST cho Mochy Cloud.
  * Tuân thủ quy tắc Publishable Key:
@@ -437,6 +517,58 @@ object MochySupabaseClient {
     fun isValidUsername(username: String): Boolean = UsernameRegex.matches(username)
 
     private fun syntheticEmail(username: String): String = "$username@account.mochy.app"
+
+    private fun callEdgeCheckSignUp(
+        baseUrl: String,
+        publishableKey: String,
+        username: String,
+    ): EdgeCheckSignUpOutcome {
+        val body = JSONObject().apply {
+            put("action", "check_signup")
+            put("username", username)
+        }.toString().toRequestBody(JsonMediaType)
+        val request = Request.Builder()
+            .url(MochyUsernameLoginEdgeHelper.buildEndpointUrl(baseUrl))
+            .header("apikey", publishableKey)
+            .header("Accept", "application/json")
+            .post(body)
+            .build()
+        return runCatching {
+            http.newCall(request).execute().use { resp ->
+                MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(
+                    httpCode = resp.code,
+                    rawBody = resp.body?.string().orEmpty(),
+                )
+            }
+        }.getOrDefault(EdgeCheckSignUpOutcome.Unavailable)
+    }
+
+    private fun callEdgeUsernameSignIn(
+        baseUrl: String,
+        publishableKey: String,
+        username: String,
+        password: String,
+    ): EdgeSignInOutcome {
+        val body = JSONObject().apply {
+            put("action", "signin")
+            put("username", username)
+            put("password", password)
+        }.toString().toRequestBody(JsonMediaType)
+        val request = Request.Builder()
+            .url(MochyUsernameLoginEdgeHelper.buildEndpointUrl(baseUrl))
+            .header("apikey", publishableKey)
+            .header("Accept", "application/json")
+            .post(body)
+            .build()
+        return runCatching {
+            http.newCall(request).execute().use { resp ->
+                MochyUsernameLoginEdgeHelper.parseSignInResponse(
+                    httpCode = resp.code,
+                    rawBody = resp.body?.string().orEmpty(),
+                )
+            }
+        }.getOrDefault(EdgeSignInOutcome.Unavailable)
+    }
 
     suspend fun resolveLoginAccount(
         context: Context,
@@ -523,16 +655,34 @@ object MochySupabaseClient {
         val (baseUrl, publishableKey) = MochyCloudVault.revealEndpoint(context)
             ?: throw MochyCloudException("Bản dựng này chưa cấu hình Mochy Cloud.")
 
-        val resolved = resolveLoginAccount(context, username)
-        if (resolved?.exists == true) {
-            if (resolved.hasGoogle) {
+        when (val edgeCheck = callEdgeCheckSignUp(baseUrl, publishableKey, username)) {
+            EdgeCheckSignUpOutcome.Available -> Unit
+            is EdgeCheckSignUpOutcome.Taken -> {
+                if (edgeCheck.hasGoogle) {
+                    throw MochyCloudException(
+                        "Tên đăng nhập @$username đã được đăng ký và liên kết với Google. Hãy chuyển sang Đăng nhập hoặc bấm 'Tiếp tục với Google'.",
+                    )
+                }
                 throw MochyCloudException(
-                    "Tên đăng nhập @$username đã được đăng ký và liên kết với Google. Hãy chuyển sang Đăng nhập hoặc bấm 'Tiếp tục với Google'.",
+                    "Tên đăng nhập @$username đã được đăng ký. Vui lòng chọn tên khác hoặc chuyển sang Đăng nhập.",
                 )
             }
-            throw MochyCloudException(
-                "Tên đăng nhập @$username đã được đăng ký. Vui lòng chọn tên khác hoặc chuyển sang Đăng nhập.",
-            )
+            is EdgeCheckSignUpOutcome.RateLimited -> {
+                throw MochyCloudException("Bạn thao tác quá nhanh. Vui lòng chờ vài phút rồi thử lại.")
+            }
+            EdgeCheckSignUpOutcome.Unavailable -> {
+                val resolved = resolveLoginAccount(context, username)
+                if (resolved?.exists == true) {
+                    if (resolved.hasGoogle) {
+                        throw MochyCloudException(
+                            "Tên đăng nhập @$username đã được đăng ký và liên kết với Google. Hãy chuyển sang Đăng nhập hoặc bấm 'Tiếp tục với Google'.",
+                        )
+                    }
+                    throw MochyCloudException(
+                        "Tên đăng nhập @$username đã được đăng ký. Vui lòng chọn tên khác hoặc chuyển sang Đăng nhập.",
+                    )
+                }
+            }
         }
 
         val body = JSONObject().apply {
@@ -728,6 +878,38 @@ object MochySupabaseClient {
             val username = cleaned.removePrefix("@")
             if (!isValidUsername(username)) {
                 throw MochyCloudException("Tên đăng nhập không hợp lệ.")
+            }
+            when (val edgeOutcome = callEdgeUsernameSignIn(baseUrl, publishableKey, username, password)) {
+                is EdgeSignInOutcome.Success -> {
+                    val responseJson = JSONObject(edgeOutcome.sessionRawJson)
+                    val identityInfo = MochyGoogleOAuthHelper.parseIdentityInfo(edgeOutcome.sessionRawJson)
+                    val session = parseAuthSession(
+                        json = responseJson,
+                        fallbackUsername = username,
+                        fallbackDisplay = username,
+                    )
+                    return@withContext session to identityInfo
+                }
+                EdgeSignInOutcome.NotFound -> {
+                    throw MochyCloudException("Tài khoản @$username chưa được đăng ký trên Mochy Cloud.")
+                }
+                EdgeSignInOutcome.GoogleNoPassword -> {
+                    throw MochyCloudException(
+                        "Tài khoản @$username được đăng ký bằng Google và chưa đặt mật khẩu. Hãy bấm 'Tiếp tục với Google' (sau đó vào Tài khoản Mochy Cloud để đặt mật khẩu nếu muốn đăng nhập bằng @$username).",
+                    )
+                }
+                is EdgeSignInOutcome.InvalidCredentials -> {
+                    val hint = if (edgeOutcome.hasGoogle) {
+                        "Sai mật khẩu cho tài khoản @$username (hoặc bấm 'Tiếp tục với Google')."
+                    } else {
+                        "Sai mật khẩu cho tài khoản @$username."
+                    }
+                    throw MochyCloudException(hint)
+                }
+                is EdgeSignInOutcome.RateLimited -> {
+                    throw MochyCloudException("Bạn đăng nhập sai hoặc thử quá nhiều lần. Vui lòng chờ vài phút rồi thử lại.")
+                }
+                EdgeSignInOutcome.Unavailable -> Unit
             }
             val resolved = resolveLoginAccount(context, username)
             if (resolved != null) {
@@ -1523,9 +1705,12 @@ object MochySupabaseClient {
         val msg = err?.optString("message").orEmpty()
         return when {
             code == 401 -> "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại."
+            code == 429 -> "Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút."
             pgCode == "23505" -> "Tên đăng nhập đã tồn tại."
             pgCode == "P0001" && "cooldown" in msg.lowercase() ->
                 "Vui lòng đợi 30 giây giữa các lần đổi ảnh đại diện."
+            pgCode == "P0001" && "favorites_limit" in msg.lowercase() ->
+                "Danh sách bài hát yêu thích trên Mochy Cloud đã đạt giới hạn tối đa (3.000 bài)."
             "avatar" in msg.lowercase() -> "Ảnh đại diện không hợp lệ hoặc vượt giới hạn nhẹ."
             code >= 500 -> "Máy chủ Mochy Cloud đang bận."
             code == 400 && pgCode.isNotBlank() -> "Đồng bộ thất bại (mã 400 · $pgCode)."

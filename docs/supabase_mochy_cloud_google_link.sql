@@ -2,6 +2,12 @@
 -- Mochy Cloud v11.8.0 — Unified Account Linking (@username <-> Google)
 -- & Cross-Device Login Resolver for Supabase (PostgreSQL)
 -- =============================================================================
+-- NOTE (v11.9.0+): For production security hardening (zero Gmail leak via
+-- `mochy-username-login` Edge Function, anti-spam DB row caps, RLS lockdown,
+-- and server-side rate limits), run `docs/supabase_mochy_cloud_hardening.sql`
+-- instead — it supersedes this file and locks `mochy_resolve_login_account`
+-- to `service_role` only.
+-- =============================================================================
 --
 -- Prerequisites in Supabase Dashboard:
 --   1. Authentication -> Providers -> Google: Enabled (Android / Web OAuth client).

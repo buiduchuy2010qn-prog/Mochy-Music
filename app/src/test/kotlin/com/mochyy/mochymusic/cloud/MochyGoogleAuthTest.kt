@@ -421,4 +421,108 @@ class MochyGoogleAuthTest {
         assertFalse(empty.hasPasswordLogin)
         assertNull(empty.username)
     }
+
+    @Test
+    fun edgeUsernameLoginHelperParsesAllAuthoritativeStatusesAndFallsBackOnGatewayErrors() {
+        assertEquals(
+            "https://cloud.example.test/functions/v1/mochy-username-login",
+            MochyUsernameLoginEdgeHelper.buildEndpointUrl("https://cloud.example.test/"),
+        )
+
+        // 1. Authoritative sign-in success with GoTrue session payload
+        val okJson = """
+            {
+              "source": "mochy-edge",
+              "status": "ok",
+              "session": {
+                "access_token": "jwt.access.123",
+                "refresh_token": "refresh.456",
+                "expires_in": 3600,
+                "user": { "id": "u-1", "email": "huy@gmail.com" }
+              }
+            }
+        """.trimIndent()
+        val ok = MochyUsernameLoginEdgeHelper.parseSignInResponse(200, okJson)
+        assertTrue(ok is EdgeSignInOutcome.Success)
+        assertTrue((ok as EdgeSignInOutcome.Success).sessionRawJson.contains("jwt.access.123"))
+
+        // 2. Authoritative error statuses (zero Gmail exposed)
+        assertEquals(
+            EdgeSignInOutcome.NotFound,
+            MochyUsernameLoginEdgeHelper.parseSignInResponse(
+                404,
+                """{"source":"mochy-edge","status":"not_found"}""",
+            ),
+        )
+        assertEquals(
+            EdgeSignInOutcome.GoogleNoPassword,
+            MochyUsernameLoginEdgeHelper.parseSignInResponse(
+                400,
+                """{"source":"mochy-edge","status":"google_no_password"}""",
+            ),
+        )
+        assertEquals(
+            EdgeSignInOutcome.InvalidCredentials(hasGoogle = true),
+            MochyUsernameLoginEdgeHelper.parseSignInResponse(
+                401,
+                """{"source":"mochy-edge","status":"invalid_credentials","has_google":true}""",
+            ),
+        )
+        assertEquals(
+            EdgeSignInOutcome.InvalidCredentials(hasGoogle = false),
+            MochyUsernameLoginEdgeHelper.parseSignInResponse(
+                401,
+                """{"source":"mochy-edge","status":"invalid_credentials","has_google":false}""",
+            ),
+        )
+        assertEquals(
+            EdgeSignInOutcome.RateLimited(retryAfterSec = 180),
+            MochyUsernameLoginEdgeHelper.parseSignInResponse(
+                429,
+                """{"source":"mochy-edge","status":"rate_limited","retry_after":180}""",
+            ),
+        )
+
+        // 3. Authoritative sign-up availability checks
+        assertEquals(
+            EdgeCheckSignUpOutcome.Available,
+            MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(
+                200,
+                """{"source":"mochy-edge","status":"available"}""",
+            ),
+        )
+        assertEquals(
+            EdgeCheckSignUpOutcome.Taken(hasGoogle = true),
+            MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(
+                200,
+                """{"source":"mochy-edge","status":"taken","has_google":true}""",
+            ),
+        )
+        assertEquals(
+            EdgeCheckSignUpOutcome.Taken(hasGoogle = false),
+            MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(
+                200,
+                """{"source":"mochy-edge","status":"taken","has_google":false}""",
+            ),
+        )
+        assertEquals(
+            EdgeCheckSignUpOutcome.RateLimited(retryAfterSec = 90),
+            MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(
+                429,
+                """{"source":"mochy-edge","status":"rate_limited","retry_after":90}""",
+            ),
+        )
+
+        // 4. Non-edge gateway responses MUST fall back to Unavailable so login is never bricked
+        val gateway404 = """{"code":"NOT_FOUND","message":"Requested function was not found"}"""
+        assertEquals(EdgeSignInOutcome.Unavailable, MochyUsernameLoginEdgeHelper.parseSignInResponse(404, gateway404))
+        assertEquals(EdgeCheckSignUpOutcome.Unavailable, MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(404, gateway404))
+
+        val gatewayJwt401 = """{"code":401,"message":"Missing authorization header"}"""
+        assertEquals(EdgeSignInOutcome.Unavailable, MochyUsernameLoginEdgeHelper.parseSignInResponse(401, gatewayJwt401))
+        assertEquals(EdgeCheckSignUpOutcome.Unavailable, MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(401, gatewayJwt401))
+
+        assertEquals(EdgeSignInOutcome.Unavailable, MochyUsernameLoginEdgeHelper.parseSignInResponse(500, "not-json"))
+        assertEquals(EdgeCheckSignUpOutcome.Unavailable, MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(500, ""))
+    }
 }
