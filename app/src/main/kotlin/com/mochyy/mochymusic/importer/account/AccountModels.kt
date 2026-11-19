@@ -47,7 +47,13 @@ enum class AccountService(
         route = "youtube_music",
         label = "YouTube Music",
         loginUrl = null,
-        webOrigins = emptyList(),
+        webOrigins = listOf(
+            "https://music.youtube.com",
+            "https://accounts.google.com",
+            "https://www.youtube.com",
+            "https://youtube.com",
+            "https://google.com",
+        ),
     );
 
     companion object {

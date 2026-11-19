@@ -1349,6 +1349,7 @@
     <string name="mochy_cloud_updating_password">Updating…</string>
     <string name="mochy_cloud_password_update_failed">Couldn\'t update password.</string>
     <string name="yt_login_pick_device_gmail">Pick device Gmail</string>
+    <string name="yt_login_use_another_gmail">Another Gmail</string>
     <string name="yt_login_device_picker_prompt">Skip typing — pick a Gmail on this device</string>
     <string name="yt_login_prefilled_email">Pre-filled: %1$s</string>
     <string name="yt_login_device_picker_unavailable">No Google account picker is available on this device.</string>

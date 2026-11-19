@@ -251,6 +251,7 @@ internal fun WhatToSyncPage(
     onConfirm: () -> Unit,
     onCancelReading: () -> Unit,
     onBack: () -> Unit,
+    onSwitchAccount: (() -> Unit)? = null,
 ) {
     val choosing = state as? AccountImportState.Choosing
     val reading = state as? AccountImportState.Reading
@@ -290,16 +291,35 @@ internal fun WhatToSyncPage(
         }
         if (choosing == null) return@OnboardingPage
         val allSelected = selectedCount == choosing.playlists.size && selectedCount > 0
-        Text(
-            text = if (allSelected) stringResource(R.string.onb_select_none) else stringResource(R.string.onb_select_all),
-            color = Onb.Subtitle,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .clip(CircleShape)
-                .clickable(onClick = if (allSelected) onSelectNone else onSelectAll)
-                .padding(vertical = 6.dp),
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (allSelected) stringResource(R.string.onb_select_none) else stringResource(R.string.onb_select_all),
+                color = Onb.Subtitle,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = if (allSelected) onSelectNone else onSelectAll)
+                    .padding(vertical = 6.dp),
+            )
+            if (onSwitchAccount != null) {
+                Text(
+                    text = stringResource(R.string.onb_switch_account),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Onb.Card)
+                        .clickable(onClick = onSwitchAccount)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        }
         Spacer(Modifier.height(10.dp))
         BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
             val columns = if (maxWidth >= 480.dp) 3 else 2

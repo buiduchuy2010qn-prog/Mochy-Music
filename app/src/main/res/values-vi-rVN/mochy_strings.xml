@@ -1203,6 +1203,7 @@
     <string name="mochy_cloud_updating_password">Đang cập nhật…</string>
     <string name="mochy_cloud_password_update_failed">Không thể cập nhật mật khẩu.</string>
     <string name="yt_login_pick_device_gmail">Chọn Gmail trên máy</string>
+    <string name="yt_login_use_another_gmail">Dùng Gmail khác</string>
     <string name="yt_login_device_picker_prompt">Bỏ qua nhập tay — chọn Gmail trên máy</string>
     <string name="yt_login_prefilled_email">Đã điền sẵn: %1$s</string>
     <string name="yt_login_device_picker_unavailable">Thiết bị này không hỗ trợ hộp thoại chọn tài khoản Google.</string>

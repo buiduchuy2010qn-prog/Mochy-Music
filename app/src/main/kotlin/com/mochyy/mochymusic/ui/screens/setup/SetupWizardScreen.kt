@@ -214,6 +214,7 @@ fun SetupWizardScreen(
     val browserPresence = remember { Animatable(0f) }
     var browserShown by remember { mutableStateOf(false) }
     var browserWanted by remember { mutableStateOf(false) }
+    var freshYouTubeSwitch by remember { mutableStateOf(false) }
 
     fun openBrowser() {
         if (session == null || browserWanted) return
@@ -422,6 +423,7 @@ fun SetupWizardScreen(
 
                         Step.Providers -> ProviderListPage(
                             onPick = { service ->
+                                freshYouTubeSwitch = false
                                 vm.startProvider(service)
                                 go(Step.ProviderSetup)
                             },
@@ -436,9 +438,14 @@ fun SetupWizardScreen(
                                 browserOpen = browserWanted,
                                 onOpenBrowser = ::openBrowser,
                                 onRetry = {
-                                    clearWebSession(service.webOrigins)
-                                    session?.signInAgain()
-                                    openBrowser()
+                                    if (service == AccountService.YOUTUBE_MUSIC) {
+                                        freshYouTubeSwitch = true
+                                        vm.switchProviderAccount(service) { openBrowser() }
+                                    } else {
+                                        clearWebSession(service.webOrigins)
+                                        session?.signInAgain()
+                                        openBrowser()
+                                    }
                                 },
                                 onBack = ::back,
                             )
@@ -456,6 +463,14 @@ fun SetupWizardScreen(
                             },
                             onCancelReading = { session?.cancelReading() },
                             onBack = ::back,
+                            onSwitchAccount = {
+                                val svc = session?.service ?: return@WhatToSyncPage
+                                if (svc == AccountService.YOUTUBE_MUSIC) freshYouTubeSwitch = true
+                                vm.switchProviderAccount(svc) {
+                                    go(Step.ProviderSetup, replaceCurrent = true)
+                                    openBrowser()
+                                }
+                            },
                         )
 
                         Step.SyncOptions -> SyncOptionsPage(
@@ -537,12 +552,14 @@ fun SetupWizardScreen(
                     if (session.service == AccountService.YOUTUBE_MUSIC) {
                         YouTubeLoginWebContent(
                             onSignedIn = {
+                                freshYouTubeSwitch = false
                                 closeBrowser()
                                 session.refreshYouTube()
                             },
                             onExit = ::closeBrowser,
                             onUrlChange = onUrlChange,
                             onLoadingChange = onLoadingChange,
+                            freshAccountSwitch = freshYouTubeSwitch,
                             modifier = modifier,
                         )
                     } else {

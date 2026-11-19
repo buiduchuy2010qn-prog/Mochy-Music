@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -92,7 +93,8 @@ import org.json.JSONObject
 import timber.log.Timber
 import java.net.URLEncoder
 
-private const val LOGIN_URL = "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com"
+private const val ACCOUNT_CHOOSER_URL =
+    "https://accounts.google.com/AccountChooser?continue=https%3A%2F%2Fmusic.youtube.com&service=youtube"
 private const val YOUTUBE_MUSIC_ORIGIN = "https://music.youtube.com"
 
 private fun isValidEmailHint(email: String?): Boolean {
@@ -106,9 +108,49 @@ private fun isValidEmailHint(email: String?): Boolean {
 internal fun buildYouTubeLoginUrl(emailHint: String?): String {
     val clean = emailHint?.trim()?.takeIf(::isValidEmailHint)
     return if (clean != null) {
-        "$LOGIN_URL&Email=${URLEncoder.encode(clean, "UTF-8")}"
+        "$ACCOUNT_CHOOSER_URL&Email=${URLEncoder.encode(clean, "UTF-8")}"
     } else {
-        LOGIN_URL
+        ACCOUNT_CHOOSER_URL
+    }
+}
+
+/**
+ * Clears all stale Google / YouTube cookies and WebStorage inside WebView before loading [targetUrl]
+ * so switching Gmail or choosing "Use another Gmail" never snaps back into the previous account session.
+ */
+private fun clearGoogleWebSessionAndLoad(
+    view: WebView?,
+    targetUrl: String,
+) {
+    if (view == null) return
+    runCatching {
+        val storage = WebStorage.getInstance()
+        listOf(
+            "https://accounts.google.com",
+            "https://music.youtube.com",
+            "https://www.youtube.com",
+        ).forEach { origin ->
+            storage.deleteOrigin(origin)
+        }
+    }
+    var loaded = false
+    runCatching {
+        val cookies = CookieManager.getInstance()
+        cookies.removeAllCookies {
+            runCatching { cookies.flush() }
+            if (!loaded) {
+                loaded = true
+                view.clearCache(true)
+                view.loadUrl(targetUrl)
+            }
+        }
+        cookies.flush()
+    }.onFailure {
+        if (!loaded) {
+            loaded = true
+            view.clearCache(true)
+            view.loadUrl(targetUrl)
+        }
     }
 }
 
@@ -233,6 +275,41 @@ private fun DeviceGmailPickerChip(
     }
 }
 
+@Composable
+private fun UseAnotherGmailChip(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val haptic = LocalHapticFeedback.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .pressBounce(interaction, pressedScale = 0.95f)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
+            .clickable(
+                interactionSource = interaction,
+                indication = RemoteFocus,
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = 11.dp, vertical = 7.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.yt_login_use_another_gmail),
+            color = Color.White.copy(alpha = 0.9f),
+            fontFamily = InterFontFamily,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 /** the full-screen sign-in page used from the sync settings */
 @Composable
 fun YouTubeLoginScreen(navController: NavController) {
@@ -240,6 +317,7 @@ fun YouTubeLoginScreen(navController: NavController) {
     var pageLoading by remember { mutableStateOf(true) }
     var pickedEmail by remember { mutableStateOf<String?>(null) }
     var pickedEmailVersion by remember { mutableIntStateOf(0) }
+    var switchRequestVersion by remember { mutableIntStateOf(0) }
 
     val launchDeviceAccountPicker = rememberDeviceGoogleAccountPicker { email ->
         pickedEmail = email
@@ -285,8 +363,21 @@ fun YouTubeLoginScreen(navController: NavController) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.width(8.dp))
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 12.dp, bottom = 8.dp),
+        ) {
             DeviceGmailPickerChip(onClick = launchDeviceAccountPicker)
+            UseAnotherGmailChip(
+                onClick = {
+                    pickedEmail = null
+                    switchRequestVersion++
+                },
+            )
         }
         Box(modifier = Modifier.height(2.dp).fillMaxWidth()) {
             if (pageLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -307,6 +398,7 @@ fun YouTubeLoginScreen(navController: NavController) {
             showDeviceAccountPicker = false,
             externalEmailHint = pickedEmail,
             externalEmailRequestVersion = pickedEmailVersion,
+            externalSwitchRequestVersion = switchRequestVersion,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
     }
@@ -322,8 +414,10 @@ fun YouTubeLoginWebContent(
     onUrlChange: (String) -> Unit = {},
     onLoadingChange: (Boolean) -> Unit = {},
     showDeviceAccountPicker: Boolean = true,
+    freshAccountSwitch: Boolean = false,
     externalEmailHint: String? = null,
     externalEmailRequestVersion: Int = 0,
+    externalSwitchRequestVersion: Int = 0,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -331,12 +425,22 @@ fun YouTubeLoginWebContent(
     val currentOnUrlChange by rememberUpdatedState(onUrlChange)
     val currentOnLoadingChange by rememberUpdatedState(onLoadingChange)
     val savedAccountEmail by rememberPreference(AccountEmailKey, "")
-    val initialEmailHint = remember(context) {
-        MochyCloudVault.loadGoogleEmail(context)?.trim()?.takeIf(::isValidEmailHint)
-            ?: savedAccountEmail.trim().takeIf(::isValidEmailHint)
+    val initialEmailHint = remember(context, freshAccountSwitch) {
+        if (freshAccountSwitch) {
+            null
+        } else {
+            MochyCloudVault.loadGoogleEmail(context)?.trim()?.takeIf(::isValidEmailHint)
+                ?: savedAccountEmail.trim().takeIf(::isValidEmailHint)
+        }
     }
-    var activeEmailHint by remember(initialEmailHint) {
-        mutableStateOf(externalEmailHint?.trim()?.takeIf(::isValidEmailHint) ?: initialEmailHint)
+    var activeEmailHint by remember(initialEmailHint, freshAccountSwitch) {
+        mutableStateOf(
+            if (freshAccountSwitch) {
+                null
+            } else {
+                externalEmailHint?.trim()?.takeIf(::isValidEmailHint) ?: initialEmailHint
+            },
+        )
     }
     var webView by remember { mutableStateOf<WebView?>(null) }
     var saving by remember { mutableStateOf(false) }
@@ -344,14 +448,21 @@ fun YouTubeLoginWebContent(
 
     val launchDeviceAccountPicker = rememberDeviceGoogleAccountPicker { email ->
         activeEmailHint = email
-        webView?.loadUrl(buildYouTubeLoginUrl(email))
+        clearGoogleWebSessionAndLoad(webView, buildYouTubeLoginUrl(email))
     }
 
     LaunchedEffect(externalEmailRequestVersion) {
         if (externalEmailRequestVersion > 0) {
             val clean = externalEmailHint?.trim()?.takeIf(::isValidEmailHint) ?: return@LaunchedEffect
             activeEmailHint = clean
-            webView?.loadUrl(buildYouTubeLoginUrl(clean))
+            clearGoogleWebSessionAndLoad(webView, buildYouTubeLoginUrl(clean))
+        }
+    }
+
+    LaunchedEffect(externalSwitchRequestVersion) {
+        if (externalSwitchRequestVersion > 0) {
+            activeEmailHint = null
+            clearGoogleWebSessionAndLoad(webView, buildYouTubeLoginUrl(null))
         }
     }
 
@@ -425,13 +536,12 @@ fun YouTubeLoginWebContent(
 
     Column(modifier = modifier) {
         if (showDeviceAccountPicker) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF1C1C1C))
-                    .padding(start = 16.dp, end = 14.dp, top = 12.dp, bottom = 8.dp),
+                    .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 8.dp),
             ) {
                 Text(
                     text = activeEmailHint?.let {
@@ -443,9 +553,20 @@ fun YouTubeLoginWebContent(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
                 )
-                DeviceGmailPickerChip(onClick = launchDeviceAccountPicker)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    DeviceGmailPickerChip(onClick = launchDeviceAccountPicker)
+                    UseAnotherGmailChip(
+                        onClick = {
+                            activeEmailHint = null
+                            clearGoogleWebSessionAndLoad(webView, buildYouTubeLoginUrl(null))
+                        },
+                    )
+                }
             }
         }
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -501,7 +622,11 @@ fun YouTubeLoginWebContent(
                                     }
                                 }
                             }
-                        loadUrl(buildYouTubeLoginUrl(activeEmailHint))
+                        if (freshAccountSwitch) {
+                            clearGoogleWebSessionAndLoad(this, buildYouTubeLoginUrl(null))
+                        } else {
+                            loadUrl(buildYouTubeLoginUrl(activeEmailHint))
+                        }
                         webView = this
                     }
                 },

@@ -109,6 +109,7 @@ private fun LibraryImportFlow(onClose: () -> Unit) {
     val browserPresence = remember { Animatable(0f) }
     var browserShown by remember { mutableStateOf(false) }
     var browserWanted by remember { mutableStateOf(false) }
+    var freshYouTubeSwitch by remember { mutableStateOf(false) }
 
     fun openBrowser() {
         if (session == null || browserWanted) return
@@ -225,6 +226,7 @@ private fun LibraryImportFlow(onClose: () -> Unit) {
                 when (current) {
                     ImportStep.Providers -> ProviderListPage(
                         onPick = { service ->
+                            freshYouTubeSwitch = false
                             vm.startProvider(service)
                             go(ImportStep.ProviderSetup)
                         },
@@ -239,9 +241,14 @@ private fun LibraryImportFlow(onClose: () -> Unit) {
                             browserOpen = browserWanted,
                             onOpenBrowser = ::openBrowser,
                             onRetry = {
-                                clearWebSession(service.webOrigins)
-                                session?.signInAgain()
-                                openBrowser()
+                                if (service == AccountService.YOUTUBE_MUSIC) {
+                                    freshYouTubeSwitch = true
+                                    vm.switchProviderAccount(service) { openBrowser() }
+                                } else {
+                                    clearWebSession(service.webOrigins)
+                                    session?.signInAgain()
+                                    openBrowser()
+                                }
                             },
                             onBack = ::back,
                         )
@@ -259,6 +266,14 @@ private fun LibraryImportFlow(onClose: () -> Unit) {
                         },
                         onCancelReading = { session?.cancelReading() },
                         onBack = ::back,
+                        onSwitchAccount = {
+                            val svc = session?.service ?: return@WhatToSyncPage
+                            if (svc == AccountService.YOUTUBE_MUSIC) freshYouTubeSwitch = true
+                            vm.switchProviderAccount(svc) {
+                                go(ImportStep.ProviderSetup, replaceCurrent = true)
+                                openBrowser()
+                            }
+                        },
                     )
 
                     ImportStep.SyncOptions -> SyncOptionsPage(
@@ -295,12 +310,14 @@ private fun LibraryImportFlow(onClose: () -> Unit) {
                 if (session.service == AccountService.YOUTUBE_MUSIC) {
                     YouTubeLoginWebContent(
                         onSignedIn = {
+                            freshYouTubeSwitch = false
                             closeBrowser()
                             session.refreshYouTube()
                         },
                         onExit = ::closeBrowser,
                         onUrlChange = onUrlChange,
                         onLoadingChange = onLoadingChange,
+                        freshAccountSwitch = freshYouTubeSwitch,
                         modifier = modifier,
                     )
                 } else {
