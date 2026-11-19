@@ -913,6 +913,14 @@
     <string name="video_quality_not_loaded">Các mức chất lượng sẽ hiện sau khi video tải xong</string>
     <string name="video_quality_4k">4K</string>
     <string name="video_quality_sharp_desc">Nếu video và điện thoại của bạn hỗ trợ, sẽ tốn nhiều dữ liệu hơn hẳn</string>
+    <string name="canvas_quality">Chất lượng ảnh bìa động</string>
+    <string name="canvas_quality_now">%1$s · %2$s</string>
+    <string name="canvas_quality_best">Nét nhất</string>
+    <string name="canvas_quality_best_desc">Bản nét nhất, lên tới 4K nếu máy phát được. Tốn nhiều dữ liệu hơn</string>
+    <string name="canvas_quality_light">Nhẹ hơn</string>
+    <string name="canvas_quality_light_desc">Bản nhỏ hơn giúp phát nhanh và tiết kiệm dữ liệu</string>
+    <string name="canvas_best_quality">Ảnh bìa động nét nhất</string>
+    <string name="canvas_best_quality_desc">Phát bản nét nhất có thể, lên tới 4K. Tiết kiệm dữ liệu sẽ tắt tùy chọn này</string>
     <string name="video_mode_song_info">Thông tin bài hát</string>
     <string name="video_mode_whole_video">Hiện toàn bộ video</string>
     <string name="video_mode_whole_video_desc">Khi tắt, video sẽ được phóng to để lấp đầy màn hình</string>
@@ -1020,6 +1028,19 @@
     <string name="yt_sync_undo_nothing">Chưa có gì để hoàn tác. Hãy đồng bộ trước.</string>
     <plurals name="yt_sync_undo_failed">
         <item quantity="other">Đã hoàn tác, nhưng %1$d lượt thích chưa gỡ được khỏi YouTube. Hãy thử lại sau.</item>
+    </plurals>
+    <string name="yt_sync_lost_likes_title">Khôi phục bài đã thích bị mất</string>
+    <string name="yt_sync_lost_likes_desc">Đưa lại các bài đã thích mà lần đồng bộ cũ vô tình gỡ mất</string>
+    <plurals name="yt_sync_lost_likes_dialog_title">
+        <item quantity="other">Khôi phục %1$d lượt thích?</item>
+    </plurals>
+    <string name="yt_sync_lost_likes_dialog_body">Đây là những bài từng bị hủy thích khi đồng bộ, bài bạn thích lúc nhập nhạc, và lượt thích từ trước lần đồng bộ gần nhất. Bài bạn tự bỏ thích cũng có thể quay lại nên hãy bỏ thích lại vài bài nếu cần. Không có gì thay đổi trên YouTube.</string>
+    <string name="yt_sync_lost_likes_none_title">Không có lượt thích bị mất</string>
+    <string name="yt_sync_lost_likes_none_body">Mọi lượt thích mà ứng dụng lưu lại đều đã có trong Bài hát đã thích. Những bài còn thích trên YouTube sẽ quay về ở lần đồng bộ tới.</string>
+    <string name="yt_sync_lost_likes_confirm">Khôi phục</string>
+    <string name="yt_sync_lost_likes_running">Đang khôi phục lượt thích…</string>
+    <plurals name="yt_sync_lost_likes_done">
+        <item quantity="other">Đã khôi phục %1$d lượt thích vào Bài hát đã thích.</item>
     </plurals>
     <string name="module_youtube_name">YouTube Music</string>
     <string name="module_youtube_desc">Đồng bộ lượt thích, thư viện, danh sách phát và lịch sử</string>

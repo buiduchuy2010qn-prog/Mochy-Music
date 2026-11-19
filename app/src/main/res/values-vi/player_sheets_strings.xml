@@ -258,6 +258,8 @@
     <string name="ps_cover_disc_name">Tên đĩa</string>
     <string name="ps_cover_disc_name_desc">In trên mặt đĩa</string>
     <string name="ps_cover_disc_name_placeholder">Để trống để ẩn</string>
+    <string name="ps_cover_zoom">Thu phóng ảnh bìa</string>
+    <string name="ps_cover_zoom_desc">Kéo sang trái để xem toàn bộ ảnh bìa</string>
     <string name="ps_ipod_title">Chiếc iPod</string>
     <string name="ps_ipod_body">Thân máy</string>
     <string name="ps_ipod_click_wheel">Vòng click</string>

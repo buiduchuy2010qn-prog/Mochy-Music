@@ -190,6 +190,9 @@ class MochyPlaylistCodecTest {
             volumeJson = """{"boost":1.0}""",
             playbackJson = """{"speed":1.0,"pitch":1.0}""",
             skipSilence = false,
+            eightDJson = """{"enabled":true,"rotationSpeedHz":0.15,"depth":0.85,"reverbLevel":0.4}""",
+            playerCoverZoom = 0.75f,
+            canvasBestQuality = true,
         )
 
         val modulesConfig = CloudModulesConfig(
@@ -322,5 +325,32 @@ class MochyPlaylistCodecTest {
                 MochyLibraryExtraCodec.MaxEncodedChars +
                 MochyPlaybackResumeCodec.MaxEncodedChars
         assertEquals(10_600, maxCombinedMetadataChars)
+    }
+
+    @Test
+    fun libraryExtraCodecHandlesV12AudioFieldsAndLegacyPayloadsSafely() {
+        val v12OnlyAudio = CloudAudioConfig(
+            eightDJson = """{"enabled":true,"rotationSpeedHz":0.5,"depth":1.0,"reverbLevel":0.85}""",
+            playerCoverZoom = 1.35f, // coerced into [0f, 1f]
+            canvasBestQuality = false,
+        )
+        val encoded = MochyLibraryExtraCodec.encode(CloudLibraryExtra(audio = v12OnlyAudio))
+        assertTrue(encoded.isNotBlank())
+
+        val decoded = MochyLibraryExtraCodec.decode(encoded)
+        assertNotNull(decoded?.audio)
+        assertEquals(v12OnlyAudio.eightDJson, decoded!!.audio!!.eightDJson)
+        assertEquals(1.0f, decoded.audio!!.playerCoverZoom!!, 0.0001f)
+        assertEquals(false, decoded.audio!!.canvasBestQuality)
+
+        // Legacy payload without "ed", "cz", "cb" still decodes cleanly with null defaults
+        val legacyGz = gzipToBase64("""{"v":2,"alb":[],"art":[],"aq":"HIGH","ss":true}""")
+        val decodedLegacy = MochyLibraryExtraCodec.decode(legacyGz)
+        assertNotNull(decodedLegacy?.audio)
+        assertEquals("HIGH", decodedLegacy!!.audio!!.audioQuality)
+        assertEquals(true, decodedLegacy.audio!!.skipSilence)
+        assertNull(decodedLegacy.audio!!.eightDJson)
+        assertNull(decodedLegacy.audio!!.playerCoverZoom)
+        assertNull(decodedLegacy.audio!!.canvasBestQuality)
     }
 }

@@ -11,6 +11,8 @@ import androidx.datastore.preferences.core.edit
 import com.mochyy.mochymusic.constants.AudioNormalizationKey
 import com.mochyy.mochymusic.constants.SkipSilenceKey
 import com.mochyy.mochymusic.constants.AudioQualityKey
+import com.mochyy.mochymusic.constants.CanvasBestQualityKey
+import com.mochyy.mochymusic.constants.PlayerCoverZoomKey
 import com.mochyy.mochymusic.constants.ProfileCardNumberKey
 import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
 import com.mochyy.mochymusic.constants.ProfilePicUriKey
@@ -31,6 +33,7 @@ import com.mochyy.mochymusic.db.entities.SpeedDialItem
 import com.mochyy.mochymusic.di.AudioLabEntryPoint
 import com.mochyy.mochymusic.di.CloudSyncEntryPoint
 import com.mochyy.mochymusic.eq.AudioLabStore
+import com.mochyy.mochymusic.eq.EightDSettings
 import com.mochyy.mochymusic.eq.EqSettings
 import com.mochyy.mochymusic.eq.LoudnessSettings
 import com.mochyy.mochymusic.eq.NormalizeSettings
@@ -1880,6 +1883,9 @@ object MochyCloudSyncManager {
                 volumeJson = remoteAudio.volumeJson ?: initialAudio.volumeJson,
                 playbackJson = remoteAudio.playbackJson ?: initialAudio.playbackJson,
                 skipSilence = remoteAudio.skipSilence ?: initialAudio.skipSilence,
+                eightDJson = remoteAudio.eightDJson ?: initialAudio.eightDJson,
+                playerCoverZoom = remoteAudio.playerCoverZoom ?: initialAudio.playerCoverZoom,
+                canvasBestQuality = remoteAudio.canvasBestQuality ?: initialAudio.canvasBestQuality,
             )
             val remoteAudioDigest = sha256Hex(canonicalAudioConfig(mergedRemoteAudio))
             if (prevEqDigest == null) {
@@ -2280,6 +2286,9 @@ object MochyCloudSyncManager {
         volumeJson = audioLabJson.encodeToString(VolumeSettings.serializer(), audioLab.volume.value),
         playbackJson = audioLabJson.encodeToString(PlaybackSettings.serializer(), audioLab.playback.value),
         skipSilence = prefs[SkipSilenceKey],
+        eightDJson = audioLabJson.encodeToString(EightDSettings.serializer(), audioLab.eightD.value),
+        playerCoverZoom = prefs[PlayerCoverZoomKey]?.takeIf { it.isFinite() }?.coerceIn(0f, 1f),
+        canvasBestQuality = prefs[CanvasBestQualityKey],
     )
 
     private suspend fun applyAudioConfig(
@@ -2330,6 +2339,12 @@ object MochyCloudSyncManager {
                     .getOrNull()?.let { decoded -> audioLab.updatePlayback { decoded } }
             }
         }
+        remote.eightDJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            if (!onlyIfDefault || audioLab.eightD.value == EightDSettings()) {
+                runCatching { audioLabJson.decodeFromString(EightDSettings.serializer(), raw) }
+                    .getOrNull()?.let { decoded -> audioLab.updateEightD { decoded } }
+            }
+        }
         app.dataStore.edit { p ->
             if (!onlyIfDefault || p[AudioNormalizationKey] == null) {
                 remote.audioNormalization?.let { p[AudioNormalizationKey] = it }
@@ -2339,6 +2354,14 @@ object MochyCloudSyncManager {
             }
             if (!onlyIfDefault || p[SkipSilenceKey] == null) {
                 remote.skipSilence?.let { p[SkipSilenceKey] = it }
+            }
+            if (!onlyIfDefault || p[PlayerCoverZoomKey] == null) {
+                remote.playerCoverZoom?.takeIf { it.isFinite() }?.let {
+                    p[PlayerCoverZoomKey] = it.coerceIn(0f, 1f)
+                }
+            }
+            if (!onlyIfDefault || p[CanvasBestQualityKey] == null) {
+                remote.canvasBestQuality?.let { p[CanvasBestQualityKey] = it }
             }
         }
     }
@@ -2354,6 +2377,9 @@ object MochyCloudSyncManager {
         cfg.volumeJson.orEmpty(),
         cfg.playbackJson.orEmpty(),
         cfg.skipSilence?.toString().orEmpty(),
+        cfg.eightDJson.orEmpty(),
+        cfg.playerCoverZoom?.takeIf { it.isFinite() }?.coerceIn(0f, 1f)?.toString().orEmpty(),
+        cfg.canvasBestQuality?.toString().orEmpty(),
     ).joinToString("\u0000")
 
     private fun canonicalModulesConfig(cfg: CloudModulesConfig): String {

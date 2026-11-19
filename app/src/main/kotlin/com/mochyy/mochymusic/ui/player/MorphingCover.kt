@@ -98,8 +98,10 @@ import com.mochyy.mochymusic.constants.ThumbnailCornerRadius
 import com.mochyy.mochymusic.extensions.togglePlayPause
 import com.mochyy.mochymusic.ui.player.models.TrackInfo
 import com.mochyy.mochymusic.ui.utils.resize
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
@@ -123,6 +125,8 @@ import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
 import com.mochyy.mochymusic.constants.DisableVideoAutoplayKey
 import com.mochyy.mochymusic.constants.PlayerBackgroundStyle
 import com.mochyy.mochymusic.constants.PlayerCoverStyle
+import com.mochyy.mochymusic.constants.PlayerCoverZoomKey
+import com.mochyy.mochymusic.ui.player.customize.ZoomedCover
 import com.mochyy.mochymusic.ui.player.customize.DiscCoverStack
 import com.mochyy.mochymusic.ui.player.customize.PlayerBackgroundContent
 import com.mochyy.mochymusic.ui.player.customize.CoverGradientBackdrop
@@ -457,6 +461,9 @@ fun MorphingCover(
     // data saver turns video backgrounds and auto-playing videos off; the full video mode still plays when asked for
     val dataSaving = com.mochyy.mochymusic.utils.rememberDataSaverActive()
     val playVideoPref = rememberPreference(PlayVideoBackgroundKey, defaultValue = false).value && !dataSaving
+    // the disc styles crop the cover into the disc, so the zoom is only for the squared and edge to edge ones
+    val coverZoom = rememberPreference(PlayerCoverZoomKey, defaultValue = 1f).value
+        .takeIf { !coverStyle.isDisc && !alternateStyle && it < 1f }
     val disableVideoAutoplay = rememberPreference(DisableVideoAutoplayKey, defaultValue = false).value || dataSaving
     val currentMetadata by (playerConnection?.mediaMetadata ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) })
         .collectAsState()
@@ -1059,6 +1066,14 @@ fun MorphingCover(
                         thumbnailUrl = url,
                         modifier = (if (squaredCards) pictureModifier.then(cardGreyFilter) else pictureModifier)
                             .graphicsLayer { if (pictureHidden(url)) alpha = 0f },
+                        // filled as before in the mini player and the lyrics header, zoomed out once open
+                        zoom = coverZoom?.let { zoom ->
+                            {
+                                val open = ((progressProvider() - 0.5f) / 0.45f).coerceIn(0f, 1f) *
+                                    (1f - lyricsProgressProvider()).coerceIn(0f, 1f)
+                                1f - (1f - zoom) * open
+                            }
+                        },
                     )
                 }
 
@@ -1107,6 +1122,7 @@ fun MorphingCover(
                                 onFrameColors = if (playing && feedsAmbient) ambient?.let { it::live } else null,
                                 onLiveEnd = if (playing && feedsAmbient) ambient?.let { it::endLive } else null,
                                 onShowingChange = if (playing) { shown -> liveCanvasShown = shown } else null,
+                                feedsMenu = playing,
                             )
 
                             if (playing && !isDiscStyle && playVideoBackground && videoInfo != null && miniVideoShown) {
@@ -1400,7 +1416,7 @@ private fun MiniSongLines(title: String, artist: String, album: String, modifier
 }
 
 @Composable
-private fun CoverPicture(thumbnailUrl: String?, modifier: Modifier = Modifier) {
+private fun CoverPicture(thumbnailUrl: String?, modifier: Modifier = Modifier, zoom: (() -> Float)? = null) {
     val context = LocalContext.current
     val imageRequest = remember(thumbnailUrl) {
         ImageRequest.Builder(context)
@@ -1410,6 +1426,10 @@ private fun CoverPicture(thumbnailUrl: String?, modifier: Modifier = Modifier) {
             .precision(Precision.INEXACT)
             .crossfade(false)
             .build()
+    }
+    if (zoom != null) {
+        ZoomedCover(model = imageRequest, zoom = zoom, modifier = modifier)
+        return
     }
     AsyncImage(
         model = imageRequest,
@@ -2008,8 +2028,14 @@ private fun CoverCanvasLayer(
     onLiveEnd: (() -> Unit)? = null,
     // told when the canvas's picture is up over the cover, and when it's gone
     onShowingChange: ((Boolean) -> Unit)? = null,
+    // the playing song's canvas tells the player's menu what size it plays
+    feedsMenu: Boolean = false,
 ) {
     val context = LocalContext.current
+    val sizeOwner = remember { Any() }
+    var playingSide by remember { mutableIntStateOf(0) }
+    LaunchedEffect(feedsMenu, playingSide) { PlayerCanvasPlayback.report(sizeOwner, if (feedsMenu) playingSide else 0) }
+    DisposableEffect(Unit) { onDispose { PlayerCanvasPlayback.report(sizeOwner, 0) } }
     val playerConnection = LocalPlayerConnection.current
     var canvasArtwork by remember(trackInfo.mediaId) { mutableStateOf<CanvasArtwork?>(null) }
     val canvasEnabled = rememberPreference(CanvasThumbnailAnimationKey, defaultValue = true).value && !alternateStyle
@@ -2079,6 +2105,7 @@ private fun CoverCanvasLayer(
                 if (!ready) onLiveEnd?.invoke()
             },
             onFrameColors = onFrameColors,
+            onPlayingSize = { playingSide = it },
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { alpha = sheetFade(progressProvider()) }

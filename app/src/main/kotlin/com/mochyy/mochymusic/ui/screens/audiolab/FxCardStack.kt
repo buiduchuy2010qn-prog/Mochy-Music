@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.eq.EightDSettings
 import com.mochyy.mochymusic.eq.LoudnessSettings
 import com.mochyy.mochymusic.eq.PlaybackSettings
 import com.mochyy.mochymusic.eq.ReverbSettings
@@ -53,12 +54,14 @@ internal fun activeEffects(
     reverb: ReverbSettings,
     loudness: LoudnessSettings,
     spatial: SpatialSettings,
+    eightD: EightDSettings,
     playback: PlaybackSettings,
     volume: VolumeSettings,
 ): List<ActiveEffect> = buildList {
     if (reverb.enabled) add(ActiveEffect("reverb", "Reverb"))
     if (loudness.enabled) add(ActiveEffect("loudness", "Loudness"))
     if (spatial.enabled) add(ActiveEffect("spatial", "Spatial"))
+    if (eightD.enabled) add(ActiveEffect("eight_d", "8D Audio"))
     if (spatial.surround) add(ActiveEffect("surround", "Surround"))
     if (spatial.mono) add(ActiveEffect("mono", "Mono"))
     if (!playback.isNormal) add(ActiveEffect("playback", "Playback"))
@@ -71,6 +74,7 @@ internal fun effectLabelRes(key: String): Int = when (key) {
     "reverb" -> R.string.lab_effect_reverb
     "loudness" -> R.string.lab_effect_loudness
     "spatial" -> R.string.lab_effect_spatial
+    "eight_d" -> R.string.eight_d_title
     "surround" -> R.string.lab_effect_surround
     "mono" -> R.string.lab_effect_mono
     "playback" -> R.string.lab_effect_playback

@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
@@ -164,6 +165,12 @@ internal fun JsonObject.optJsonLong(key: String, defaultValue: Long = 0L): Long 
     val el = this[key] as? JsonPrimitive ?: return defaultValue
     if (el is JsonNull) return defaultValue
     return el.longOrNull ?: el.content.trim().toDoubleOrNull()?.toLong() ?: defaultValue
+}
+
+internal fun JsonObject.optJsonFloat(key: String, defaultValue: Float = 0f): Float {
+    val el = this[key] as? JsonPrimitive ?: return defaultValue
+    if (el is JsonNull) return defaultValue
+    return el.floatOrNull ?: el.content.trim().toFloatOrNull() ?: defaultValue
 }
 
 internal fun JsonObject.optJsonBoolean(key: String, defaultValue: Boolean = false): Boolean {
@@ -364,6 +371,9 @@ data class CloudAudioConfig(
     val volumeJson: String? = null,
     val playbackJson: String? = null,
     val skipSilence: Boolean? = null,
+    val eightDJson: String? = null,
+    val playerCoverZoom: Float? = null,
+    val canvasBestQuality: Boolean? = null,
 )
 
 data class CloudSpeedDialRecord(
@@ -457,7 +467,10 @@ object MochyLibraryExtraCodec {
                 !extra.audio.normalizeJson.isNullOrBlank() ||
                 !extra.audio.volumeJson.isNullOrBlank() ||
                 !extra.audio.playbackJson.isNullOrBlank() ||
-                extra.audio.skipSilence != null
+                extra.audio.skipSilence != null ||
+                !extra.audio.eightDJson.isNullOrBlank() ||
+                extra.audio.playerCoverZoom != null ||
+                extra.audio.canvasBestQuality != null
             )
         val hasModules = extra.modulesConfig != null && (
             extra.modulesConfig.enabled.isNotEmpty() ||
@@ -607,9 +620,15 @@ object MochyLibraryExtraCodec {
             val volJson = root.optJsonString("vl").takeIf { it.isNotBlank() && it != "null" }
             val pbJson = root.optJsonString("pb").takeIf { it.isNotBlank() && it != "null" }
             val skipSil = if (root.hasJsonValue("ss")) root.optJsonBoolean("ss") else null
+            val eightDJson = root.optJsonString("ed").takeIf { it.isNotBlank() && it != "null" }
+            val coverZoom = if (root.hasJsonValue("cz")) {
+                root.optJsonFloat("cz", Float.NaN).takeIf { it.isFinite() }?.coerceIn(0f, 1f)
+            } else null
+            val canvasBest = if (root.hasJsonValue("cb")) root.optJsonBoolean("cb") else null
             val audio = if (eqJson != null || norm != null || quality != null ||
                 revJson != null || loudJson != null || spatJson != null ||
-                normJson != null || volJson != null || pbJson != null || skipSil != null
+                normJson != null || volJson != null || pbJson != null || skipSil != null ||
+                eightDJson != null || coverZoom != null || canvasBest != null
             ) {
                 CloudAudioConfig(
                     eqSettingsJson = eqJson,
@@ -622,6 +641,9 @@ object MochyLibraryExtraCodec {
                     volumeJson = volJson,
                     playbackJson = pbJson,
                     skipSilence = skipSil,
+                    eightDJson = eightDJson,
+                    playerCoverZoom = coverZoom,
+                    canvasBestQuality = canvasBest,
                 )
             } else null
 
@@ -824,6 +846,9 @@ object MochyLibraryExtraCodec {
                 if (!audio.volumeJson.isNullOrBlank()) put("vl", audio.volumeJson)
                 if (!audio.playbackJson.isNullOrBlank()) put("pb", audio.playbackJson)
                 if (audio.skipSilence != null) put("ss", audio.skipSilence)
+                if (!audio.eightDJson.isNullOrBlank()) put("ed", audio.eightDJson)
+                audio.playerCoverZoom?.takeIf { it.isFinite() }?.let { put("cz", it.coerceIn(0f, 1f)) }
+                if (audio.canvasBestQuality != null) put("cb", audio.canvasBestQuality)
             }
             if (speedDial.isNotEmpty()) {
                 put(

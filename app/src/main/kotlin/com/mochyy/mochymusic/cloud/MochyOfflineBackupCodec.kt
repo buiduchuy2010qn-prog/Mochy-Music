@@ -6,6 +6,8 @@ import android.util.Base64
 import androidx.datastore.preferences.core.edit
 import com.mochyy.mochymusic.constants.AudioNormalizationKey
 import com.mochyy.mochymusic.constants.AudioQualityKey
+import com.mochyy.mochymusic.constants.CanvasBestQualityKey
+import com.mochyy.mochymusic.constants.PlayerCoverZoomKey
 import com.mochyy.mochymusic.constants.SkipSilenceKey
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.db.daos.SpeedDialDao
@@ -22,6 +24,7 @@ import com.mochyy.mochymusic.db.entities.SongEntity
 import com.mochyy.mochymusic.db.entities.SpeedDialItem
 import com.mochyy.mochymusic.di.AudioLabEntryPoint
 import com.mochyy.mochymusic.di.CloudSyncEntryPoint
+import com.mochyy.mochymusic.eq.EightDSettings
 import com.mochyy.mochymusic.eq.EqSettings
 import com.mochyy.mochymusic.eq.LoudnessSettings
 import com.mochyy.mochymusic.eq.NormalizeSettings
@@ -330,9 +333,14 @@ object MochyOfflineBackupCodec {
                 put("normalize", audioJson.encodeToString(NormalizeSettings.serializer(), audioLab.normalize.value))
                 put("volume", audioJson.encodeToString(VolumeSettings.serializer(), audioLab.volume.value))
                 put("playback", audioJson.encodeToString(PlaybackSettings.serializer(), audioLab.playback.value))
+                put("eightD", audioJson.encodeToString(EightDSettings.serializer(), audioLab.eightD.value))
                 prefs[AudioNormalizationKey]?.let { put("audioNormalization", it) }
                 prefs[AudioQualityKey]?.let { put("audioQuality", it) }
                 prefs[SkipSilenceKey]?.let { put("skipSilence", it) }
+                prefs[PlayerCoverZoomKey]?.takeIf { it.isFinite() }?.let {
+                    put("playerCoverZoom", it.coerceIn(0f, 1f).toDouble())
+                }
+                prefs[CanvasBestQualityKey]?.let { put("canvasBestQuality", it) }
             }
 
             val root = JSONObject().apply {
@@ -793,6 +801,11 @@ object MochyOfflineBackupCodec {
                         audioLab.updatePlayback { p }
                     }
                 }
+                audioObj.optString("eightD").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                    runCatching { audioJson.decodeFromString(EightDSettings.serializer(), raw) }.getOrNull()?.let { ed ->
+                        audioLab.updateEightD { ed }
+                    }
+                }
                 app.dataStore.edit { prefs ->
                     if (audioObj.has("audioNormalization")) {
                         prefs[AudioNormalizationKey] = audioObj.optBoolean("audioNormalization")
@@ -802,6 +815,15 @@ object MochyOfflineBackupCodec {
                     }
                     if (audioObj.has("skipSilence")) {
                         prefs[SkipSilenceKey] = audioObj.optBoolean("skipSilence")
+                    }
+                    if (audioObj.has("playerCoverZoom") && !audioObj.isNull("playerCoverZoom")) {
+                        val zoom = audioObj.optDouble("playerCoverZoom", Double.NaN).toFloat()
+                        if (zoom.isFinite()) {
+                            prefs[PlayerCoverZoomKey] = zoom.coerceIn(0f, 1f)
+                        }
+                    }
+                    if (audioObj.has("canvasBestQuality") && !audioObj.isNull("canvasBestQuality")) {
+                        prefs[CanvasBestQualityKey] = audioObj.optBoolean("canvasBestQuality")
                     }
                 }
             }
