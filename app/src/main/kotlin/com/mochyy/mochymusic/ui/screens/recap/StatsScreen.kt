@@ -20,6 +20,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -79,7 +81,13 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.ProfileCardNumberKey
+import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
 import com.mochyy.mochymusic.constants.ProfilePicUriKey
+import com.mochyy.mochymusic.constants.UsernameKey
+import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportDialog
+import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportTab
+import com.mochyy.mochymusic.ui.screens.recap.export.RecapPart
 import com.mochyy.mochymusic.ui.component.BlurDirection
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
 import com.mochyy.mochymusic.ui.component.GlassState
@@ -120,7 +128,19 @@ fun StatsScreen(navController: NavController) {
     val density = LocalDensity.current
     val sheets = LocalBottomSheetPageState.current
     val (profilePicUri) = rememberPreference(ProfilePicUriKey, "")
+    val (username) = rememberPreference(UsernameKey, "")
+    val (cardNumberPref) = rememberPreference(ProfileCardNumberKey, "")
+    val (joinedEpochDay) = rememberPreference(ProfileJoinedEpochDayKey, -1L)
+    val totalListeningMs by remember(database) { database.totalListeningTimeMs() }.collectAsState(initial = 0L)
     val today = remember { LocalDate.now() }
+
+    var replayStoryData by remember { mutableStateOf<RecapStoryData?>(null) }
+    var directExportData by remember { mutableStateOf<RecapStoryData?>(null) }
+
+    com.mochyy.mochymusic.ui.utils.HoldOrientation(
+        orientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+        active = replayStoryData != null,
+    )
 
     var kind by rememberSaveable { mutableStateOf(StatsRange.Kind.Month) }
     var year by rememberSaveable { mutableStateOf(today.year) }
@@ -245,24 +265,92 @@ fun StatsScreen(navController: NavController) {
                     )
                 }
                 item(key = "expandAll") {
+                    val currentStats = stats
+                    val cardNumber = cardNumberPref.ifBlank { "00000000000" }
+                    val joinedDate = if (joinedEpochDay >= 0L) LocalDate.ofEpochDay(joinedEpochDay) else start
+                    val joinedText = stringResource(R.string.profile_joined_at, joinedDate.format(DateLong))
+                    val photo: Any? = profilePicUri.takeIf { it.isNotBlank() }?.let { if (it.contains("://")) it else "file://$it" }
+                    fun buildRecapData(s: ListeningStats): RecapStoryData = RecapStoryData(
+                        stats = s,
+                        monthProgress = RecapRepository.progressOf(s.range, today),
+                        username = username,
+                        photo = photo,
+                        cardNumber = cardNumber,
+                        joinedText = joinedText,
+                        joinedDate = joinedDate,
+                        allTimeMs = totalListeningMs,
+                    )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier =
                             Modifier
-                                .padding(start = PagePadding, top = 4.dp, bottom = 14.dp)
-                                .clip(CircleShape)
-                                .background(ChipBg)
-                                .clickable {
-                                    val open = !allOpen
-                                    CardKeys.forEach { expanded[it] = open }
-                                }.padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(start = PagePadding, end = PagePadding, top = 4.dp, bottom = 14.dp),
                     ) {
-                        Text(
-                            stringResource(if (allOpen) R.string.rc_stats_collapse_all else R.string.rc_stats_expand_all),
-                            style = statsText(13f, FontWeight.SemiBold, tracking = 0f),
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Chevron(open = allOpen, size = 18)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .clip(CircleShape)
+                                    .background(ChipBg)
+                                    .clickable {
+                                        val open = !allOpen
+                                        CardKeys.forEach { expanded[it] = open }
+                                    }.padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
+                        ) {
+                            Text(
+                                stringResource(if (allOpen) R.string.rc_stats_collapse_all else R.string.rc_stats_expand_all),
+                                style = statsText(13f, FontWeight.SemiBold, tracking = 0f),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Chevron(open = allOpen, size = 18)
+                        }
+                        if (currentStats != null && !currentStats.isEmpty) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                modifier =
+                                    Modifier
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .clickable { replayStoryData = buildRecapData(currentStats) }
+                                        .padding(horizontal = 13.dp, vertical = 7.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.play),
+                                    contentDescription = null,
+                                    tint = Color(0xFF121212),
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Text(
+                                    text = stringResource(R.string.rc_stats_watch_recap),
+                                    style = statsText(13f, FontWeight.Bold, color = Color(0xFF121212), tracking = 0f),
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                modifier =
+                                    Modifier
+                                        .clip(CircleShape)
+                                        .background(ChipBg)
+                                        .clickable { directExportData = buildRecapData(currentStats) }
+                                        .padding(horizontal = 13.dp, vertical = 7.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ios_share),
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Text(
+                                    text = stringResource(R.string.rc_export_pill),
+                                    style = statsText(13f, FontWeight.SemiBold, tracking = 0f),
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -408,6 +496,32 @@ fun StatsScreen(navController: NavController) {
                         .size(36.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF2A2A2A)),
+            )
+        }
+
+        replayStoryData?.let { data ->
+            val payload = recapBarcodePayload(data.stats.range)
+            RecapStoryHost(
+                data = data,
+                anchors = null,
+                payload = payload,
+                caption = recapBarcodeCaption(payload, data.cardNumber),
+                startDirectlyAtStory = true,
+                onCovered = {},
+                onReturned = {},
+                onClosed = { replayStoryData = null },
+            )
+        }
+
+        directExportData?.let { data ->
+            val payload = recapBarcodePayload(data.stats.range)
+            RecapExportDialog(
+                data = data,
+                payload = payload,
+                caption = recapBarcodeCaption(payload, data.cardNumber),
+                initialTab = RecapExportTab.VIDEO,
+                initialPart = RecapPart.SUMMARY_CARD,
+                onDismiss = { directExportData = null },
             )
         }
     }

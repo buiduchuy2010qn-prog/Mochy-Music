@@ -147,6 +147,11 @@ private fun caption(context: Context, session: SongShareSession): String {
     return session.link?.let { "$line\n$it" } ?: line
 }
 
+internal fun shareFileUri(context: Context, file: File): Uri = uriOf(context, file)
+
+internal suspend fun saveMediaToGallery(context: Context, file: File, mimeType: String): Boolean =
+    saveToGallery(context, ShareFile(file, mimeType))
+
 private fun uriOf(context: Context, file: File): Uri = FileProvider.getUriForFile(context, "${context.packageName}.FileProvider", file)
 
 private suspend fun saveToGallery(context: Context, file: ShareFile): Boolean = withContext(Dispatchers.IO) {

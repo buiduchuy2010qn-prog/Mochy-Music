@@ -128,4 +128,62 @@
     <string name="rc_story_tap_finish">TAP TO FINISH</string>
 
     <!-- Recap ID card back -->
+
+    <!-- Recap video & per-part image export -->
+    <string name="rc_stats_watch_recap">Watch Re\'cap</string>
+    <string name="rc_export_pill">Export</string>
+    <string name="rc_export_action_video">Export Re\'cap Video</string>
+    <string name="rc_export_action_parts">Per-Section Images</string>
+    <string name="rc_export_fps_60">60fps</string>
+    <string name="rc_export_sheet_title">Export Re\'cap</string>
+    <string name="rc_export_sheet_subtitle">%1$s Re\'cap · Original Mochy motion</string>
+    <string name="rc_export_close">Close</string>
+    <string name="rc_export_tab_video">Re\'cap Video (MP4)</string>
+    <string name="rc_export_tab_parts">Sections (PNG &amp; MP4)</string>
+    <string name="rc_export_full_video_title">Full Re\'cap Video</string>
+    <string name="rc_export_full_video_desc">All Mochy animations, gradient mesh, artist spin, song grid, scrolling receipt, and your ID card with music.</string>
+    <string name="rc_export_duration_sec">~%1$ds</string>
+    <string name="rc_export_quality_1080_60">1080p · 60fps (Ultra smooth)</string>
+    <string name="rc_export_quality_1080_30">1080p · 30fps (Faster)</string>
+    <string name="rc_export_quality_720_30_lite">720p · 30fps (Lite mode)</string>
+    <string name="rc_export_soundtrack_label">Background music</string>
+    <string name="rc_export_on">On</string>
+    <string name="rc_export_off">Off</string>
+    <string name="rc_export_save_video">Save Video</string>
+    <string name="rc_export_share">Share</string>
+    <string name="rc_export_save_image">Save PNG</string>
+    <string name="rc_export_share_image">Share PNG</string>
+    <string name="rc_export_part_video">Export Section Video (MP4 · %1$dfps)</string>
+    <string name="rc_export_save_all_images">Save All Section Images (%1$d PNGs)</string>
+    <string name="rc_export_receipt_full">Full receipt (uncut)</string>
+    <string name="rc_export_receipt_story">9:16 Story frame</string>
+    <string name="rc_export_rendering_video">Rendering %1$dfps Re\'cap video…</string>
+    <string name="rc_export_rendering_image">Rendering high-res PNG…</string>
+    <string name="rc_export_rendering_all_images">Saving all %1$d Re\'cap images…</string>
+    <string name="rc_export_keep_open_hint">Keep Mochy open while your video or images are being rendered locally.</string>
+    <string name="rc_export_cancel">Cancel</string>
+    <string name="rc_export_cancelled">Export cancelled</string>
+    <string name="rc_export_failed">Couldn\'t export Re\'cap. Please try again.</string>
+    <string name="rc_export_video_saved">Saved Re\'cap video to Gallery (Movies/Mochy)</string>
+    <string name="rc_export_saved_silent_fallback">Saved Re\'cap video (muted because audio couldn\'t load offline)</string>
+    <string name="rc_export_image_saved">Saved Re\'cap image to Gallery (Pictures/Mochy)</string>
+    <string name="rc_export_all_images_saved">Saved %1$d Re\'cap images to Gallery (Pictures/Mochy)</string>
+    <string name="rc_export_ready_to_share">Re\'cap export ready</string>
+    <string name="rc_export_share_title">Share Mochy Re\'cap</string>
+    <string name="rc_export_share_caption">My %1$s Re\'cap on Mochy Music</string>
+
+    <string name="rc_part_journey">Journey</string>
+    <string name="rc_part_journey_sub">Join date and all-time listening hours</string>
+    <string name="rc_part_month">Progress</string>
+    <string name="rc_part_month_sub">Period completion percentage bar</string>
+    <string name="rc_part_weekday">Top Day</string>
+    <string name="rc_part_weekday_sub">Your favourite day of the week to listen</string>
+    <string name="rc_part_top_artist">Top Artist</string>
+    <string name="rc_part_top_artist_sub">Artist slot spin and #1 artist spotlight</string>
+    <string name="rc_part_top_song">Top Song</string>
+    <string name="rc_part_top_song_sub">Tilted cover grid and #1 song spotlight</string>
+    <string name="rc_part_receipt">Receipt</string>
+    <string name="rc_part_receipt_sub">Complete Top 10 Artists &amp; Top 10 Songs bill</string>
+    <string name="rc_part_summary_card">ID Card</string>
+    <string name="rc_part_summary_card_sub">Your Mochy Profile ID card finale</string>
 </resources>

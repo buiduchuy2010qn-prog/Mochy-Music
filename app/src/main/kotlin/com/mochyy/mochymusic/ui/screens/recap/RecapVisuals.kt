@@ -102,10 +102,15 @@ internal object RecapClock {
 }
 
 @Stable
-internal class RecapTime {
-    var frameNanos by mutableLongStateOf(System.nanoTime())
+internal class RecapTime(private val epochNanos: Long? = null) {
+    var frameNanos by mutableLongStateOf(epochNanos ?: System.nanoTime())
 
-    val seconds: Double get() = RecapClock.seconds(frameNanos)
+    val seconds: Double
+        get() = if (epochNanos != null) {
+            (frameNanos - epochNanos) / 1_000_000_000.0
+        } else {
+            RecapClock.seconds(frameNanos)
+        }
 
     /** Seconds wrapped to a small range, for sin/cos sway where float precision matters more than continuity. */
     val sway: Float get() = (seconds % 3600.0).toFloat()

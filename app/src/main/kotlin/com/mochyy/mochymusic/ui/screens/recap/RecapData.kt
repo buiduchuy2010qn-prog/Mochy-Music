@@ -128,7 +128,7 @@ internal object RecapRepository {
         return RecapAvailability.NotYet("once you've played a song")
     }
 
-    private fun progressOf(range: StatsRange, today: LocalDate): Int = when {
+    internal fun progressOf(range: StatsRange, today: LocalDate): Int = when {
         range.kind == StatsRange.Kind.Year && range.year == today.year ->
             (today.dayOfYear * 100f / today.lengthOfYear()).roundToInt().coerceIn(1, 100)
         range.kind == StatsRange.Kind.Month && range.year == today.year && range.month == today.monthValue ->

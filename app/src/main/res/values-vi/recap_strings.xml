@@ -117,4 +117,62 @@
     <string name="rc_story_tap_finish">CHẠM ĐỂ KẾT THÚC</string>
 
     <!-- Recap ID card back -->
+
+    <!-- Recap video & per-part image export -->
+    <string name="rc_stats_watch_recap">Xem Re\'cap</string>
+    <string name="rc_export_pill">Xuất</string>
+    <string name="rc_export_action_video">Xuất Video Re\'cap</string>
+    <string name="rc_export_action_parts">Ảnh từng phần</string>
+    <string name="rc_export_fps_60">60fps</string>
+    <string name="rc_export_sheet_title">Xuất Re\'cap</string>
+    <string name="rc_export_sheet_subtitle">Re\'cap %1$s · Giữ trọn hoạt ảnh gốc của Mochy</string>
+    <string name="rc_export_close">Đóng</string>
+    <string name="rc_export_tab_video">Video Re\'cap (MP4)</string>
+    <string name="rc_export_tab_parts">Từng phần (Ảnh &amp; MP4)</string>
+    <string name="rc_export_full_video_title">Video Re\'cap trọn bộ</string>
+    <string name="rc_export_full_video_desc">Đầy đủ hoạt ảnh gốc Mochy, nền chuyển sắc, vòng quay nghệ sĩ, lưới bìa nhạc, hóa đơn cuộn mượt và thẻ hồ sơ kèm nhạc nền.</string>
+    <string name="rc_export_duration_sec">~%1$ds</string>
+    <string name="rc_export_quality_1080_60">1080p · 60fps (Siêu mượt)</string>
+    <string name="rc_export_quality_1080_30">1080p · 30fps (Nhanh hơn)</string>
+    <string name="rc_export_quality_720_30_lite">720p · 30fps (Chế độ nhẹ)</string>
+    <string name="rc_export_soundtrack_label">Nhạc nền đi kèm</string>
+    <string name="rc_export_on">Bật</string>
+    <string name="rc_export_off">Tắt</string>
+    <string name="rc_export_save_video">Lưu video</string>
+    <string name="rc_export_share">Chia sẻ</string>
+    <string name="rc_export_save_image">Lưu ảnh PNG</string>
+    <string name="rc_export_share_image">Chia sẻ ảnh</string>
+    <string name="rc_export_part_video">Xuất Video phần này (MP4 · %1$dfps)</string>
+    <string name="rc_export_save_all_images">Lưu trọn bộ ảnh (%1$d phần PNG)</string>
+    <string name="rc_export_receipt_full">Hóa đơn đầy đủ (không cắt)</string>
+    <string name="rc_export_receipt_story">Khung Story 9:16</string>
+    <string name="rc_export_rendering_video">Đang xuất video Re\'cap %1$dfps…</string>
+    <string name="rc_export_rendering_image">Đang xuất ảnh PNG sắc nét…</string>
+    <string name="rc_export_rendering_all_images">Đang lưu trọn bộ %1$d ảnh Re\'cap…</string>
+    <string name="rc_export_keep_open_hint">Giữ ứng dụng mở trong lúc Mochy kết xuất video hoặc ảnh trực tiếp trên máy.</string>
+    <string name="rc_export_cancel">Hủy</string>
+    <string name="rc_export_cancelled">Đã hủy xuất Re\'cap</string>
+    <string name="rc_export_failed">Không thể xuất Re\'cap. Vui lòng thử lại.</string>
+    <string name="rc_export_video_saved">Đã lưu video Re\'cap vào Thư viện (Movies/Mochy)</string>
+    <string name="rc_export_saved_silent_fallback">Đã lưu video Re\'cap (không có nhạc nền do không tải được âm thanh)</string>
+    <string name="rc_export_image_saved">Đã lưu ảnh Re\'cap vào Thư viện (Pictures/Mochy)</string>
+    <string name="rc_export_all_images_saved">Đã lưu trọn bộ %1$d ảnh Re\'cap vào Thư viện (Pictures/Mochy)</string>
+    <string name="rc_export_ready_to_share">Đã sẵn sàng chia sẻ Re\'cap</string>
+    <string name="rc_export_share_title">Chia sẻ Re\'cap Mochy</string>
+    <string name="rc_export_share_caption">Re\'cap %1$s của mình trên Mochy Music</string>
+
+    <string name="rc_part_journey">Hành trình</string>
+    <string name="rc_part_journey_sub">Ngày tham gia và tổng thời gian nghe nhạc</string>
+    <string name="rc_part_month">Tiến độ</string>
+    <string name="rc_part_month_sub">Thanh phần trăm tiến độ tháng/năm</string>
+    <string name="rc_part_weekday">Ngày yêu thích</string>
+    <string name="rc_part_weekday_sub">Ngày trong tuần bạn nghe nhạc nhiều nhất</string>
+    <string name="rc_part_top_artist">Nghệ sĩ #1</string>
+    <string name="rc_part_top_artist_sub">Vòng quay nghệ sĩ và nghệ sĩ nghe nhiều nhất</string>
+    <string name="rc_part_top_song">Bài hát #1</string>
+    <string name="rc_part_top_song_sub">Lưới bìa nhạc nghiêng và bài hát yêu thích nhất</string>
+    <string name="rc_part_receipt">Hóa đơn</string>
+    <string name="rc_part_receipt_sub">Hóa đơn trọn bộ Top 10 Nghệ sĩ &amp; Top 10 Bài hát</string>
+    <string name="rc_part_summary_card">Thẻ tổng kết</string>
+    <string name="rc_part_summary_card_sub">Thẻ hồ sơ Mochy chốt màn Re\'cap</string>
 </resources>

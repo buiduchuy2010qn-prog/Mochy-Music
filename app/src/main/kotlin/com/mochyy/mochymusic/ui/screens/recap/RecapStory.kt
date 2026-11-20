@@ -30,15 +30,21 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -57,6 +63,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,6 +95,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
@@ -99,17 +107,26 @@ import androidx.core.view.WindowCompat
 import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.LowEndModeKey
+import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportSheetOverlay
+import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportTab
+import com.mochyy.mochymusic.ui.screens.recap.export.RecapPart
+import com.mochyy.mochymusic.ui.screens.recap.export.recapPartForStoryPage
+import com.mochyy.mochymusic.ui.screens.recap.export.supportsRecap60Fps
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.IdCardAspect
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProfileIdCard
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
+import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
@@ -117,6 +134,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.sin
 
 // ---------------------------------------------------------------------------------------------
 // What the story is about, and where it grows from
@@ -270,6 +288,9 @@ internal class StoryState(val geo: StoryGeometry, startCard: Rect) {
     val heroCover = Animatable(0f)
     val heroCoverUp = Animatable(0f)
 
+    // deterministic offscreen export receipt scroll (0 = top zigzag, 1 = END OF LINE bottom zigzag)
+    var receiptScrollProgress by mutableFloatStateOf(0f)
+
     fun palette(): RecapPalette = lerp(paletteFrom, paletteTo, paletteMix.value)
 
     fun backgroundColor(): Color = lerp(StoryDark, HeaderGrey, toHeader.value)
@@ -311,16 +332,24 @@ private const val MinPageMillis = 350L
 @Composable
 internal fun RecapStoryHost(
     data: RecapStoryData,
-    anchors: RecapAnchors,
+    anchors: RecapAnchors?,
     payload: String,
     caption: String,
     onCovered: () -> Unit,
     onReturned: () -> Unit,
     onClosed: () -> Unit,
+    startDirectlyAtStory: Boolean = false,
 ) {
     val exitRequests = remember { Channel<Unit>(Channel.CONFLATED) }
+    val exportOpenState = remember { mutableStateOf(false) }
     Dialog(
-        onDismissRequest = { exitRequests.trySend(Unit) },
+        onDismissRequest = {
+            if (exportOpenState.value) {
+                exportOpenState.value = false
+            } else {
+                exitRequests.trySend(Unit)
+            }
+        },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
@@ -378,17 +407,30 @@ internal fun RecapStoryHost(
             onDispose { if (wasPlaying) player?.play() }
         }
 
-        RecapStory(data, anchors, payload, caption, exitRequests, onCovered, onReturned, onClosed)
+        RecapStory(
+            data = data,
+            anchors = anchors,
+            payload = payload,
+            caption = caption,
+            exitRequests = exitRequests,
+            exportOpenState = exportOpenState,
+            startDirectlyAtStory = startDirectlyAtStory,
+            onCovered = onCovered,
+            onReturned = onReturned,
+            onClosed = onClosed,
+        )
     }
 }
 
 @Composable
 private fun RecapStory(
     data: RecapStoryData,
-    anchors: RecapAnchors,
+    anchors: RecapAnchors?,
     payload: String,
     caption: String,
     exitRequests: Channel<Unit>,
+    exportOpenState: androidx.compose.runtime.MutableState<Boolean>,
+    startDirectlyAtStory: Boolean,
     onCovered: () -> Unit,
     onReturned: () -> Unit,
     onClosed: () -> Unit,
@@ -398,13 +440,18 @@ private fun RecapStory(
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val time = rememberRecapTime()
-    val measurer = rememberTextMeasurer()
     val currentOnCovered by rememberUpdatedState(onCovered)
     val currentOnReturned by rememberUpdatedState(onReturned)
     val currentOnClosed by rememberUpdatedState(onClosed)
     val gestures = remember { Channel<StoryGesture>(Channel.CONFLATED) }
     val snippet = remember { RecapSnippetPlayer(context, scope) }
     DisposableEffect(snippet) { onDispose { snippet.release() } }
+
+    val (lowEndMode) = rememberPreference(LowEndModeKey, defaultValue = false)
+    val supports60Fps = remember(lowEndMode) { supportsRecap60Fps(lowEndMode) }
+    var exportSheetOpen by exportOpenState
+    var exportTab by remember { mutableStateOf(RecapExportTab.VIDEO) }
+    var exportPart by remember { mutableStateOf(RecapPart.SUMMARY_CARD) }
 
     var origin by remember { mutableStateOf<Offset?>(null) }
     var windowSize by remember { mutableStateOf(IntSize.Zero) }
@@ -437,22 +484,46 @@ private fun RecapStory(
             },
     ) {
         val o = origin?.takeIf { settled } ?: return@BoxWithConstraints
-        val geo = remember(constraints.maxWidth, constraints.maxHeight) {
+        val fallbackTopInset = with(density) { 42.dp.toPx() }
+        val geo = remember(constraints.maxWidth, constraints.maxHeight, anchors, o) {
             StoryGeometry(
                 width = constraints.maxWidth.toFloat(),
                 height = constraints.maxHeight.toFloat(),
-                top = anchors.topInset - o.y,
+                top = if (anchors != null) anchors.topInset - o.y else fallbackTopInset,
                 density = density.density,
             )
         }
-        // the page's screen positions, in this window's coordinates
+        // the page's screen positions, in this window's coordinates (or centered card when standalone)
+        val standaloneCard = remember(geo) {
+            val maxW = geo.dp(380f)
+            val w = minOf(geo.width - 2f * geo.inset, maxW)
+            val h = w / IdCardAspect
+            Rect(offset = Offset((geo.width - w) / 2f, geo.top + geo.dp(175f)), size = Size(w, h))
+        }
         val local = remember(o) { { r: Rect -> r.translate(-o.x, -o.y) } }
-        val startCard = remember(o) { local(anchors.expandedCard) }
-        val headerCard = remember(o) { local(anchors.headerCard) }
-        val headerBottom = anchors.headerHeight - o.y
+        val startCard = remember(o, anchors, standaloneCard) { anchors?.let { local(it.expandedCard) } ?: standaloneCard }
+        val headerCard = remember(o, anchors, standaloneCard) { anchors?.let { local(it.headerCard) } ?: standaloneCard }
+        val headerBottom = anchors?.let { it.headerHeight - o.y } ?: 0f
         val s = remember(geo) { StoryState(geo, startCard) }
-        val director = remember(s) {
-            StoryDirector(s, data, gestures, snippet, haptics::performHapticFeedback, startCard, headerCard)
+        val director = remember(s, startDirectlyAtStory) {
+            StoryDirector(
+                s = s,
+                data = data,
+                gestures = gestures,
+                snippet = snippet,
+                haptic = haptics::performHapticFeedback,
+                startCard = startCard,
+                headerCard = headerCard,
+                startDirectlyAtStory = startDirectlyAtStory,
+                isPaused = { exportOpenState.value },
+            )
+        }
+
+        fun openExport(tab: RecapExportTab, part: RecapPart = recapPartForStoryPage(s.page, data)) {
+            snippet.stop(300)
+            exportTab = tab
+            exportPart = part
+            exportSheetOpen = true
         }
 
         // palettes and pictures, fetched before they're needed
@@ -471,19 +542,25 @@ private fun RecapStory(
                 // back only counts once the page underneath has been put away
                 while (true) {
                     exitRequests.receive()
-                    if (director.covered) break
+                    if (director.covered && !exportOpenState.value) break
                 }
                 script.cancel()
             }
             script.join()
             exit.cancel()
-            if (script.isCancelled) director.abortToPage() else director.returnToPage()
-            currentOnReturned()
-            // the page draws its card on its next frame; leave ours over it until then
-            withFrameNanos { }
-            withFrameNanos { }
-            s.backdrop.go(0f, 260, LinearEasing)
-            currentOnClosed()
+            if (startDirectlyAtStory || anchors == null) {
+                director.fadeOutStandalone()
+                currentOnReturned()
+                currentOnClosed()
+            } else {
+                if (script.isCancelled) director.abortToPage() else director.returnToPage()
+                currentOnReturned()
+                // the page draws its card on its next frame; leave ours over it until then
+                withFrameNanos { }
+                withFrameNanos { }
+                s.backdrop.go(0f, 260, LinearEasing)
+                currentOnClosed()
+            }
         }
 
         val swipeThreshold = with(density) { 56.dp.toPx() }
@@ -497,6 +574,7 @@ private fun RecapStory(
                     detectDragGestures(
                         onDragStart = { total = Offset.Zero },
                         onDragEnd = {
+                            if (exportOpenState.value) return@detectDragGestures
                             val horizontal = abs(total.x) > abs(total.y)
                             when {
                                 horizontal && total.x < -swipeThreshold -> gestures.trySend(StoryGesture.SwipeLeft)
@@ -506,6 +584,7 @@ private fun RecapStory(
                         },
                         onDragCancel = { scope.launch { animateDragBack(s) } },
                     ) { change, amount ->
+                        if (exportOpenState.value) return@detectDragGestures
                         change.consume()
                         total += amount
                         if (s.swipeOpen && abs(total.x) > abs(total.y)) {
@@ -514,13 +593,106 @@ private fun RecapStory(
                         }
                     }
                 }
-                .pointerInput(s) { detectTapGestures(onTap = { gestures.trySend(StoryGesture.Tap) }) },
+                .pointerInput(s) {
+                    detectTapGestures(
+                        onTap = {
+                            if (!exportOpenState.value) gestures.trySend(StoryGesture.Tap)
+                        },
+                    )
+                },
         ) {
-            // the scene, clipped to the band on the way in and to the header on the way out
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .drawWithCache {
+            RecapStoryScene(
+                s = s,
+                data = data,
+                payload = payload,
+                caption = caption,
+                time = time,
+                cardWidth = startCard.width,
+                headerBottom = headerBottom,
+                exportMode = false,
+                stillMode = false,
+                fullReceiptLayout = false,
+                supports60Fps = supports60Fps,
+                onOpenExportVideo = { openExport(RecapExportTab.VIDEO, RecapPart.SUMMARY_CARD) },
+                onOpenExportParts = { openExport(RecapExportTab.PARTS, RecapPart.RECEIPT) },
+            )
+
+            // Subtle frosted Export pill at top-center (clears both top-left and top-right logo/avatar slots)
+            if (s.page >= P_JOURNEY && !director.returning && !exportSheetOpen) {
+                val pillTopDp = with(density) { (geo.top + geo.dp(30f)).toDp() }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = pillTopDp)
+                            .height(34.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.34f))
+                            .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
+                            .clickable {
+                                val tab = if (s.page == P_END) RecapExportTab.VIDEO else RecapExportTab.PARTS
+                                openExport(tab, recapPartForStoryPage(s.page, data))
+                            }
+                            .padding(horizontal = 13.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ios_share),
+                        contentDescription = stringResource(R.string.rc_export_pill),
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.rc_export_pill),
+                        style = recapBold(12.5f, lineHeight = 15f, tracking = 0f),
+                    )
+                }
+            }
+
+            RecapExportSheetOverlay(
+                visible = exportSheetOpen,
+                data = data,
+                payload = payload,
+                caption = caption,
+                initialTab = exportTab,
+                initialPart = exportPart,
+                onDismiss = { exportSheetOpen = false },
+            )
+        }
+    }
+}
+
+/**
+ * Shared Mochy Re'cap visual scene rendered identically on live screen and offscreen video/PNG exports.
+ */
+@Composable
+internal fun RecapStoryScene(
+    s: StoryState,
+    data: RecapStoryData,
+    payload: String,
+    caption: String,
+    time: RecapTime,
+    cardWidth: Float,
+    headerBottom: Float,
+    exportMode: Boolean = false,
+    stillMode: Boolean = false,
+    fullReceiptLayout: Boolean = false,
+    supports60Fps: Boolean = true,
+    onOpenExportVideo: (() -> Unit)? = null,
+    onOpenExportParts: (() -> Unit)? = null,
+) {
+    val geo = s.geo
+    val measurer = rememberTextMeasurer()
+    // the scene, clipped to the band on the way in and to the header on the way out
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (exportMode) {
+                    Modifier
+                } else {
+                    Modifier.drawWithCache {
                         val path = Path()
                         val corner = 26.dp.toPx()
                         onDrawWithContent {
@@ -548,44 +720,62 @@ private fun RecapStory(
                                 else -> drawContent()
                             }
                         }
-                    },
-            ) {
-                // backdrop colour, the moving palette, the words, the dots
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .drawBehind {
-                            drawRect(s.backgroundColor())
-                            val vignette = (1f - s.mesh.value) * (1f - s.toHeader.value)
-                            if (vignette > 0.01f) {
-                                drawRect(
-                                    Brush.verticalGradient(
-                                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)),
-                                        startY = size.height * 0.7f,
-                                        endY = size.height,
-                                    ),
-                                    topLeft = Offset(0f, size.height * 0.7f),
-                                    size = Size(size.width, size.height * 0.3f),
-                                    alpha = vignette,
-                                )
-                            }
-                        },
-                )
-                MeshGradient(palette = { s.palette() }, time = time, alpha = { s.mesh.value }, modifier = Modifier.fillMaxSize())
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .giantText(s.text, time, measurer)
-                        .recapDots(color = { s.dotColor() }, alpha = { s.dots.value }),
-                )
+                    }
+                },
+            ),
+    ) {
+        // backdrop colour, the moving palette, the words, the dots
+        Spacer(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    drawRect(s.backgroundColor())
+                    val vignette = (1f - s.mesh.value) * (1f - s.toHeader.value)
+                    if (vignette > 0.01f) {
+                        drawRect(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)),
+                                startY = size.height * 0.7f,
+                                endY = size.height,
+                            ),
+                            topLeft = Offset(0f, size.height * 0.7f),
+                            size = Size(size.width, size.height * 0.3f),
+                            alpha = vignette,
+                        )
+                    }
+                },
+        )
+        MeshGradient(palette = { s.palette() }, time = time, alpha = { s.mesh.value }, modifier = Modifier.fillMaxSize())
+        Spacer(
+            modifier = Modifier
+                .fillMaxSize()
+                .giantText(s.text, time, measurer)
+                .recapDots(color = { s.dotColor() }, alpha = { s.dots.value }),
+        )
 
-                StoryPages(s, data, time)
+        StoryPages(
+            s = s,
+            data = data,
+            time = time,
+            exportMode = exportMode,
+            fullReceiptLayout = fullReceiptLayout,
+            supports60Fps = supports60Fps,
+            onOpenExportVideo = onOpenExportVideo,
+            onOpenExportParts = onOpenExportParts,
+        )
 
-                StoryLogo(s)
-                StoryAvatar(s, data)
-                StoryCard(s, data, payload, caption, time, cardWidth = startCard.width)
-            }
-        }
+        StoryLogo(s)
+        StoryAvatar(s, data, exportMode = exportMode)
+        StoryCard(
+            s = s,
+            data = data,
+            payload = payload,
+            caption = caption,
+            time = time,
+            cardWidth = cardWidth,
+            exportMode = exportMode,
+            stillMode = stillMode,
+        )
     }
 }
 
@@ -628,7 +818,15 @@ private fun Modifier.layoutAtOrigin(): Modifier = this.then(
 private const val AvatarBaseDp = 160
 
 @Composable
-private fun StoryAvatar(s: StoryState, data: RecapStoryData) {
+private fun StoryAvatar(s: StoryState, data: RecapStoryData, exportMode: Boolean = false) {
+    val context = LocalContext.current
+    val avatarModel: Any? = remember(data.photo, exportMode) {
+        if (data.photo != null && exportMode) {
+            ImageRequest.Builder(context).data(data.photo).allowHardware(false).build()
+        } else {
+            data.photo
+        }
+    }
     Box(
         modifier = Modifier
             .requiredSize(AvatarBaseDp.dp)
@@ -651,9 +849,9 @@ private fun StoryAvatar(s: StoryState, data: RecapStoryData) {
             .background(Color(0xFFE8E8E8)),
         contentAlignment = Alignment.Center,
     ) {
-        if (data.photo != null) {
+        if (avatarModel != null) {
             AsyncImage(
-                model = data.photo,
+                model = avatarModel,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -671,10 +869,27 @@ private fun StoryAvatar(s: StoryState, data: RecapStoryData) {
 }
 
 @Composable
-private fun StoryCard(s: StoryState, data: RecapStoryData, payload: String, caption: String, time: RecapTime, cardWidth: Float) {
+private fun StoryCard(
+    s: StoryState,
+    data: RecapStoryData,
+    payload: String,
+    caption: String,
+    time: RecapTime,
+    cardWidth: Float,
+    exportMode: Boolean = false,
+    stillMode: Boolean = false,
+) {
+    val context = LocalContext.current
     val density = LocalDensity.current
     val widthDp = with(density) { cardWidth.toDp() }
-    val deviceTilt = rememberDeviceTilt()
+    val deviceTilt = if (exportMode) null else rememberDeviceTilt()
+    val cardPhoto: Any? = remember(data.photo, exportMode) {
+        if (data.photo != null && exportMode) {
+            ImageRequest.Builder(context).data(data.photo).allowHardware(false).build()
+        } else {
+            data.photo
+        }
+    }
     Box(
         modifier = Modifier
             .requiredSize(widthDp, widthDp / IdCardAspect)
@@ -683,8 +898,13 @@ private fun StoryCard(s: StoryState, data: RecapStoryData, payload: String, capt
                 translationX = s.cardX.value
                 translationY = s.cardY.value
                 rotationZ = s.cardRot.value
-                rotationX = deviceTilt.rotationX
-                rotationY = deviceTilt.rotationY
+                if (deviceTilt != null) {
+                    rotationX = deviceTilt.rotationX
+                    rotationY = deviceTilt.rotationY
+                } else if (!stillMode) {
+                    rotationX = sin(time.sway * 1.15f) * 2.2f
+                    rotationY = sin(time.sway * 0.85f) * 2.8f
+                }
                 alpha = s.cardAlpha.value
                 cameraDistance = 16f * this.density
             },
@@ -702,10 +922,11 @@ private fun StoryCard(s: StoryState, data: RecapStoryData, payload: String, capt
         } else {
             ProfileIdCard(
                 username = data.username,
-                photo = data.photo,
+                photo = cardPhoto,
                 cardNumber = data.cardNumber,
                 joinedText = data.joinedText,
                 showIdCardOf = true,
+                marqueeRunning = { !stillMode },
             )
         }
     }
@@ -722,6 +943,8 @@ internal class StoryDirector(
     private val haptic: (HapticFeedbackType) -> Unit,
     private val startCard: Rect,
     private val headerCard: Rect,
+    private val startDirectlyAtStory: Boolean = false,
+    private val isPaused: () -> Boolean = { false },
 ) {
     var artistPalette: RecapPalette = RecapPalette.Fallback
     var songPalette: RecapPalette = RecapPalette.Fallback
@@ -736,7 +959,17 @@ internal class StoryDirector(
     private val endCardTop get() = geo.top + geo.dp(175f)
 
     suspend fun run(onCovered: () -> Unit) {
-        intro(onCovered)
+        if (startDirectlyAtStory) {
+            s.cardAlpha.snapTo(0f)
+            s.text.centerX.snapTo(0.5f)
+            s.text.row(-1).fill.snapTo(1f)
+            s.text.row(1).fill.snapTo(1f)
+            s.reveal.go(1f, 220, LinearEasing)
+            covered = true
+            onCovered()
+        } else {
+            intro(onCovered)
+        }
         hey()
         journey()
         awaitNext()
@@ -748,16 +981,30 @@ internal class StoryDirector(
         if (data.heroArtist != null) {
             artists()
             awaitNext()
-            songsFromArtist()
-        } else {
+            if (data.heroSong != null) {
+                songsFromArtist()
+                melody()
+                awaitNext()
+            }
+        } else if (data.heroSong != null) {
             songsFromWeekday()
+            melody()
+            awaitNext()
         }
-        melody()
-        awaitNext()
         receipt()
         awaitNext()
         end()
         awaitGesture(StoryGesture.Tap, StoryGesture.SwipeDown)
+    }
+
+    suspend fun fadeOutStandalone() {
+        returning = true
+        snippet.stop(350)
+        together(
+            { s.pages.forEach { p -> launch { p.exit.go(1f, 260, FastOutSlowInEasing) } } },
+            { s.reveal.go(0f, 260, LinearEasing) },
+            { s.backdrop.go(0f, 260, LinearEasing) },
+        )
     }
 
     private suspend fun awaitNext() = awaitGesture(StoryGesture.Tap, StoryGesture.SwipeLeft)
@@ -765,6 +1012,9 @@ internal class StoryDirector(
     /** A tap or swipe moves on at once; with none, the story moves on by itself after [ms]. */
     private suspend fun awaitNextOrAfter(ms: Long) {
         withTimeoutOrNull(ms) { awaitNext() }
+        if (isPaused()) {
+            snapshotFlow { isPaused() }.first { !it }
+        }
     }
 
     private suspend fun awaitGesture(vararg kinds: StoryGesture) {
@@ -775,6 +1025,7 @@ internal class StoryDirector(
         try {
             while (true) {
                 val gesture = gestures.receive()
+                if (isPaused()) continue
                 // nor does the second half of a double tap landing just as the page settled
                 if (gesture in kinds && SystemClock.uptimeMillis() - openedAt >= MinPageMillis) break
             }

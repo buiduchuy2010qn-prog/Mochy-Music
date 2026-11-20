@@ -81,4 +81,19 @@ class VietnameseResourcesTest {
             assertTrue("Blank Vietnamese string for $key", viEl.textContent.isNotBlank())
         }
     }
+
+    @Test
+    fun recapStringsHaveCompleteVietnameseCoverageAndMatchingPlaceholders() {
+        val en = parseStrings(File(resDir, "values/recap_strings.xml"))
+        val vi = parseStrings(File(resDir, "values-vi/recap_strings.xml"))
+
+        assertEquals("Missing or extra Vietnamese keys in recap_strings.xml", en.keys, vi.keys)
+        for (key in en.keys) {
+            val enEl = en.getValue(key)
+            val viEl = vi.getValue(key)
+            assertEquals("Element tag mismatch for $key", enEl.tagName, viEl.tagName)
+            assertEquals("Format placeholder mismatch for $key", placeholders(enEl), placeholders(viEl))
+            assertTrue("Blank Vietnamese string for $key", viEl.textContent.isNotBlank())
+        }
+    }
 }

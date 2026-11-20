@@ -6,6 +6,8 @@
 package com.mochyy.mochymusic.ui.screens.recap
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -34,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
@@ -49,7 +53,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -63,6 +70,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
@@ -152,9 +161,19 @@ private fun Picture(
     size: Int,
     modifier: Modifier,
     shape: Shape,
+    exportMode: Boolean = false,
 ) {
+    val context = LocalContext.current
+    val resized = url?.resize(size, size)
+    val model: Any? = remember(resized, exportMode) {
+        if (resized != null && exportMode) {
+            ImageRequest.Builder(context).data(resized).allowHardware(false).build()
+        } else {
+            resized
+        }
+    }
     AsyncImage(
-        model = url?.resize(size, size),
+        model = model,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         placeholder = ColorPainter(Color(0x33FFFFFF)),
@@ -173,17 +192,32 @@ internal fun StoryPages(
     s: StoryState,
     data: RecapStoryData,
     time: RecapTime,
+    exportMode: Boolean = false,
+    fullReceiptLayout: Boolean = false,
+    supports60Fps: Boolean = true,
+    onOpenExportVideo: (() -> Unit)? = null,
+    onOpenExportParts: (() -> Unit)? = null,
 ) {
     val p = s.pages
     Box(modifier = Modifier.fillMaxSize()) {
         if (visible(p[P_HEY])) HeyPage(s, data)
-        if (visible(p[P_JOURNEY])) JourneyPage(s, data, time)
+        if (visible(p[P_JOURNEY])) JourneyPage(s, data, time, exportMode = exportMode)
         if (visible(p[P_MONTH])) MonthPage(s, data, time)
         if (visible(p[P_WEEKDAY])) WeekdayPage(s, data, time)
-        if (data.heroArtist != null && visible(p[P_ARTISTS], p[P_ARTIST])) ArtistSequence(s, data, time)
-        if (visible(p[P_SONGS], p[P_MELODY], p[P_SONG])) SongSequence(s, data, time)
-        if (visible(p[P_RECEIPT])) ReceiptPage(s, data)
-        if (visible(p[P_END])) EndPage(s, data, time)
+        if (data.heroArtist != null && visible(p[P_ARTISTS], p[P_ARTIST])) ArtistSequence(s, data, time, exportMode = exportMode)
+        if (visible(p[P_SONGS], p[P_MELODY], p[P_SONG])) SongSequence(s, data, time, exportMode = exportMode)
+        if (visible(p[P_RECEIPT])) ReceiptPage(s, data, exportMode = exportMode, fullReceiptLayout = fullReceiptLayout)
+        if (visible(p[P_END])) {
+            EndPage(
+                s = s,
+                data = data,
+                time = time,
+                exportMode = exportMode,
+                supports60Fps = supports60Fps,
+                onOpenExportVideo = onOpenExportVideo,
+                onOpenExportParts = onOpenExportParts,
+            )
+        }
     }
 }
 
@@ -219,6 +253,7 @@ private fun JourneyPage(
     s: StoryState,
     data: RecapStoryData,
     time: RecapTime,
+    exportMode: Boolean = false,
 ) {
     val geo = s.geo
     val anim = s.pages[P_JOURNEY]
@@ -260,18 +295,20 @@ private fun JourneyPage(
         Spacer(Modifier.height(22.dp))
         Text(stringResource(R.string.rc_story_journey_bye), style = recapBold(22f), modifier = Modifier.lineMotion(anim, 4, n, drag = drag))
     }
-    val hintY = geo.height - geo.dp(144f)
-    Text(
-        stringResource(R.string.rc_story_tap),
-        style = MonoHint,
-        modifier =
-            Modifier
-                .at(geo.dp(52f), hintY - geo.dp(13f))
-                .graphicsLayer {
-                    val e = ((anim.enter.value - 0.6f) / 0.4f).coerceIn(0f, 1f)
-                    alpha = e * (1f - anim.exit.value)
-                },
-    )
+    if (!exportMode) {
+        val hintY = geo.height - geo.dp(144f)
+        Text(
+            stringResource(R.string.rc_story_tap),
+            style = MonoHint,
+            modifier =
+                Modifier
+                    .at(geo.dp(52f), hintY - geo.dp(13f))
+                    .graphicsLayer {
+                        val e = ((anim.enter.value - 0.6f) / 0.4f).coerceIn(0f, 1f)
+                        alpha = e * (1f - anim.exit.value)
+                    },
+        )
+    }
 }
 
 @Composable
@@ -461,6 +498,7 @@ private fun ArtistSequence(
     s: StoryState,
     data: RecapStoryData,
     time: RecapTime,
+    exportMode: Boolean = false,
 ) {
     val geo = s.geo
     val spinAnim = s.pages[P_ARTISTS]
@@ -507,6 +545,7 @@ private fun ArtistSequence(
                         url = artist.thumbnailUrl,
                         size = 544,
                         shape = CircleShape,
+                        exportMode = exportMode,
                         modifier =
                             Modifier
                                 .requiredSize(discDp)
@@ -546,13 +585,14 @@ private fun ArtistSequence(
                     },
         )
 
-        if (visible(reveal)) ArtistReveal(s, hero, reveal, heroEndCx, heroEndCy, heroEndD, time)
+        if (visible(reveal)) ArtistReveal(s, hero, reveal, heroEndCx, heroEndCy, heroEndD, time, exportMode = exportMode)
 
         // the hero itself
         Picture(
             url = hero.thumbnailUrl,
             size = 544,
             shape = CircleShape,
+            exportMode = exportMode,
             modifier =
                 Modifier
                     .requiredSize(discDp)
@@ -580,6 +620,7 @@ private fun ArtistReveal(
     cy: Float,
     d: Float,
     time: RecapTime,
+    exportMode: Boolean = false,
 ) {
     val geo = s.geo
     val drag = { s.dragX }
@@ -609,6 +650,7 @@ private fun ArtistReveal(
             url = song.thumbnailUrl,
             size = 240,
             shape = RoundedCornerShape(16.dp),
+            exportMode = exportMode,
             modifier =
                 Modifier
                     .requiredSize(with(density) { coverD.toDp() })
@@ -691,6 +733,7 @@ private fun SongSequence(
     s: StoryState,
     data: RecapStoryData,
     time: RecapTime,
+    exportMode: Boolean = false,
 ) {
     val geo = s.geo
     val grid = s.pages[P_SONGS]
@@ -739,6 +782,7 @@ private fun SongSequence(
                             url = song.thumbnailUrl,
                             size = 360,
                             shape = RoundedCornerShape(26.dp),
+                            exportMode = exportMode,
                             modifier =
                                 Modifier
                                     .requiredSize(coverDp)
@@ -803,13 +847,14 @@ private fun SongSequence(
             )
         }
 
-        if (visible(songPage)) SongReveal(s, hero, songPage, melodyCx, songCy, melodySize, time)
+        if (visible(songPage)) SongReveal(s, hero, songPage, melodyCx, songCy, melodySize, time, exportMode = exportMode)
 
         // the hero cover: picked from the grid, then the melody cover, then up to the song page
         Picture(
             url = hero.thumbnailUrl,
             size = 544,
             shape = RoundedCornerShape(30.dp),
+            exportMode = exportMode,
             modifier =
                 Modifier
                     .requiredSize(with(density) { melodySize.toDp() })
@@ -844,6 +889,7 @@ private fun SongReveal(
     coverCy: Float,
     coverSize: Float,
     time: RecapTime,
+    exportMode: Boolean = false,
 ) {
     val geo = s.geo
     val density = LocalDensity.current
@@ -857,6 +903,7 @@ private fun SongReveal(
         url = hero.artistThumbnailUrl ?: hero.thumbnailUrl,
         size = 400,
         shape = CircleShape,
+        exportMode = exportMode,
         modifier =
             Modifier
                 .requiredSize(with(density) { discD.toDp() })
@@ -938,6 +985,8 @@ private object ZigzagShape : Shape {
 private fun ReceiptPage(
     s: StoryState,
     data: RecapStoryData,
+    exportMode: Boolean = false,
+    fullReceiptLayout: Boolean = false,
 ) {
     val geo = s.geo
     val anim = s.pages[P_RECEIPT]
@@ -947,19 +996,52 @@ private fun ReceiptPage(
         style = recapBold(30f),
         modifier = Modifier.at(geo.inset, geo.top + geo.dp(82f)).lineMotion(anim, 0, 2, riseDp = 20f, exitToDp = 0f),
     )
+    if (exportMode && fullReceiptLayout) {
+        // Full uncut receipt image: zero viewport clipping, shows every artist & song down to END OF LINE
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .at(0f, geo.top + geo.dp(142f)),
+        ) {
+            Receipt(data, Modifier.padding(start = 27.dp, end = 27.dp, top = 6.dp, bottom = 44.dp), exportMode = true)
+        }
+        return
+    }
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .at(0f, geo.fy(240f))
                 .height(with(density) { (geo.height - geo.fy(240f)).toDp() })
+                .clipToBounds()
                 .graphicsLayer {
                     val e = easeOutBack(anim.enter.value.coerceIn(0f, 1f), 0.9f)
                     translationY = (1f - e) * size.height + easeInCubic(anim.exit.value) * size.height * 1.1f
                 },
     ) {
-        Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            Receipt(data, Modifier.padding(start = 27.dp, end = 27.dp, top = 6.dp, bottom = 120.dp))
+        if (exportMode) {
+            // Deterministic offscreen scroll driven directly by s.receiptScrollProgress (0..1)
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Int.MAX_VALUE))
+                            val viewportH = constraints.maxHeight
+                            val maxScroll = (placeable.height - viewportH).coerceAtLeast(0)
+                            val scrollY = (maxScroll * s.receiptScrollProgress.coerceIn(0f, 1f)).roundToInt()
+                            layout(constraints.maxWidth, viewportH) {
+                                placeable.place(0, -scrollY)
+                            }
+                        },
+            ) {
+                Receipt(data, Modifier.padding(start = 27.dp, end = 27.dp, top = 6.dp, bottom = 44.dp), exportMode = true)
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                Receipt(data, Modifier.padding(start = 27.dp, end = 27.dp, top = 6.dp, bottom = 120.dp), exportMode = false)
+            }
         }
     }
 }
@@ -968,6 +1050,7 @@ private fun ReceiptPage(
 private fun Receipt(
     data: RecapStoryData,
     modifier: Modifier,
+    exportMode: Boolean = false,
 ) {
     val now = remember { LocalDateTime.now() }
     val dashes = "-".repeat(64)
@@ -992,12 +1075,12 @@ private fun Receipt(
         Spacer(Modifier.height(18.dp))
         ReceiptHeading(stringResource(R.string.rc_story_receipt_top_artist))
         data.artists.forEachIndexed { i, a ->
-            ReceiptItem(a.thumbnailUrl, CircleShape, "${i + 1}x ${a.name}", "${formatHoursDecimal(a.playTimeMs)}h")
+            ReceiptItem(a.thumbnailUrl, CircleShape, "${i + 1}x ${a.name}", "${formatHoursDecimal(a.playTimeMs)}h", exportMode = exportMode)
         }
         Spacer(Modifier.height(18.dp))
         ReceiptHeading(stringResource(R.string.rc_story_receipt_top_music))
         data.songs.take(10).forEachIndexed { i, song ->
-            ReceiptItem(song.thumbnailUrl, RoundedCornerShape(5.dp), "${i + 1}x ${song.title}", "${formatHoursDecimal(song.playTimeMs)}h")
+            ReceiptItem(song.thumbnailUrl, RoundedCornerShape(5.dp), "${i + 1}x ${song.title}", "${formatHoursDecimal(song.playTimeMs)}h", exportMode = exportMode)
         }
         Spacer(Modifier.height(36.dp))
         Text(
@@ -1031,14 +1114,24 @@ private fun ReceiptItem(
     shape: Shape,
     title: String,
     value: String,
+    exportMode: Boolean = false,
 ) {
+    val context = LocalContext.current
+    val resized = url?.resize(96, 96)
+    val model: Any? = remember(resized, exportMode) {
+        if (resized != null && exportMode) {
+            ImageRequest.Builder(context).data(resized).allowHardware(false).build()
+        } else {
+            resized
+        }
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
     ) {
         AsyncImage(
-            model = url?.resize(96, 96),
+            model = model,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             placeholder = ColorPainter(Color(0xFFE53935)),
@@ -1063,6 +1156,10 @@ private fun EndPage(
     s: StoryState,
     data: RecapStoryData,
     time: RecapTime,
+    exportMode: Boolean = false,
+    supports60Fps: Boolean = true,
+    onOpenExportVideo: (() -> Unit)? = null,
+    onOpenExportParts: (() -> Unit)? = null,
 ) {
     val geo = s.geo
     val anim = s.pages[P_END]
@@ -1077,14 +1174,96 @@ private fun EndPage(
         style = recapBold(44f, lineHeight = 46f),
         modifier = Modifier.at(geo.inset, cardBottom + geo.dp(34f)).padding(end = 36.dp).lineMotion(anim, 1, 4, exitToDp = 0f),
     )
-    Text(
-        stringResource(R.string.rc_story_tap_finish),
-        style = MonoHint,
-        textAlign = TextAlign.Center,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .at(0f, geo.fy(782f))
-                .lineMotion(anim, 3, 4, exitToDp = 0f),
-    )
+    if (!exportMode) {
+        if (onOpenExportVideo != null || onOpenExportParts != null) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .at(0f, geo.fy(612f))
+                        .padding(horizontal = 36.dp)
+                        .lineMotion(anim, 2, 4, exitToDp = 0f),
+            ) {
+                if (onOpenExportVideo != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(Color.White)
+                                .clickable(onClick = onOpenExportVideo)
+                                .padding(horizontal = 18.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.slow_motion_video),
+                            contentDescription = null,
+                            tint = Color(0xFF141414),
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.rc_export_action_video),
+                            style = recapBold(15f, lineHeight = 18f, tracking = -0.2f).copy(color = Color(0xFF141414)),
+                        )
+                        if (supports60Fps) {
+                            Spacer(Modifier.width(8.dp))
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .clip(RoundedCornerShape(99.dp))
+                                        .background(Color(0xFF141414).copy(alpha = 0.12f))
+                                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.rc_export_fps_60),
+                                    style = recapBold(11f, lineHeight = 13f, tracking = 0f).copy(color = Color(0xFF141414)),
+                                )
+                            }
+                        }
+                    }
+                }
+                if (onOpenExportParts != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(Color.White.copy(alpha = 0.14f))
+                                .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(22.dp))
+                                .clickable(onClick = onOpenExportParts)
+                                .padding(horizontal = 18.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.image),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.rc_export_action_parts),
+                            style = recapBold(14.5f, lineHeight = 18f, tracking = -0.2f),
+                        )
+                    }
+                }
+            }
+        }
+        Text(
+            stringResource(R.string.rc_story_tap_finish),
+            style = MonoHint,
+            textAlign = TextAlign.Center,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .at(0f, geo.fy(782f))
+                    .lineMotion(anim, 3, 4, exitToDp = 0f),
+        )
+    }
 }

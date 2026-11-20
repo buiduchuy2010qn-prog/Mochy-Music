@@ -30,17 +30,23 @@ private const val FadeOutMs = 700L
 // what this phone's h264 encoders can take; videos encode on their side, so 9:16 is asked as 16:9
 internal object ShareEncoders {
     private val cache = HashMap<Pair<ShareQuality, Int>, Boolean>()
+    private val sizeCache = HashMap<Triple<Int, Int, Int>, Boolean>()
 
     @Synchronized
     fun canEncode(quality: ShareQuality, fps: Int): Boolean = cache.getOrPut(quality to fps) {
+        canEncodeSize(quality.width, quality.height, fps)
+    }
+
+    @Synchronized
+    fun canEncodeSize(width: Int, height: Int, fps: Int): Boolean = sizeCache.getOrPut(Triple(width, height, fps)) {
         runCatching {
             MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
                 info.isEncoder && info.supportedTypes.any { it.equals(MimeTypes.VIDEO_H264, ignoreCase = true) } &&
                     runCatching {
                         // an audio-only or odd codec has no video capabilities; it just can't encode this
                         val video = info.getCapabilitiesForType(MimeTypes.VIDEO_H264).videoCapabilities ?: return@runCatching false
-                        video.areSizeAndRateSupported(quality.height, quality.width, fps.toDouble()) ||
-                            video.areSizeAndRateSupported(quality.width, quality.height, fps.toDouble())
+                        video.areSizeAndRateSupported(height, width, fps.toDouble()) ||
+                            video.areSizeAndRateSupported(width, height, fps.toDouble())
                     }.getOrDefault(false)
             }
         }.getOrDefault(false)
@@ -54,6 +60,15 @@ internal object ShareEncoders {
     fun bitrateFor(quality: ShareQuality, fps: Int): Int = when (quality) {
         ShareQuality.UltraHd -> if (fps >= 60) 60_000_000 else 45_000_000
         ShareQuality.FullHd -> if (fps >= 60) 20_000_000 else 14_000_000
+    }
+
+    fun bitrateForSize(width: Int, height: Int, fps: Int): Int {
+        val pixels = width.toLong() * height.toLong()
+        return when {
+            pixels >= 2160L * 3840L -> if (fps >= 60) 60_000_000 else 45_000_000
+            pixels >= 1080L * 1920L -> if (fps >= 60) 20_000_000 else 14_000_000
+            else -> if (fps >= 60) 10_000_000 else 8_000_000
+        }
     }
 }
 
