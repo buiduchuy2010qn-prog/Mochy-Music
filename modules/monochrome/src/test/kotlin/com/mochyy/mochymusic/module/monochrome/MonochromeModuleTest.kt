@@ -253,4 +253,15 @@ class MonochromeModuleTest {
         assertEquals("FLAC", stream.codec)
         assertEquals("benny blanco, Halsey, Khalid", stream.matched.artist)
     }
+
+    @Test
+    fun `fails fast on timeout without retrying and marks server down`() = runBlocking {
+        val (module, host) = module { request ->
+            if ("/search/tracks?" in request.url) throw java.net.SocketTimeoutException("read timed out") else null
+        }
+        val result = module.resolve(eastside, emptyMap())
+        assertTrue(result is ResolveResult.Unavailable)
+        assertEquals(1, host.requests.size)
+        assertTrue(module.accountState() is AccountState.Expired)
+    }
 }

@@ -712,6 +712,7 @@ class MusicService :
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var eightDReverb: PresetReverb? = null
     private var eightDReverbSessionId = C.AUDIO_SESSION_ID_UNSET
+    @Volatile private var compactBufferEnabled = false
     private lateinit var hapticAudioProcessor: HapticAudioProcessor
 
     /** When a play counts for Last.fm and Libre.fm; the scrobbler skips services that aren't signed in. */
@@ -1247,7 +1248,7 @@ class MusicService :
                 skipBlend = blend
                 studioForVideos = studio
                 blendAhead = ahead.coerceIn(1, SkipBlendAheadMax)
-                if (blend) prefetchNeighbours() else prefetchJob?.cancel()
+                prefetchNeighbours()
             }
 
         if (dataStore.get(PersistentQueueKey, true)) {
@@ -1430,6 +1431,7 @@ class MusicService :
                 useCompactBuffer = true
             }
         }
+        compactBufferEnabled = useCompactBuffer
 
         val playerBuilder = ExoPlayer.Builder(this)
             .setMediaSourceFactory(createMediaSourceFactory())
@@ -1449,16 +1451,20 @@ class MusicService :
             // wake the playback loop when the audio buffer needs more, not every 10 ms: it was a third of a core in the background
             .experimentalSetDynamicSchedulingEnabled(true)
 
-        if (useCompactBuffer) {
-            // Trim playback memory footprint on low-RAM / Android 8.1 hardware while keeping standard devices untouched.
-            playerBuilder.setLoadControl(
-                DefaultLoadControl.Builder()
-                    .setBufferDurationsMs(10_000, 22_000, 1_500, 3_000)
-                    .setTargetBufferBytes(6 * 1024 * 1024)
-                    .setPrioritizeTimeOverSizeThresholds(false)
-                    .build(),
-            )
+        val loadControl = if (useCompactBuffer) {
+            // Trim playback memory footprint on low-RAM / Android 8.1 hardware while starting playback fast.
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(10_000, 22_000, 1_000, 2_000)
+                .setTargetBufferBytes(6 * 1024 * 1024)
+                .setPrioritizeTimeOverSizeThresholds(false)
+                .build()
+        } else {
+            // Start playback promptly instead of waiting for Media3's 2500ms/5000ms defaults.
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(20_000, 50_000, 1_000, 2_000)
+                .build()
         }
+        playerBuilder.setLoadControl(loadControl)
 
         val player = playerBuilder.build()
 
@@ -3800,6 +3806,26 @@ class MusicService :
         }
     }
 
+    private val playbackHttpClient: OkHttpClient by lazy {
+        OkHttpClient
+            .Builder()
+            .dns(object : Dns {
+                override fun lookup(hostname: String): List<InetAddress> {
+                    val addresses = Dns.SYSTEM.lookup(hostname)
+                    return when (this@MusicService.ipVersion) {
+                        IpVersion.IPV4 -> addresses.filter { it is Inet4Address }.ifEmpty { addresses }
+                        IpVersion.IPV6 -> addresses.filter { it is Inet6Address }.ifEmpty { addresses }
+                        IpVersion.AUTO -> addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
+                    }
+                }
+            })
+            .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .followAppProxy()
+            .build()
+    }
+
     private fun createCacheDataSource(): CacheDataSource.Factory =
         CacheDataSource
             .Factory()
@@ -3811,22 +3837,7 @@ class MusicService :
                     .setUpstreamDataSourceFactory(
                         DefaultDataSource.Factory(
                             this,
-                            OkHttpDataSource.Factory(
-                                OkHttpClient
-                                    .Builder()
-                                    .dns(object : Dns {
-                                        override fun lookup(hostname: String): List<InetAddress> {
-                                            val addresses = Dns.SYSTEM.lookup(hostname)
-                                            return when (this@MusicService.ipVersion) {
-                                                IpVersion.IPV4 -> addresses.filter { it is Inet4Address }.ifEmpty { addresses }
-                                                IpVersion.IPV6 -> addresses.filter { it is Inet6Address }.ifEmpty { addresses }
-                                                IpVersion.AUTO -> addresses
-                                            }
-                                        }
-                                    })
-                                    .followAppProxy()
-                                    .build(),
-                            ),
+                            OkHttpDataSource.Factory(playbackHttpClient),
                         ),
                     ),
             ).setCacheWriteDataSinkFactory(null)
@@ -4861,18 +4872,29 @@ class MusicService :
         return true
     }
 
-    // with "blend skips" on, the songs either side get their first seconds fetched ahead, so a skip either way starts at once
+    // with "blend skips" on, the songs either side get their first seconds fetched ahead; otherwise only the next song warms lightly for instant skip
     private fun prefetchNeighbours() {
         prefetchJob?.cancel()
-        if (!skipBlend || player.mediaItemCount == 0 || !canFetchAhead()) return
-        // data saver keeps it to the next one, the extra songs are only worth it on a connection that doesn't count
-        val ahead = if (com.mochyy.mochymusic.utils.DataSaver.isActive(this)) 1 else blendAhead
-        val upcoming = upcomingIndices(ahead)
-        // the next one first, then back, then the rest coming up
-        val ids = (upcoming.take(1) + player.previousMediaItemIndex + upcoming.drop(1))
-            .filter { it != C.INDEX_UNSET && it < player.mediaItemCount }
-            .map { player.getMediaItemAt(it).mediaId }
-            .distinct()
+        if (player.mediaItemCount == 0 || !canFetchAhead()) return
+        val dataSaver = com.mochyy.mochymusic.utils.DataSaver.isActive(this)
+        val (ids, bytes) = if (skipBlend) {
+            // data saver keeps it to the next one, the extra songs are only worth it on a connection that doesn't count
+            val ahead = if (dataSaver) 1 else blendAhead
+            val upcoming = upcomingIndices(ahead)
+            // the next one first, then back, then the rest coming up
+            val blendIds = (upcoming.take(1) + player.previousMediaItemIndex + upcoming.drop(1))
+                .filter { it != C.INDEX_UNSET && it < player.mediaItemCount }
+                .map { player.getMediaItemAt(it).mediaId }
+                .distinct()
+            blendIds to PrefetchBytes
+        } else {
+            if (dataSaver || compactBufferEnabled) return
+            val nextIds = upcomingIndices(1)
+                .filter { it != C.INDEX_UNSET && it < player.mediaItemCount }
+                .map { player.getMediaItemAt(it).mediaId }
+                .distinct()
+            nextIds to FastPrefetchBytes
+        }
         if (ids.isEmpty()) return
         prefetchJob = scope.launch(Dispatchers.IO) {
             // the playing song's own start gets the network first
@@ -4880,7 +4902,7 @@ class MusicService :
             for (id in ids) {
                 if (!isActive) break
                 if (onThePhone(id)) continue
-                runCatching { warmStart(id) }.onFailure { Timber.tag(TAG).d(it, "Couldn't fetch the start of $id ahead") }
+                runCatching { warmStart(id, bytes) }.onFailure { Timber.tag(TAG).d(it, "Couldn't fetch the start of $id ahead") }
             }
         }
     }
@@ -4921,20 +4943,20 @@ class MusicService :
     }
 
     // reads a song's first bytes through the player's own data source, which keeps them in the player's cache
-    private fun warmStart(mediaId: String) {
-        if (playerCache.isCached(mediaId, 0, PrefetchBytes)) return
+    private fun warmStart(mediaId: String, bytes: Long = PrefetchBytes) {
+        if (playerCache.isCached(mediaId, 0, bytes)) return
         val source = createDataSourceFactory().createDataSource()
         try {
             source.open(
                 androidx.media3.datasource.DataSpec.Builder()
                     .setUri(mediaId.toUri())
                     .setKey(mediaId)
-                    .setLength(PrefetchBytes)
+                    .setLength(bytes)
                     .build(),
             )
             val buffer = ByteArray(32 * 1024)
             var total = 0L
-            while (total < PrefetchBytes) {
+            while (total < bytes) {
                 val read = source.read(buffer, 0, buffer.size)
                 if (read == C.RESULT_END_OF_INPUT) break
                 total += read
@@ -5663,7 +5685,8 @@ class MusicService :
         const val CrossfadeStartWaitMs = 12_000L
         // about the first 20 to 30 seconds of a song, enough for a skip to start straight from the cache
         const val PrefetchBytes = 512L * 1024L
-        const val PrefetchDelayMs = 4_000L
+        const val FastPrefetchBytes = 256L * 1024L
+        const val PrefetchDelayMs = 2_500L
 
         /** how long a provider that failed on a song is passed over for it (Force playback) */
         const val FailedSourceMemoryMs = 10L * 60 * 1000

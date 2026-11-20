@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,6 +40,9 @@ class SourceModules @Inject constructor(
 
     // where modules look songs up, apart from whoever asked, so a call that won't stop never keeps a song waiting
     private val resolveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // module id -> epoch ms until which it is skipped after timing out, when another provider can serve
+    private val timedOutUntil = ConcurrentHashMap<String, Long>()
 
     private val syncPrefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "cloud_sync_stamp") reloadFromPrefs()
@@ -57,6 +61,7 @@ class SourceModules @Inject constructor(
     }
 
     private fun reloadFromPrefs() {
+        timedOutUntil.clear()
         _youTubeEnabled.value = isEnabled(YouTubeId)
         _order.value = readOrder()
         _downloadOrder.value = readDownloadOrder()
@@ -177,9 +182,14 @@ class SourceModules @Inject constructor(
         accept: (id: String, stream: SourceStream) -> Boolean,
     ): Route = withContext(Dispatchers.IO) {
         // the providers worth asking, in order, up to youtube, which needs no asking
+        val now = System.currentTimeMillis()
+        val candidates = order.filter { it !in skip && usable(it) }
         val asked = mutableListOf<String>()
-        for (id in order) {
-            if (id in skip || !usable(id)) continue
+        for (id in candidates) {
+            if (id != YouTubeId && candidates.size > 1 && (timedOutUntil[id] ?: 0L) > now) {
+                android.util.Log.d(Tag, "$id in timeout cooldown, skipping straight to next provider")
+                continue
+            }
             asked += id
             if (id == YouTubeId) break
         }
@@ -201,14 +211,21 @@ class SourceModules @Inject constructor(
                 // timed on the waiting side, so a module stuck in a call that ignores cancelling can't hold the song either
                 val left = ModuleTimeoutMs - (System.currentTimeMillis() - startedAt)
                 val result = withTimeoutOrNull(left.coerceAtLeast(1L)) { answer.await() }
-                if (result == null && answer.isActive) android.util.Log.i(Tag, "$id took longer than ${ModuleTimeoutMs / 1000} s for ${track?.title}, moving on")
+                if (result == null && answer.isActive) {
+                    timedOutUntil[id] = System.currentTimeMillis() + TimeoutCooldownMs
+                    android.util.Log.i(Tag, "$id took longer than ${ModuleTimeoutMs / 1000} s for ${track?.title}, moving on and cooling down 60s")
+                }
                 when (result) {
                     is ResolveResult.Found -> {
+                        timedOutUntil.remove(id)
                         if (!accept(id, result.stream)) continue
                         android.util.Log.i(Tag, "$id: ${track?.title} -> ${result.stream.matched.title} (${result.stream.qualityLabel})")
                         return@withContext Route.Module(module, result.stream)
                     }
-                    is ResolveResult.NotFound -> android.util.Log.i(Tag, "$id: ${track?.title}: ${result.reason}")
+                    is ResolveResult.NotFound -> {
+                        timedOutUntil.remove(id)
+                        android.util.Log.i(Tag, "$id: ${track?.title}: ${result.reason}")
+                    }
                     is ResolveResult.Unavailable -> android.util.Log.i(Tag, "$id unavailable for ${track?.title}: ${result.reason}")
                     null -> Unit
                 }
@@ -235,6 +252,7 @@ class SourceModules @Inject constructor(
     val youTubeEnabled: StateFlow<Boolean> = _youTubeEnabled.asStateFlow()
 
     fun setEnabled(id: String, enabled: Boolean) {
+        timedOutUntil.remove(id)
         registry.setEnabled(id, enabled)
         if (id == YouTubeId) _youTubeEnabled.value = enabled
         refresh()
@@ -259,6 +277,7 @@ class SourceModules @Inject constructor(
     fun setPick(id: String, choiceId: String, optionId: String) = registry.setPick(id, choiceId, optionId)
 
     fun refresh() {
+        timedOutUntil.clear()
         registry.refresh()
         val installed = registry.all().filter { ModuleFeature.AudioSource in it.adds }.map { it.info.id }
         slotIn(installed, _order.value, ::setOrder)
@@ -276,7 +295,9 @@ class SourceModules @Inject constructor(
     companion object {
         private const val Tag = "SourceModules"
         // how long a module may take to find a song before the next provider in the order plays it
-        private const val ModuleTimeoutMs = 12_000L
+        private const val ModuleTimeoutMs = 4_500L
+        // how long a timed-out module is skipped when another provider can serve
+        private const val TimeoutCooldownMs = 60_000L
         // the choice every module names its stream quality with, and the option data saver steps down to
         const val QualityChoice = "quality"
         private const val SaverOption = "high"

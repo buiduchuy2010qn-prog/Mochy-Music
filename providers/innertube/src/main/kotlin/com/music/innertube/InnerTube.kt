@@ -100,9 +100,9 @@ class InnerTube {
                     )
                 )
 
-                connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
 
                 protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
 
@@ -121,7 +121,8 @@ class InnerTube {
                         return when (this@InnerTube.ipVersion) {
                             IpVersion.IPV4 -> addresses.filter { it is Inet4Address }.ifEmpty { addresses }
                             IpVersion.IPV6 -> addresses.filter { it is Inet6Address }.ifEmpty { addresses }
-                            IpVersion.AUTO -> addresses
+                            // Prefer IPv4 first on dual-stack networks where mobile IPv6 stalls
+                            IpVersion.AUTO -> addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
                         }
                     }
                 })
@@ -141,9 +142,9 @@ class InnerTube {
         }
 
         install(HttpTimeout) {
-            requestTimeoutMillis = 60000
-            connectTimeoutMillis = 30000
-            socketTimeoutMillis = 60000
+            requestTimeoutMillis = 18_000
+            connectTimeoutMillis = 10_000
+            socketTimeoutMillis = 15_000
         }
 
         defaultRequest {

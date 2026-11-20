@@ -30,8 +30,12 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.URLEncoder
+import java.net.UnknownHostException
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
@@ -517,7 +521,14 @@ class MonochromeModule : SourceModule, ServerListModule {
                 throw e
             } catch (t: Throwable) {
                 lastError = t
-                if (attempt == attempts) throw t
+                if (t is SocketTimeoutException ||
+                    t is InterruptedIOException ||
+                    t is UnknownHostException ||
+                    t is ConnectException ||
+                    attempt == attempts
+                ) {
+                    throw t
+                }
             }
             try {
                 Thread.sleep(80L * attempt)

@@ -40,6 +40,9 @@ import com.mochyy.mochymusic.utils.PlaybackLogLevel
 import com.mochyy.mochymusic.utils.PlaybackLogManager
 import com.music.innertube.models.IpVersion
 import io.ktor.client.plugins.ResponseException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Dns
 import okhttp3.OkHttpClient
 import timber.log.Timber
@@ -63,7 +66,8 @@ object YTPlayerUtils {
                 return when (YouTube.ipVersion) {
                     IpVersion.IPV4 -> addresses.filter { it is Inet4Address }.ifEmpty { addresses }
                     IpVersion.IPV6 -> addresses.filter { it is Inet6Address }.ifEmpty { addresses }
-                    IpVersion.AUTO -> addresses
+                    // Prefer IPv4 first on dual-stack networks where mobile IPv6 stalls
+                    IpVersion.AUTO -> addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
                 }
             }
         })
@@ -80,8 +84,9 @@ object YTPlayerUtils {
                     .build()
             } ?: response.request
         }
-        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .connectTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .callTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
     private val poTokenGenerator = PoTokenGenerator()
@@ -411,25 +416,68 @@ object YTPlayerUtils {
 
         // null while visionos rests after a bot check: the other clients are asked straight away
         var mainPlayerResponse: PlayerResponse? = null
-        if (System.currentTimeMillis() < visionOsRestingUntil) {
-            Timber.tag(logTag).d("${MAIN_CLIENT.clientName} is resting after a bot check, going straight to the other clients")
-            PlaybackLogManager.log(PlaybackLogLevel.BOT, "Skipping ${MAIN_CLIENT.clientName}", "resting after a bot check")
-        } else {
-            Timber.tag(logTag).d("Attempting to get player response using MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
-            PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Trying ${MAIN_CLIENT.clientName} (Main)")
-            var answer = askMainClient()
-            // the bot check burns the visitor id, not the client: a fresh one usually clears it, and when it doesn't the network is flagged for a while
-            if (answer.isBotCheck()) {
-                PlaybackLogManager.log(PlaybackLogLevel.BOT, "Bot check from ${MAIN_CLIENT.clientName}", "minting a fresh visitor id and asking once more")
-                YouTube.refreshVisitorData(MAIN_CLIENT)
-                    .onFailure { Timber.tag(logTag).w(it, "Could not mint a fresh visitor id: ${it.message}") }
-                answer = askMainClient()
+        var metadataResponse: PlayerResponse? = null
+        coroutineScope {
+            val metadataDeferred = if (isLoggedIn) {
+                async {
+                    Timber.tag(logTag).d("Fetching metadata from METADATA_CLIENT (WEB_REMIX) for authenticated tracking")
+                    try {
+                        var metaPoToken: PoTokenResult? = null
+                        val metaSessionId = YouTube.dataSyncId
+                        if (METADATA_CLIENT.useWebPoTokens && metaSessionId != null && poTokenGenerator.hasSessionToken) {
+                            try {
+                                metaPoToken = withTimeoutOrNull(1_000L) {
+                                    poTokenGenerator.poTokenFor(videoId, metaSessionId)
+                                }
+                            } catch (e: Exception) {
+                                Timber.tag(logTag).e(e, "Metadata PoToken generation failed")
+                            }
+                        }
+                        YouTube.player(
+                            videoId,
+                            playlistId,
+                            METADATA_CLIENT,
+                            null,
+                            metaPoToken?.playerRequestPoToken,
+                        ).getOrNull().also {
+                            Timber.tag(logTag).d("Metadata response obtained: ${it?.playabilityStatus?.status}")
+                        }
+                    } catch (e: Exception) {
+                        Timber.tag(logTag).e(e, "Failed to fetch metadata from METADATA_CLIENT")
+                        null
+                    }
+                }
+            } else {
+                null
+            }
+
+            if (System.currentTimeMillis() < visionOsRestingUntil) {
+                Timber.tag(logTag).d("${MAIN_CLIENT.clientName} is resting after a bot check, going straight to the other clients")
+                PlaybackLogManager.log(PlaybackLogLevel.BOT, "Skipping ${MAIN_CLIENT.clientName}", "resting after a bot check")
+            } else {
+                Timber.tag(logTag).d("Attempting to get player response using MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
+                PlaybackLogManager.log(PlaybackLogLevel.DEBUG, "Trying ${MAIN_CLIENT.clientName} (Main)")
+                var answer = askMainClient()
+                // the bot check burns the visitor id, not the client: a fresh one usually clears it, and when it doesn't the network is flagged for a while
                 if (answer.isBotCheck()) {
-                    visionOsRestingUntil = System.currentTimeMillis() + BOT_CHECK_REST_MS
-                    PlaybackLogManager.log(PlaybackLogLevel.BOT, "Bot check again", "leaving ${MAIN_CLIENT.clientName} alone for ${BOT_CHECK_REST_MS / 60_000} minutes")
+                    PlaybackLogManager.log(PlaybackLogLevel.BOT, "Bot check from ${MAIN_CLIENT.clientName}", "minting a fresh visitor id and asking once more")
+                    YouTube.refreshVisitorData(MAIN_CLIENT)
+                        .onFailure { Timber.tag(logTag).w(it, "Could not mint a fresh visitor id: ${it.message}") }
+                    answer = askMainClient()
+                    if (answer.isBotCheck()) {
+                        visionOsRestingUntil = System.currentTimeMillis() + BOT_CHECK_REST_MS
+                        PlaybackLogManager.log(PlaybackLogLevel.BOT, "Bot check again", "leaving ${MAIN_CLIENT.clientName} alone for ${BOT_CHECK_REST_MS / 60_000} minutes")
+                    }
+                }
+                mainPlayerResponse = answer
+            }
+
+            if (metadataDeferred != null) {
+                metadataResponse = withTimeoutOrNull(1_500L) { metadataDeferred.await() }
+                if (metadataResponse == null && metadataDeferred.isActive) {
+                    metadataDeferred.cancel()
                 }
             }
-            mainPlayerResponse = answer
         }
         // a bot check is about the network, not the song, so it isn't treated as an age gate below: that would drop the signature timestamp the account's ciphered links need
         val mainBotChecked = mainPlayerResponse?.isBotCheck() == true
@@ -437,31 +485,6 @@ object YTPlayerUtils {
         val botChecked = mainPlayerResponse == null || mainBotChecked
         // some client called the song premium-only; set below as the answers come in
         var premiumOnly = mainPlayerResponse?.isPremiumOnly() == true
-
-        var metadataResponse: PlayerResponse? = null
-        if (isLoggedIn) {
-            Timber.tag(logTag).d("Fetching metadata from METADATA_CLIENT (WEB_REMIX) for authenticated tracking")
-            try {
-
-                var metaPoToken: PoTokenResult? = null
-                val metaSessionId = YouTube.dataSyncId
-                if (METADATA_CLIENT.useWebPoTokens && metaSessionId != null) {
-                    try {
-                        metaPoToken = poTokenGenerator.poTokenFor(videoId, metaSessionId)
-                    } catch (e: Exception) {
-                        Timber.tag(logTag).e(e, "Metadata PoToken generation failed")
-                    }
-                }
-                metadataResponse = YouTube.player(
-                    videoId, playlistId, METADATA_CLIENT,
-                    if (METADATA_CLIENT.useSignatureTimestamp) signatureTimestamp.timestamp else null,
-                    metaPoToken?.playerRequestPoToken
-                ).getOrNull()
-                Timber.tag(logTag).d("Metadata response obtained: ${metadataResponse?.playabilityStatus?.status}")
-            } catch (e: Exception) {
-                Timber.tag(logTag).e(e, "Failed to fetch metadata from METADATA_CLIENT")
-            }
-        }
 
         if (isUploadedTrack || playlistId?.contains("MLPT") == true) {
             println("[PLAYBACK_DEBUG] Main player response status: ${mainPlayerResponse?.playabilityStatus?.status}")
@@ -548,7 +571,9 @@ object YTPlayerUtils {
                 if (client.useWebPoTokens && poToken == null && sessionId != null) {
                     Timber.tag(logTag).d("Lazily generating PoToken for fallback web client: ${client.clientName}")
                     try {
-                        poToken = poTokenGenerator.poTokenFor(videoId, sessionId)
+                        poToken = withTimeoutOrNull(8_000L) {
+                            poTokenGenerator.poTokenFor(videoId, sessionId)
+                        }
                     } catch (e: Exception) {
                         Timber.tag(logTag).e(e, "Lazy PoToken generation failed")
                     }

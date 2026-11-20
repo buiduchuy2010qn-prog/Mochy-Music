@@ -61,7 +61,7 @@ internal class InnerTubeXStreams(
 
         override suspend fun getPoToken(videoId: String, visitorData: String, cookie: String?): XPoTokenResult? {
             val sessionId = (if (cookie != null) YouTube.dataSyncId else null) ?: visitorData
-            val token = mintToken(videoId, sessionId) ?: return null
+            val token = withTimeoutOrNull(3_000L) { mintToken(videoId, sessionId) } ?: return null
             return XPoTokenResult(token.playerRequestPoToken, token.streamingDataPoToken, visitorData)
         }
     }
@@ -235,7 +235,7 @@ internal class InnerTubeXStreams(
 
     private companion object {
         // past this the walk takes over, so a stuck lookup never holds a song for innertubex's own 30 s budget
-        const val GiveUpMs = 12_000L
+        const val GiveUpMs = 5_000L
         // links without an expiry are refetched after five minutes, like innertubex's own default
         const val DefaultLinkLifeSeconds = 5 * 60
     }
