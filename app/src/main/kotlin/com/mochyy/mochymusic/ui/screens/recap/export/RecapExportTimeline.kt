@@ -2,8 +2,9 @@
 //
 // Pure-JVM deterministic keyframe timeline for Mochy Re'cap video & still-image exports.
 // Reproduces every signature Mochy animation (90-degree giant word warp, odometer numbers,
-// MonthBar sheen, artist slot machine + glow rings, tilted song cover grid + hero pick,
-// scrolling zigzag receipt, and Profile ID card outro) at any target FPS (60fps / 30fps).
+// MonthBar sheen, streak odometer, artist slot machine + glow rings, tilted song cover grid +
+// hero pick, persona club spotlight, scrolling zigzag receipt, and Profile ID card outro)
+// at any target FPS (60fps / 30fps).
 
 package com.mochyy.mochymusic.ui.screens.recap.export
 
@@ -15,6 +16,8 @@ enum class RecapGiantWord {
     MOCHY,
     MONTH,
     WEEKDAY,
+    STREAK,
+    PERSONA,
 }
 
 enum class RecapPaletteMode {
@@ -29,8 +32,10 @@ enum class RecapSegmentKind {
     JOURNEY,
     MONTH,
     WEEKDAY,
+    STREAK,
     ARTIST_SPIN_REVEAL,
     SONG_GRID_REVEAL,
+    PERSONA,
     RECEIPT,
     END_CARD,
 }
@@ -52,7 +57,7 @@ data class RecapTimelinePlan(
 
 /**
  * Complete snapshot of all Mochy Recap StoryState + GiantTextState values at a single timestamp.
- * All indices match StoryPageCount (11) and GiantTextState rows (-4..4 => indices 0..8).
+ * All indices match StoryPageCount (13) and GiantTextState rows (-4..4 => indices 0..8).
  */
 class RecapFrameValues(
     val timeMs: Long,
@@ -97,7 +102,7 @@ class RecapFrameValues(
     val receiptScroll: Float = 0f,
 ) {
     companion object {
-        const val PAGE_COUNT = 11
+        const val PAGE_COUNT = 13
         const val ROW_HALF = 4
         const val ROW_COUNT = ROW_HALF * 2 + 1
 
@@ -105,20 +110,22 @@ class RecapFrameValues(
         const val PAGE_JOURNEY = 1
         const val PAGE_MONTH = 2
         const val PAGE_WEEKDAY = 3
-        const val PAGE_ARTISTS = 4
-        const val PAGE_ARTIST = 5
-        const val PAGE_SONGS = 6
-        const val PAGE_MELODY = 7
-        const val PAGE_SONG = 8
-        const val PAGE_RECEIPT = 9
-        const val PAGE_END = 10
+        const val PAGE_STREAK = 4
+        const val PAGE_ARTISTS = 5
+        const val PAGE_ARTIST = 6
+        const val PAGE_SONGS = 7
+        const val PAGE_MELODY = 8
+        const val PAGE_SONG = 9
+        const val PAGE_PERSONA = 10
+        const val PAGE_RECEIPT = 11
+        const val PAGE_END = 12
     }
 }
 
 object RecapExportTimeline {
     private const val OVERLAP_MS = 400L
 
-    /** Builds the full Mochy Re'cap video timeline (~24.6s with artist + song). */
+    /** Builds the full Mochy Re'cap video timeline (~27.85s with all 10 beats). */
     fun buildFullTimeline(
         hasHeroArtist: Boolean,
         hasHeroSong: Boolean,
@@ -134,17 +141,19 @@ object RecapExportTimeline {
             cursor = end
         }
 
-        append(RecapSegmentKind.HEY, 2200L, overlapPrev = 0L)
-        append(RecapSegmentKind.JOURNEY, 3200L, overlapPrev = 350L)
-        append(RecapSegmentKind.MONTH, 2800L, overlapPrev = 400L)
-        append(RecapSegmentKind.WEEKDAY, 3100L, overlapPrev = 400L)
+        append(RecapSegmentKind.HEY, 2000L, overlapPrev = 0L)
+        append(RecapSegmentKind.JOURNEY, 2900L, overlapPrev = 350L)
+        append(RecapSegmentKind.MONTH, 2600L, overlapPrev = 400L)
+        append(RecapSegmentKind.WEEKDAY, 2800L, overlapPrev = 400L)
+        append(RecapSegmentKind.STREAK, 2700L, overlapPrev = 400L)
         if (hasHeroArtist) {
-            append(RecapSegmentKind.ARTIST_SPIN_REVEAL, 4800L, overlapPrev = 400L)
+            append(RecapSegmentKind.ARTIST_SPIN_REVEAL, 4400L, overlapPrev = 400L)
         }
         if (hasHeroSong) {
-            append(RecapSegmentKind.SONG_GRID_REVEAL, 5000L, overlapPrev = 400L)
+            append(RecapSegmentKind.SONG_GRID_REVEAL, 4600L, overlapPrev = 400L)
         }
-        append(RecapSegmentKind.RECEIPT, 3800L, overlapPrev = 400L)
+        append(RecapSegmentKind.PERSONA, 3000L, overlapPrev = 400L)
+        append(RecapSegmentKind.RECEIPT, 3600L, overlapPrev = 400L)
         append(RecapSegmentKind.END_CARD, 2800L, overlapPrev = 400L)
 
         return RecapTimelinePlan(
@@ -168,8 +177,10 @@ object RecapExportTimeline {
             RecapPart.JOURNEY -> RecapSegmentKind.JOURNEY to 5200L
             RecapPart.MONTH -> RecapSegmentKind.MONTH to 5000L
             RecapPart.WEEKDAY -> RecapSegmentKind.WEEKDAY to 5200L
+            RecapPart.STREAK -> RecapSegmentKind.STREAK to 5000L
             RecapPart.TOP_ARTIST -> RecapSegmentKind.ARTIST_SPIN_REVEAL to 6400L
             RecapPart.TOP_SONG -> RecapSegmentKind.SONG_GRID_REVEAL to 6600L
+            RecapPart.PERSONA -> RecapSegmentKind.PERSONA to 5400L
             RecapPart.RECEIPT -> RecapSegmentKind.RECEIPT to 6400L
             RecapPart.SUMMARY_CARD -> RecapSegmentKind.END_CARD to 5200L
         }
@@ -279,9 +290,36 @@ object RecapExportTimeline {
                 )
             }
 
+            RecapPart.STREAK -> {
+                enters[RecapFrameValues.PAGE_STREAK] = 1f
+                for (i in 0 until RecapFrameValues.ROW_COUNT) rowFills[i] = 1f
+                RecapFrameValues(
+                    timeMs = 2500L,
+                    mesh = 0f,
+                    dots = 1f,
+                    paletteMode = RecapPaletteMode.DARK,
+                    logoSide = 0f,
+                    avPageFrom = RecapFrameValues.PAGE_STREAK,
+                    avPageTo = RecapFrameValues.PAGE_STREAK,
+                    avMoveT = 1f,
+                    avRing = 1f,
+                    avRingAlpha = 1f,
+                    avAlpha = 1f,
+                    avPop = 1f,
+                    textWord = RecapGiantWord.STREAK,
+                    textRotation = 0f,
+                    textScale = 0.74f,
+                    textCenterX = 0.5f,
+                    textOffsetYDp = 0f,
+                    textAlpha = 1f,
+                    textRowFills = rowFills,
+                    textRowSides = rowSides,
+                    pageEnters = enters,
+                    pageExits = exits,
+                )
+            }
+
             RecapPart.TOP_ARTIST -> {
-                // ArtistSequence draws the hero avatar based on spinAnim.enter (must be 1f) while
-                // hiding spin items via spinAnim.exit (1f) and revealing ArtistReveal via reveal.enter (1f).
                 enters[RecapFrameValues.PAGE_ARTISTS] = 1f
                 exits[RecapFrameValues.PAGE_ARTISTS] = 1f
                 enters[RecapFrameValues.PAGE_ARTIST] = 1f
@@ -339,6 +377,36 @@ object RecapExportTimeline {
                     gridPick = 1f,
                     heroCover = 1f,
                     heroCoverUp = 1f,
+                )
+            }
+
+            RecapPart.PERSONA -> {
+                enters[RecapFrameValues.PAGE_PERSONA] = 1f
+                for (i in 0 until RecapFrameValues.ROW_COUNT) rowFills[i] = 1f
+                RecapFrameValues(
+                    timeMs = 3000L,
+                    mesh = 1f,
+                    dots = 0f,
+                    paletteMode = RecapPaletteMode.SONG,
+                    paletteMix = 1f,
+                    logoSide = 1f,
+                    avPageFrom = RecapFrameValues.PAGE_ARTISTS,
+                    avPageTo = RecapFrameValues.PAGE_ARTISTS,
+                    avMoveT = 1f,
+                    avRing = 1f,
+                    avRingAlpha = 0f,
+                    avAlpha = 1f,
+                    avPop = 1f,
+                    textWord = RecapGiantWord.PERSONA,
+                    textRotation = 0f,
+                    textScale = 0.74f,
+                    textCenterX = 0.5f,
+                    textOffsetYDp = 0f,
+                    textAlpha = 0.14f,
+                    textRowFills = rowFills,
+                    textRowSides = rowSides,
+                    pageEnters = enters,
+                    pageExits = exits,
                 )
             }
 
@@ -507,6 +575,36 @@ object RecapExportTimeline {
                 )
             }
 
+            RecapPart.STREAK -> {
+                for (r in -4..4) {
+                    val idx = r + RecapFrameValues.ROW_HALF
+                    rowFills[idx] = fastOutSlowIn(window(t, (r + 4) * 55L, 760L))
+                }
+                enters[RecapFrameValues.PAGE_STREAK] = window(t, 180L, 1950L)
+                val avPop = easeOutBackClamped(window(t, 0L, 650L), 1.35f)
+                RecapFrameValues(
+                    timeMs = t,
+                    mesh = 0f,
+                    dots = 1f,
+                    paletteMode = RecapPaletteMode.DARK,
+                    logoSide = 0f,
+                    avPageFrom = RecapFrameValues.PAGE_STREAK,
+                    avPageTo = RecapFrameValues.PAGE_STREAK,
+                    avMoveT = 1f,
+                    avRing = 1f,
+                    avRingAlpha = 1f,
+                    avAlpha = 1f,
+                    avPop = avPop,
+                    textWord = RecapGiantWord.STREAK,
+                    textOffsetYDp = 0f,
+                    textAlpha = 1f,
+                    textRowFills = rowFills,
+                    textRowSides = rowSides,
+                    pageEnters = enters,
+                    pageExits = exits,
+                )
+            }
+
             RecapPart.TOP_ARTIST -> {
                 enters[RecapFrameValues.PAGE_ARTISTS] = emphasized(window(t, 0L, 720L))
                 val spinT = artistSpinEasing(window(t, 100L, 2150L))
@@ -573,6 +671,36 @@ object RecapExportTimeline {
                     gridPick = pick,
                     heroCover = heroCover,
                     heroCoverUp = heroCoverUp,
+                )
+            }
+
+            RecapPart.PERSONA -> {
+                for (r in -4..4) {
+                    val idx = r + RecapFrameValues.ROW_HALF
+                    rowFills[idx] = fastOutSlowIn(window(t, (r + 4) * 50L, 760L))
+                }
+                enters[RecapFrameValues.PAGE_PERSONA] = window(t, 160L, 1900L)
+                val textAlpha = lerp(0f, 0.14f, emphasized(window(t, 100L, 700L)))
+                RecapFrameValues(
+                    timeMs = t,
+                    mesh = 1f,
+                    dots = 0f,
+                    paletteMode = RecapPaletteMode.SONG,
+                    paletteMix = 1f,
+                    logoSide = 1f,
+                    avPageFrom = RecapFrameValues.PAGE_ARTISTS,
+                    avPageTo = RecapFrameValues.PAGE_ARTISTS,
+                    avMoveT = 1f,
+                    avRing = 1f,
+                    avRingAlpha = 0f,
+                    avAlpha = 1f,
+                    avPop = 1f,
+                    textWord = RecapGiantWord.PERSONA,
+                    textAlpha = textAlpha,
+                    textRowFills = rowFills,
+                    textRowSides = rowSides,
+                    pageEnters = enters,
+                    pageExits = exits,
                 )
             }
 
@@ -645,13 +773,15 @@ object RecapExportTimeline {
         val journey = segs.getValue(RecapSegmentKind.JOURNEY)
         val month = segs.getValue(RecapSegmentKind.MONTH)
         val weekday = segs.getValue(RecapSegmentKind.WEEKDAY)
+        val streak = segs.getValue(RecapSegmentKind.STREAK)
         val artist = segs[RecapSegmentKind.ARTIST_SPIN_REVEAL]
         val song = segs[RecapSegmentKind.SONG_GRID_REVEAL]
+        val persona = segs.getValue(RecapSegmentKind.PERSONA)
         val receipt = segs.getValue(RecapSegmentKind.RECEIPT)
         val end = segs.getValue(RecapSegmentKind.END_CARD)
 
-        // First segment that turns on the moving colour mesh (Artist -> Song -> Receipt)
-        val colorStartMs = artist?.startMs ?: song?.startMs ?: receipt.startMs
+        // First segment that turns on the moving colour mesh (Artist -> Song -> Persona)
+        val colorStartMs = artist?.startMs ?: song?.startMs ?: persona.startMs
 
         val n = plan.artistCount.coerceAtLeast(1)
         val enters = FloatArray(RecapFrameValues.PAGE_COUNT) { 0f }
@@ -660,31 +790,34 @@ object RecapExportTimeline {
         val rowSides = FloatArray(RecapFrameValues.ROW_COUNT) { 1f }
 
         // 1. Page enters & exits
-        enters[RecapFrameValues.PAGE_HEY] = emphasized(window(t, hey.startMs + 520L, 760L))
-        exits[RecapFrameValues.PAGE_HEY] = emphasized(window(t, journey.startMs, 420L))
+        enters[RecapFrameValues.PAGE_HEY] = emphasized(window(t, hey.startMs + 480L, 720L))
+        exits[RecapFrameValues.PAGE_HEY] = emphasized(window(t, journey.startMs, 400L))
 
-        enters[RecapFrameValues.PAGE_JOURNEY] = window(t, journey.startMs + 280L, 1950L)
-        exits[RecapFrameValues.PAGE_JOURNEY] = fastOutSlowIn(window(t, month.startMs, 580L))
+        enters[RecapFrameValues.PAGE_JOURNEY] = window(t, journey.startMs + 260L, 1750L)
+        exits[RecapFrameValues.PAGE_JOURNEY] = fastOutSlowIn(window(t, month.startMs, 560L))
 
-        enters[RecapFrameValues.PAGE_MONTH] = window(t, month.startMs + 320L, 1680L)
-        exits[RecapFrameValues.PAGE_MONTH] = fastOutSlowIn(window(t, weekday.startMs, 560L))
+        enters[RecapFrameValues.PAGE_MONTH] = window(t, month.startMs + 280L, 1580L)
+        exits[RecapFrameValues.PAGE_MONTH] = fastOutSlowIn(window(t, weekday.startMs, 540L))
 
-        enters[RecapFrameValues.PAGE_WEEKDAY] = window(t, weekday.startMs + 420L, 1750L)
-        exits[RecapFrameValues.PAGE_WEEKDAY] = fastOutSlowIn(window(t, colorStartMs, 560L))
+        enters[RecapFrameValues.PAGE_WEEKDAY] = window(t, weekday.startMs + 340L, 1620L)
+        exits[RecapFrameValues.PAGE_WEEKDAY] = fastOutSlowIn(window(t, streak.startMs, 540L))
+
+        enters[RecapFrameValues.PAGE_STREAK] = window(t, streak.startMs + 320L, 1580L)
+        exits[RecapFrameValues.PAGE_STREAK] = fastOutSlowIn(window(t, colorStartMs, 540L))
 
         var spinVal = -2.6f
         var spinGlow = 0f
         var heroArtist = 0f
         if (artist != null) {
             val a0 = artist.startMs
-            val nextStart = song?.startMs ?: receipt.startMs
-            enters[RecapFrameValues.PAGE_ARTISTS] = emphasized(window(t, a0 + 180L, 780L))
-            spinVal = lerp(-2.6f, 3f * n, artistSpinEasing(window(t, a0 + 200L, 2000L)))
-            spinGlow = window(t, a0 + 2200L, 580L)
-            heroArtist = emphasized(window(t, a0 + 2720L, 780L))
-            exits[RecapFrameValues.PAGE_ARTISTS] = fastOutSlowIn(window(t, a0 + 2720L, 520L))
-            enters[RecapFrameValues.PAGE_ARTIST] = window(t, a0 + 2860L, 1540L)
-            exits[RecapFrameValues.PAGE_ARTIST] = fastOutSlowIn(window(t, nextStart, 580L))
+            val nextStart = song?.startMs ?: persona.startMs
+            enters[RecapFrameValues.PAGE_ARTISTS] = emphasized(window(t, a0 + 160L, 720L))
+            spinVal = lerp(-2.6f, 3f * n, artistSpinEasing(window(t, a0 + 180L, 1850L)))
+            spinGlow = window(t, a0 + 2030L, 540L)
+            heroArtist = emphasized(window(t, a0 + 2520L, 720L))
+            exits[RecapFrameValues.PAGE_ARTISTS] = fastOutSlowIn(window(t, a0 + 2520L, 480L))
+            enters[RecapFrameValues.PAGE_ARTIST] = window(t, a0 + 2660L, 1400L)
+            exits[RecapFrameValues.PAGE_ARTIST] = fastOutSlowIn(window(t, nextStart, 560L))
         }
 
         var gridDrift = 0f
@@ -693,22 +826,26 @@ object RecapExportTimeline {
         var heroCoverUp = 0f
         if (song != null) {
             val s0 = song.startMs
-            enters[RecapFrameValues.PAGE_SONGS] = emphasized(window(t, s0 + 140L, 950L))
-            gridDrift = window(t, s0, 1950L)
-            gridPick = emphasized(window(t, s0 + 1950L, 520L))
-            heroCover = emphasized(window(t, s0 + 2450L, 720L))
-            exits[RecapFrameValues.PAGE_SONGS] = fastOutSlowIn(window(t, s0 + 2450L, 480L))
-            enters[RecapFrameValues.PAGE_MELODY] = emphasized(window(t, s0 + 2650L, 620L))
-            exits[RecapFrameValues.PAGE_MELODY] = fastOutSlowIn(window(t, s0 + 3450L, 420L))
-            heroCoverUp = emphasized(window(t, s0 + 3450L, 720L))
-            enters[RecapFrameValues.PAGE_SONG] = window(t, s0 + 3620L, 1280L)
-            exits[RecapFrameValues.PAGE_SONG] = fastOutSlowIn(window(t, receipt.startMs, 560L))
+            enters[RecapFrameValues.PAGE_SONGS] = emphasized(window(t, s0 + 140L, 860L))
+            gridDrift = window(t, s0, 1800L)
+            gridPick = emphasized(window(t, s0 + 1800L, 480L))
+            heroCover = emphasized(window(t, s0 + 2250L, 680L))
+            exits[RecapFrameValues.PAGE_SONGS] = fastOutSlowIn(window(t, s0 + 2250L, 450L))
+            enters[RecapFrameValues.PAGE_MELODY] = emphasized(window(t, s0 + 2450L, 580L))
+            exits[RecapFrameValues.PAGE_MELODY] = fastOutSlowIn(window(t, s0 + 3180L, 400L))
+            heroCoverUp = emphasized(window(t, s0 + 3180L, 680L))
+            enters[RecapFrameValues.PAGE_SONG] = window(t, s0 + 3340L, 1180L)
+            exits[RecapFrameValues.PAGE_SONG] = fastOutSlowIn(window(t, persona.startMs, 540L))
         }
 
+        val p0 = persona.startMs
+        enters[RecapFrameValues.PAGE_PERSONA] = window(t, p0 + 220L, 1650L)
+        exits[RecapFrameValues.PAGE_PERSONA] = fastOutSlowIn(window(t, receipt.startMs, 560L))
+
         val r0 = receipt.startMs
-        enters[RecapFrameValues.PAGE_RECEIPT] = emphasized(window(t, r0 + 180L, 860L))
-        val receiptScroll = easeInOutCubic(window(t, r0 + 1150L, 2050L))
-        exits[RecapFrameValues.PAGE_RECEIPT] = emphasizedAccelerate(window(t, end.startMs, 600L))
+        enters[RecapFrameValues.PAGE_RECEIPT] = emphasized(window(t, r0 + 160L, 820L))
+        val receiptScroll = easeInOutCubic(window(t, r0 + 1050L, 1950L))
+        exits[RecapFrameValues.PAGE_RECEIPT] = emphasizedAccelerate(window(t, end.startMs, 580L))
 
         val e0 = end.startMs
         enters[RecapFrameValues.PAGE_END] = window(t, e0 + 220L, 1380L)
@@ -766,58 +903,76 @@ object RecapExportTimeline {
             t < month.startMs -> {
                 avPageFrom = RecapFrameValues.PAGE_HEY
                 avPageTo = RecapFrameValues.PAGE_JOURNEY
-                avMoveT = emphasized(window(t, journey.startMs, 850L))
+                avMoveT = emphasized(window(t, journey.startMs, 820L))
             }
             t < weekday.startMs -> {
                 avPageFrom = RecapFrameValues.PAGE_JOURNEY
                 avPageTo = RecapFrameValues.PAGE_MONTH
-                avMoveT = emphasized(window(t, month.startMs + 80L, 820L))
+                avMoveT = emphasized(window(t, month.startMs + 80L, 780L))
             }
-            t < colorStartMs -> {
+            t < streak.startMs -> {
                 avPageFrom = RecapFrameValues.PAGE_MONTH
                 avPageTo = RecapFrameValues.PAGE_WEEKDAY
-                avMoveT = emphasized(window(t, weekday.startMs + 80L, 820L))
+                avMoveT = emphasized(window(t, weekday.startMs + 80L, 780L))
+            }
+            t < colorStartMs -> {
+                avPageFrom = RecapFrameValues.PAGE_WEEKDAY
+                avPageTo = RecapFrameValues.PAGE_STREAK
+                avMoveT = emphasized(window(t, streak.startMs + 80L, 780L))
             }
             else -> {
-                avPageFrom = RecapFrameValues.PAGE_WEEKDAY
+                avPageFrom = RecapFrameValues.PAGE_STREAK
                 avPageTo = RecapFrameValues.PAGE_ARTISTS
-                avMoveT = emphasized(window(t, colorStartMs, 850L))
+                avMoveT = emphasized(window(t, colorStartMs, 820L))
             }
         }
-        val avPop = easeOutBackClamped(window(t, hey.startMs + 340L, 680L), 1.45f)
-        val avAppear = if (t >= hey.startMs + 320L) 1f else 0f
+        val avPop = easeOutBackClamped(window(t, hey.startMs + 320L, 640L), 1.45f)
+        val avAppear = if (t >= hey.startMs + 300L) 1f else 0f
         val avFadeOut = 1f - emphasized(window(t, e0, 480L))
         val avAlpha = (avAppear * avFadeOut).coerceIn(0f, 1f)
-        val avRing = emphasized(window(t, journey.startMs, 850L))
+        val avRing = emphasized(window(t, journey.startMs, 820L))
         val avRingAlpha = 1f - emphasized(window(t, colorStartMs, 620L))
 
-        // 5. Giant background words (90-degree warp on Hey -> Journey -> Month -> Weekday -> fade -> MOCHY back on End)
-        val textRotation = lerp(90f, 0f, fastOutSlowIn(window(t, hey.startMs, 980L)))
-        val textScale = lerp(1f, 0.74f, fastOutSlowIn(window(t, hey.startMs, 980L)))
+        // 5. Giant background words (90-deg warp on Hey -> Journey -> Month -> Weekday -> Streak -> faint Persona -> MOCHY on End)
+        val textRotation = lerp(90f, 0f, fastOutSlowIn(window(t, hey.startMs, 920L)))
+        val textScale = lerp(1f, 0.74f, fastOutSlowIn(window(t, hey.startMs, 920L)))
         val textOffsetYDp = when {
             t < journey.startMs -> 0f
-            t < weekday.startMs -> lerp(0f, -46f, emphasized(window(t, journey.startMs, 900L)))
-            t < e0 -> lerp(-46f, 0f, emphasized(window(t, weekday.startMs + 220L, 950L)))
+            t < weekday.startMs -> lerp(0f, -46f, emphasized(window(t, journey.startMs, 860L)))
+            t < e0 -> lerp(-46f, 0f, emphasized(window(t, weekday.startMs + 200L, 880L)))
             else -> 0f
         }
-        val textFadeOut = 1f - fastOutSlowIn(window(t, colorStartMs, 780L))
-        val textEndIn = lerp(0f, 0.9f, emphasized(window(t, e0 + 240L, 950L)))
-        val textAlpha = if (t < e0) textFadeOut else textEndIn
+        val textAlpha = when {
+            t < colorStartMs -> 1f
+            t < colorStartMs + 780L && colorStartMs < p0 ->
+                1f - fastOutSlowIn(window(t, colorStartMs, 780L))
+            t < p0 -> 0f
+            t < r0 -> {
+                val enterP = emphasized(window(t, p0 + 220L, 650L))
+                val exitP = 1f - fastOutSlowIn(window(t, r0 - 360L, 360L))
+                val baseP = 0.14f * enterP * exitP
+                if (colorStartMs == p0 && t < p0 + 420L) {
+                    max(baseP, 1f - fastOutSlowIn(window(t, p0, 420L)))
+                } else {
+                    baseP
+                }
+            }
+            t < e0 -> 0f
+            else -> lerp(0f, 0.9f, emphasized(window(t, e0 + 240L, 950L)))
+        }
 
         val textWord: RecapGiantWord
         when {
-            t < month.startMs + 220L -> {
+            t < month.startMs + 200L -> {
                 textWord = RecapGiantWord.MOCHY
-                // Start with -1..1 filled, slide in -2,2,-3,3,-4,4 during Hey
                 val order = intArrayOf(-2, 2, -3, 3, -4, 4)
                 for (r in -1..1) rowFills[r + RecapFrameValues.ROW_HALF] = 1f
                 order.forEachIndexed { idx, r ->
-                    rowFills[r + RecapFrameValues.ROW_HALF] = fastOutSlowIn(window(t, hey.startMs + idx * 55L, 760L))
+                    rowFills[r + RecapFrameValues.ROW_HALF] = fastOutSlowIn(window(t, hey.startMs + idx * 50L, 720L))
                 }
-                // During Journey, rows -1..4 slide out to make space
                 if (t >= journey.startMs) {
                     for (r in -1..4) {
-                        val outT = fastOutSlowIn(window(t, journey.startMs + (r + 1) * 50L, 520L))
+                        val outT = fastOutSlowIn(window(t, journey.startMs + (r + 1) * 45L, 480L))
                         if (outT > 0f) {
                             rowFills[r + RecapFrameValues.ROW_HALF] *= (1f - outT)
                             rowSides[r + RecapFrameValues.ROW_HALF] = -1f
@@ -826,15 +981,15 @@ object RecapExportTimeline {
                 }
             }
 
-            t < weekday.startMs + 360L -> {
+            t < weekday.startMs + 320L -> {
                 textWord = RecapGiantWord.MONTH
                 for (r in -4..-2) rowFills[r + RecapFrameValues.ROW_HALF] = 1f
                 for (r in -1..3) {
                     val idx = r + RecapFrameValues.ROW_HALF
-                    val inT = fastOutSlowIn(window(t, month.startMs + 220L + (r + 1) * 65L, 780L))
+                    val inT = fastOutSlowIn(window(t, month.startMs + 200L + (r + 1) * 60L, 720L))
                     rowFills[idx] = inT
                     if (t >= weekday.startMs) {
-                        val outT = fastOutSlowIn(window(t, weekday.startMs + (3 - r) * 45L, 380L))
+                        val outT = fastOutSlowIn(window(t, weekday.startMs + (3 - r) * 40L, 340L))
                         if (outT > 0f) {
                             rowFills[idx] *= (1f - outT)
                             rowSides[idx] = -1f
@@ -843,11 +998,34 @@ object RecapExportTimeline {
                 }
             }
 
-            t < e0 -> {
+            t < streak.startMs + 320L -> {
                 textWord = RecapGiantWord.WEEKDAY
                 for (r in -4..4) {
                     val idx = r + RecapFrameValues.ROW_HALF
-                    rowFills[idx] = fastOutSlowIn(window(t, weekday.startMs + 360L + (r + 4) * 50L, 760L))
+                    rowFills[idx] = fastOutSlowIn(window(t, weekday.startMs + 320L + (r + 4) * 45L, 700L))
+                    if (t >= streak.startMs) {
+                        val outT = fastOutSlowIn(window(t, streak.startMs + (4 - r) * 35L, 320L))
+                        if (outT > 0f) {
+                            rowFills[idx] *= (1f - outT)
+                            rowSides[idx] = -1f
+                        }
+                    }
+                }
+            }
+
+            t < p0 -> {
+                textWord = RecapGiantWord.STREAK
+                for (r in -4..4) {
+                    val idx = r + RecapFrameValues.ROW_HALF
+                    rowFills[idx] = fastOutSlowIn(window(t, streak.startMs + 320L + (r + 4) * 45L, 700L))
+                }
+            }
+
+            t < e0 -> {
+                textWord = RecapGiantWord.PERSONA
+                for (r in -4..4) {
+                    val idx = r + RecapFrameValues.ROW_HALF
+                    rowFills[idx] = fastOutSlowIn(window(t, p0 + 200L + (r + 4) * 40L, 680L))
                 }
             }
 

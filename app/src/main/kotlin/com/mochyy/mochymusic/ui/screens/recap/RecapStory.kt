@@ -108,13 +108,16 @@ import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import com.mochyy.mochymusic.LocalDatabase
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.LowEndModeKey
+import com.mochyy.mochymusic.ui.component.TopToaster
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportSheetOverlay
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportTab
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapPart
 import com.mochyy.mochymusic.ui.screens.recap.export.recapPartForStoryPage
+import com.mochyy.mochymusic.ui.screens.recap.export.saveRecapPlaylist
 import com.mochyy.mochymusic.ui.screens.recap.export.supportsRecap60Fps
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.IdCardAspect
 import com.mochyy.mochymusic.ui.screens.setup.onboarding.ProfileIdCard
@@ -149,6 +152,7 @@ internal class RecapStoryData(
     val joinedText: String,
     val joinedDate: LocalDate,
     val allTimeMs: Long,
+    val insights: RecapInsights = buildRecapInsights(stats),
 ) {
     val name: String get() = username.trim().ifEmpty { "you" }
     /** "October" - or "2026" when a forced recap had to fall back to the whole year. */
@@ -175,18 +179,20 @@ internal class RecapAnchors(
     val topInset: Float,
 )
 
-internal const val StoryPageCount = 11
+internal const val StoryPageCount = 13
 internal const val P_HEY = 0
 internal const val P_JOURNEY = 1
 internal const val P_MONTH = 2
 internal const val P_WEEKDAY = 3
-internal const val P_ARTISTS = 4
-internal const val P_ARTIST = 5
-internal const val P_SONGS = 6
-internal const val P_MELODY = 7
-internal const val P_SONG = 8
-internal const val P_RECEIPT = 9
-internal const val P_END = 10
+internal const val P_STREAK = 4
+internal const val P_ARTISTS = 5
+internal const val P_ARTIST = 6
+internal const val P_SONGS = 7
+internal const val P_MELODY = 8
+internal const val P_SONG = 9
+internal const val P_PERSONA = 10
+internal const val P_RECEIPT = 11
+internal const val P_END = 12
 
 internal val StoryDark = Color(0xFF0C0C0C)
 internal val HeaderGrey = Color(0xFF1C1C1C)
@@ -228,6 +234,7 @@ internal class StoryGeometry(val width: Float, val height: Float, val top: Float
         P_JOURNEY -> slot(dp(33f), top + dp(95f), dp(91f))
         P_MONTH -> slot(dp(33f), top + dp(106f), dp(143f))
         P_WEEKDAY -> slot(dp(33f), top + dp(91f), dp(85f))
+        P_STREAK -> slot(dp(33f), top + dp(88f), dp(78f))
         else -> slot(inset, top + dp(31f), dp(36f))
     }
 
@@ -436,6 +443,7 @@ private fun RecapStory(
     onClosed: () -> Unit,
 ) {
     val context = LocalContext.current
+    val database = LocalDatabase.current
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
@@ -452,6 +460,8 @@ private fun RecapStory(
     var exportSheetOpen by exportOpenState
     var exportTab by remember { mutableStateOf(RecapExportTab.VIDEO) }
     var exportPart by remember { mutableStateOf(RecapPart.SUMMARY_CARD) }
+    var playlistSaved by remember(data) { mutableStateOf(false) }
+    var savingPlaylist by remember { mutableStateOf(false) }
 
     var origin by remember { mutableStateOf<Offset?>(null) }
     var windowSize by remember { mutableStateOf(IntSize.Zero) }
@@ -613,6 +623,31 @@ private fun RecapStory(
                 stillMode = false,
                 fullReceiptLayout = false,
                 supports60Fps = supports60Fps,
+                playlistSaved = playlistSaved,
+                onSavePlaylist = if (data.songs.isNotEmpty()) {
+                    {
+                        if (!savingPlaylist) {
+                            savingPlaylist = true
+                            scope.launch {
+                                runCatching { saveRecapPlaylist(context, database, data, includeShareCode = false) }
+                                    .onSuccess { saved ->
+                                        playlistSaved = true
+                                        TopToaster.show(
+                                            text = context.getString(R.string.rc_playlist_saved_toast, saved.name, saved.trackCount),
+                                            thumbnail = data.heroSong?.thumbnailUrl,
+                                            iconRes = R.drawable.playlist_add,
+                                        )
+                                    }
+                                    .onFailure {
+                                        TopToaster.error(context.getString(R.string.rc_playlist_save_failed))
+                                    }
+                                savingPlaylist = false
+                            }
+                        }
+                    }
+                } else {
+                    null
+                },
                 onOpenExportVideo = { openExport(RecapExportTab.VIDEO, RecapPart.SUMMARY_CARD) },
                 onOpenExportParts = { openExport(RecapExportTab.PARTS, RecapPart.RECEIPT) },
             )
@@ -679,6 +714,8 @@ internal fun RecapStoryScene(
     stillMode: Boolean = false,
     fullReceiptLayout: Boolean = false,
     supports60Fps: Boolean = true,
+    playlistSaved: Boolean = false,
+    onSavePlaylist: (() -> Unit)? = null,
     onOpenExportVideo: (() -> Unit)? = null,
     onOpenExportParts: (() -> Unit)? = null,
 ) {
@@ -760,6 +797,8 @@ internal fun RecapStoryScene(
             exportMode = exportMode,
             fullReceiptLayout = fullReceiptLayout,
             supports60Fps = supports60Fps,
+            playlistSaved = playlistSaved,
+            onSavePlaylist = onSavePlaylist,
             onOpenExportVideo = onOpenExportVideo,
             onOpenExportParts = onOpenExportParts,
         )
@@ -978,6 +1017,8 @@ internal class StoryDirector(
         awaitNextOrAfter(1000)
         weekday()
         awaitNext()
+        streak()
+        awaitNext()
         if (data.heroArtist != null) {
             artists()
             awaitNext()
@@ -987,10 +1028,12 @@ internal class StoryDirector(
                 awaitNext()
             }
         } else if (data.heroSong != null) {
-            songsFromWeekday()
+            songsFromStreak()
             melody()
             awaitNext()
         }
+        persona()
+        awaitNext()
         receipt()
         awaitNext()
         end()
@@ -1148,12 +1191,32 @@ internal class StoryDirector(
         )
     }
 
+    private suspend fun streak() {
+        showPage(P_STREAK)
+        together(
+            { s.pages[P_WEEKDAY].exit.go(1f, 650, FastOutSlowInEasing) },
+            { s.avatarTo(P_STREAK, 900, delayMs = 80) },
+            {
+                for (i in -4..4) {
+                    launch { s.text.row(i).slideOut(420) }
+                    delay(40)
+                }
+                delay(280)
+                for (i in -4..4) {
+                    launch { s.text.row(i).slideIn("STREAK", 900) }
+                    delay(50)
+                }
+            },
+            { s.pages[P_STREAK].enter.go(1f, 1900, LinearEasing, delayMs = 420) },
+        )
+    }
+
     // -- the colour arrives; the top ten spin past and stop on #1 --------------------------------
     private suspend fun artists() {
         showPage(P_ARTISTS)
         val n = data.artists.size.coerceAtLeast(1)
         together(
-            { s.pages[P_WEEKDAY].exit.go(1f, 600, FastOutSlowInEasing) },
+            { s.pages[P_STREAK].exit.go(1f, 600, FastOutSlowInEasing) },
             { s.text.alpha.go(0f, 900, FastOutSlowInEasing) },
             { s.dots.go(0f, 900) },
             {
@@ -1192,10 +1255,10 @@ internal class StoryDirector(
         pickTopSong()
     }
 
-    private suspend fun songsFromWeekday() {
+    private suspend fun songsFromStreak() {
         showPage(P_SONGS)
         together(
-            { s.pages[P_WEEKDAY].exit.go(1f, 600, FastOutSlowInEasing) },
+            { s.pages[P_STREAK].exit.go(1f, 600, FastOutSlowInEasing) },
             { s.text.alpha.go(0f, 900) },
             { s.dots.go(0f, 900) },
             {
@@ -1234,11 +1297,44 @@ internal class StoryDirector(
         )
     }
 
+    private suspend fun persona() {
+        showPage(P_PERSONA)
+        val noColorYet = data.heroArtist == null && data.heroSong == null
+        val prevPage = when {
+            data.heroSong != null -> P_SONG
+            data.heroArtist != null -> P_ARTIST
+            else -> P_STREAK
+        }
+        val giantWord = data.insights.persona.id.giantWord
+        together(
+            { s.pages[prevPage].exit.go(1f, 650, FastOutSlowInEasing) },
+            {
+                if (noColorYet) {
+                    s.dots.go(0f, 900)
+                    s.crossfadePalette(artistPalette, 10)
+                    s.mesh.go(1f, 1200, FastOutSlowInEasing)
+                }
+            },
+            { if (noColorYet) s.logoSide.go(1f, 900) },
+            { if (noColorYet) s.avatarTo(P_ARTISTS, 900) },
+            { if (noColorYet) s.avRingAlpha.go(0f, 650) },
+            { s.text.alpha.go(0.14f, 900, FastOutSlowInEasing) },
+            {
+                for (i in -4..4) {
+                    launch { s.text.row(i).slideIn(giantWord, 900) }
+                    delay(45)
+                }
+            },
+            { s.pages[P_PERSONA].enter.go(1f, 1900, LinearEasing, delayMs = 240) },
+        )
+    }
+
     private suspend fun receipt() {
         snippet.stop(1400)
         showPage(P_RECEIPT)
         together(
-            { s.pages[P_SONG].exit.go(1f, 650, FastOutSlowInEasing) },
+            { s.pages[P_PERSONA].exit.go(1f, 650, FastOutSlowInEasing) },
+            { s.text.alpha.go(0f, 500, FastOutSlowInEasing) },
             { s.pages[P_RECEIPT].enter.go(1f, 1300, delayMs = 250) },
         )
     }

@@ -195,6 +195,8 @@ internal fun StoryPages(
     exportMode: Boolean = false,
     fullReceiptLayout: Boolean = false,
     supports60Fps: Boolean = true,
+    playlistSaved: Boolean = false,
+    onSavePlaylist: (() -> Unit)? = null,
     onOpenExportVideo: (() -> Unit)? = null,
     onOpenExportParts: (() -> Unit)? = null,
 ) {
@@ -204,8 +206,10 @@ internal fun StoryPages(
         if (visible(p[P_JOURNEY])) JourneyPage(s, data, time, exportMode = exportMode)
         if (visible(p[P_MONTH])) MonthPage(s, data, time)
         if (visible(p[P_WEEKDAY])) WeekdayPage(s, data, time)
+        if (visible(p[P_STREAK])) StreakPage(s, data)
         if (data.heroArtist != null && visible(p[P_ARTISTS], p[P_ARTIST])) ArtistSequence(s, data, time, exportMode = exportMode)
         if (visible(p[P_SONGS], p[P_MELODY], p[P_SONG])) SongSequence(s, data, time, exportMode = exportMode)
+        if (visible(p[P_PERSONA])) PersonaPage(s, data, time)
         if (visible(p[P_RECEIPT])) ReceiptPage(s, data, exportMode = exportMode, fullReceiptLayout = fullReceiptLayout)
         if (visible(p[P_END])) {
             EndPage(
@@ -214,6 +218,8 @@ internal fun StoryPages(
                 time = time,
                 exportMode = exportMode,
                 supports60Fps = supports60Fps,
+                playlistSaved = playlistSaved,
+                onSavePlaylist = onSavePlaylist,
                 onOpenExportVideo = onOpenExportVideo,
                 onOpenExportParts = onOpenExportParts,
             )
@@ -321,6 +327,7 @@ private fun MonthPage(
     val anim = s.pages[P_MONTH]
     val density = LocalDensity.current
     val drag = { s.dragX }
+    val delta = data.insights.delta
     val n = 4
     Box(
         modifier =
@@ -330,6 +337,37 @@ private fun MonthPage(
                 .padding(horizontal = 30.dp),
     ) {
         Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
+            if (delta.hasPrevious) {
+                val up = delta.timeDeltaPercent >= 0
+                val tint = if (up) Color(0xFF88FF76) else Color(0xFFFFD180)
+                val arrow = if (up) "▲" else "▼"
+                val sign = if (up) "+${delta.timeDeltaPercent}%" else "${delta.timeDeltaPercent}%"
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.End)
+                            .padding(end = 6.dp, bottom = 10.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.12f))
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .lineMotion(anim, 0, n, enterFromDp = 50f, drag = drag),
+                ) {
+                    Text(
+                        text = "$arrow $sign",
+                        style = recapBold(12.5f, lineHeight = 15f, tracking = 0f).copy(color = tint),
+                    )
+                    Text(
+                        text = stringResource(R.string.rc_delta_vs_period, delta.previousLabel) +
+                            if (delta.isNewTopArtist) " · ${stringResource(R.string.rc_delta_new_artist_tag)}" else "",
+                        style = recapBold(12.5f, lineHeight = 15f, tracking = 0f, weight = FontWeight.Medium),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
             Text(
                 stringResource(R.string.rc_story_month_is, data.monthName),
                 style = recapBold(44f),
@@ -485,6 +523,84 @@ private fun WeekdayPage(
         Text(
             if (more >= 0) stringResource(R.string.rc_story_more_than_second) else stringResource(R.string.rc_story_nothing_close),
             style = big,
+            modifier = Modifier.lineMotion(anim, 4, n, drag = drag),
+        )
+    }
+}
+
+@Composable
+private fun StreakPage(
+    s: StoryState,
+    data: RecapStoryData,
+) {
+    val geo = s.geo
+    val anim = s.pages[P_STREAK]
+    val av = geo.avatar(P_STREAK)
+    val drag = { s.dragX }
+    val n = 5
+    val streak = data.insights.streak
+    val dateFmt = remember { DateTimeFormatter.ofPattern("dd/MM") }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .at(0f, av[1] + av[2] / 2f + geo.dp(24f))
+                .padding(horizontal = 36.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.rc_story_streak_title),
+            style = recapBold(28f, lineHeight = 32f),
+            modifier = Modifier.lineMotion(anim, 0, n, drag = drag),
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.lineMotion(anim, 1, n, drag = drag)) {
+            OdometerText(
+                text = "${streak.longestStreakDays}",
+                style = recapBold(76f, lineHeight = 80f, tracking = -3f, weight = FontWeight.ExtraBold),
+                progress = { stagger(anim.enter.value, 1, n) },
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = pluralStringResource(R.plurals.rc_story_streak_days, streak.longestStreakDays),
+                style = recapBold(32f, lineHeight = 36f),
+                modifier = Modifier.padding(bottom = 10.dp),
+            )
+        }
+        val spanText = if (streak.streakStart != null && streak.streakEnd != null) {
+            if (streak.streakStart == streak.streakEnd) {
+                streak.streakStart.format(dateFmt)
+            } else {
+                "${streak.streakStart.format(dateFmt)} – ${streak.streakEnd.format(dateFmt)}"
+            }
+        } else {
+            data.monthName
+        }
+        Text(
+            text = stringResource(R.string.rc_story_streak_span, spanText, streak.activeDaysCount),
+            style = recapBold(17f, lineHeight = 22f, tracking = -0.2f).copy(color = Color.White.copy(alpha = 0.78f)),
+            modifier = Modifier.padding(top = 6.dp).lineMotion(anim, 2, n, drag = drag),
+        )
+    }
+
+    val peakLabel = streak.peakDate?.format(dateFmt) ?: data.monthName
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .at(0f, geo.fy(520f))
+                .padding(horizontal = 36.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.rc_story_peak_day_label, peakLabel),
+            style = recapBold(20f, lineHeight = 24f).copy(color = Color.White.copy(alpha = 0.78f)),
+            modifier = Modifier.lineMotion(anim, 3, n, drag = drag),
+        )
+        Spacer(Modifier.height(6.dp))
+        OdometerText(
+            text = formatHoursMinutes(streak.peakDayMs),
+            style = recapBold(44f, lineHeight = 48f),
+            progress = { stagger(anim.enter.value, 4, n) },
             modifier = Modifier.lineMotion(anim, 4, n, drag = drag),
         )
     }
@@ -945,6 +1061,178 @@ private fun SongReveal(
 }
 
 // ---------------------------------------------------------------------------------------------
+// Listener Persona ("Hệ người nghe")
+
+internal fun personaTitleRes(id: RecapPersonaId): Int = when (id) {
+    RecapPersonaId.NIGHT_OWL -> R.string.rc_persona_night_owl_title
+    RecapPersonaId.DAWN_CHASER -> R.string.rc_persona_dawn_chaser_title
+    RecapPersonaId.ONE_SONG_DEVOTEE -> R.string.rc_persona_one_song_title
+    RecapPersonaId.ARTIST_LOYALIST -> R.string.rc_persona_artist_loyalist_title
+    RecapPersonaId.SONIC_EXPLORER -> R.string.rc_persona_explorer_title
+    RecapPersonaId.STREAK_MACHINE -> R.string.rc_persona_streak_machine_title
+    RecapPersonaId.GOLDEN_HOUR -> R.string.rc_persona_golden_hour_title
+    RecapPersonaId.VIBE_CURATOR -> R.string.rc_persona_curator_title
+}
+
+@Composable
+internal fun personaDescriptionText(
+    persona: RecapPersonaResult,
+    stats: ListeningStats,
+): String = when (persona.id) {
+    RecapPersonaId.NIGHT_OWL -> stringResource(R.string.rc_persona_night_owl_desc, persona.nightSharePercent, persona.peakHour)
+    RecapPersonaId.DAWN_CHASER -> stringResource(R.string.rc_persona_dawn_chaser_desc, persona.peakHour)
+    RecapPersonaId.ONE_SONG_DEVOTEE -> stringResource(
+        R.string.rc_persona_one_song_desc,
+        stats.topSongs.firstOrNull()?.title.orEmpty(),
+        persona.topSongPlays,
+    )
+    RecapPersonaId.ARTIST_LOYALIST -> stringResource(
+        R.string.rc_persona_artist_loyalist_desc,
+        stats.topArtists.firstOrNull()?.name.orEmpty(),
+        persona.topArtistSharePercent,
+    )
+    RecapPersonaId.SONIC_EXPLORER -> stringResource(R.string.rc_persona_explorer_desc, stats.songCount, stats.artistCount)
+    RecapPersonaId.STREAK_MACHINE -> stringResource(
+        R.string.rc_persona_streak_machine_desc,
+        stats.streak.longestStreakDays,
+        formatHoursMinutes(stats.totalMs),
+    )
+    RecapPersonaId.GOLDEN_HOUR -> stringResource(R.string.rc_persona_golden_hour_desc, persona.peakHour)
+    RecapPersonaId.VIBE_CURATOR -> stringResource(R.string.rc_persona_curator_desc, stats.artistCount, persona.peakHour)
+}
+
+@Composable
+private fun PersonaPage(
+    s: StoryState,
+    data: RecapStoryData,
+    time: RecapTime,
+) {
+    val geo = s.geo
+    val anim = s.pages[P_PERSONA]
+    val drag = { s.dragX }
+    val persona = data.insights.persona
+    val title = stringResource(personaTitleRes(persona.id))
+    val desc = personaDescriptionText(persona, data.stats)
+    val palette = remember(s.paletteTo) { s.paletteTo.textColors() }
+    val n = 4
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .at(geo.inset, geo.top + geo.dp(96f))
+                .padding(end = 36.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.14f))
+                    .border(1.dp, Color.White.copy(alpha = 0.24f), CircleShape)
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                    .lineMotion(anim, 0, n, enterFromDp = 70f, drag = drag),
+        ) {
+            Text(
+                text = "${persona.id.clubCode}  ·  ${stringResource(R.string.rc_persona_header)}",
+                style = TextStyle(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.5f.sp,
+                    letterSpacing = 0.8f.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+        BasicText(
+            text = title,
+            style = recapBold(52f, lineHeight = 56f, tracking = -2.2f, weight = FontWeight.ExtraBold),
+            maxLines = 2,
+            autoSize = TextAutoSize.StepBased(minFontSize = 28.sp, maxFontSize = 52.sp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .lineMotion(anim, 1, n, enterFromDp = 90f, drag = drag)
+                    .gradientToWhite(
+                        colors = { palette },
+                        whiteness = { ((anim.enter.value - 0.55f) / 0.45f).coerceIn(0f, 1f) },
+                        time = time,
+                    ),
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = desc,
+            style = recapBold(20f, lineHeight = 26f, tracking = -0.3f, weight = FontWeight.SemiBold).copy(
+                color = Color.White.copy(alpha = 0.90f),
+            ),
+            modifier = Modifier.lineMotion(anim, 2, n, enterFromDp = 80f, drag = drag),
+        )
+    }
+
+    val peakHourWindow = "%02d:00 – %02d:00".format(persona.peakHour, (persona.peakHour + 1) % 24)
+    val signatureStat = when (persona.id) {
+        RecapPersonaId.NIGHT_OWL -> "${persona.nightSharePercent}%"
+        RecapPersonaId.ONE_SONG_DEVOTEE -> "${persona.topSongPlays}x"
+        RecapPersonaId.ARTIST_LOYALIST -> "${persona.topArtistSharePercent}%"
+        RecapPersonaId.STREAK_MACHINE -> "${data.insights.streak.longestStreakDays}d"
+        else -> "${data.stats.songCount}"
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .at(0f, geo.fy(522f))
+                .padding(horizontal = 36.dp)
+                .lineMotion(anim, 3, n, drag = drag),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White.copy(alpha = 0.12f))
+                    .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.rc_persona_peak_hour_label),
+                style = recapBold(12f, lineHeight = 15f, tracking = 0f, weight = FontWeight.Medium).copy(
+                    color = Color.White.copy(alpha = 0.72f),
+                ),
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = peakHourWindow,
+                style = recapBold(20f, lineHeight = 24f, tracking = -0.4f),
+            )
+        }
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White.copy(alpha = 0.12f))
+                    .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.rc_persona_signature_label),
+                style = recapBold(12f, lineHeight = 15f, tracking = 0f, weight = FontWeight.Medium).copy(
+                    color = Color.White.copy(alpha = 0.72f),
+                ),
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = signatureStat,
+                style = recapBold(20f, lineHeight = 24f, tracking = -0.4f),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
 // The bill
 
 private val Paper = Color(0xFFEEECE6)
@@ -1158,6 +1446,8 @@ private fun EndPage(
     time: RecapTime,
     exportMode: Boolean = false,
     supports60Fps: Boolean = true,
+    playlistSaved: Boolean = false,
+    onSavePlaylist: (() -> Unit)? = null,
     onOpenExportVideo: (() -> Unit)? = null,
     onOpenExportParts: (() -> Unit)? = null,
 ) {
@@ -1175,7 +1465,7 @@ private fun EndPage(
         modifier = Modifier.at(geo.inset, cardBottom + geo.dp(34f)).padding(end = 36.dp).lineMotion(anim, 1, 4, exitToDp = 0f),
     )
     if (!exportMode) {
-        if (onOpenExportVideo != null || onOpenExportParts != null) {
+        if (onOpenExportVideo != null || onOpenExportParts != null || onSavePlaylist != null) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier =
@@ -1226,31 +1516,77 @@ private fun EndPage(
                         }
                     }
                 }
-                if (onOpenExportParts != null) {
+                if (onOpenExportParts != null || onSavePlaylist != null) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(22.dp))
-                                .background(Color.White.copy(alpha = 0.14f))
-                                .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(22.dp))
-                                .clickable(onClick = onOpenExportParts)
-                                .padding(horizontal = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.image),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.rc_export_action_parts),
-                            style = recapBold(14.5f, lineHeight = 18f, tracking = -0.2f),
-                        )
+                        if (onOpenExportParts != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .height(44.dp)
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(Color.White.copy(alpha = 0.14f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(22.dp))
+                                        .clickable(onClick = onOpenExportParts)
+                                        .padding(horizontal = 12.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.image),
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(17.dp),
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.rc_export_action_parts),
+                                    style = recapBold(13.5f, lineHeight = 16f, tracking = -0.2f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        if (onSavePlaylist != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .height(44.dp)
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(
+                                            if (playlistSaved) Color(0xFF5EE89A).copy(alpha = 0.24f) else Color.White.copy(alpha = 0.14f),
+                                        )
+                                        .border(
+                                            1.dp,
+                                            if (playlistSaved) Color(0xFF5EE89A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.24f),
+                                            RoundedCornerShape(22.dp),
+                                        )
+                                        .clickable(onClick = onSavePlaylist)
+                                        .padding(horizontal = 12.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(if (playlistSaved) R.drawable.check else R.drawable.playlist_add),
+                                    contentDescription = null,
+                                    tint = if (playlistSaved) Color(0xFF88FF76) else Color.White,
+                                    modifier = Modifier.size(17.dp),
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(
+                                        if (playlistSaved) R.string.rc_playlist_saved_btn else R.string.rc_playlist_save_btn,
+                                    ),
+                                    style = recapBold(13.5f, lineHeight = 16f, tracking = -0.2f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                 }
             }

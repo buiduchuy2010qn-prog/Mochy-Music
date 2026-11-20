@@ -41,6 +41,9 @@ data class StatsRange(val kind: Kind, val year: Int, val month: Int = 1) {
     /** Days in the month, or 12 for a year: how many buckets [ListeningStats.bucketMs] has. */
     val bucketCount: Int get() = if (kind == Kind.Month) start.lengthOfMonth() else 12
 
+    fun previous(): StatsRange =
+        if (kind == Kind.Month) monthOf(start.minusMonths(1)) else StatsRange(Kind.Year, year - 1)
+
     companion object {
         fun monthOf(date: LocalDate) = StatsRange(Kind.Month, date.year, date.monthValue)
         fun yearOf(date: LocalDate) = StatsRange(Kind.Year, date.year)
@@ -87,18 +90,24 @@ class ListeningStats(
     val hourMs: List<Long>,
     /** Listening time per day of the month, or per month of the year. */
     val bucketMs: List<Long>,
+    /** Consecutive listening streak & single peak day within [range]. */
+    val streak: RecapStreakStats = RecapStreakStats(0, null, null, null, 0L, 0),
 ) {
     val isEmpty: Boolean get() = plays == 0
 
     companion object {
-        const val MaxSongs = 20
+        const val MaxSongs = 25
         const val MaxArtists = 25
     }
 }
 
 /** What the recap card's barcode leads to once it's scanned. */
 sealed interface RecapAvailability {
-    data class Ready(val stats: ListeningStats, val monthProgressPercent: Int) : RecapAvailability
+    data class Ready(
+        val stats: ListeningStats,
+        val monthProgressPercent: Int,
+        val insights: RecapInsights = buildRecapInsights(stats),
+    ) : RecapAvailability
 
     /** Not unlocked yet; [comeBack] finishes "come back later ...". */
     data class NotYet(val comeBack: String) : RecapAvailability
@@ -113,6 +122,13 @@ internal object RecapRepository {
         withContext(Dispatchers.Default) { aggregate(range, events, songs) }
     }
 
+    suspend fun loadWithInsights(db: MusicDatabase, range: StatsRange): Pair<ListeningStats, RecapInsights> {
+        val current = load(db, range)
+        if (current.isEmpty) return current to buildRecapInsights(current, null)
+        val previous = load(db, range.previous())
+        return current to buildRecapInsights(current, previous)
+    }
+
     /**
      * The month the recap is about today, or why there isn't one yet. [force] (Experimental) opens
      * it anyway with whatever has been played: this month, else last month, else this year.
@@ -123,7 +139,10 @@ internal object RecapRepository {
         val candidates = listOf(StatsRange.monthOf(today), StatsRange.monthOf(today.minusMonths(1)), StatsRange.yearOf(today))
         for (range in candidates) {
             val stats = load(db, range)
-            if (stats.songCount > 0) return RecapAvailability.Ready(stats, progressOf(range, today))
+            if (stats.songCount > 0) {
+                val previous = load(db, range.previous())
+                return RecapAvailability.Ready(stats, progressOf(range, today), buildRecapInsights(stats, previous))
+            }
         }
         return RecapAvailability.NotYet("once you've played a song")
     }
@@ -139,9 +158,12 @@ internal object RecapRepository {
     private suspend fun recapByTheRules(db: MusicDatabase, today: LocalDate): RecapAvailability {
         val thisMonth = StatsRange.monthOf(today)
         if (today.dayOfMonth < RecapFirstDay) {
-            val previous = StatsRange.monthOf(today.minusMonths(1))
-            val stats = load(db, previous)
-            if (stats.songCount >= RecapMinSongs) return RecapAvailability.Ready(stats, 100)
+            val previousRange = StatsRange.monthOf(today.minusMonths(1))
+            val stats = load(db, previousRange)
+            if (stats.songCount >= RecapMinSongs) {
+                val earlier = load(db, previousRange.previous())
+                return RecapAvailability.Ready(stats, 100, buildRecapInsights(stats, earlier))
+            }
             val unlock = today.withDayOfMonth(RecapFirstDay)
             return RecapAvailability.NotYet(
                 "on ${unlock.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} $RecapFirstDay, " +
@@ -151,7 +173,8 @@ internal object RecapRepository {
         val stats = load(db, thisMonth)
         if (stats.songCount >= RecapMinSongs) {
             val percent = (today.dayOfMonth * 100f / today.lengthOfMonth()).roundToInt().coerceIn(1, 100)
-            return RecapAvailability.Ready(stats, percent)
+            val earlier = load(db, thisMonth.previous())
+            return RecapAvailability.Ready(stats, percent, buildRecapInsights(stats, earlier))
         }
         val missing = RecapMinSongs - stats.songCount
         return RecapAvailability.NotYet(
@@ -168,6 +191,7 @@ internal object RecapRepository {
         class Acc(var ms: Long = 0L, var plays: Int = 0)
 
         val perSong = HashMap<String, Acc>()
+        val perDate = HashMap<LocalDate, Long>()
         val weekday = LongArray(7)
         val hour = LongArray(24)
         val buckets = LongArray(range.bucketCount)
@@ -180,6 +204,10 @@ internal object RecapRepository {
                 plays++
             }
             val at = storedMillisToDateTime(e.timestamp)
+            val d = at.toLocalDate()
+            if (!d.isBefore(range.start) && d.isBefore(range.endExclusive)) {
+                perDate[d] = (perDate[d] ?: 0L) + ms
+            }
             weekday[at.dayOfWeek.value - 1] += ms
             hour[at.hour] += ms
             val bucket = if (range.kind == StatsRange.Kind.Month) at.dayOfMonth - 1 else at.monthValue - 1
@@ -252,6 +280,7 @@ internal object RecapRepository {
             weekdayMs = weekday.toList(),
             hourMs = hour.toList(),
             bucketMs = buckets.toList(),
+            streak = computeStreakFromDailyMap(perDate),
         )
     }
 }

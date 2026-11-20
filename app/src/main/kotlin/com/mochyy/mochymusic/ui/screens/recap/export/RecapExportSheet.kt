@@ -108,8 +108,10 @@ internal fun RecapPart.titleRes(): Int = when (this) {
     RecapPart.JOURNEY -> R.string.rc_part_journey
     RecapPart.MONTH -> R.string.rc_part_month
     RecapPart.WEEKDAY -> R.string.rc_part_weekday
+    RecapPart.STREAK -> R.string.rc_part_streak
     RecapPart.TOP_ARTIST -> R.string.rc_part_top_artist
     RecapPart.TOP_SONG -> R.string.rc_part_top_song
+    RecapPart.PERSONA -> R.string.rc_part_persona
     RecapPart.RECEIPT -> R.string.rc_part_receipt
     RecapPart.SUMMARY_CARD -> R.string.rc_part_summary_card
 }
@@ -119,8 +121,10 @@ internal fun RecapPart.subtitleRes(): Int = when (this) {
     RecapPart.JOURNEY -> R.string.rc_part_journey_sub
     RecapPart.MONTH -> R.string.rc_part_month_sub
     RecapPart.WEEKDAY -> R.string.rc_part_weekday_sub
+    RecapPart.STREAK -> R.string.rc_part_streak_sub
     RecapPart.TOP_ARTIST -> R.string.rc_part_top_artist_sub
     RecapPart.TOP_SONG -> R.string.rc_part_top_song_sub
+    RecapPart.PERSONA -> R.string.rc_part_persona_sub
     RecapPart.RECEIPT -> R.string.rc_part_receipt_sub
     RecapPart.SUMMARY_CARD -> R.string.rc_part_summary_card_sub
 }
@@ -217,6 +221,7 @@ internal fun RecapExportSheetOverlay(
     var use60Fps by remember(visible, defaultConfig) { mutableStateOf(defaultConfig.fps >= 60) }
     var includeAudio by remember { mutableStateOf(true) }
     var fullReceiptImage by remember { mutableStateOf(true) }
+    var savingPlaylist by remember { mutableStateOf(false) }
 
     var offscreenHost by remember { mutableStateOf<ViewGroup?>(null) }
     var exportCoroutine by remember { mutableStateOf<Job?>(null) }
@@ -806,6 +811,88 @@ internal fun RecapExportSheetOverlay(
                             onClick = ::runAllStillsExport,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                    }
+
+                    if (!isExporting && data.songs.isNotEmpty()) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(SheetCard)
+                                    .border(1.dp, SheetCardBorder, RoundedCornerShape(20.dp))
+                                    .padding(14.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.rc_playlist_card_title),
+                                style = recapBold(14.5f, lineHeight = 18f, tracking = -0.2f),
+                            )
+                            Text(
+                                text = stringResource(R.string.rc_playlist_card_desc, data.songs.take(25).size),
+                                style = recapBold(12f, lineHeight = 16f, tracking = 0f, weight = FontWeight.Normal).copy(color = SheetMuted),
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                PrimaryActionButton(
+                                    label = stringResource(R.string.rc_playlist_save_btn),
+                                    iconRes = R.drawable.playlist_add,
+                                    filled = false,
+                                    onClick = {
+                                        if (!savingPlaylist) {
+                                            savingPlaylist = true
+                                            scope.launch {
+                                                runCatching { saveRecapPlaylist(context, database, data, includeShareCode = false) }
+                                                    .onSuccess { saved ->
+                                                        com.mochyy.mochymusic.ui.component.TopToaster.show(
+                                                            text = context.getString(R.string.rc_playlist_saved_toast, saved.name, saved.trackCount),
+                                                            thumbnail = data.heroSong?.thumbnailUrl,
+                                                            iconRes = R.drawable.playlist_add,
+                                                        )
+                                                    }
+                                                    .onFailure {
+                                                        com.mochyy.mochymusic.ui.component.TopToaster.error(context.getString(R.string.rc_playlist_save_failed))
+                                                    }
+                                                savingPlaylist = false
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                )
+                                PrimaryActionButton(
+                                    label = stringResource(R.string.rc_playlist_copy_code_btn),
+                                    iconRes = R.drawable.content_copy,
+                                    filled = false,
+                                    onClick = {
+                                        if (!savingPlaylist) {
+                                            savingPlaylist = true
+                                            scope.launch {
+                                                runCatching { saveRecapPlaylist(context, database, data, includeShareCode = true) }
+                                                    .onSuccess { saved ->
+                                                        val code = saved.shareCode
+                                                        if (code != null && copyRecapPlaylistCodeToClipboard(context, saved.name, code)) {
+                                                            com.mochyy.mochymusic.ui.component.TopToaster.show(
+                                                                text = context.getString(R.string.rc_playlist_code_copied),
+                                                                thumbnail = data.heroSong?.thumbnailUrl,
+                                                                iconRes = R.drawable.content_copy,
+                                                            )
+                                                        } else {
+                                                            com.mochyy.mochymusic.ui.component.TopToaster.error(context.getString(R.string.rc_playlist_code_failed))
+                                                        }
+                                                    }
+                                                    .onFailure {
+                                                        com.mochyy.mochymusic.ui.component.TopToaster.error(context.getString(R.string.rc_playlist_save_failed))
+                                                    }
+                                                savingPlaylist = false
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
                     }
                 }
             }

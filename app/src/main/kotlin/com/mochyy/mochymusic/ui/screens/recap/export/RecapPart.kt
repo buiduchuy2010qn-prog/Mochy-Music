@@ -9,8 +9,10 @@ enum class RecapPart(val id: String) {
     JOURNEY("journey"),
     MONTH("month"),
     WEEKDAY("weekday"),
+    STREAK("streak"),
     TOP_ARTIST("top_artist"),
     TOP_SONG("top_song"),
+    PERSONA("persona"),
     RECEIPT("receipt"),
     SUMMARY_CARD("summary_card"),
 }
@@ -24,8 +26,10 @@ fun availableRecapParts(hasHeroArtist: Boolean, hasHeroSong: Boolean): List<Reca
     add(RecapPart.JOURNEY)
     add(RecapPart.MONTH)
     add(RecapPart.WEEKDAY)
+    add(RecapPart.STREAK)
     if (hasHeroArtist) add(RecapPart.TOP_ARTIST)
     if (hasHeroSong) add(RecapPart.TOP_SONG)
+    add(RecapPart.PERSONA)
     add(RecapPart.RECEIPT)
     add(RecapPart.SUMMARY_CARD)
 }

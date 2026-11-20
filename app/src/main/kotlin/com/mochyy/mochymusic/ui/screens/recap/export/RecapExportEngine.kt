@@ -73,9 +73,11 @@ import com.mochyy.mochymusic.ui.screens.recap.P_HEY
 import com.mochyy.mochymusic.ui.screens.recap.P_JOURNEY
 import com.mochyy.mochymusic.ui.screens.recap.P_MELODY
 import com.mochyy.mochymusic.ui.screens.recap.P_MONTH
+import com.mochyy.mochymusic.ui.screens.recap.P_PERSONA
 import com.mochyy.mochymusic.ui.screens.recap.P_RECEIPT
 import com.mochyy.mochymusic.ui.screens.recap.P_SONG
 import com.mochyy.mochymusic.ui.screens.recap.P_SONGS
+import com.mochyy.mochymusic.ui.screens.recap.P_STREAK
 import com.mochyy.mochymusic.ui.screens.recap.P_WEEKDAY
 import com.mochyy.mochymusic.ui.screens.recap.RecapPalette
 import com.mochyy.mochymusic.ui.screens.recap.RecapPalettes
@@ -141,8 +143,10 @@ internal fun recapPartForStoryPage(page: Int, data: RecapStoryData): RecapPart =
     P_HEY, P_JOURNEY -> RecapPart.JOURNEY
     P_MONTH -> RecapPart.MONTH
     P_WEEKDAY -> RecapPart.WEEKDAY
-    P_ARTISTS, P_ARTIST -> if (data.heroArtist != null) RecapPart.TOP_ARTIST else RecapPart.JOURNEY
-    P_SONGS, P_MELODY, P_SONG -> if (data.heroSong != null) RecapPart.TOP_SONG else RecapPart.RECEIPT
+    P_STREAK -> RecapPart.STREAK
+    P_ARTISTS, P_ARTIST -> if (data.heroArtist != null) RecapPart.TOP_ARTIST else RecapPart.STREAK
+    P_SONGS, P_MELODY, P_SONG -> if (data.heroSong != null) RecapPart.TOP_SONG else RecapPart.PERSONA
+    P_PERSONA -> RecapPart.PERSONA
     P_RECEIPT -> RecapPart.RECEIPT
     P_END -> RecapPart.SUMMARY_CARD
     else -> RecapPart.SUMMARY_CARD
@@ -290,6 +294,8 @@ internal suspend fun applyRecapFrameValues(
         RecapGiantWord.MOCHY -> "MOCHY"
         RecapGiantWord.MONTH -> data.monthName.uppercase()
         RecapGiantWord.WEEKDAY -> DayOfWeek.of(data.favouriteDay + 1).displayName().uppercase()
+        RecapGiantWord.STREAK -> "STREAK"
+        RecapGiantWord.PERSONA -> data.insights.persona.id.giantWord
     }
     for (idx in 0 until RecapFrameValues.ROW_COUNT) {
         val row = state.text.row(idx - RecapFrameValues.ROW_HALF)

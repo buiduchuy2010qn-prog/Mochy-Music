@@ -406,6 +406,7 @@ fun ProfileScreen(navController: NavController) {
                         joinedText = joinedText,
                         joinedDate = joinedDate,
                         allTimeMs = totalListeningMs,
+                        insights = r.insights,
                     ) to RecapAnchors(
                         expandedCard = cardOnScreen,
                         headerCard = Rect(

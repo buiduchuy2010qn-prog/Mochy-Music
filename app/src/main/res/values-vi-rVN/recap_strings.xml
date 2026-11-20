@@ -175,4 +175,59 @@
     <string name="rc_part_receipt_sub">Hóa đơn trọn bộ Top 10 Nghệ sĩ &amp; Top 10 Bài hát</string>
     <string name="rc_part_summary_card">Thẻ tổng kết</string>
     <string name="rc_part_summary_card_sub">Thẻ hồ sơ Mochy chốt màn Re\'cap</string>
+
+    <!-- v12.3.0 Re'cap Insights: Delta, Streak, Persona & Playlist -->
+    <string name="rc_delta_vs_period">so với %1$s</string>
+    <string name="rc_delta_new_artist_tag">Nghệ sĩ #1 mới</string>
+    <string name="rc_story_streak_title">Chuỗi ngày nghe\nliên tiếp dài nhất</string>
+    <plurals name="rc_story_streak_days">
+        <item quantity="other">ngày</item>
+    </plurals>
+    <string name="rc_story_streak_span">%1$s · %2$d ngày nghe nhạc</string>
+    <string name="rc_story_peak_day_label">Và ngày bùng nổ nhất là %1$s với</string>
+
+    <string name="rc_persona_header">HỆ NGƯỜI NGHE</string>
+    <string name="rc_persona_peak_hour_label">Khung giờ ruột</string>
+    <string name="rc_persona_signature_label">Dấu ấn nổi bật</string>
+    <string name="rc_persona_night_owl_title">Cú Đêm Suy Ngẫm</string>
+    <string name="rc_persona_night_owl_desc">Tới %1$d%% thời gian nghe nhạc diễn ra lúc đêm muộn, chạm đỉnh khoảng %2$d:00.</string>
+    <string name="rc_persona_dawn_chaser_title">Hệ Đón Bình Minh</string>
+    <string name="rc_persona_dawn_chaser_desc">Âm nhạc luôn mở đầu buổi sáng của bạn — thường vang lên nhiều nhất lúc %1$d:00.</string>
+    <string name="rc_persona_one_song_title">Hệ Lụy Một Bài</string>
+    <string name="rc_persona_one_song_desc">Một khi đã nghiện \"%1$s\" là không dứt ra được — bạn đã phát lại tới %2$d lần!</string>
+    <string name="rc_persona_artist_loyalist_title">Fan Cứng Chung Thủy</string>
+    <string name="rc_persona_artist_loyalist_desc">%1$s gần như chiếm trọn gu nghe của bạn, nắm giữ tới %2$d%% tổng thời lượng.</string>
+    <string name="rc_persona_explorer_title">Nhà Thám Hiểm Âm Nhạc</string>
+    <string name="rc_persona_explorer_desc">Luôn tìm kiếm giai điệu mới: bạn đã dạo qua %1$d bài hát của %2$d nghệ sĩ khác nhau.</string>
+    <string name="rc_persona_streak_machine_title">Máy Nghiền Nhạc Không Nghỉ</string>
+    <string name="rc_persona_streak_machine_desc">Tai nghe gần như chẳng kịp nghỉ: chuỗi %1$d ngày liên tiếp với %2$s nghe nhạc.</string>
+    <string name="rc_persona_golden_hour_title">Hệ Chill Hoàng Hôn</string>
+    <string name="rc_persona_golden_hour_desc">Khoảnh khắc tan tầm và chiều tối là lúc bạn chill nhất, cao điểm khoảng %1$d:00.</string>
+    <string name="rc_persona_curator_title">Nhà Giám Tuyển Gu Nhạc</string>
+    <string name="rc_persona_curator_desc">Cân bằng và tinh tế — thưởng thức %1$d nghệ sĩ với khung giờ vàng lúc %2$d:00.</string>
+
+    <string name="rc_part_streak">Chuỗi ngày</string>
+    <string name="rc_part_streak_sub">Chuỗi ngày nghe liên tiếp và ngày bùng nổ nhất</string>
+    <string name="rc_part_persona">Hệ người nghe</string>
+    <string name="rc_part_persona_sub">Danh hiệu cá tính âm nhạc và khung giờ ruột</string>
+
+    <string name="rc_stats_persona_streak_header">Hệ người nghe &amp; Chuỗi ngày</string>
+    <plurals name="rc_stats_streak_chip">
+        <item quantity="other">Chuỗi %1$d ngày</item>
+    </plurals>
+    <string name="rc_stats_peak_chip">Đỉnh %1$s (%2$s)</string>
+    <string name="rc_stats_streak_detail">Chuỗi dài nhất: %1$s · %2$d ngày có nghe nhạc</string>
+
+    <string name="rc_playlist_title_month">Re\'cap %1$s %2$d</string>
+    <string name="rc_playlist_title_year">Re\'cap Năm %1$d</string>
+    <string name="rc_playlist_desc">Tuyển tập bài hát nghe nhiều nhất từ Mochy Re\'cap · %1$s · %2$d lượt phát</string>
+    <string name="rc_playlist_card_title">Tạo Playlist Re\'cap của riêng bạn</string>
+    <string name="rc_playlist_card_desc">Gom trọn Top %1$d bài hát thành Playlist trong Thư viện hoặc sao chép mã chia sẻ cho bạn bè.</string>
+    <string name="rc_playlist_save_btn">Lưu Playlist</string>
+    <string name="rc_playlist_saved_btn">Đã lưu Playlist</string>
+    <string name="rc_playlist_copy_code_btn">Chép mã chia sẻ</string>
+    <string name="rc_playlist_saved_toast">Đã lưu \"%1$s\" (%2$d bài hát) vào Thư viện</string>
+    <string name="rc_playlist_save_failed">Không thể lưu Playlist Re\'cap</string>
+    <string name="rc_playlist_code_copied">Đã sao chép mã playlist mochypl1:</string>
+    <string name="rc_playlist_code_failed">Không tạo được mã chia sẻ (chỉ hỗ trợ bài hát trực tuyến)</string>
 </resources>

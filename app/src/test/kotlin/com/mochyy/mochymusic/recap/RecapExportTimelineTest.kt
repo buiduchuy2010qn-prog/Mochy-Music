@@ -2,6 +2,7 @@ package com.mochyy.mochymusic.recap
 
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportTimeline
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapFrameValues
+import com.mochyy.mochymusic.ui.screens.recap.export.RecapGiantWord
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapPaletteMode
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapPart
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapSegmentKind
@@ -22,15 +23,17 @@ class RecapExportTimelineTest {
             hasHeroSong = true,
             artistCount = 10,
         )
-        assertTrue("Full video should be ~22-30s", plan.totalDurationMs in 20_000L..30_000L)
+        assertTrue("Full video should be ~24-30s", plan.totalDurationMs in 24_000L..30_000L)
         assertEquals(
             listOf(
                 RecapSegmentKind.HEY,
                 RecapSegmentKind.JOURNEY,
                 RecapSegmentKind.MONTH,
                 RecapSegmentKind.WEEKDAY,
+                RecapSegmentKind.STREAK,
                 RecapSegmentKind.ARTIST_SPIN_REVEAL,
                 RecapSegmentKind.SONG_GRID_REVEAL,
+                RecapSegmentKind.PERSONA,
                 RecapSegmentKind.RECEIPT,
                 RecapSegmentKind.END_CARD,
             ),
@@ -50,15 +53,21 @@ class RecapExportTimelineTest {
         }
         var maxReceiptScroll = 0f
         var sawMesh = false
+        var sawStreak = false
+        var sawPersona = false
         var sawEndCard = false
         for (ms in sampleTimes) {
             val f = RecapExportTimeline.evaluateFrame(plan, ms)
             assertValidFrame(f)
             if (f.mesh > 0.95f) sawMesh = true
+            if (f.pageEnters[RecapFrameValues.PAGE_STREAK] > 0.95f) sawStreak = true
+            if (f.pageEnters[RecapFrameValues.PAGE_PERSONA] > 0.95f) sawPersona = true
             if (f.cardVisible && f.cardYProgress > 0.95f) sawEndCard = true
             if (f.receiptScroll > maxReceiptScroll) maxReceiptScroll = f.receiptScroll
         }
         assertTrue("Full timeline must transition into Mochy's MeshGradient", sawMesh)
+        assertTrue("Full timeline must include Streak page", sawStreak)
+        assertTrue("Full timeline must include Persona page", sawPersona)
         assertTrue("Full timeline must scroll receipt all the way to END OF LINE", maxReceiptScroll >= 0.99f)
         assertTrue("Full timeline must conclude with Profile ID Card", sawEndCard)
     }
@@ -68,15 +77,20 @@ class RecapExportTimelineTest {
         val noArtist = RecapExportTimeline.buildFullTimeline(hasHeroArtist = false, hasHeroSong = true, artistCount = 0)
         assertFalse(noArtist.segments.any { it.kind == RecapSegmentKind.ARTIST_SPIN_REVEAL })
         assertTrue(noArtist.segments.any { it.kind == RecapSegmentKind.SONG_GRID_REVEAL })
+        assertTrue(noArtist.segments.any { it.kind == RecapSegmentKind.STREAK })
+        assertTrue(noArtist.segments.any { it.kind == RecapSegmentKind.PERSONA })
         assertValidFrame(RecapExportTimeline.evaluateFrame(noArtist, noArtist.totalDurationMs / 2))
         assertValidFrame(RecapExportTimeline.evaluateFrame(noArtist, noArtist.totalDurationMs))
 
         val neither = RecapExportTimeline.buildFullTimeline(hasHeroArtist = false, hasHeroSong = false, artistCount = 0)
         assertFalse(neither.segments.any { it.kind == RecapSegmentKind.ARTIST_SPIN_REVEAL })
         assertFalse(neither.segments.any { it.kind == RecapSegmentKind.SONG_GRID_REVEAL })
+        assertTrue(neither.segments.any { it.kind == RecapSegmentKind.STREAK })
+        assertTrue(neither.segments.any { it.kind == RecapSegmentKind.PERSONA })
         assertTrue(neither.segments.any { it.kind == RecapSegmentKind.RECEIPT })
         assertTrue(neither.segments.any { it.kind == RecapSegmentKind.END_CARD })
         assertValidFrame(RecapExportTimeline.evaluateFrame(neither, 0L))
+        assertValidFrame(RecapExportTimeline.evaluateFrame(neither, neither.totalDurationMs / 2))
         assertValidFrame(RecapExportTimeline.evaluateFrame(neither, neither.totalDurationMs))
     }
 
@@ -99,6 +113,11 @@ class RecapExportTimelineTest {
                     assertEquals(1f, still.pageEnters[RecapFrameValues.PAGE_WEEKDAY], 1e-4f)
                     assertEquals(0f, still.pageExits[RecapFrameValues.PAGE_WEEKDAY], 1e-4f)
                 }
+                RecapPart.STREAK -> {
+                    assertEquals(1f, still.pageEnters[RecapFrameValues.PAGE_STREAK], 1e-4f)
+                    assertEquals(0f, still.pageExits[RecapFrameValues.PAGE_STREAK], 1e-4f)
+                    assertEquals(RecapGiantWord.STREAK, still.textWord)
+                }
                 RecapPart.TOP_ARTIST -> {
                     assertEquals(1f, still.pageEnters[RecapFrameValues.PAGE_ARTIST], 1e-4f)
                     assertEquals(0f, still.pageExits[RecapFrameValues.PAGE_ARTIST], 1e-4f)
@@ -112,6 +131,12 @@ class RecapExportTimelineTest {
                     assertEquals(1f, still.heroCover, 1e-4f)
                     assertEquals(1f, still.heroCoverUp, 1e-4f)
                     assertEquals(RecapPaletteMode.SONG, still.paletteMode)
+                }
+                RecapPart.PERSONA -> {
+                    assertEquals(1f, still.pageEnters[RecapFrameValues.PAGE_PERSONA], 1e-4f)
+                    assertEquals(0f, still.pageExits[RecapFrameValues.PAGE_PERSONA], 1e-4f)
+                    assertEquals(RecapGiantWord.PERSONA, still.textWord)
+                    assertEquals(1f, still.mesh, 1e-4f)
                 }
                 RecapPart.RECEIPT -> {
                     assertEquals(1f, still.pageEnters[RecapFrameValues.PAGE_RECEIPT], 1e-4f)
@@ -159,9 +184,9 @@ class RecapExportTimelineTest {
 
     @Test
     fun availablePartsAndSoundtrackPriorityWorkAsExpected() {
-        assertEquals(7, availableRecapParts(hasHeroArtist = true, hasHeroSong = true).size)
-        assertEquals(6, availableRecapParts(hasHeroArtist = false, hasHeroSong = true).size)
-        assertEquals(5, availableRecapParts(hasHeroArtist = false, hasHeroSong = false).size)
+        assertEquals(9, availableRecapParts(hasHeroArtist = true, hasHeroSong = true).size)
+        assertEquals(8, availableRecapParts(hasHeroArtist = false, hasHeroSong = true).size)
+        assertEquals(7, availableRecapParts(hasHeroArtist = false, hasHeroSong = false).size)
 
         // Full video prefers heroSong, falls back to heroArtist.topSong
         assertEquals("song1", selectSoundtrackSongId("song1", "artistSong1", part = null))

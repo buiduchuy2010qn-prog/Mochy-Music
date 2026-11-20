@@ -186,4 +186,61 @@
     <string name="rc_part_receipt_sub">Complete Top 10 Artists &amp; Top 10 Songs bill</string>
     <string name="rc_part_summary_card">ID Card</string>
     <string name="rc_part_summary_card_sub">Your Mochy Profile ID card finale</string>
+
+    <!-- v12.3.0 Re'cap Insights: Delta, Streak, Persona & Playlist -->
+    <string name="rc_delta_vs_period">vs %1$s</string>
+    <string name="rc_delta_new_artist_tag">New #1</string>
+    <string name="rc_story_streak_title">Your longest\nlistening streak</string>
+    <plurals name="rc_story_streak_days">
+        <item quantity="one">day</item>
+        <item quantity="other">days</item>
+    </plurals>
+    <string name="rc_story_streak_span">%1$s · %2$d active days</string>
+    <string name="rc_story_peak_day_label">And your biggest day was %1$s with</string>
+
+    <string name="rc_persona_header">LISTENER PERSONA</string>
+    <string name="rc_persona_peak_hour_label">Peak hour</string>
+    <string name="rc_persona_signature_label">Highlight</string>
+    <string name="rc_persona_night_owl_title">The Night Owl</string>
+    <string name="rc_persona_night_owl_desc">%1$d%% of your listening happened late at night, peaking right around %2$d:00.</string>
+    <string name="rc_persona_dawn_chaser_title">The Dawn Chaser</string>
+    <string name="rc_persona_dawn_chaser_desc">Mornings are your soundtrack — you always start the day with music around %1$d:00.</string>
+    <string name="rc_persona_one_song_title">On Endless Repeat</string>
+    <string name="rc_persona_one_song_desc">When \"%1$s\" clicks, nothing else compares — you replayed it %2$d times!</string>
+    <string name="rc_persona_artist_loyalist_title">Day-One Loyalist</string>
+    <string name="rc_persona_artist_loyalist_desc">%1$s owned your rotation, taking up %2$d%% of everything you listened to.</string>
+    <string name="rc_persona_explorer_title">The Sonic Explorer</string>
+    <string name="rc_persona_explorer_desc">Always hunting fresh vibes: you spun %1$d tracks across %2$d different artists.</string>
+    <string name="rc_persona_streak_machine_title">Non-Stop Streamer</string>
+    <string name="rc_persona_streak_machine_desc">Your headphones rarely rested: a %1$d-day streak and %2$s total playtime.</string>
+    <string name="rc_persona_golden_hour_title">Golden Hour Dreamer</string>
+    <string name="rc_persona_golden_hour_desc">Late afternoons and evenings are your sweet spot, lighting up right around %1$d:00.</string>
+    <string name="rc_persona_curator_title">The Taste Curator</string>
+    <string name="rc_persona_curator_desc">Balanced and eclectic — %1$d artists in rotation, with peak vibes around %2$d:00.</string>
+
+    <string name="rc_part_streak">Streak</string>
+    <string name="rc_part_streak_sub">Longest consecutive listening streak and peak day</string>
+    <string name="rc_part_persona">Persona</string>
+    <string name="rc_part_persona_sub">Your signature listening badge and peak hours</string>
+
+    <string name="rc_stats_persona_streak_header">Listener Persona &amp; Streak</string>
+    <plurals name="rc_stats_streak_chip">
+        <item quantity="one">%1$d-day streak</item>
+        <item quantity="other">%1$d-day streak</item>
+    </plurals>
+    <string name="rc_stats_peak_chip">Peak %1$s (%2$s)</string>
+    <string name="rc_stats_streak_detail">Streak window: %1$s · %2$d active days</string>
+
+    <string name="rc_playlist_title_month">Re\'cap %1$s %2$d</string>
+    <string name="rc_playlist_title_year">Re\'cap %1$d</string>
+    <string name="rc_playlist_desc">Your top tracks from Mochy Re\'cap · %1$s playtime · %2$d plays</string>
+    <string name="rc_playlist_card_title">Save as Library Playlist</string>
+    <string name="rc_playlist_card_desc">Bundle your Top %1$d tracks into a real Mochy playlist or copy a share code.</string>
+    <string name="rc_playlist_save_btn">Save Playlist</string>
+    <string name="rc_playlist_saved_btn">Saved Playlist</string>
+    <string name="rc_playlist_copy_code_btn">Copy code</string>
+    <string name="rc_playlist_saved_toast">Saved \"%1$s\" (%2$d tracks) to Library</string>
+    <string name="rc_playlist_save_failed">Couldn\'t save Re\'cap playlist</string>
+    <string name="rc_playlist_code_copied">Copied mochypl1: playlist share code</string>
+    <string name="rc_playlist_code_failed">Couldn\'t generate share code (only online tracks supported)</string>
 </resources>

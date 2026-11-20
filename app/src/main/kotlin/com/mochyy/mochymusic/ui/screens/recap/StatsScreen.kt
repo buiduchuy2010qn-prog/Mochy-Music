@@ -56,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -88,21 +89,25 @@ import com.mochyy.mochymusic.constants.UsernameKey
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportDialog
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapExportTab
 import com.mochyy.mochymusic.ui.screens.recap.export.RecapPart
+import com.mochyy.mochymusic.ui.screens.recap.export.saveRecapPlaylist
 import com.mochyy.mochymusic.ui.component.BlurDirection
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
 import com.mochyy.mochymusic.ui.component.GlassState
 import com.mochyy.mochymusic.ui.component.LocalBottomSheetPageState
 import com.mochyy.mochymusic.ui.component.PopupSheetHandle
 import com.mochyy.mochymusic.ui.component.ProgressiveGlassBackground
+import com.mochyy.mochymusic.ui.component.TopToaster
 import com.mochyy.mochymusic.ui.component.glassRoot
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.ui.utils.stableSystemBars
 import com.mochyy.mochymusic.utils.rememberPreference
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.Month
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.time.format.TextStyle as JavaTextStyle
 
@@ -126,6 +131,7 @@ fun StatsScreen(navController: NavController) {
     val database = LocalDatabase.current
     val context = LocalContext.current
     val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
     val sheets = LocalBottomSheetPageState.current
     val (profilePicUri) = rememberPreference(ProfilePicUriKey, "")
     val (username) = rememberPreference(UsernameKey, "")
@@ -136,6 +142,7 @@ fun StatsScreen(navController: NavController) {
 
     var replayStoryData by remember { mutableStateOf<RecapStoryData?>(null) }
     var directExportData by remember { mutableStateOf<RecapStoryData?>(null) }
+    var savingPlaylist by remember { mutableStateOf(false) }
 
     com.mochyy.mochymusic.ui.utils.HoldOrientation(
         orientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
@@ -153,7 +160,12 @@ fun StatsScreen(navController: NavController) {
     }
 
     var stats by remember { mutableStateOf<ListeningStats?>(null) }
-    LaunchedEffect(range) { stats = RecapRepository.load(database, range) }
+    var insights by remember { mutableStateOf<RecapInsights?>(null) }
+    LaunchedEffect(range) {
+        val (loaded, ins) = RecapRepository.loadWithInsights(database, range)
+        stats = loaded
+        insights = ins
+    }
     var genres by remember { mutableStateOf<GenreState>(GenreState.Loading) }
     LaunchedEffect(stats) {
         val s = stats ?: return@LaunchedEffect
@@ -279,6 +291,7 @@ fun StatsScreen(navController: NavController) {
                         joinedText = joinedText,
                         joinedDate = joinedDate,
                         allTimeMs = totalListeningMs,
+                        insights = insights ?: buildRecapInsights(s),
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -350,6 +363,48 @@ fun StatsScreen(navController: NavController) {
                                     style = statsText(13f, FontWeight.SemiBold, tracking = 0f),
                                 )
                             }
+                            if (currentStats.topSongs.isNotEmpty()) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                    modifier =
+                                        Modifier
+                                            .clip(CircleShape)
+                                            .background(ChipBg)
+                                            .clickable {
+                                                if (!savingPlaylist) {
+                                                    savingPlaylist = true
+                                                    val data = buildRecapData(currentStats)
+                                                    scope.launch {
+                                                        runCatching { saveRecapPlaylist(context, database, data, includeShareCode = false) }
+                                                            .onSuccess { saved ->
+                                                                TopToaster.show(
+                                                                    text = context.getString(R.string.rc_playlist_saved_toast, saved.name, saved.trackCount),
+                                                                    thumbnail = data.heroSong?.thumbnailUrl,
+                                                                    iconRes = R.drawable.playlist_add,
+                                                                )
+                                                            }
+                                                            .onFailure {
+                                                                TopToaster.error(context.getString(R.string.rc_playlist_save_failed))
+                                                            }
+                                                        savingPlaylist = false
+                                                    }
+                                                }
+                                            }
+                                            .padding(horizontal = 13.dp, vertical = 7.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.playlist_add),
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp),
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.rc_playlist_save_btn),
+                                        style = statsText(13f, FontWeight.SemiBold, tracking = 0f),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -375,7 +430,9 @@ fun StatsScreen(navController: NavController) {
                         }
                     }
                 } else {
-                    item(key = "total") { TotalCard(s, expanded) }
+                    val ins = insights ?: remember(s) { buildRecapInsights(s) }
+                    item(key = "total") { TotalCard(s, ins.delta, expanded) }
+                    item(key = "persona") { PersonaStreakCard(s, ins, expanded) }
                     item(key = "genre") { GenreCard(genres, expanded) }
                     s.topArtists.firstOrNull()?.let { top -> item(key = "artist") { ArtistCard(s, top, expanded) } }
                     s.topSongs.firstOrNull()?.let { top -> item(key = "song") { SongCard(s, top, expanded) } }
@@ -527,7 +584,7 @@ fun StatsScreen(navController: NavController) {
     }
 }
 
-private val CardKeys = listOf("total", "genre", "artist", "song", "weekday", "hour")
+private val CardKeys = listOf("total", "persona", "genre", "artist", "song", "weekday", "hour")
 
 internal sealed interface GenreState {
     data object Loading : GenreState
@@ -611,6 +668,7 @@ private fun rememberRoll(key: Any?): () -> Float {
 @Composable
 private fun TotalCard(
     s: ListeningStats,
+    delta: RecapPeriodDelta,
     expanded: MutableMap<String, Boolean>,
 ) {
     val minutes = s.totalMs / 60_000L
@@ -668,6 +726,34 @@ private fun TotalCard(
             OdometerText((minutes % 60).toString().padStart(2, '0'), big, progress = roll)
             Text("m", style = unit, modifier = Modifier.padding(bottom = 8.dp))
         }
+        if (delta.hasPrevious) {
+            val up = delta.timeDeltaPercent >= 0
+            val tint = if (up) Color(0xFF5EE89A) else Color(0xFFFFD180)
+            val arrow = if (up) "▲" else "▼"
+            val sign = if (up) "+${delta.timeDeltaPercent}%" else "${delta.timeDeltaPercent}%"
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier =
+                    Modifier
+                        .padding(top = 8.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1D1D20))
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+            ) {
+                Text(
+                    text = "$arrow $sign",
+                    style = statsText(12f, FontWeight.Bold, tint, 0f),
+                )
+                Text(
+                    text = stringResource(R.string.rc_delta_vs_period, delta.previousLabel) +
+                        if (delta.isNewTopArtist) " · ${stringResource(R.string.rc_delta_new_artist_tag)}" else "",
+                    style = statsText(12f, FontWeight.Medium, StatsInkSecondary, 0f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF3A3A3A)))
         Spacer(Modifier.height(12.dp))
@@ -676,6 +762,99 @@ private fun TotalCard(
             Fact(pluralStringResource(R.plurals.rc_stats_fact_artists, s.artistCount, s.artistCount))
             Fact(pluralStringResource(R.plurals.rc_stats_fact_albums, s.albumCount, s.albumCount))
             Fact(pluralStringResource(R.plurals.rc_stats_fact_plays, s.plays, s.plays))
+        }
+    }
+}
+
+@Composable
+private fun PersonaStreakCard(
+    s: ListeningStats,
+    insights: RecapInsights,
+    expanded: MutableMap<String, Boolean>,
+) {
+    val persona = insights.persona
+    val streak = insights.streak
+    val dateFmt = remember { DateTimeFormatter.ofPattern("dd/MM") }
+    val spanText = if (streak.streakStart != null && streak.streakEnd != null) {
+        if (streak.streakStart == streak.streakEnd) {
+            streak.streakStart.format(dateFmt)
+        } else {
+            "${streak.streakStart.format(dateFmt)} – ${streak.streakEnd.format(dateFmt)}"
+        }
+    } else {
+        s.range.label
+    }
+    val peakDateText = streak.peakDate?.format(dateFmt) ?: s.range.label
+
+    StatsCardBox(
+        expandKey = "persona",
+        expanded = expanded,
+        detail = {
+            Text(
+                text = personaDescriptionText(persona, s),
+                style = statsText(13.5f, FontWeight.Medium, StatsInkSecondary, 0f),
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Fact(
+                    stringResource(
+                        R.string.rc_stats_streak_detail,
+                        spanText,
+                        streak.activeDaysCount,
+                    ),
+                )
+            }
+        },
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.rc_stats_persona_streak_header),
+                style = statsText(15f),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .clip(CircleShape)
+                        .background(ChipBg)
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+            ) {
+                Text(
+                    text = persona.id.clubCode,
+                    style = TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF5EE89A),
+                    ),
+                )
+            }
+        }
+        Text(
+            text = stringResource(personaTitleRes(persona.id)),
+            style = statsText(26f, tracking = -0.9f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Fact(
+                pluralStringResource(
+                    R.plurals.rc_stats_streak_chip,
+                    streak.longestStreakDays,
+                    streak.longestStreakDays,
+                ),
+            )
+            Fact(
+                stringResource(
+                    R.string.rc_stats_peak_chip,
+                    peakDateText,
+                    formatHoursMinutes(streak.peakDayMs),
+                ),
+            )
         }
     }
 }
