@@ -70,9 +70,8 @@ fun LyricsReadings(
     val currentMediaMetadata by (playerConnection?.mediaMetadata ?: emptyMetaFlow).collectAsState()
     val currentMeta = currentMediaMetadata?.takeIf { it.id == songId }
     val (smartLyricsEnabled) = rememberPreference(SmartLyricsKey, defaultValue = true)
-    // Observe raw stored target language reactively (null when user never manually picked one) so Smart Lyrics defaults to "vi"
-    val prefsSnapshot by PreferencesCache.snapshot.collectAsState()
-    val storedTranslateLanguage = prefsSnapshot[TranslateLanguageKey]
+    // PreferencesCache.snapshot is already a Compose State<Preferences>; reading .value subscribes reactively
+    val storedTranslateLanguage = PreferencesCache.snapshot.value[TranslateLanguageKey]
     val lyricsMatchSong = songId != null && (lyricsEntity == null || lyricsEntity.id == songId)
     val smartDecision = remember(lines, songId, lyricsMatchSong, smartLyricsEnabled, storedTranslateLanguage, currentMeta?.title) {
         SmartLyricsLanguageDetector.decide(
