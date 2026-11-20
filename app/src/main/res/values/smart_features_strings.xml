@@ -49,6 +49,7 @@
     <string name="smart_mix_tag_upbeat">High energy</string>
     <string name="smart_mix_subtitle_count">%1$d songs</string>
     <string name="smart_mix_subtitle_bpm">%1$d songs · ~%2$d BPM</string>
+    <string name="smart_section_search_in">Search in %1$s</string>
 
     <!-- #4 Smart Shuffle & Skip/Replay Habit Learning -->
     <string name="smart_shuffle_title">Smart shuffle</string>
@@ -57,6 +58,8 @@
     <string name="smart_habits_title">Learn skip &amp; replay habits</string>
     <string name="smart_habits_desc">Tracks skipped in the first 15s drop in Radio/Autoplay; replayed tracks rank higher</string>
     <string name="smart_habits_detail">Runs 100% on-device. Skipping within 15 seconds lowers a song\'s priority in Radio, Autoplay and Smart Shuffle, while replaying boosts it.</string>
+    <string name="smart_habits_reset_title">Reset learned habits</string>
+    <string name="smart_habits_reset_desc">Clear skip &amp; replay history for %1$d tracks</string>
 
     <!-- #5 Smart Lyrics by Language -->
     <string name="smart_lyrics_title">Smart lyrics by language</string>

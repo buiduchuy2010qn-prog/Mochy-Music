@@ -2304,61 +2304,66 @@ object MochyCloudSyncManager {
         remote: CloudAudioConfig,
         onlyIfDefault: Boolean,
     ) {
-        remote.eqSettingsJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            if (!onlyIfDefault || audioLab.eq.value == EqSettings()) {
-                runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), raw) }
-                    .getOrNull()?.let { decoded -> audioLab.updateEq { decoded } }
+        audioLab.runWithoutDeviceProfileRecording {
+            remote.eqSettingsJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (!onlyIfDefault || audioLab.eq.value == EqSettings()) {
+                    runCatching { audioLabJson.decodeFromString(EqSettings.serializer(), raw) }
+                        .getOrNull()?.let { decoded -> audioLab.updateEq { decoded } }
+                }
+            }
+            remote.reverbJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (!onlyIfDefault || audioLab.reverb.value == ReverbSettings()) {
+                    runCatching { audioLabJson.decodeFromString(ReverbSettings.serializer(), raw) }
+                        .getOrNull()?.let { decoded -> audioLab.updateReverb { decoded } }
+                }
+            }
+            remote.loudnessJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (!onlyIfDefault || audioLab.loudness.value == LoudnessSettings()) {
+                    runCatching { audioLabJson.decodeFromString(LoudnessSettings.serializer(), raw) }
+                        .getOrNull()?.let { decoded -> audioLab.updateLoudness { decoded } }
+                }
+            }
+            remote.spatialJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (!onlyIfDefault || audioLab.spatial.value == SpatialSettings()) {
+                    runCatching { audioLabJson.decodeFromString(SpatialSettings.serializer(), raw) }
+                        .getOrNull()?.let { decoded -> audioLab.updateSpatial { decoded } }
+                }
+            }
+            remote.normalizeJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (!onlyIfDefault || audioLab.normalize.value == NormalizeSettings()) {
+                    runCatching { audioLabJson.decodeFromString(NormalizeSettings.serializer(), raw) }
+                        .getOrNull()?.let { decoded -> audioLab.updateNormalize { decoded } }
+                }
+            }
+            remote.volumeJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (!onlyIfDefault || audioLab.volume.value == VolumeSettings()) {
+                    runCatching { audioLabJson.decodeFromString(VolumeSettings.serializer(), raw) }
+                        .getOrNull()?.let { decoded -> audioLab.updateVolume { decoded } }
+                }
+            }
+            remote.playbackJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (!onlyIfDefault || audioLab.playback.value == PlaybackSettings()) {
+                    runCatching { audioLabJson.decodeFromString(PlaybackSettings.serializer(), raw) }
+                        .getOrNull()?.let { decoded -> audioLab.updatePlayback { decoded } }
+                }
+            }
+            remote.eightDJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (!onlyIfDefault || audioLab.eightD.value == EightDSettings()) {
+                    runCatching { audioLabJson.decodeFromString(EightDSettings.serializer(), raw) }
+                        .getOrNull()?.let { decoded -> audioLab.updateEightD { decoded } }
+                }
             }
         }
-        remote.reverbJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            if (!onlyIfDefault || audioLab.reverb.value == ReverbSettings()) {
-                runCatching { audioLabJson.decodeFromString(ReverbSettings.serializer(), raw) }
-                    .getOrNull()?.let { decoded -> audioLab.updateReverb { decoded } }
-            }
-        }
-        remote.loudnessJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            if (!onlyIfDefault || audioLab.loudness.value == LoudnessSettings()) {
-                runCatching { audioLabJson.decodeFromString(LoudnessSettings.serializer(), raw) }
-                    .getOrNull()?.let { decoded -> audioLab.updateLoudness { decoded } }
-            }
-        }
-        remote.spatialJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            if (!onlyIfDefault || audioLab.spatial.value == SpatialSettings()) {
-                runCatching { audioLabJson.decodeFromString(SpatialSettings.serializer(), raw) }
-                    .getOrNull()?.let { decoded -> audioLab.updateSpatial { decoded } }
-            }
-        }
-        remote.normalizeJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            if (!onlyIfDefault || audioLab.normalize.value == NormalizeSettings()) {
-                runCatching { audioLabJson.decodeFromString(NormalizeSettings.serializer(), raw) }
-                    .getOrNull()?.let { decoded -> audioLab.updateNormalize { decoded } }
-            }
-        }
-        remote.volumeJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            if (!onlyIfDefault || audioLab.volume.value == VolumeSettings()) {
-                runCatching { audioLabJson.decodeFromString(VolumeSettings.serializer(), raw) }
-                    .getOrNull()?.let { decoded -> audioLab.updateVolume { decoded } }
-            }
-        }
-        remote.playbackJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            if (!onlyIfDefault || audioLab.playback.value == PlaybackSettings()) {
-                runCatching { audioLabJson.decodeFromString(PlaybackSettings.serializer(), raw) }
-                    .getOrNull()?.let { decoded -> audioLab.updatePlayback { decoded } }
-            }
-        }
-        remote.eightDJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            if (!onlyIfDefault || audioLab.eightD.value == EightDSettings()) {
-                runCatching { audioLabJson.decodeFromString(EightDSettings.serializer(), raw) }
-                    .getOrNull()?.let { decoded -> audioLab.updateEightD { decoded } }
-            }
+        val hadLocalProfiles = audioLab.deviceProfiles.value.isNotEmpty()
+        // Merge per-device profiles BEFORE toggling deviceProfilesEnabled so a remote active-device
+        // profile is never overridden by a freshly stamped global EQ snapshot.
+        remote.deviceProfilesJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            audioLab.mergeDeviceProfilesJson(raw, onlyIfEmpty = false, applyIfActivePresent = !onlyIfDefault)
         }
         remote.deviceProfilesEnabled?.let { enabled ->
-            if (!onlyIfDefault || audioLab.deviceProfiles.value.isEmpty()) {
+            if (!onlyIfDefault || !hadLocalProfiles) {
                 audioLab.setDeviceProfilesEnabled(enabled)
             }
-        }
-        remote.deviceProfilesJson?.takeIf { it.isNotBlank() }?.let { raw ->
-            audioLab.mergeDeviceProfilesJson(raw, onlyIfEmpty = false)
         }
         app.dataStore.edit { p ->
             if (!onlyIfDefault || p[AudioNormalizationKey] == null) {
@@ -2395,7 +2400,7 @@ object MochyCloudSyncManager {
         cfg.eightDJson.orEmpty(),
         cfg.playerCoverZoom?.takeIf { it.isFinite() }?.coerceIn(0f, 1f)?.toString().orEmpty(),
         cfg.canvasBestQuality?.toString().orEmpty(),
-        cfg.deviceProfilesJson.orEmpty(),
+        com.mochyy.mochymusic.eq.DeviceAudioProfileEngine.canonicalKeyOfJson(cfg.deviceProfilesJson),
         cfg.deviceProfilesEnabled?.toString().orEmpty(),
     ).joinToString("\u0000")
 

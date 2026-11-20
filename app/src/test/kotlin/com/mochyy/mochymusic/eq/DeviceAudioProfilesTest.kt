@@ -245,4 +245,85 @@ class DeviceAudioProfilesTest {
         )
         assertTrue(decodedProfiles["bt:sony wh-1000xm5"]?.snapshot?.eightD?.enabled == true)
     }
+
+    @Test
+    fun spatialSurroundCountsAsHeadphoneEffectAndResetsOnSpeakerSwitch() {
+        val wired = DeviceAudioProfileEngine.activeDeviceOf(AudioOutputs.Kind.WIRED, "")
+        val phone = DeviceAudioProfileEngine.activeDeviceOf(AudioOutputs.Kind.PHONE, "")
+        val surroundOnly = AudioLabProfileSnapshot(spatial = SpatialSettings(enabled = false, surround = true))
+        assertTrue(surroundOnly.hasHeadphoneEffects())
+
+        val outcome = DeviceAudioProfileEngine.onDeviceSwitch(
+            enabled = true,
+            profiles = emptyMap(),
+            previousDevice = wired,
+            newDevice = phone,
+            currentSnapshot = surroundOnly,
+            nowMs = 20_000L,
+        )
+        assertEquals(AudioLabProfileSnapshot.Neutral, outcome.applySnapshot)
+        assertFalse(outcome.applySnapshot!!.spatial.surround)
+    }
+
+    @Test
+    fun cloudExtraCodecProgressivelyTrimsManyAutoEqProfilesInsteadOfDroppingAll() {
+        val manyProfiles = (1..10).associate { i ->
+            val name = "Tai Nghe Bluetooth Cao Cấp Số $i — Sony WH-1000XM$i"
+            val key = DeviceAudioProfileEngine.deviceKey(AudioOutputs.Kind.BLUETOOTH, name)
+            val bands = (1..10).map { b -> ParametricEQBand(31.0 * b, (b - 5) * 0.5, 1.41, FilterType.PK) }
+            val snap = AudioLabProfileSnapshot(
+                eq = EqSettings(
+                    enabled = true,
+                    nodes = bands,
+                    preamp = -2.0,
+                    presetId = null,
+                    correction = AutoEqCorrection(
+                        model = name,
+                        source = "oratory1990",
+                        path = "results/oratory1990/over-ear/model_$i",
+                        form = HeadphoneForm.OverEar,
+                        filters = bands,
+                        preamp = -3.5,
+                    ),
+                    correctionEnabled = true,
+                ),
+                eightD = EightDSettings(enabled = true),
+            )
+            key to DeviceAudioProfile(key, name, AudioOutputs.Kind.BLUETOOTH.name, snap, updatedAtMs = 1_760_000_000_000L + i * 1_000L)
+        }
+
+        // Raw full JSON exceeds 8,192 chars, which previously caused all device profiles to be dropped!
+        val fullJson = DeviceAudioProfileEngine.encodeProfiles(manyProfiles)
+        assertTrue("Expected > 8192 chars raw JSON, got ${fullJson.length}", fullJson.length > 8_192)
+
+        val extra = CloudLibraryExtra(
+            audio = CloudAudioConfig(
+                eqSettingsJson = """{"enabled":true}""",
+                deviceProfilesJson = fullJson,
+                deviceProfilesEnabled = true,
+            ),
+        )
+        val encoded = MochyLibraryExtraCodec.encode(extra)
+        assertTrue(encoded.isNotBlank())
+        assertTrue("Must stay under JWT budget", encoded.length <= MochyLibraryExtraCodec.MaxEncodedChars)
+
+        val decoded = MochyLibraryExtraCodec.decode(encoded)
+        assertNotNull(decoded?.audio?.deviceProfilesJson)
+        val restored = DeviceAudioProfileEngine.decodeProfiles(decoded?.audio?.deviceProfilesJson)
+        assertTrue("Progressive trimming must keep at least 1 newest profile instead of dropping all", restored.isNotEmpty())
+        val newestKey = DeviceAudioProfileEngine.deviceKey(
+            AudioOutputs.Kind.BLUETOOTH,
+            "Tai Nghe Bluetooth Cao Cấp Số 10 — Sony WH-1000XM10",
+        )
+        assertTrue("Newest profile must be retained after progressive trim", newestKey in restored)
+
+        // Canonical digest key must be order-independent
+        val reversedJson = DeviceAudioProfileEngine.encodeProfiles(
+            manyProfiles.entries.reversed().associate { it.key to it.value },
+        )
+        assertEquals(
+            DeviceAudioProfileEngine.canonicalKeyOfJson(fullJson),
+            DeviceAudioProfileEngine.canonicalKeyOfJson(reversedJson),
+        )
+    }
 }

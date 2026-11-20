@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
 
 enum class NetworkTier {
@@ -37,6 +38,7 @@ data class RememberedProvider(
     val providerId: String,
     val networkTier: String = NetworkTier.UNKNOWN.name,
     val updatedAtMs: Long = 0L,
+    val manualPick: Boolean = false,
 )
 
 /**
@@ -72,7 +74,7 @@ object VietnameseTrackDetector {
      */
     private val KnownVietnameseArtists: Set<String> = setOf(
         "son tung m-tp", "son tung mtp", "sơn tùng m-tp", "sơn tùng mtp",
-        "den vau", "đen vâu", "den",
+        "den vau", "đen vâu",
         "hoang thuy linh", "hoàng thùy linh",
         "hieuthuhai", "hieu thu hai",
         "wren evans",
@@ -94,7 +96,7 @@ object VietnameseTrackDetector {
         "ha anh tuan", "hà anh tuấn",
         "bich phuong", "bích phương",
         "phuong ly", "phương ly",
-        "erik", "duc phuc", "đức phúc", "hoa minzy", "hòa minzy",
+        "duc phuc", "đức phúc", "hoa minzy", "hòa minzy",
         "jack - j97", "jack j97", "k-icm",
         "noo phuoc thinh", "noo phước thịnh",
         "dong nhi", "đông nhi",
@@ -122,17 +124,17 @@ object VietnameseTrackDetector {
         "lyly", "hien ho", "hiền hồ", "anh tu", "anh tú",
         "lou hoang", "lou hoàng", "only c", "onlyc", "masew",
         "dat g", "đạt g", "thinh suy", "thịnh suy", "t.r.i",
-        "min", "mono", "kay tran", "kay trần", "isaac",
+        "kay tran", "kay trần",
         "toc tien", "tóc tiên", "chi pu", "bao anh", "bảo anh",
         "huong tram", "hương tràm", "thuy chi", "thùy chi",
         "le quyen", "lệ quyên", "dam vinh hung", "đàm vĩnh hưng",
         "bang kieu", "bằng kiều", "my linh", "mỹ linh",
         "quang dung", "quang dũng", "trinh cong son", "trịnh công sơn",
         "ngo kien huy", "ngô kiến huy", "truong thao nhi", "trương thảo nhi",
-        "vu phung tien", "vũ phụng tiên", "juky san", "orange",
-        "phuong my chi", "phương mỹ chi", "van mai huong",
+        "vu phung tien", "vũ phụng tiên", "juky san",
+        "phuong my chi", "phương mỹ chi",
         "dinh dung", "đình dũng", "quang dang tran", "phan duy anh",
-        "nal", "k-icm", "khac viet", "khắc việt", "trinh thang binh", "trịnh thăng bình",
+        "khac viet", "khắc việt", "trinh thang binh", "trịnh thăng bình",
         "le bao binh", "lê bảo bình", "chi dan", "chi dân",
         "mr. siro", "mr siro", "ung hoang phuc", "ưng hoàng phúc",
         "lam truong", "lam trường", "dan truong", "đan trường",
@@ -146,13 +148,24 @@ object VietnameseTrackDetector {
 
     private val whitespaceRegex = Regex("\\s+")
 
+    private fun toNfc(text: String): String {
+        var needsNorm = false
+        for (ch in text) {
+            if (ch.code >= 128) {
+                needsNorm = true
+                break
+            }
+        }
+        return if (needsNorm) Normalizer.normalize(text, Normalizer.Form.NFC) else text
+    }
+
     fun hasUniqueVietnameseDiacritics(text: String?): Boolean {
         if (text.isNullOrBlank()) return false
-        return text.any { it in UniquelyVietnameseChars }
+        return toNfc(text).any { it in UniquelyVietnameseChars }
     }
 
     fun isKnownVietnameseArtist(artistName: String?): Boolean {
-        val norm = artistName.orEmpty().trim().replace(whitespaceRegex, " ").lowercase()
+        val norm = toNfc(artistName.orEmpty()).trim().replace(whitespaceRegex, " ").lowercase()
         if (norm.isEmpty()) return false
         if (norm in KnownVietnameseArtists) return true
         // Handle featured artist strings like "HIEUTHUHAI feat. Negav" or "tlinh x Low G"
@@ -187,11 +200,11 @@ object VietnameseTrackDetector {
  */
 object SmartProviderRouter {
 
-    private val LosslessProviders = setOf(MonochromeModule.Id)
+    private val LosslessProviders = setOf(MonochromeModule.Id, AppleMusicModule.Id)
     private val WifiPriorityOrder = listOf(MonochromeModule.Id, AppleMusicModule.Id)
     private val CellularPriorityOrder = listOf(
-        ZingMp3Module.Id,
         SourceModules.YouTubeId,
+        ZingMp3Module.Id,
         SoundCloudModule.Id,
         JioSaavnModule.Id,
         AppleMusicModule.Id,
@@ -226,12 +239,24 @@ object SmartProviderRouter {
             if (id in eligible && id !in prioritized) prioritized += id
         }
 
-        // 1. Per-song remembered best source (unless it's a heavy lossless source while on cellular metered data)
+        // 1. Per-song remembered best source (tier-scoped when networkAware=true so 4G playback
+        //    never permanently blocks Wi-Fi lossless, and Wi-Fi lossless never overrides 4G fast sources)
         if (policy.rememberBestPerSong && remembered != null && remembered.providerId in eligible) {
+            val rememberedTier = runCatching { NetworkTier.valueOf(remembered.networkTier) }
+                .getOrDefault(NetworkTier.UNKNOWN)
             val isHeavyOnCellular = policy.networkAware &&
                 networkTier == NetworkTier.CELLULAR_METERED &&
                 remembered.providerId in LosslessProviders
-            if (!isHeavyOnCellular) {
+            val tierCompatible = when {
+                !policy.networkAware -> true
+                remembered.manualPick -> !isHeavyOnCellular
+                networkTier == NetworkTier.UNKNOWN || rememberedTier == NetworkTier.UNKNOWN -> !isHeavyOnCellular
+                rememberedTier == networkTier -> !isHeavyOnCellular
+                networkTier == NetworkTier.WIFI_UNMETERED && rememberedTier == NetworkTier.CELLULAR_METERED ->
+                    policy.vietnamesePriority && isVietnamese
+                else -> false
+            }
+            if (tierCompatible) {
                 promote(remembered.providerId)
             }
         }
@@ -264,9 +289,15 @@ object SmartProviderRouter {
         val network = cm.activeNetwork ?: return NetworkTier.UNKNOWN
         val caps = cm.getNetworkCapabilities(network) ?: return NetworkTier.UNKNOWN
         when {
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkTier.WIFI_UNMETERED
             caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> NetworkTier.CELLULAR_METERED
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkTier.WIFI_UNMETERED
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) && cm.isActiveNetworkMetered) {
+                    NetworkTier.CELLULAR_METERED
+                } else {
+                    NetworkTier.WIFI_UNMETERED
+                }
+            }
             !cm.isActiveNetworkMetered -> NetworkTier.WIFI_UNMETERED
             else -> NetworkTier.CELLULAR_METERED
         }
@@ -274,7 +305,9 @@ object SmartProviderRouter {
 }
 
 /**
- * Thread-safe persistent LRU store mapping songId -> best working providerId.
+ * Thread-safe persistent LRU store mapping (songId, networkTier) -> best working providerId.
+ * Storing per-tier entries ensures a song remembers both its Wi-Fi lossless source and its
+ * 4G/5G fast source independently.
  */
 class BestProviderStore(context: Context) {
     private val prefs = context.getSharedPreferences(PrefsName, Context.MODE_PRIVATE)
@@ -287,31 +320,61 @@ class BestProviderStore(context: Context) {
         load()
     }
 
-    fun get(songId: String?): RememberedProvider? {
+    private fun slotKey(songId: String, tierName: String): String = "$songId|$tierName"
+
+    fun get(
+        songId: String?,
+        networkTier: NetworkTier = NetworkTier.UNKNOWN,
+        networkAware: Boolean = true,
+    ): RememberedProvider? {
         if (songId.isNullOrBlank()) return null
-        return entries[songId]
+        if (networkAware && networkTier != NetworkTier.UNKNOWN) {
+            entries[slotKey(songId, networkTier.name)]?.let { return it }
+            // Fall back to an explicit manual pick on another tier (computeOrder still guards cellular lossless)
+            return entries.values
+                .filter { it.songId == songId && (it.manualPick || it.networkTier == NetworkTier.UNKNOWN.name) }
+                .maxByOrNull { it.updatedAtMs }
+        }
+        return entries.values
+            .filter { it.songId == songId }
+            .maxByOrNull { it.updatedAtMs }
     }
 
-    fun recordSuccess(songId: String?, providerId: String, networkTier: NetworkTier, nowMs: Long = System.currentTimeMillis()) {
+    fun recordSuccess(
+        songId: String?,
+        providerId: String,
+        networkTier: NetworkTier,
+        manualPick: Boolean = false,
+        nowMs: Long = System.currentTimeMillis(),
+    ) {
         if (songId.isNullOrBlank() || providerId.isBlank()) return
-        val existing = entries[songId]
+        val key = slotKey(songId, networkTier.name)
+        val existing = entries[key]
         val next = RememberedProvider(
             songId = songId,
             providerId = providerId,
             networkTier = networkTier.name,
             updatedAtMs = nowMs,
+            manualPick = manualPick || (existing?.providerId == providerId && existing.manualPick),
         )
-        entries[songId] = next
-        if (existing?.providerId != providerId || existing.networkTier != next.networkTier) {
+        entries[key] = next
+        if (existing?.providerId != providerId || existing.manualPick != next.manualPick) {
             trimAndPersist()
         }
     }
 
     fun forget(songId: String?, providerId: String) {
         if (songId.isNullOrBlank()) return
-        val existing = entries[songId] ?: return
-        if (existing.providerId == providerId) {
-            entries.remove(songId)
+        var removed = false
+        val it = entries.entries.iterator()
+        while (it.hasNext()) {
+            val e = it.next()
+            if (e.value.songId == songId && e.value.providerId == providerId) {
+                it.remove()
+                removed = true
+            }
+        }
+        if (removed) {
             trimAndPersist()
         }
     }
@@ -322,6 +385,8 @@ class BestProviderStore(context: Context) {
         prefs.edit { remove(KeyEntries) }
     }
 
+    private fun distinctSongCount(): Int = entries.values.mapTo(HashSet()) { it.songId }.size
+
     private fun load() {
         val raw = prefs.getString(KeyEntries, null) ?: return
         val decoded = runCatching {
@@ -329,10 +394,11 @@ class BestProviderStore(context: Context) {
         }.getOrDefault(emptyList())
         for (item in decoded) {
             if (item.songId.isNotBlank() && item.providerId.isNotBlank()) {
-                entries[item.songId] = item
+                val tier = item.networkTier.ifBlank { NetworkTier.UNKNOWN.name }
+                entries[slotKey(item.songId, tier)] = item.copy(networkTier = tier)
             }
         }
-        _count.value = entries.size
+        _count.value = distinctSongCount()
     }
 
     @Synchronized
@@ -341,10 +407,10 @@ class BestProviderStore(context: Context) {
             .sortedByDescending { it.updatedAtMs }
             .take(MaxEntries)
         if (entries.size > MaxEntries) {
-            val keepIds = list.mapTo(HashSet(list.size)) { it.songId }
-            entries.keys.retainAll(keepIds)
+            val keepKeys = list.mapTo(HashSet(list.size)) { slotKey(it.songId, it.networkTier) }
+            entries.keys.retainAll(keepKeys)
         }
-        _count.value = entries.size
+        _count.value = distinctSongCount()
         val encoded = runCatching {
             json.encodeToString(ListSerializer(RememberedProvider.serializer()), list)
         }.getOrNull() ?: return
@@ -354,6 +420,6 @@ class BestProviderStore(context: Context) {
     private companion object {
         const val PrefsName = "smart_provider_memory"
         const val KeyEntries = "best_providers"
-        const val MaxEntries = 500
+        const val MaxEntries = 800
     }
 }

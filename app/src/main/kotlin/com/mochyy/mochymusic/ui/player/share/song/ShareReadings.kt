@@ -80,14 +80,14 @@ internal fun ShareLyricReadings(session: SongShareSession) {
         }
         session.lineReadings = found
     }
-    val (target) = rememberPreference(TranslateLanguageKey, defaultValue = "en")
+    val (target) = rememberPreference(TranslateLanguageKey, defaultValue = "vi")
     val (source) = rememberPreference(TranslateSourceLanguageKey, defaultValue = "auto")
     LaunchedEffect(lines, target, source) {
         session.lineTranslations = emptyMap()
         // only fetched once the switch is on, and kept after, so switching it off and on again is instant
         snapshotFlow { session.readingChoice.translate }.collectLatest { on ->
             if (on && session.lineTranslations.isEmpty()) {
-                session.lineTranslations = translateForShare(lines, database, session.song.id, target.ifBlank { "en" }, source)
+                session.lineTranslations = translateForShare(lines, database, session.song.id, target.ifBlank { "vi" }, source)
             }
         }
     }

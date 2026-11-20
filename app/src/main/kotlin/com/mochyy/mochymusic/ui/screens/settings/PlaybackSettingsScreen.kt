@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +66,9 @@ private fun listeningItems(): List<SettingsItem> {
     val (persistentShuffle, onPersistentShuffleChange) = rememberPreference(PersistentShuffleAcrossQueuesKey, defaultValue = true)
     val (smartShuffle, onSmartShuffleChange) = rememberPreference(SmartShuffleKey, defaultValue = true)
     val (learnSkipHabits, onLearnSkipHabitsChange) = rememberPreference(LearnSkipHabitsKey, defaultValue = true)
+    val habitStore = com.mochyy.mochymusic.LocalPlayerConnection.current?.service?.playbackHabitStore
+    val emptyCountFlow = remember { kotlinx.coroutines.flow.MutableStateFlow(0) }
+    val learnedHabitCount by (habitStore?.learnedCount ?: emptyCountFlow).collectAsState()
     val (skipSilence, onSkipSilenceChange) = rememberPreference(SkipSilenceKey, defaultValue = false)
     return listOf(
         switchItem(
@@ -135,6 +140,17 @@ private fun listeningItems(): List<SettingsItem> {
             icon = painterResource(R.drawable.sparks),
             checked = learnSkipHabits,
             onCheckedChange = onLearnSkipHabitsChange,
+        ),
+        SettingsItem(
+            title = { Text(stringResource(R.string.smart_habits_reset_title)) },
+            highlightKey = "Reset learned habits",
+            searchText = stringResource(R.string.smart_habits_reset_title),
+            descriptionText = stringResource(R.string.smart_habits_reset_desc, learnedHabitCount),
+            icon = painterResource(R.drawable.delete),
+            iconShape = CircleShape,
+            isVisible = learnSkipHabits && learnedHabitCount > 0,
+            isSubOption = true,
+            onClick = { habitStore?.clear() },
         ),
         switchItem(
             key = "Skip Silence",

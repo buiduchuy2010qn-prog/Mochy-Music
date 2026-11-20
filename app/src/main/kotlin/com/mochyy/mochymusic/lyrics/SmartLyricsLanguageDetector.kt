@@ -1,5 +1,7 @@
 package com.mochyy.mochymusic.lyrics
 
+import java.text.Normalizer
+
 enum class LyricsLanguage {
     VIETNAMESE,
     ENGLISH,
@@ -31,7 +33,7 @@ object SmartLyricsLanguageDetector {
     private val TimestampTagRegex = Regex("\\[\\d{1,2}:\\d{2}(?:\\.\\d{1,3})?\\]|<\\d{1,2}:\\d{2}(?:\\.\\d{1,3})?>")
     private val MetaPrefixRegex = Regex("^\\s*(?:\\{[^}]+\\})*")
     private val MetadataHeaderRegex = Regex(
-        "^\\s*(?:tiêu\\s*đề|ca\\s*sĩ|sáng\\s*tác|tác\\s*giả|lời\\s*bài\\s*hát|composer|lyricist|arr(?:anged)?\\s*by|title|artist|writer|producer)\\s*[:：].*$",
+        "^\\s*(?:tiêu\\s*đề|ca\\s*sĩ|sáng\\s*tác|tác\\s*giả|lời\\s*bài\\s*hát|composer|lyricist|arr(?:anged)?\\s*by|title|artist|writer|producer|作词|作詞|作曲|编曲|編曲|制作人|製作人|混音|母带|演唱|监制|出品|词|詞|曲|작사|작곡|편곡|노래)\\s*[:：].*$",
         RegexOption.IGNORE_CASE,
     )
     private val WordSplitRegex = Regex("[^\\p{L}’']+")
@@ -76,7 +78,31 @@ object SmartLyricsLanguageDetector {
         "could", "should", "they", "them", "their", "she", "her", "his", "him", "our",
         "don't", "can't", "won't", "i'm", "you're", "we're", "it's", "that's", "i'll",
         "i've", "we'll", "ain't", "gonna", "wanna", "love", "baby", "my", "me", "we",
+        "to", "in", "on", "of", "is", "it", "be", "so", "do", "go", "up", "get", "got",
+        "let", "see", "say", "take", "make", "come", "want", "need", "yeah", "tonight",
+        "eyes", "mind", "life", "world", "wait", "stay", "leave", "dream", "hold", "keep",
+        "tell", "give", "everything", "nothing", "something", "someone", "because",
+        "before", "after", "again", "still", "around", "through", "without", "about",
+        "only", "even", "every", "more", "than", "then", "some", "why", "how", "who",
     )
+
+    private val OtherLatinStopWords: Set<String> = setOf(
+        // French
+        "je", "tu", "nous", "vous", "les", "des", "une", "est", "dans", "pour", "avec", "ce", "soir", "alors", "mais", "pas", "suis",
+        // Spanish / Portuguese
+        "que", "por", "para", "los", "las", "una", "pero", "como", "con", "sin", "más", "mas", "estoy", "eres", "não", "você", "com", "uma",
+        // German
+        "der", "die", "das", "und", "ich", "nicht", "ein", "eine", "mit", "ist", "bin", "wir",
+        // Italian
+        "che", "non", "per", "sono", "sei", "con", "una", "della", "anche",
+    )
+
+    private fun toNfc(text: String): String {
+        for (ch in text) {
+            if (ch.code >= 128) return Normalizer.normalize(text, Normalizer.Form.NFC)
+        }
+        return text
+    }
 
     fun detectLanguage(
         lines: List<String>,
@@ -86,7 +112,7 @@ object SmartLyricsLanguageDetector {
         val cleanedLines = lines
             .asSequence()
             .map { raw ->
-                raw.replace(TimestampTagRegex, " ")
+                toNfc(raw).replace(TimestampTagRegex, " ")
                     .replace(MetaPrefixRegex, "")
                     .trim()
             }
@@ -125,18 +151,37 @@ object SmartLyricsLanguageDetector {
 
         if (totalLetters < 4) return LyricsLanguage.UNKNOWN
 
-        // 1. Japanese: presence of Hiragana/Katakana clearly distinguishes J-Pop (even with Kanji + English chorus)
-        if (kanaCount >= 3 || (kanaCount >= 1 && kanaCount + hanCount >= 4 && kanaCount.toDouble() / totalLetters >= 0.04)) {
+        val cjkTotal = kanaCount + hangulCount + hanCount
+        // Protect clearly Vietnamese songs from a stray 3-4 character foreign ad-lib or residual tag
+        if (uniqueViCount >= 5 && uniqueViCount * 2 > cjkTotal) {
+            return LyricsLanguage.VIETNAMESE
+        }
+
+        // 1. Japanese: Hiragana/Katakana clearly distinguishes J-Pop (even with Kanji + English chorus)
+        val kanaRatio = kanaCount.toDouble() / totalLetters
+        val jpRatio = (kanaCount + hanCount).toDouble() / totalLetters
+        if (kanaCount >= 12 ||
+            (kanaCount >= 3 && kanaRatio >= 0.03) ||
+            (kanaCount >= 1 && kanaCount + hanCount >= 4 && jpRatio >= 0.08)
+        ) {
             return LyricsLanguage.JAPANESE
         }
 
         // 2. Korean: Hangul syllables/jamo (handles K-Pop with English hooks)
-        if (hangulCount >= 3 || (hangulCount >= 2 && hangulCount.toDouble() / totalLetters >= 0.06)) {
+        val hangulRatio = hangulCount.toDouble() / totalLetters
+        if (hangulCount >= 12 ||
+            (hangulCount >= 3 && hangulRatio >= 0.04) ||
+            (hangulCount >= 2 && hangulRatio >= 0.08)
+        ) {
             return LyricsLanguage.KOREAN
         }
 
-        // 3. Chinese: CJK Han characters without Kana
-        if (hanCount >= 4 || (hanCount >= 2 && hanCount.toDouble() / totalLetters >= 0.10)) {
+        // 3. Chinese: CJK Han characters without Kana (require sufficient ratio so stray LRC credits never trigger)
+        val hanRatio = hanCount.toDouble() / totalLetters
+        if (hanCount >= 16 ||
+            (hanCount >= 4 && hanRatio >= 0.08) ||
+            (hanCount >= 2 && hanRatio >= 0.15)
+        ) {
             return LyricsLanguage.CHINESE
         }
 
@@ -159,19 +204,28 @@ object SmartLyricsLanguageDetector {
         if (uniqueViCount == 1 && tokens.any { it in VietnameseCommonWords }) {
             return LyricsLanguage.VIETNAMESE
         }
-        val titleHasVi = !title.isNullOrBlank() && title.any { it in UniquelyVietnameseChars }
-        val artistHasVi = !artist.isNullOrBlank() && artist.any { it in UniquelyVietnameseChars }
+        val normTitle = title?.let(::toNfc)
+        val normArtist = artist?.let(::toNfc)
+        val titleHasVi = !normTitle.isNullOrBlank() && normTitle.any { it in UniquelyVietnameseChars }
+        val artistHasVi = !normArtist.isNullOrBlank() && normArtist.any { it in UniquelyVietnameseChars }
         if (tokens.isNotEmpty()) {
             val englishHits = tokens.count { it in EnglishStopWords }
             val englishRatio = englishHits.toDouble() / tokens.size
+            val otherLatinHits = tokens.count { it in OtherLatinStopWords }
+            val otherLatinRatio = otherLatinHits.toDouble() / tokens.size
             val unaccentedViHits = tokens.count { it in UnaccentedVietnameseTokens }
             val unaccentedViRatio = unaccentedViHits.toDouble() / tokens.size
 
             // Unaccented Vietnamese karaoke lyrics
-            if ((unaccentedViHits >= 4 && unaccentedViRatio >= 0.30 && englishRatio < 0.12) ||
+            if ((unaccentedViHits >= 4 && unaccentedViRatio >= 0.30 && englishRatio < 0.12 && otherLatinRatio < 0.12) ||
                 ((titleHasVi || artistHasVi) && unaccentedViHits >= 2 && englishRatio < 0.15)
             ) {
                 return LyricsLanguage.VIETNAMESE
+            }
+
+            // Reject predominantly French/Spanish/German/Italian/Portuguese lyrics before English check
+            if (otherLatinHits >= 2 && otherLatinRatio >= 0.14 && otherLatinHits >= englishHits) {
+                return LyricsLanguage.OTHER
             }
 
             // 6. English: predominantly ASCII Latin letters + English stopwords

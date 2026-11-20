@@ -197,4 +197,39 @@ class SmartMixEngineTest {
     fun emptyInputsReturnEmptyMixes() {
         assertTrue(SmartMixEngine.buildMixes(emptyMap(), emptyList(), emptyMap(), emptyMap(), nowMs, 10).isEmpty())
     }
+
+    @Test
+    fun chillAndUpbeatAreMutuallyExclusiveAndNonFiniteFeaturesNeverCrash() {
+        val tracks = (1..6).associate { i ->
+            "t$i" to SmartMixTrack("t$i", "artist_$i", liked = true, durationSec = 200)
+        }
+        val events = listOf(
+            // Borderline 50/50 unanalyzed tracks (1 morning + 1 late night)
+            SmartMixEvent("t5", nowMs - dayMs, hourOfDay = 9, playTimeMs = 180_000L),
+            SmartMixEvent("t5", nowMs - 2 * dayMs, hourOfDay = 23, playTimeMs = 180_000L),
+            SmartMixEvent("t6", nowMs - dayMs, hourOfDay = 10, playTimeMs = 180_000L),
+            SmartMixEvent("t6", nowMs - 2 * dayMs, hourOfDay = 23, playTimeMs = 180_000L),
+        ) + (1..4).map { i -> SmartMixEvent("t$i", nowMs - dayMs, hourOfDay = 15, playTimeMs = 180_000L) }
+
+        val features = mapOf(
+            // Borderline BPM/energy track that previously leaked into BOTH Chill and Upbeat
+            "t1" to SmartMixAudioFeature(bpm = 104f, energy = 0.62f, danceability = 0.5f, bassWeight = 0.5f),
+            // Non-finite corrupted values that previously produced NaN sort keys
+            "t2" to SmartMixAudioFeature(bpm = Float.POSITIVE_INFINITY, energy = Float.NaN, danceability = Float.NaN, bassWeight = Float.NaN),
+            "t3" to SmartMixAudioFeature(bpm = 82f, energy = 0.25f, danceability = 0.3f, bassWeight = 0.3f),
+            "t4" to SmartMixAudioFeature(bpm = 132f, energy = 0.85f, danceability = 0.8f, bassWeight = 0.7f),
+        )
+
+        val mixes = SmartMixEngine.buildMixes(
+            tracks = tracks,
+            events = events,
+            audioFeatures = features,
+            nowEpochMs = nowMs,
+            currentHour = 15,
+            maxTracksPerMix = 1, // previously risked negative take() count
+        )
+        val chillIds = mixes.firstOrNull { it.kind == SmartMixKind.CHILL_BPM }?.songIds.orEmpty().toSet()
+        val upbeatIds = mixes.firstOrNull { it.kind == SmartMixKind.UPBEAT_BPM }?.songIds.orEmpty().toSet()
+        assertTrue("Chill and Upbeat must never overlap: chill=$chillIds upbeat=$upbeatIds", chillIds.intersect(upbeatIds).isEmpty())
+    }
 }

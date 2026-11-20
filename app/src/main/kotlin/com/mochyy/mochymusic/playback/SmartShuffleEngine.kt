@@ -170,7 +170,10 @@ object SmartShuffleEngine {
     }
 
     /**
-     * Builds a smart shuffled index order over [candidates] with [currentIndex] pinned first:
+     * Builds a smart shuffled index order over [candidates].
+     * - When [pinCurrent] is true, [currentIndex] is pinned at position 0.
+     * - When [pinCurrent] is false (e.g. shuffling appended segments), no candidate is pinned and
+     *   [leadingArtistKey] seeds the artist spacing window across segment boundaries.
      * - Maximizes separation between tracks by the same artist (never consecutive if avoidable).
      * - Interleaves familiar tracks with long-unheard / fresh tracks.
      * - Applies weighted randomness influenced by skip/replay habit scores so heavily skipped
@@ -181,13 +184,23 @@ object SmartShuffleEngine {
         currentIndex: Int,
         nowMs: Long,
         random: Random = Random.Default,
+        pinCurrent: Boolean = true,
+        leadingArtistKey: String = "",
     ): IntArray {
         if (candidates.isEmpty()) return IntArray(0)
         if (candidates.size == 1) return intArrayOf(candidates[0].index)
 
-        val currentCandidate = candidates.firstOrNull { it.index == currentIndex } ?: candidates.first()
-        val remaining = candidates.filter { it.index != currentCandidate.index }
-        if (remaining.isEmpty()) return intArrayOf(currentCandidate.index)
+        val currentCandidate = if (pinCurrent) {
+            candidates.firstOrNull { it.index == currentIndex } ?: candidates.first()
+        } else {
+            null
+        }
+        val remaining = if (currentCandidate != null) {
+            candidates.filter { it.index != currentCandidate.index }
+        } else {
+            candidates
+        }
+        if (remaining.isEmpty()) return intArrayOf(currentCandidate!!.index)
 
         val familiar = ArrayList<ShuffleCandidate>()
         val fresh = ArrayList<ShuffleCandidate>()
@@ -199,25 +212,35 @@ object SmartShuffleEngine {
         }
 
         // Weighted randomized pre-ordering (Efraimidis-Spirakis) within each pool so every shuffle
-        // produces a distinct order while respecting habit weights.
-        fun weightedOrder(pool: List<ShuffleCandidate>): MutableList<ShuffleCandidate> = pool
+        // produces a distinct order while respecting habit weights and favoring genuine rediscoveries.
+        fun weightedOrder(pool: List<ShuffleCandidate>, favorRediscovery: Boolean): MutableList<ShuffleCandidate> = pool
             .map { item ->
-                val weight = exp(item.habitScore.coerceIn(-1.2, 1.5)).coerceIn(0.18, 4.5)
+                val rediscoveryBias = if (favorRediscovery) {
+                    val isDormant = item.lastPlayedAtMs <= 0L || (nowMs - item.lastPlayedAtMs) >= RediscoveryThresholdMs
+                    if (isDormant) 0.35 else -0.15
+                } else {
+                    0.0
+                }
+                val weight = exp((item.habitScore + rediscoveryBias).coerceIn(-1.2, 1.8)).coerceIn(0.18, 5.5)
                 val u = random.nextDouble(1e-6, 1.0)
                 item to (ln(u) / weight)
             }
             .sortedByDescending { it.second }
             .mapTo(ArrayList(pool.size)) { it.first }
 
-        val familiarQueue = weightedOrder(familiar)
-        val freshQueue = weightedOrder(fresh)
+        val familiarQueue = weightedOrder(familiar, favorRediscovery = false)
+        val freshQueue = weightedOrder(fresh, favorRediscovery = true)
 
         val result = IntArray(candidates.size)
         var pos = 0
-        result[pos++] = currentCandidate.index
-
         val recentArtists = ArrayDeque<String>(6)
-        if (currentCandidate.artistKey.isNotBlank()) recentArtists.addLast(currentCandidate.artistKey)
+        if (currentCandidate != null) {
+            result[pos++] = currentCandidate.index
+            if (currentCandidate.artistKey.isNotBlank()) recentArtists.addLast(currentCandidate.artistKey)
+        } else {
+            val lead = normalizeArtistKey(leadingArtistKey)
+            if (lead.isNotBlank()) recentArtists.addLast(lead)
+        }
 
         fun artistDistancePenalty(artistKey: String): Double {
             if (artistKey.isBlank() || recentArtists.isEmpty()) return 0.0
@@ -314,13 +337,28 @@ object SmartShuffleEngine {
         recentArtistKey: String = "",
     ): List<Int> {
         if (candidates.size <= 1) return candidates.map { it.index }
-        val allHabits = habits.values
+
+        // Precompute per-artist affinity averages once in O(H) instead of O(N * H)
+        val artistSums = HashMap<String, Double>()
+        val artistCounts = HashMap<String, Int>()
+        for (h in habits.values) {
+            val key = normalizeArtistKey(h.artistKey)
+            if (key.isEmpty()) continue
+            artistSums[key] = (artistSums[key] ?: 0.0) + trackAffinityScore(h, nowMs)
+            artistCounts[key] = (artistCounts[key] ?: 0) + 1
+        }
+        val artistAvg = HashMap<String, Double>(artistSums.size)
+        for ((key, sum) in artistSums) {
+            val cnt = artistCounts[key] ?: 1
+            artistAvg[key] = (sum / cnt).coerceIn(-0.8, 0.8)
+        }
 
         // Base score blends original radio relevance (slight decay by position) + learned track & artist habit
         val scored = candidates.mapIndexed { rank, cand ->
             val relevance = (candidates.size - rank).toDouble() / candidates.size.coerceAtLeast(1) * 0.45
             val trackScore = trackAffinityScore(habits[cand.songId], nowMs)
-            val artistScore = artistAffinityScore(allHabits, cand.artistKey, nowMs) * 0.5
+            val normArtist = normalizeArtistKey(cand.artistKey)
+            val artistScore = (artistAvg[normArtist] ?: 0.0) * 0.5
             cand to (relevance + trackScore + artistScore)
         }.toMutableList()
 

@@ -43,12 +43,13 @@
     <string name="smart_mix_chill">Mix êm dịu</string>
     <string name="smart_mix_upbeat">Mix sôi động</string>
     <string name="smart_mix_tag_time">Hợp giờ này</string>
-    <string name="smart_mix_tag_repeat">On Repeat</string>
+    <string name="smart_mix_tag_repeat">Nghe hoài</string>
     <string name="smart_mix_tag_forgotten">Hoài niệm</string>
     <string name="smart_mix_tag_chill">Êm dịu · BPM</string>
     <string name="smart_mix_tag_upbeat">Sôi động · BPM</string>
     <string name="smart_mix_subtitle_count">%1$d bài</string>
     <string name="smart_mix_subtitle_bpm">%1$d bài · ~%2$d BPM</string>
+    <string name="smart_section_search_in">Tìm trong %1$s</string>
 
     <!-- #4 Trộn thông minh & Tự học thói quen -->
     <string name="smart_shuffle_title">Trộn thông minh (Smart Shuffle)</string>
@@ -57,6 +58,8 @@
     <string name="smart_habits_title">Tự học thói quen bấm qua &amp; nghe lại</string>
     <string name="smart_habits_desc">Bấm qua trong 15 giây đầu sẽ giảm ưu tiên ở Radio/Tự động phát; nghe lại được ưu tiên hơn</string>
     <string name="smart_habits_detail">Chạy 100% trên máy. Bấm qua bài trong 15 giây đầu sẽ giảm độ ưu tiên ở Radio, Tự động phát và Trộn thông minh; nghe lại bài đó sẽ tăng ưu tiên.</string>
+    <string name="smart_habits_reset_title">Đặt lại thói quen đã học</string>
+    <string name="smart_habits_reset_desc">Xóa lịch sử bấm qua &amp; nghe lại của %1$d bài hát</string>
 
     <!-- #5 Lời bài hát thông minh theo ngôn ngữ -->
     <string name="smart_lyrics_title">Lời bài hát thông minh theo ngôn ngữ</string>

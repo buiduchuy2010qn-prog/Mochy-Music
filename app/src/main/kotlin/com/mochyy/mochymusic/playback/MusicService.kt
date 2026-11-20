@@ -365,8 +365,13 @@ class MusicService :
     private var habitTrackDurationMs: Long = 0L
     private var habitListenedMs: Long = 0L
     private var habitPlayStartElapsedMs: Long = -1L
+    private var habitLeaveRecordedForTrack: Boolean = false
+    private var habitSeekReplayListenedWatermarkMs: Long = 0L
     private var lastCompletedTrackId: String? = null
     private var lastCompletedTrackAtMs: Long = 0L
+
+    /** Lightweight (playCount, lastPlayedEpochMs) cache warmed from Room `event` for day-1 Smart Shuffle rediscovery */
+    private val songHistoryCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Long>>()
 
     @Inject
     lateinit var widgetManager: MochyWidgetManager
@@ -843,7 +848,17 @@ class MusicService :
         audioPass.start()
         scope.launch {
             audioOutputs.devices
-                .map { list -> list.firstOrNull { it.isActive }?.let { it.kind to it.name } }
+                .map { list ->
+                    list.firstOrNull { it.isActive }?.let { it.kind to it.name }
+                        ?: audioOutputs.activeDevice()?.let { info ->
+                            com.mochyy.mochymusic.playback.audio.AudioOutputs.kindOf(info.type)?.let { kind ->
+                                val raw = if (kind == com.mochyy.mochymusic.playback.audio.AudioOutputs.Kind.PHONE ||
+                                    kind == com.mochyy.mochymusic.playback.audio.AudioOutputs.Kind.WIRED
+                                ) "" else info.productName?.toString()?.trim().orEmpty()
+                                kind to raw
+                            }
+                        }
+                }
                 .distinctUntilChanged()
                 .collect { active ->
                     val (kind, name) = active ?: return@collect
@@ -864,6 +879,28 @@ class MusicService :
                         )
                     }
                 }
+        }
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val zone = java.time.ZoneId.systemDefault()
+                val events = database.recapEvents(0L, Long.MAX_VALUE)
+                val counts = HashMap<String, Int>(512)
+                val lastAt = HashMap<String, Long>(512)
+                for (ev in events) {
+                    val id = ev.songId
+                    if (id.isBlank()) continue
+                    counts[id] = (counts[id] ?: 0) + 1
+                    val epochMs = java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(ev.timestamp),
+                        java.time.ZoneOffset.UTC,
+                    ).atZone(zone).toInstant().toEpochMilli()
+                    val prev = lastAt[id] ?: 0L
+                    if (epochMs > prev) lastAt[id] = epochMs
+                }
+                for ((id, cnt) in counts) {
+                    songHistoryCache[id] = cnt to (lastAt[id] ?: 0L)
+                }
+            }
         }
         player = createExoPlayer()
         player.addListener(this@MusicService)
@@ -3170,6 +3207,26 @@ class MusicService :
         if (playbackState != Player.STATE_IDLE) clearStreamFailure()
 
         if (playbackState == Player.STATE_ENDED) {
+            flushHabitPlayTime()
+            val endedId = habitTrackId
+            if (!habitLeaveRecordedForTrack && !endedId.isNullOrBlank() && dataStore.get(LearnSkipHabitsKey, true)) {
+                val nowMs = System.currentTimeMillis()
+                val outcome = playbackHabitStore.recordLeave(
+                    songId = endedId,
+                    artistName = habitTrackArtist,
+                    listenedMs = habitListenedMs,
+                    durationMs = habitTrackDurationMs,
+                    isManualSkip = false,
+                    isRepeatReplay = false,
+                    nowMs = nowMs,
+                )
+                habitLeaveRecordedForTrack = true
+                if (outcome == TrackInteraction.COMPLETED || outcome == TrackInteraction.REPLAY) {
+                    lastCompletedTrackId = endedId
+                    lastCompletedTrackAtMs = nowMs
+                    noteSongPlayedInHistoryCache(endedId, nowMs)
+                }
+            }
             val repeatMode = runBlocking { dataStore.get(RepeatModeKey, REPEAT_MODE_OFF) }
             if (repeatMode == REPEAT_MODE_ALL && player.mediaItemCount > 0) {
                 player.seekTo(0, 0)
@@ -3193,6 +3250,15 @@ class MusicService :
 
             player.currentMediaItem?.mediaId?.let { mediaId ->
                 resetRetryCount(mediaId)
+                // Only remember the provider once ExoPlayer actually prepared the stream cleanly
+                resolvedSourceIds[mediaId]?.let { providerId ->
+                    sourceModules.rememberBestProvider(mediaId, providerId)
+                }
+                if (mediaId == habitTrackId && habitTrackDurationMs <= 0L &&
+                    player.duration != C.TIME_UNSET && player.duration > 0L
+                ) {
+                    habitTrackDurationMs = player.duration
+                }
                 Timber.tag(TAG).d("Playback successful for $mediaId, reset retry count")
             }
             scheduleCrossfade()
@@ -3214,12 +3280,17 @@ class MusicService :
         }
     }
 
+    private fun noteSongPlayedInHistoryCache(songId: String, nowMs: Long) {
+        val prev = songHistoryCache[songId]
+        songHistoryCache[songId] = ((prev?.first ?: 0) + 1) to maxOf(prev?.second ?: 0L, nowMs)
+    }
+
     private fun recordHabitOnTransition(newItem: MediaItem?, reason: Int) {
         flushHabitPlayTime()
         val prevId = habitTrackId
         val learnHabits = dataStore.get(LearnSkipHabitsKey, true)
         val nowMs = System.currentTimeMillis()
-        if (learnHabits && !prevId.isNullOrBlank()) {
+        if (learnHabits && !prevId.isNullOrBlank() && !habitLeaveRecordedForTrack) {
             val isManualSkip = reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
             val isRepeatReplay = reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
             val outcome = playbackHabitStore.recordLeave(
@@ -3234,6 +3305,7 @@ class MusicService :
             if (outcome == TrackInteraction.COMPLETED || outcome == TrackInteraction.REPLAY) {
                 lastCompletedTrackId = prevId
                 lastCompletedTrackAtMs = nowMs
+                noteSongPlayedInHistoryCache(prevId, nowMs)
             }
         }
 
@@ -3248,14 +3320,18 @@ class MusicService :
             (nowMs - lastCompletedTrackAtMs) in 1_000L..1_800_000L
         ) {
             playbackHabitStore.recordInteraction(nextId, nextArtist, TrackInteraction.REPLAY, nowMs)
+            noteSongPlayedInHistoryCache(nextId, nowMs)
         }
 
         habitTrackId = nextId
         habitTrackArtist = nextArtist
         val metaDurationSec = newItem?.metadata?.duration ?: 0
-        val playerDur = if (::player.isInitialized && player.duration != C.TIME_UNSET && player.duration > 0L) player.duration else 0L
-        habitTrackDurationMs = if (metaDurationSec > 0) metaDurationSec * 1000L else playerDur
+        // Never copy player.duration during onMediaItemTransition (it may still belong to the outgoing item);
+        // STATE_READY fills in exact duration when metadata.duration is 0.
+        habitTrackDurationMs = if (metaDurationSec > 0) metaDurationSec * 1000L else 0L
         habitListenedMs = 0L
+        habitLeaveRecordedForTrack = false
+        habitSeekReplayListenedWatermarkMs = 0L
         habitPlayStartElapsedMs = if (::player.isInitialized && player.isPlaying && nextId != null) {
             android.os.SystemClock.elapsedRealtime()
         } else {
@@ -3271,7 +3347,15 @@ class MusicService :
                 habitTrackArtist = cur?.metadata?.artists?.firstOrNull()?.name
                     ?: cur?.mediaMetadata?.artist?.toString().orEmpty()
                 val sec = cur?.metadata?.duration ?: 0
-                habitTrackDurationMs = if (sec > 0) sec * 1000L else player.duration.coerceAtLeast(0L)
+                val playerDur = if (player.duration != C.TIME_UNSET && player.duration > 0L) player.duration else 0L
+                habitTrackDurationMs = if (sec > 0) sec * 1000L else playerDur
+                habitLeaveRecordedForTrack = false
+                habitSeekReplayListenedWatermarkMs = 0L
+            } else if (habitTrackDurationMs <= 0L &&
+                player.currentMediaItem?.mediaId == habitTrackId &&
+                player.duration != C.TIME_UNSET && player.duration > 0L
+            ) {
+                habitTrackDurationMs = player.duration
             }
             if (habitTrackId != null && habitPlayStartElapsedMs < 0L) {
                 habitPlayStartElapsedMs = android.os.SystemClock.elapsedRealtime()
@@ -3437,13 +3521,16 @@ class MusicService :
             val artistRaw = item.metadata?.artists?.firstOrNull()?.name
                 ?: item.mediaMetadata.artist?.toString().orEmpty()
             val habit = playbackHabitStore.get(songId)
-            val playCount = (habit?.completeCount ?: 0) + (habit?.replayCount ?: 0)
+            val dbHist = songHistoryCache[songId]
+            val habitPlays = (habit?.completeCount ?: 0) + (habit?.replayCount ?: 0)
+            val playCount = maxOf(habitPlays, dbHist?.first ?: 0)
+            val lastPlayedAtMs = maxOf(habit?.lastPlayedAtMs ?: 0L, dbHist?.second ?: 0L)
             ShuffleCandidate(
                 index = i,
                 songId = songId,
                 artistKey = SmartShuffleEngine.normalizeArtistKey(artistRaw),
                 playCount = playCount,
-                lastPlayedAtMs = habit?.lastPlayedAtMs ?: 0L,
+                lastPlayedAtMs = lastPlayedAtMs,
                 habitScore = SmartShuffleEngine.trackAffinityScore(habit, nowMs),
             )
         }
@@ -3467,6 +3554,12 @@ class MusicService :
             val shuffledIndices = if (useSmartShuffle) {
                 val out = IntArray(totalCount)
                 var pos = 0
+                fun artistKeyAt(index: Int): String {
+                    val item = player.getMediaItemAt(index)
+                    val raw = item.metadata?.artists?.firstOrNull()?.name
+                        ?: item.mediaMetadata.artist?.toString().orEmpty()
+                    return SmartShuffleEngine.normalizeArtistKey(raw)
+                }
                 if (currentIndex < originalQueueSize) {
                     val firstPart = SmartShuffleEngine.computeSmartShuffleOrder(
                         candidates = buildShuffleCandidates((0 until originalQueueSize).toList(), nowMs),
@@ -3474,28 +3567,38 @@ class MusicService :
                         nowMs = nowMs,
                     )
                     firstPart.forEach { out[pos++] = it }
+                    val lastFirstArtist = firstPart.lastOrNull()?.let(::artistKeyAt).orEmpty()
                     val addedPart = SmartShuffleEngine.computeSmartShuffleOrder(
                         candidates = buildShuffleCandidates((originalQueueSize until totalCount).toList(), nowMs),
-                        currentIndex = originalQueueSize,
+                        currentIndex = -1,
                         nowMs = nowMs,
+                        pinCurrent = false,
+                        leadingArtistKey = lastFirstArtist,
                     )
                     addedPart.forEach { out[pos++] = it }
                 } else {
                     out[pos++] = currentIndex
+                    var lastArtist = artistKeyAt(currentIndex)
                     val origList = (0 until originalQueueSize).toList()
                     if (origList.isNotEmpty()) {
-                        SmartShuffleEngine.computeSmartShuffleOrder(
+                        val origOrdered = SmartShuffleEngine.computeSmartShuffleOrder(
                             candidates = buildShuffleCandidates(origList, nowMs),
-                            currentIndex = origList.random(),
+                            currentIndex = -1,
                             nowMs = nowMs,
-                        ).forEach { out[pos++] = it }
+                            pinCurrent = false,
+                            leadingArtistKey = lastArtist,
+                        )
+                        origOrdered.forEach { out[pos++] = it }
+                        origOrdered.lastOrNull()?.let { lastArtist = artistKeyAt(it) }
                     }
                     val addedRest = (originalQueueSize until totalCount).filter { it != currentIndex }
                     if (addedRest.isNotEmpty()) {
                         SmartShuffleEngine.computeSmartShuffleOrder(
                             candidates = buildShuffleCandidates(addedRest, nowMs),
-                            currentIndex = addedRest.random(),
+                            currentIndex = -1,
                             nowMs = nowMs,
+                            pinCurrent = false,
+                            leadingArtistKey = lastArtist,
                         ).forEach { out[pos++] = it }
                     }
                 }
@@ -3984,7 +4087,13 @@ class MusicService :
     }
 
     private fun handleFinalFailure() {
-        player.currentMediaItem?.mediaId?.let { if (forceFallBack(it, includeYouTube = true)) return }
+        val currentId = player.currentMediaItem?.mediaId
+        if (currentId != null) {
+            if (forceFallBack(currentId, includeYouTube = true)) return
+            resolvedSourceIds[currentId]?.let { failed ->
+                sourceModules.forgetRememberedProvider(currentId, failed)
+            }
+        }
         Timber.tag(TAG).d("All recovery attempts exhausted, failing the stream")
         failStream()
     }
@@ -4465,7 +4574,17 @@ class MusicService :
         if (!skip.add(failed)) return false
         sourceModules.forgetRememberedProvider(mediaId, failed)
         failedSourcesAt.putIfAbsent(mediaId, System.currentTimeMillis())
-        val next = sourceModules.order.value.firstOrNull { it !in skip && sourceModules.isUsable(it) } ?: return false
+        val quickMeta = player.currentMediaItem?.takeIf { it.mediaId == mediaId }?.metadata
+            ?: player.findNextMediaItemById(mediaId)?.metadata
+        val quickTrack = quickMeta?.let {
+            com.mochyy.mochymusic.module.TrackQuery(
+                title = it.title,
+                artists = it.artists.map { a -> a.name },
+                album = it.album?.title,
+                durationMs = it.duration.takeIf { d -> d > 0 }?.times(1000L),
+            )
+        }
+        val next = sourceModules.effectiveOrderFor(mediaId, quickTrack, skip).firstOrNull() ?: return false
         Timber.tag(TAG).i("Force playback: $mediaId failed from $failed, trying $next")
         android.util.Log.i("SourceModules", "Force playback: ${sourceModules.nameOf(failed)} failed on $mediaId, trying ${sourceModules.nameOf(next)}")
         resolvedStreamSources.remove(mediaId)
@@ -4980,14 +5099,24 @@ class MusicService :
         if (reason == Player.DISCONTINUITY_REASON_SEEK) {
             crossmixDirector.onUserSeek()
             scheduleCrossfade()
-            // Scrubbing back to the beginning after listening >= 30s indicates a deliberate Replay
+            // Scrubbing back to the beginning after genuinely listening >= 20s indicates a deliberate Replay
             if (oldPosition.mediaItemIndex == newPosition.mediaItemIndex &&
                 oldPosition.positionMs >= 30_000L &&
                 newPosition.positionMs <= 5_000L &&
                 dataStore.get(LearnSkipHabitsKey, true)
             ) {
-                habitTrackId?.let { id ->
-                    playbackHabitStore.recordInteraction(id, habitTrackArtist, TrackInteraction.REPLAY)
+                flushHabitPlayTime()
+                val listenedSinceLastReplay = habitListenedMs - habitSeekReplayListenedWatermarkMs
+                if (listenedSinceLastReplay >= 20_000L) {
+                    habitSeekReplayListenedWatermarkMs = habitListenedMs
+                    habitTrackId?.let { id ->
+                        val nowMs = System.currentTimeMillis()
+                        playbackHabitStore.recordInteraction(id, habitTrackArtist, TrackInteraction.REPLAY, nowMs)
+                        noteSongPlayedInHistoryCache(id, nowMs)
+                    }
+                }
+                if (player.isPlaying && habitTrackId != null) {
+                    habitPlayStartElapsedMs = android.os.SystemClock.elapsedRealtime()
                 }
             }
         }
@@ -5506,7 +5635,6 @@ class MusicService :
         val track = trackQueryOf(mediaId)
         val dynamicOrder = sourceModules.effectiveOrderFor(mediaId, track, skip)
         if (dynamicOrder.firstOrNull() == com.mochyy.mochymusic.modules.SourceModules.YouTubeId) {
-            sourceModules.rememberBestProvider(mediaId, com.mochyy.mochymusic.modules.SourceModules.YouTubeId)
             return youTubeRoute(mediaId)
         }
         val route = sourceModules.route(track, skip, mediaId = mediaId) { id, passed ->
@@ -5625,7 +5753,7 @@ class MusicService :
 
         override fun switchTo(mediaId: String, route: ForcedRoute, play: Boolean) {
             forcedRoutes[mediaId] = route
-            sourceModules.rememberBestProvider(mediaId, route.providerId)
+            sourceModules.rememberBestProvider(mediaId, route.providerId, manualPick = true)
             failedSources.remove(mediaId)
             failedSourcesAt.remove(mediaId)
             val index = player.currentMediaItemIndex

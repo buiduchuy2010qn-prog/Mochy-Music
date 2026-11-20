@@ -27,8 +27,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -290,7 +293,27 @@ private fun SmartRoutingCard(modules: ModulesViewModel) {
     val (vietnamesePriority, setVietnamesePriority) = rememberPreference(SmartRoutingVietnameseKey, defaultValue = true)
     val (rememberBest, setRememberBest) = rememberPreference(SmartRoutingRememberKey, defaultValue = true)
     val rememberedCount by modules.rememberedProviderCount.collectAsState()
-    val networkTier = remember { SmartProviderRouter.detectNetworkTier(context) }
+    var networkTier by remember(context) { mutableStateOf(SmartProviderRouter.detectNetworkTier(context)) }
+    DisposableEffect(context) {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                networkTier = SmartProviderRouter.detectNetworkTier(context)
+            }
+
+            override fun onCapabilitiesChanged(network: android.net.Network, caps: android.net.NetworkCapabilities) {
+                networkTier = SmartProviderRouter.detectNetworkTier(context)
+            }
+
+            override fun onLost(network: android.net.Network) {
+                networkTier = SmartProviderRouter.detectNetworkTier(context)
+            }
+        }
+        val registered = runCatching { cm?.registerDefaultNetworkCallback(callback); cm != null }.getOrDefault(false)
+        onDispose {
+            if (registered) runCatching { cm?.unregisterNetworkCallback(callback) }
+        }
+    }
     val networkLabel = when (networkTier) {
         NetworkTier.WIFI_UNMETERED -> stringResource(R.string.smart_routing_net_wifi)
         NetworkTier.CELLULAR_METERED -> stringResource(R.string.smart_routing_net_cellular)

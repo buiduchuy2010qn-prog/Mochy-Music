@@ -140,4 +140,27 @@ class SmartShuffleEngineTest {
         assertEquals("Replayed song should rise to #1", 3, ranked.first())
         assertEquals("Frequently skipped song should drop to last", 0, ranked.last())
     }
+
+    @Test
+    fun unpinnedSegmentShuffleAvoidsLeadingArtistCollisionAndShufflesAllItems() {
+        val candidates = listOf(
+            ShuffleCandidate(10, "s10", "son tung"),
+            ShuffleCandidate(11, "s11", "son tung"),
+            ShuffleCandidate(12, "s12", "den vau"),
+            ShuffleCandidate(13, "s13", "wren evans"),
+            ShuffleCandidate(14, "s14", "tlinh"),
+        )
+        val order = SmartShuffleEngine.computeSmartShuffleOrder(
+            candidates = candidates,
+            currentIndex = -1,
+            nowMs = nowMs,
+            random = Random(123),
+            pinCurrent = false,
+            leadingArtistKey = "son tung",
+        )
+        assertEquals(5, order.size)
+        assertEquals(setOf(10, 11, 12, 13, 14), order.toSet())
+        val firstArtist = candidates.first { it.index == order.first() }.artistKey
+        assertFalse("Unpinned segment must not collide with leadingArtistKey", firstArtist == "son tung")
+    }
 }

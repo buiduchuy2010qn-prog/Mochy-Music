@@ -225,13 +225,39 @@ class FloatingLyrics(
                 PillScript.build(lines, title, artist, appRtl, PillReadings(romanized, translated, settings.romanizedAsMain))
             }
         }
-        val romanized = romanizedLines(lines, settings)
-        val key = "$songId|${settings.language}|${settings.sourceLanguage}|${settings.mode}|${settings.smartLyrics}|${found.saved?.translatedLyrics.hashCode()}"
-        val remembered = translationMemo?.takeIf { found.translate && it.first == key }?.second
+        val romanized = romanizedLines(lines, settings, title = title, artist = artist)
+        val smartDecision = withContext(Dispatchers.Default) {
+            com.mochyy.mochymusic.lyrics.SmartLyricsLanguageDetector.decide(
+                smartLyricsEnabled = settings.smartLyrics,
+                lines = lines.map { it.text },
+                configuredTargetLanguage = settings.language,
+                title = title,
+                artist = artist,
+            )
+        }
+        val manualOverride = LyricsTranslationHelper.hasManualOverrideFor(songId)
+        val shouldTranslate = when {
+            manualOverride -> found.translate
+            settings.smartLyrics -> if (smartDecision.detectedLanguage == com.mochyy.mochymusic.lyrics.LyricsLanguage.VIETNAMESE) {
+                false
+            } else {
+                smartDecision.shouldAutoTranslate || found.translate
+            }
+            else -> found.translate
+        }
+        val key = "$songId|${settings.language}|${settings.sourceLanguage}|${settings.mode}|${settings.smartLyrics}|$manualOverride|${found.saved?.translatedLyrics.hashCode()}"
+        val remembered = translationMemo?.takeIf { shouldTranslate && it.first == key }?.second
         if (remembered == null) state.script = if (romanized == null) plain else withReadings(romanized, emptyList())
-        if (!found.translate) return
+        if (!shouldTranslate) return
         val translated = remembered
-            ?: translatedLines(lines, found.saved, settings)?.also { translationMemo = key to it }
+            ?: translatedLines(
+                lines = lines,
+                saved = found.saved,
+                settings = settings,
+                title = title,
+                artist = artist,
+                manualOverride = manualOverride,
+            )?.also { translationMemo = key to it }
             ?: return
         state.script = withReadings(romanized.orEmpty(), translated)
     }

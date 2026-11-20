@@ -134,9 +134,13 @@ object LyricsTranslationHelper {
     private val _translationOn = MutableStateFlow(false)
     val translationOn: StateFlow<Boolean> = _translationOn.asStateFlow()
 
+    private val _manualOverrideVersion = MutableStateFlow(0)
+    val manualOverrideVersion: StateFlow<Int> = _manualOverrideVersion.asStateFlow()
+
     private var lastSongId: String? = null
     private var manualOverrideSongId: String? = null
     private var manualOverrideEnabled: Boolean? = null
+    private var smartAutoAppliedSongId: String? = null
 
     /**
      * What a stored translation is filed under. Just the target when the source is detected
@@ -147,20 +151,24 @@ object LyricsTranslationHelper {
     fun languageTag(sourceLanguage: String, targetLanguage: String): String =
         if (sourceLanguage.isBlank() || sourceLanguage == "auto") targetLanguage else "$sourceLanguage>$targetLanguage"
 
-    fun triggerManualTranslation() {
-        manualOverrideSongId = lastSongId
+    fun triggerManualTranslation(songId: String? = lastSongId) {
+        manualOverrideSongId = songId ?: lastSongId
         manualOverrideEnabled = true
+        smartAutoAppliedSongId = null
         _translationOn.value = true
+        _manualOverrideVersion.value = _manualOverrideVersion.value + 1
         _manualTrigger.tryEmit(Unit)
     }
 
-    fun triggerClearTranslations() {
-        manualOverrideSongId = lastSongId
+    fun triggerClearTranslations(songId: String? = lastSongId) {
+        manualOverrideSongId = songId ?: lastSongId
         manualOverrideEnabled = false
+        smartAutoAppliedSongId = null
         _translationOn.value = false
         _hasActiveTranslations.value = false
         translationJob?.cancel()
         _status.value = TranslationStatus.Idle
+        _manualOverrideVersion.value = _manualOverrideVersion.value + 1
         _clearTranslationsTrigger.tryEmit(Unit)
     }
 
@@ -173,6 +181,7 @@ object LyricsTranslationHelper {
         if (lastSongId != null && lastSongId != songId) {
             manualOverrideSongId = null
             manualOverrideEnabled = null
+            smartAutoAppliedSongId = null
             if (!sessionWide) {
                 _translationOn.value = false
                 _hasActiveTranslations.value = false
@@ -194,11 +203,28 @@ object LyricsTranslationHelper {
             lastSongId = songId
             manualOverrideSongId = null
             manualOverrideEnabled = null
+            smartAutoAppliedSongId = null
         }
         if (manualOverrideSongId == songId) return
+        smartAutoAppliedSongId = if (shouldTranslate) songId else null
         if (_translationOn.value == shouldTranslate) return
         _translationOn.value = shouldTranslate
         if (!shouldTranslate) {
+            _hasActiveTranslations.value = false
+            translationJob?.cancel()
+            _status.value = TranslationStatus.Idle
+        }
+    }
+
+    /**
+     * Called when the user disables Smart Lyrics while a track's translation was auto-enabled
+     * by Smart Lyrics (not manually toggled and not session-wide).
+     */
+    fun clearSmartAutoTranslation(songId: String?, sessionWide: Boolean) {
+        if (songId == null || sessionWide || manualOverrideSongId == songId) return
+        if (smartAutoAppliedSongId == songId) {
+            smartAutoAppliedSongId = null
+            _translationOn.value = false
             _hasActiveTranslations.value = false
             translationJob?.cancel()
             _status.value = TranslationStatus.Idle

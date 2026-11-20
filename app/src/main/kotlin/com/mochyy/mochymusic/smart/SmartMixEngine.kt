@@ -175,11 +175,14 @@ object SmartMixEngine {
             // Modulate with Crossmix energy appropriate to the hour of day
             val feat = audioFeatures[songId]
             val moodBonus = if (feat != null) {
+                val energy = if (feat.energy.isFinite()) feat.energy.coerceIn(0f, 1f) else 0.5f
+                val dance = if (feat.danceability.isFinite()) feat.danceability.coerceIn(0f, 1f) else 0.5f
+                val bpm = feat.bpm?.takeIf { it.isFinite() && it in 40f..240f }
                 when (slot) {
-                    DaySlot.LATE_NIGHT -> if (feat.energy <= 0.52f || (feat.bpm != null && feat.bpm <= 108f)) 0.65 else -0.25
-                    DaySlot.MORNING -> if (feat.energy in 0.38f..0.78f) 0.40 else 0.0
-                    DaySlot.AFTERNOON -> if (feat.energy >= 0.50f || feat.danceability >= 0.55f) 0.45 else 0.0
-                    DaySlot.EVENING -> if (feat.energy in 0.30f..0.68f) 0.35 else 0.0
+                    DaySlot.LATE_NIGHT -> if (energy <= 0.52f || (bpm != null && bpm <= 108f)) 0.65 else -0.25
+                    DaySlot.MORNING -> if (energy in 0.38f..0.78f) 0.40 else 0.0
+                    DaySlot.AFTERNOON -> if (energy >= 0.50f || dance >= 0.55f) 0.45 else 0.0
+                    DaySlot.EVENING -> if (energy in 0.30f..0.68f) 0.35 else 0.0
                 }
             } else {
                 0.0
@@ -335,34 +338,39 @@ object SmartMixEngine {
                 habit * 0.5
 
             if (feat != null) {
-                val bpm = feat.bpm
+                val bpm = feat.bpm?.takeIf { it.isFinite() && it in 40f..240f }
+                val energy = if (feat.energy.isFinite()) feat.energy.coerceIn(0f, 1f) else 0.5f
+                val dance = if (feat.danceability.isFinite()) feat.danceability.coerceIn(0f, 1f) else 0.5f
                 if (chill) {
-                    val isExplicitlyUpbeat = (bpm != null && bpm >= 122f && feat.energy >= 0.60f)
-                    if (isExplicitlyUpbeat) continue
-                    val matchesChill = (bpm != null && bpm <= 105f) || feat.energy <= 0.46f
+                    // Mutually exclusive with UPBEAT_BPM
+                    if (energy >= 0.58f || (bpm != null && bpm >= 112f)) continue
+                    val matchesChill = (bpm != null && bpm <= 104f && energy <= 0.56f) ||
+                        (bpm == null && energy <= 0.45f)
                     if (matchesChill) {
                         val bpmScore = if (bpm != null) ((112f - bpm).coerceIn(0f, 52f) / 20.0) else 0.6
-                        val energyScore = ((0.60f - feat.energy).coerceIn(0f, 0.60f) * 3.2)
+                        val energyScore = ((0.60f - energy).coerceIn(0f, 0.60f) * 3.2)
                         strictAnalyzed += songId to (3.0 + bpmScore + energyScore + engagement)
                     }
                 } else {
-                    val isExplicitlyChill = (bpm != null && bpm <= 95f && feat.energy <= 0.45f)
-                    if (isExplicitlyChill) continue
-                    val matchesUpbeat = (bpm != null && bpm >= 115f) || feat.energy >= 0.60f || feat.danceability >= 0.62f
+                    // Mutually exclusive with CHILL_BPM
+                    if (energy <= 0.44f || (bpm != null && bpm <= 104f)) continue
+                    val matchesUpbeat = (bpm != null && bpm >= 114f && energy >= 0.48f) ||
+                        (bpm == null && (energy >= 0.62f || dance >= 0.68f))
                     if (matchesUpbeat) {
                         val bpmScore = if (bpm != null) ((bpm - 108f).coerceIn(0f, 65f) / 22.0) else 0.6
-                        val energyScore = (feat.energy * 2.2) + (feat.danceability * 1.4)
+                        val energyScore = (energy * 2.2) + (dance * 1.4)
                         strictAnalyzed += songId to (3.0 + bpmScore + energyScore + engagement)
                     }
                 }
             } else if (songEvents.isNotEmpty()) {
-                // Soft fallback using listening-hour tendencies only when few tracks have Crossmix cache yet
+                // Soft fallback using listening-hour tendencies only when few tracks have Crossmix cache yet;
+                // strict > 0.5 guarantees a 50/50 track cannot appear in both Chill and Upbeat mixes.
                 val matchingHourRatio = songEvents.count { ev ->
                     val s = daySlotForHour(ev.hourOfDay)
                     if (chill) (s == DaySlot.LATE_NIGHT || s == DaySlot.EVENING)
                     else (s == DaySlot.MORNING || s == DaySlot.AFTERNOON)
                 }.toDouble() / songEvents.size
-                if (matchingHourRatio >= 0.5) {
+                if (matchingHourRatio > 0.5) {
                     val recency = songEvents.maxOf { ev ->
                         val ageDays = ((nowEpochMs - ev.epochMs).coerceAtLeast(0L)).toDouble() / DayMs
                         exp(-ageDays / 45.0)
@@ -375,7 +383,8 @@ object SmartMixEngine {
         val combined = if (strictAnalyzed.size >= MinTracksPerMix) {
             strictAnalyzed
         } else if (strictAnalyzed.isNotEmpty() || fallbackUnanalyzed.size >= MinTracksPerMix) {
-            strictAnalyzed + fallbackUnanalyzed.sortedByDescending { it.second }.take(maxTracks - strictAnalyzed.size)
+            val remainingSlots = (maxTracks - strictAnalyzed.size).coerceAtLeast(0)
+            strictAnalyzed + fallbackUnanalyzed.sortedByDescending { it.second }.take(remainingSlots)
         } else {
             emptyList()
         }
@@ -439,7 +448,7 @@ object SmartMixEngine {
         songIds: List<String>,
         audioFeatures: Map<String, SmartMixAudioFeature>,
     ): Int? {
-        val bpms = songIds.mapNotNull { audioFeatures[it]?.bpm?.takeIf { b -> b in 45f..220f } }
+        val bpms = songIds.mapNotNull { audioFeatures[it]?.bpm?.takeIf { b -> b.isFinite() && b in 45f..220f } }
         if (bpms.isEmpty()) return null
         return (bpms.sum() / bpms.size).roundToInt()
     }
@@ -481,7 +490,7 @@ object CrossmixFeatureCacheReader {
             if (input.readInt() != CacheVersion) return null
             input.readLong() // analyzedMs
             input.readBoolean() // complete
-            val bpm = input.readFloat().takeUnless { it.isNaN() || it <= 0f }
+            val bpm = input.readFloat().takeIf { it.isFinite() && it in 40f..240f }
             input.readFloat() // bpmConfidence
             if (!skipTypedArray(input, 8L)) return null // beatsMs
             if (!skipTypedArray(input, 4L)) return null // barBeats
@@ -493,16 +502,16 @@ object CrossmixFeatureCacheReader {
             if (!skipTypedArray(input, 4L)) return null // energy curve
             if (!skipTypedArray(input, 4L)) return null // bass curve
             if (!skipTypedArray(input, 4L)) return null // brightness curve
-            val vibeEnergy = input.readFloat().coerceIn(0f, 1f)
-            val vibeDanceability = input.readFloat().coerceIn(0f, 1f)
+            val rawEnergy = input.readFloat()
+            val rawDance = input.readFloat()
             input.readFloat() // vibe.brightness
-            val vibeBassWeight = input.readFloat().coerceIn(0f, 1f)
+            val rawBass = input.readFloat()
             input.readBoolean() // vibe.minor
             SmartMixAudioFeature(
                 bpm = bpm,
-                energy = vibeEnergy,
-                danceability = vibeDanceability,
-                bassWeight = vibeBassWeight,
+                energy = if (rawEnergy.isFinite()) rawEnergy.coerceIn(0f, 1f) else 0.5f,
+                danceability = if (rawDance.isFinite()) rawDance.coerceIn(0f, 1f) else 0.5f,
+                bassWeight = if (rawBass.isFinite()) rawBass.coerceIn(0f, 1f) else 0.5f,
             )
         }
     }.getOrNull()

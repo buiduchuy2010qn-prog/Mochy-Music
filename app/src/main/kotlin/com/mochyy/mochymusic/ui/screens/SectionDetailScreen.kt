@@ -242,7 +242,7 @@ fun SectionDetailScreen(
         onShuffleClick = { playAll(shuffled = true) },
         query = query,
         onQueryChange = { query = it },
-        searchPlaceholder = "Search in $title",
+        searchPlaceholder = stringResource(R.string.smart_section_search_in, title),
         onBackClick = { navController.navigateUp() },
         onBackLongClick = { navController.backToMain() },
         creator = accountName,

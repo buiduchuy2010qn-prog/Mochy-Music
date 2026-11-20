@@ -17,10 +17,11 @@ data class AudioLabProfileSnapshot(
     val loudness: LoudnessSettings = LoudnessSettings(),
     val reverb: ReverbSettings = ReverbSettings(),
 ) {
-    /** True if any headphone-specific spatial / 8D / AutoEq correction is active. */
+    /** True if any headphone-specific spatial / surround / 8D / AutoEq correction is active. */
     fun hasHeadphoneEffects(): Boolean =
         eightD.enabled ||
             spatial.enabled ||
+            spatial.surround ||
             (eq.enabled && eq.correctionEnabled && eq.correction != null)
 
     /** True if every effect is in its default off state. */
@@ -302,17 +303,41 @@ object DeviceAudioProfileEngine {
 
     /**
      * Compact encoding omitting default fields for Mochy Cloud JWT metadata budget.
+     * Progressively trims the oldest profiles if [maxChars] is specified so large AutoEq curves
+     * never cause the entire profile set to be dropped.
      */
     fun encodeProfilesCompact(
         profiles: Map<String, DeviceAudioProfile>,
         maxProfiles: Int = MaxCloudProfiles,
+        maxChars: Int = Int.MAX_VALUE,
     ): String? {
-        if (profiles.isEmpty()) return null
+        if (profiles.isEmpty() || maxProfiles <= 0 || maxChars <= 2) return null
         val ordered = profiles.values
             .sortedByDescending { it.updatedAtMs }
             .take(maxProfiles)
         if (ordered.isEmpty()) return null
-        return cloudCompactJson.encodeToString(ListSerializer(DeviceAudioProfile.serializer()), ordered)
+        for (count in ordered.size downTo 1) {
+            val encoded = cloudCompactJson.encodeToString(
+                ListSerializer(DeviceAudioProfile.serializer()),
+                ordered.take(count),
+            )
+            if (encoded.length <= maxChars) return encoded
+        }
+        return null
+    }
+
+    /**
+     * Trims an already-serialized compact device profiles JSON to fit [maxProfiles] and [maxChars].
+     */
+    fun trimEncodedCompactJson(
+        raw: String?,
+        maxChars: Int,
+        maxProfiles: Int = MaxCloudProfiles,
+    ): String? {
+        if (raw.isNullOrBlank()) return null
+        val decoded = decodeProfiles(raw)
+        if (decoded.isEmpty()) return null
+        return encodeProfilesCompact(decoded, maxProfiles = maxProfiles, maxChars = maxChars)
     }
 
     fun decodeProfiles(raw: String?): Map<String, DeviceAudioProfile> {
@@ -340,6 +365,8 @@ object DeviceAudioProfileEngine {
         val ordered = profiles.values.sortedBy { it.key }
         return cloudCompactJson.encodeToString(ListSerializer(DeviceAudioProfile.serializer()), ordered)
     }
+
+    fun canonicalKeyOfJson(raw: String?): String = canonicalKey(decodeProfiles(raw))
 
     fun kindOf(name: String): AudioOutputs.Kind =
         runCatching { AudioOutputs.Kind.valueOf(name) }.getOrDefault(AudioOutputs.Kind.PHONE)

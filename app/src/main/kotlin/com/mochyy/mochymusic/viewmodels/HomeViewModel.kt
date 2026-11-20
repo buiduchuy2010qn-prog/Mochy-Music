@@ -792,6 +792,9 @@ class HomeViewModel @Inject constructor(
             .filter { it is Song || it is Album || it is com.mochyy.mochymusic.db.entities.Playlist }
     }
 
+    @Volatile
+    private var lastSmartMixSlot: com.mochyy.mochymusic.smart.DaySlot? = null
+
     /**
      * Builds 100% on-device Smart Mixes (Time of Day, On Repeat, Forgotten Favorites, Chill BPM,
      * Upbeat BPM) from local Room listening history (`Event`), liked songs, Crossmix disk cache,
@@ -799,17 +802,25 @@ class HomeViewModel @Inject constructor(
      */
     private suspend fun loadSmartMixes(hideVideoSongs: Boolean) {
         runCatching {
-            val allEvents = database.events().first()
+            val bareEvents = database.recapEvents(0L, Long.MAX_VALUE)
             val likedSongs = database.likedSongsByCreateDateAsc().first()
             val hidden = NotRecommended.songs
 
-            val songById = HashMap<String, Song>()
-            for (ev in allEvents) {
-                val song = ev.song
+            val songById = HashMap<String, Song>(likedSongs.size + 64)
+            for (song in likedSongs) {
                 if (song.id !in hidden) songById[song.id] = song
             }
-            for (song in likedSongs) {
-                if (song.id !in hidden) songById.putIfAbsent(song.id, song)
+            val missingSongIds = bareEvents
+                .asSequence()
+                .map { it.songId }
+                .filter { it.isNotBlank() && it !in hidden && it !in songById }
+                .distinct()
+                .toList()
+            for (chunk in missingSongIds.chunked(900)) {
+                val resolved = database.songsByIds(chunk).first()
+                for (song in resolved) {
+                    if (song.id !in hidden) songById[song.id] = song
+                }
             }
 
             val eligibleSongs = songById.values.toList().filterVideoSongs(hideVideoSongs)
@@ -832,15 +843,18 @@ class HomeViewModel @Inject constructor(
             }
 
             val zone = java.time.ZoneId.systemDefault()
-            val mixEvents = allEvents.mapNotNull { row ->
-                val songId = row.event.songId
+            val mixEvents = bareEvents.mapNotNull { row ->
+                val songId = row.songId
                 if (songId !in eligibleMap) return@mapNotNull null
-                val ts = row.event.timestamp
+                val ts = java.time.LocalDateTime.ofInstant(
+                    java.time.Instant.ofEpochMilli(row.timestamp),
+                    java.time.ZoneOffset.UTC,
+                )
                 com.mochyy.mochymusic.smart.SmartMixEvent(
                     songId = songId,
                     epochMs = ts.atZone(zone).toInstant().toEpochMilli(),
                     hourOfDay = ts.hour,
-                    playTimeMs = row.event.playTime.coerceAtLeast(0L),
+                    playTimeMs = row.playTime.coerceAtLeast(0L),
                 )
             }
 
@@ -850,6 +864,7 @@ class HomeViewModel @Inject constructor(
             )
             val nowMs = System.currentTimeMillis()
             val currentHour = java.time.LocalDateTime.now().hour
+            lastSmartMixSlot = com.mochyy.mochymusic.smart.SmartMixEngine.daySlotForHour(currentHour)
             val habitScores = playbackHabitStore.affinityMap(nowMs)
 
             val generated = com.mochyy.mochymusic.smart.SmartMixEngine.buildMixes(
@@ -873,6 +888,8 @@ class HomeViewModel @Inject constructor(
                     avgBpm = mix.avgBpm,
                 )
             }
+        }.onFailure { err ->
+            timber.log.Timber.tag("HomeViewModel").w(err, "Failed to build on-device Smart Mixes")
         }
     }
 
@@ -1257,8 +1274,16 @@ class HomeViewModel @Inject constructor(
      * page reloads. never more than once a minute, and never on top of a load already running.
      */
     fun onListeningBreak() {
+        val currentSlot = com.mochyy.mochymusic.smart.SmartMixEngine.daySlotForHour(java.time.LocalDateTime.now().hour)
+        val slotChanged = lastSmartMixSlot != null && lastSmartMixSlot != currentSlot
         val sinceLoad = SystemClock.elapsedRealtime() - lastLoadAt
-        if (lastLoadAt == 0L || sinceLoad < 60_000L || loadMutex.isLocked || listeningRefresh.isLocked) return
+        if (lastLoadAt == 0L || loadMutex.isLocked || listeningRefresh.isLocked) return
+        if (slotChanged) {
+            viewModelScope.launch(Dispatchers.IO) {
+                loadSmartMixes(context.dataStore.get(HideVideoSongsKey, false))
+            }
+        }
+        if (sinceLoad < 60_000L) return
         val stale = sinceLoad > 30 * 60_000L
         val tasteMoved = signals.skipsSinceRefresh >= 2 || signals.playsSinceRefresh >= 4
         if (!stale && !tasteMoved) return

@@ -30,13 +30,20 @@ class SmartProviderRouterTest {
         assertTrue(VietnameseTrackDetector.isVietnameseTrack("Chìm Sâu", listOf("RPT MCK")))
         assertTrue(VietnameseTrackDetector.isVietnameseTrack("Summer Mix (V-Pop)", listOf("Unknown DJ")))
 
-        // Foreign tracks with shared Latin accents must NOT be misclassified as Vietnamese
+        // Foreign tracks with shared Latin accents or ambiguous international artist names must NOT be misclassified
         assertFalse(VietnameseTrackDetector.isVietnameseTrack("Déjà Vu", listOf("Olivia Rodrigo")))
         assertFalse(VietnameseTrackDetector.isVietnameseTrack("Café con Leche", listOf("Celia Cruz")))
         assertFalse(VietnameseTrackDetector.isVietnameseTrack("Blinding Lights", listOf("The Weeknd")))
         assertFalse(VietnameseTrackDetector.isVietnameseTrack("アイドル", listOf("YOASOBI")))
         assertFalse(VietnameseTrackDetector.isVietnameseTrack("Ditto", listOf("NewJeans")))
+        assertFalse(VietnameseTrackDetector.isVietnameseTrack("Ashes in the Snow", listOf("MONO")))
+        assertFalse(VietnameseTrackDetector.isVietnameseTrack("Gymnopédie No. 1", listOf("Erik Satie")))
+        assertFalse(VietnameseTrackDetector.isVietnameseTrack("Sunset", listOf("Orange")))
         assertFalse(VietnameseTrackDetector.isVietnameseTrack(null))
+
+        // Decomposed Unicode NFD Vietnamese text (common in Apple Music / YouTube metadata) MUST still be detected
+        val nfdTitle = java.text.Normalizer.normalize("Nơi Này Có Anh", java.text.Normalizer.Form.NFD)
+        assertTrue(VietnameseTrackDetector.isVietnameseTrack(nfdTitle, listOf("Unknown")))
     }
 
     @Test
@@ -70,8 +77,9 @@ class SmartProviderRouterTest {
             remembered = null,
             policy = policy,
         )
-        assertEquals(ZingMp3Module.Id, cellOrder[0])
-        assertEquals(SourceModules.YouTubeId, cellOrder[1])
+        // Foreign tracks on 4G prioritize instant YouTube Music first, then lightweight Zing MP3
+        assertEquals(SourceModules.YouTubeId, cellOrder[0])
+        assertEquals(ZingMp3Module.Id, cellOrder[1])
     }
 
     @Test
@@ -129,7 +137,7 @@ class SmartProviderRouterTest {
         )
         assertEquals(MonochromeModule.Id, wifiWithMemory[0])
 
-        // On 4G/5G cellular with networkAware=true, heavy Monochrome memory does NOT override light sources
+        // On 4G/5G cellular with networkAware=true, heavy Monochrome/Apple Music memory does NOT override fast sources
         val cellWithMonoMemory = SmartProviderRouter.computeOrder(
             baseOrder = allBaseOrder,
             usable = { true },
@@ -139,8 +147,57 @@ class SmartProviderRouterTest {
             remembered = rememberedMono,
             policy = policy,
         )
-        assertEquals(ZingMp3Module.Id, cellWithMonoMemory[0])
-        assertEquals(SourceModules.YouTubeId, cellWithMonoMemory[1])
+        assertEquals(SourceModules.YouTubeId, cellWithMonoMemory[0])
+        assertEquals(ZingMp3Module.Id, cellWithMonoMemory[1])
+
+        val rememberedApple = RememberedProvider(
+            songId = "song_1",
+            providerId = AppleMusicModule.Id,
+            networkTier = NetworkTier.WIFI_UNMETERED.name,
+            updatedAtMs = 10_000L,
+        )
+        val cellWithAppleMemory = SmartProviderRouter.computeOrder(
+            baseOrder = allBaseOrder,
+            usable = { true },
+            skip = emptySet(),
+            networkTier = NetworkTier.CELLULAR_METERED,
+            isVietnamese = false,
+            remembered = rememberedApple,
+            policy = policy,
+        )
+        assertEquals(SourceModules.YouTubeId, cellWithAppleMemory[0])
+
+        // Automatic 4G YouTube memory must NOT poison Wi-Fi lossless priority for foreign tracks
+        val rememberedCellYt = RememberedProvider(
+            songId = "song_en",
+            providerId = SourceModules.YouTubeId,
+            networkTier = NetworkTier.CELLULAR_METERED.name,
+            updatedAtMs = 10_000L,
+            manualPick = false,
+        )
+        val wifiAfterCellPlay = SmartProviderRouter.computeOrder(
+            baseOrder = allBaseOrder,
+            usable = { true },
+            skip = emptySet(),
+            networkTier = NetworkTier.WIFI_UNMETERED,
+            isVietnamese = false,
+            remembered = rememberedCellYt,
+            policy = policy,
+        )
+        assertEquals(MonochromeModule.Id, wifiAfterCellPlay[0])
+
+        // Explicit manual pick on Wi-Fi IS honored
+        val manualYtPick = rememberedCellYt.copy(manualPick = true)
+        val wifiWithManualPick = SmartProviderRouter.computeOrder(
+            baseOrder = allBaseOrder,
+            usable = { true },
+            skip = emptySet(),
+            networkTier = NetworkTier.WIFI_UNMETERED,
+            isVietnamese = false,
+            remembered = manualYtPick,
+            policy = policy,
+        )
+        assertEquals(SourceModules.YouTubeId, wifiWithManualPick[0])
 
         // Failed remembered provider in `skip` is cleanly bypassed
         val skippedMemory = SmartProviderRouter.computeOrder(

@@ -66,9 +66,10 @@ class SourceModules @Inject constructor(
 
     fun currentNetworkTier(): NetworkTier = SmartProviderRouter.detectNetworkTier(context)
 
-    fun rememberBestProvider(mediaId: String?, providerId: String) {
-        if (!smartRoutingPolicy().rememberBestPerSong) return
-        bestProviderStore.recordSuccess(mediaId, providerId, currentNetworkTier())
+    fun rememberBestProvider(mediaId: String?, providerId: String, manualPick: Boolean = false) {
+        val policy = smartRoutingPolicy()
+        if (!policy.enabled || !policy.rememberBestPerSong) return
+        bestProviderStore.recordSuccess(mediaId, providerId, currentNetworkTier(), manualPick = manualPick)
     }
 
     fun forgetRememberedProvider(mediaId: String?, providerId: String) {
@@ -92,7 +93,7 @@ class SourceModules @Inject constructor(
         skip = skip,
         networkTier = networkTier,
         isVietnamese = VietnameseTrackDetector.isVietnameseTrack(track),
-        remembered = bestProviderStore.get(mediaId),
+        remembered = bestProviderStore.get(mediaId, networkTier = networkTier, networkAware = policy.networkAware),
         policy = policy,
     )
 
@@ -217,7 +218,7 @@ class SourceModules @Inject constructor(
             networkTier = networkTier,
             policy = policy,
         )
-        val result = walk(dynamicOrder, track, skip, ::isUsable, ::playbackPicks) { id, stream ->
+        return walk(dynamicOrder, track, skip, ::isUsable, ::playbackPicks) { id, stream ->
             // a stream this phone has no decoder for would play in silence: the next provider has it
             DeviceDecoders.canPlay(stream).also { playable ->
                 if (!playable) {
@@ -226,14 +227,6 @@ class SourceModules @Inject constructor(
                 }
             }
         }
-        if (policy.enabled && policy.rememberBestPerSong && !mediaId.isNullOrBlank()) {
-            when (result) {
-                is Route.Module -> bestProviderStore.recordSuccess(mediaId, result.module.info.id, networkTier)
-                Route.YouTube -> bestProviderStore.recordSuccess(mediaId, YouTubeId, networkTier)
-                Route.Exhausted -> Unit
-            }
-        }
-        return result
     }
 
     /** the download order's walk: the first provider that gives one whole file this phone can play, else youtube */

@@ -49,11 +49,18 @@ internal fun readingSettings(context: Context): Flow<ReadingSettings> = context.
     .distinctUntilChanged()
 
 // every line's romanisation, worked out the way the lyrics page does it; null when the song is in nothing mochy romanises
-internal suspend fun romanizedLines(lines: List<LyricsEntry>, settings: ReadingSettings): List<LineReading?>? {
+internal suspend fun romanizedLines(
+    lines: List<LyricsEntry>,
+    settings: ReadingSettings,
+    title: String? = null,
+    artist: String? = null,
+): List<LineReading?>? {
     val decision = SmartLyricsLanguageDetector.decide(
         smartLyricsEnabled = settings.smartLyrics,
         lines = lines.map { it.text },
         configuredTargetLanguage = settings.language,
+        title = title,
+        artist = artist,
     )
     if (settings.smartLyrics && decision.shouldHideRomanization) return null
     val out = arrayOfNulls<LineReading>(lines.size)
@@ -71,18 +78,27 @@ internal suspend fun romanizedLines(lines: List<LyricsEntry>, settings: ReadingS
 }
 
 // the translation the lyrics page would show: the saved one when it's in the chosen language, otherwise google's, kept in memory so it never replaces one the page saved
-internal suspend fun translatedLines(lines: List<LyricsEntry>, saved: LyricsEntity?, settings: ReadingSettings): List<String?>? {
+internal suspend fun translatedLines(
+    lines: List<LyricsEntry>,
+    saved: LyricsEntity?,
+    settings: ReadingSettings,
+    title: String? = null,
+    artist: String? = null,
+    manualOverride: Boolean = false,
+): List<String?>? {
     val sung = lines.withIndex().filter { it.value.text.isNotBlank() }
     if (sung.isEmpty()) return null
     val decision = SmartLyricsLanguageDetector.decide(
         smartLyricsEnabled = settings.smartLyrics,
         lines = lines.map { it.text },
         configuredTargetLanguage = settings.language,
+        title = title,
+        artist = artist,
     )
-    if (settings.smartLyrics && decision.detectedLanguage == LyricsLanguage.VIETNAMESE) {
+    if (settings.smartLyrics && !manualOverride && decision.detectedLanguage == LyricsLanguage.VIETNAMESE) {
         return null
     }
-    val target = if (settings.smartLyrics) decision.targetLanguage else (settings.language ?: "vi")
+    val target = if (settings.smartLyrics && !manualOverride) decision.targetLanguage else (settings.language ?: "vi")
     val sourceLang = if (settings.sourceLanguage == "auto" && settings.smartLyrics) {
         decision.sourceLanguageHint
     } else {

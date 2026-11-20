@@ -145,5 +145,43 @@ class SmartLyricsLanguageDetectorTest {
         assertFalse(LyricsTranslationHelper.hasManualOverrideFor("song_ja"))
         LyricsTranslationHelper.applySmartTranslationState("song_ja", true)
         assertTrue(LyricsTranslationHelper.translationOn.value)
+
+        // Turning OFF Smart Lyrics clears auto-enabled translation unless user manually overrode or sessionWide=true
+        LyricsTranslationHelper.clearSmartAutoTranslation("song_ja", sessionWide = false)
+        assertFalse("Disabling Smart Lyrics must clear auto-enabled translation", LyricsTranslationHelper.translationOn.value)
+    }
+
+    @Test
+    fun cjkCreditHeadersStrayAdLibsShortEnglishAndNfdVietnameseClassifyAccurately() {
+        // LRCLib/NetEase English track with Chinese metadata header lines must NOT classify as CHINESE
+        val edSheeranWithCjkHeader = listOf(
+            "作词 : Ed Sheeran",
+            "作曲 : Ed Sheeran",
+            "编曲 : Benny Blanco",
+            "[00:05.00]I found a love for me",
+            "[00:10.00]Darling just dive right in and follow my lead",
+            "[00:15.00]Well I found a girl beautiful and sweet",
+        )
+        assertEquals(LyricsLanguage.ENGLISH, SmartLyricsLanguageDetector.detectLanguage(edSheeranWithCjkHeader))
+
+        // Short modern English chorus with common short words ("go", "let", "it", "yeah")
+        val shortEnglish = listOf("Go, go, go, let it go, yeah, let it go")
+        assertEquals(LyricsLanguage.ENGLISH, SmartLyricsLanguageDetector.detectLanguage(shortEnglish))
+
+        // Predominantly Vietnamese song with one tiny 3-char Korean ad-lib stays VIETNAMESE
+        val vnWithStrayKorean = listOf(
+            "Em là ánh nắng dịu dàng bước qua đời anh",
+            "Cầm tay nhau đi qua những ngày mưa rơi không ngừng",
+            "Nơi này có anh luôn chờ đợi em trở về",
+            "사랑해",
+        )
+        assertEquals(LyricsLanguage.VIETNAMESE, SmartLyricsLanguageDetector.detectLanguage(vnWithStrayKorean))
+
+        // Decomposed Unicode NFD Vietnamese lyrics classify as VIETNAMESE
+        val nfdLines = listOf(
+            java.text.Normalizer.normalize("Nơi này có anh dịu dàng pha sắc nắng", java.text.Normalizer.Form.NFD),
+            java.text.Normalizer.normalize("Cầm tay anh dựa vai anh nhé em", java.text.Normalizer.Form.NFD),
+        )
+        assertEquals(LyricsLanguage.VIETNAMESE, SmartLyricsLanguageDetector.detectLanguage(nfdLines))
     }
 }

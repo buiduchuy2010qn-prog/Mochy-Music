@@ -66,14 +66,18 @@ fun LyricsReadings(
 ) {
     val context = LocalContext.current
     val playerConnection = com.mochyy.mochymusic.LocalPlayerConnection.current
-    val currentMeta = playerConnection?.mediaMetadata?.value?.takeIf { it.id == songId }
+    val emptyMetaFlow = remember { kotlinx.coroutines.flow.MutableStateFlow<com.mochyy.mochymusic.models.MediaMetadata?>(null) }
+    val currentMediaMetadata by (playerConnection?.mediaMetadata ?: emptyMetaFlow).collectAsState()
+    val currentMeta = currentMediaMetadata?.takeIf { it.id == songId }
     val (smartLyricsEnabled) = rememberPreference(SmartLyricsKey, defaultValue = true)
-    // Read raw stored target language (null when user never manually picked one) so Smart Lyrics can default to "vi"
-    val storedTranslateLanguage = PreferencesCache.snapshot.value[TranslateLanguageKey]
-    val smartDecision = remember(lines, songId, smartLyricsEnabled, storedTranslateLanguage, currentMeta?.title) {
+    // Observe raw stored target language reactively (null when user never manually picked one) so Smart Lyrics defaults to "vi"
+    val prefsSnapshot by PreferencesCache.snapshot.collectAsState()
+    val storedTranslateLanguage = prefsSnapshot[TranslateLanguageKey]
+    val lyricsMatchSong = songId != null && (lyricsEntity == null || lyricsEntity.id == songId)
+    val smartDecision = remember(lines, songId, lyricsMatchSong, smartLyricsEnabled, storedTranslateLanguage, currentMeta?.title) {
         SmartLyricsLanguageDetector.decide(
             smartLyricsEnabled = smartLyricsEnabled,
-            lines = lines.map { it.text },
+            lines = if (lyricsMatchSong) lines.map { it.text } else emptyList(),
             configuredTargetLanguage = storedTranslateLanguage,
             title = currentMeta?.title,
             artist = currentMeta?.artists?.joinToString(", ") { it.name },
@@ -83,7 +87,8 @@ fun LyricsReadings(
     // every language switch, in the order of RomanizeLanguageKeys; the list never changes, so reading them in a loop is safe
     val switches = RomanizeLanguageKeys.map { key -> rememberPreference(key, defaultValue = true).value }
 
-    LaunchedEffect(lines, switches, smartLyricsEnabled, smartDecision) {
+    LaunchedEffect(lines, lyricsMatchSong, switches, smartLyricsEnabled, smartDecision) {
+        if (!lyricsMatchSong) return@LaunchedEffect
         if (smartLyricsEnabled && smartDecision.shouldHideRomanization) {
             lines.forEach { entry ->
                 entry.romanizedWordsFlow.value = null
@@ -123,6 +128,7 @@ fun LyricsReadings(
     val (translateMode) = rememberPreference(TranslateModeKey, defaultValue = "line")
     val (translateSessionWide) = rememberPreference(TranslateLyricsKey, defaultValue = false)
     val translationOn by LyricsTranslationHelper.translationOn.collectAsState()
+    val manualOverrideVersion by LyricsTranslationHelper.manualOverrideVersion.collectAsState()
 
     val (aiProvider) = rememberPreference(AiProviderKey, defaultValue = "OpenRouter")
     val (openRouterKey) = rememberPreference(OpenRouterApiKey, defaultValue = "")
@@ -141,8 +147,13 @@ fun LyricsReadings(
 
     // Smart Lyrics (#5): automatically show Vietnamese translation on EN/JA/KO/ZH tracks
     // and hide translation on Vietnamese tracks unless the user manually toggled this song.
-    LaunchedEffect(songId, lines, smartLyricsEnabled, smartDecision, translateSessionWide) {
-        if (!smartLyricsEnabled || lines.isEmpty() || songId.isNullOrBlank()) return@LaunchedEffect
+    LaunchedEffect(songId, lines, lyricsMatchSong, smartLyricsEnabled, smartDecision, translateSessionWide) {
+        if (songId.isNullOrBlank()) return@LaunchedEffect
+        if (!smartLyricsEnabled) {
+            LyricsTranslationHelper.clearSmartAutoTranslation(songId, translateSessionWide)
+            return@LaunchedEffect
+        }
+        if (!lyricsMatchSong || lines.isEmpty()) return@LaunchedEffect
         val shouldTranslate = when (smartDecision.detectedLanguage) {
             LyricsLanguage.VIETNAMESE -> false
             else -> smartDecision.shouldAutoTranslate || translateSessionWide
@@ -155,10 +166,11 @@ fun LyricsReadings(
     val latestLyricsEntity by androidx.compose.runtime.rememberUpdatedState(lyricsEntity)
 
     LaunchedEffect(
-        lines, translationOn, translateLanguage, translateSourceLanguage, translateMode,
-        aiProvider, openRouterKey, deeplKey, youtubeTranslations, smartLyricsEnabled, smartDecision,
+        songId, lines, lyricsMatchSong, translationOn, manualOverrideVersion, translateLanguage,
+        translateSourceLanguage, translateMode, aiProvider, openRouterKey, deeplKey,
+        youtubeTranslations, smartLyricsEnabled, smartDecision,
     ) {
-        if (lines.isEmpty()) return@LaunchedEffect
+        if (lines.isEmpty() || !lyricsMatchSong) return@LaunchedEffect
         val manualOverride = LyricsTranslationHelper.hasManualOverrideFor(songId)
         if (!translationOn || (smartLyricsEnabled && !manualOverride && smartDecision.detectedLanguage == LyricsLanguage.VIETNAMESE)) {
             lines.forEach { it.translatedTextFlow.value = null }
@@ -176,7 +188,7 @@ fun LyricsReadings(
         }
 
         // a translation someone uploaded to the video beats any machine one, so it's tried first
-        val metadata = playerConnection?.mediaMetadata?.value?.takeIf { it.id == songId }
+        val metadata = currentMeta ?: playerConnection?.mediaMetadata?.value?.takeIf { it.id == songId }
         if (youtubeTranslations && metadata != null &&
             LyricsTranslationHelper.translateWithYouTubeCaptions(
                 lyrics = lines,

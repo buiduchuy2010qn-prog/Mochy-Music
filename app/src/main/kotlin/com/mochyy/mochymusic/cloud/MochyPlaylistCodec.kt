@@ -545,34 +545,56 @@ object MochyLibraryExtraCodec {
         }
 
         // 1. Giữ nguyên album/artist/speedDial/modules, cắt dần recognitionHistory & lyricsOffsets trước
+        val audioFitted = extra.audio?.let { a ->
+            val fittedDp = com.mochyy.mochymusic.eq.DeviceAudioProfileEngine.trimEncodedCompactJson(
+                a.deviceProfilesJson,
+                maxChars = MaxDeviceProfilesChars,
+            )
+            a.copy(deviceProfilesJson = fittedDp)
+        }
         for ((recCap, offsetCap) in ExtraStepCaps) {
-            tryEncode(200, recCap, offsetCap, cappedSpeedDial, modulesFull, extra.audio)?.let { return it }
+            tryEncode(200, recCap, offsetCap, cappedSpeedDial, modulesFull, audioFitted)?.let { return it }
         }
         // 2. Giảm dần album/artist nếu vẫn vượt ngưỡng nén
         for (cap in Caps.drop(1)) {
             for ((recCap, offsetCap) in listOf(10 to 60, 0 to 0)) {
-                tryEncode(cap, recCap, offsetCap, cappedSpeedDial, modulesFull, extra.audio)?.let { return it }
+                tryEncode(cap, recCap, offsetCap, cappedSpeedDial, modulesFull, audioFitted)?.let { return it }
             }
         }
         // 3. Nếu webModulesJson làm vượt hạn mức Base64, bỏ webModulesJson nhưng giữ switch/picks/order/monochrome
         if (modulesFull?.webModulesJson != null) {
             for ((recCap, offsetCap) in ExtraStepCaps) {
-                tryEncode(200, recCap, offsetCap, cappedSpeedDial, modulesNoWeb, extra.audio)?.let { return it }
+                tryEncode(200, recCap, offsetCap, cappedSpeedDial, modulesNoWeb, audioFitted)?.let { return it }
             }
             for (cap in Caps.drop(1)) {
-                tryEncode(cap, 0, 0, cappedSpeedDial, modulesNoWeb, extra.audio)?.let { return it }
+                tryEncode(cap, 0, 0, cappedSpeedDial, modulesNoWeb, audioFitted)?.let { return it }
             }
         }
-        // 4. Fallback cuối: giữ cấu hình nhẹ (bỏ fields trước, rồi mới bỏ toàn bộ modules nếu vẫn vượt) + audio
-        val audioFull = extra.audio?.let { a ->
-            a.copy(deviceProfilesJson = a.deviceProfilesJson?.takeIf { it.isNotBlank() && it.length <= MaxDeviceProfilesChars })
+        // 4. Fallback cuối: giữ cấu hình nhẹ + thử thu gọn dần số hồ sơ thiết bị (8 -> 4 -> 2 -> 1 -> bỏ) trước khi bỏ hết
+        val audioCandidates = buildList<CloudAudioConfig?> {
+            if (audioFitted != null) {
+                add(audioFitted)
+                for (cap in listOf(4, 2, 1)) {
+                    val trimmed = com.mochyy.mochymusic.eq.DeviceAudioProfileEngine.trimEncodedCompactJson(
+                        extra.audio?.deviceProfilesJson,
+                        maxChars = MaxDeviceProfilesChars,
+                        maxProfiles = cap,
+                    )
+                    val candidate = audioFitted.copy(deviceProfilesJson = trimmed)
+                    if (candidate !in this) add(candidate)
+                }
+                val withoutDp = audioFitted.copy(deviceProfilesJson = null)
+                if (withoutDp !in this) add(withoutDp)
+            } else {
+                add(null)
+            }
         }
-        val audioNoDeviceProfiles = audioFull?.copy(deviceProfilesJson = null)
-        tryEncode(0, 0, 0, emptyList(), modulesNoWeb, audioFull)?.let { return it }
-        tryEncode(0, 0, 0, emptyList(), modulesNoWeb?.copy(fields = emptyMap()), audioFull)?.let { return it }
-        tryEncode(0, 0, 0, emptyList(), null, audioFull)?.let { return it }
-        tryEncode(0, 0, 0, emptyList(), modulesNoWeb, audioNoDeviceProfiles)?.let { return it }
-        return tryEncode(0, 0, 0, emptyList(), null, audioNoDeviceProfiles).orEmpty()
+        for (audioCandidate in audioCandidates) {
+            tryEncode(0, 0, 0, emptyList(), modulesNoWeb, audioCandidate)?.let { return it }
+            tryEncode(0, 0, 0, emptyList(), modulesNoWeb?.copy(fields = emptyMap()), audioCandidate)?.let { return it }
+            tryEncode(0, 0, 0, emptyList(), null, audioCandidate)?.let { return it }
+        }
+        return ""
     }
 
     fun decode(libraryExtraGz: String?): CloudLibraryExtra? {

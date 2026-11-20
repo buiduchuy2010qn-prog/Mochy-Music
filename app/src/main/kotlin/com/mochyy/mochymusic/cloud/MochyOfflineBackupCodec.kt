@@ -769,54 +769,56 @@ object MochyOfflineBackupCodec {
             // 6. Cài đặt Equalizer & âm thanh
             var eqRestored = false
             if (audioObj != null) {
-                audioObj.optString("eq").takeIf { it.isNotBlank() && it != "null" }?.let { eqStr ->
-                    runCatching { audioJson.decodeFromString(EqSettings.serializer(), eqStr) }.getOrNull()?.let { restoredEq ->
-                        audioLab.updateEq { restoredEq }
+                audioLab.runWithoutDeviceProfileRecording {
+                    audioObj.optString("eq").takeIf { it.isNotBlank() && it != "null" }?.let { eqStr ->
+                        runCatching { audioJson.decodeFromString(EqSettings.serializer(), eqStr) }.getOrNull()?.let { restoredEq ->
+                            audioLab.updateEq { restoredEq }
+                            eqRestored = true
+                        }
+                    }
+                    audioObj.optString("reverb").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                        runCatching { audioJson.decodeFromString(ReverbSettings.serializer(), raw) }.getOrNull()?.let { r ->
+                            audioLab.updateReverb { r }
+                        }
+                    }
+                    audioObj.optString("loudness").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                        runCatching { audioJson.decodeFromString(LoudnessSettings.serializer(), raw) }.getOrNull()?.let { l ->
+                            audioLab.updateLoudness { l }
+                        }
+                    }
+                    audioObj.optString("spatial").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                        runCatching { audioJson.decodeFromString(SpatialSettings.serializer(), raw) }.getOrNull()?.let { s ->
+                            audioLab.updateSpatial { s }
+                        }
+                    }
+                    audioObj.optString("normalize").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                        runCatching { audioJson.decodeFromString(NormalizeSettings.serializer(), raw) }.getOrNull()?.let { n ->
+                            audioLab.updateNormalize { n }
+                        }
+                    }
+                    audioObj.optString("volume").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                        runCatching { audioJson.decodeFromString(VolumeSettings.serializer(), raw) }.getOrNull()?.let { v ->
+                            audioLab.updateVolume { v }
+                        }
+                    }
+                    audioObj.optString("playback").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                        runCatching { audioJson.decodeFromString(PlaybackSettings.serializer(), raw) }.getOrNull()?.let { p ->
+                            audioLab.updatePlayback { p }
+                        }
+                    }
+                    audioObj.optString("eightD").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                        runCatching { audioJson.decodeFromString(EightDSettings.serializer(), raw) }.getOrNull()?.let { ed ->
+                            audioLab.updateEightD { ed }
+                        }
+                    }
+                }
+                audioObj.optString("deviceProfiles").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                    if (audioLab.mergeDeviceProfilesJson(raw, onlyIfEmpty = false, applyIfActivePresent = true)) {
                         eqRestored = true
-                    }
-                }
-                audioObj.optString("reverb").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
-                    runCatching { audioJson.decodeFromString(ReverbSettings.serializer(), raw) }.getOrNull()?.let { r ->
-                        audioLab.updateReverb { r }
-                    }
-                }
-                audioObj.optString("loudness").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
-                    runCatching { audioJson.decodeFromString(LoudnessSettings.serializer(), raw) }.getOrNull()?.let { l ->
-                        audioLab.updateLoudness { l }
-                    }
-                }
-                audioObj.optString("spatial").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
-                    runCatching { audioJson.decodeFromString(SpatialSettings.serializer(), raw) }.getOrNull()?.let { s ->
-                        audioLab.updateSpatial { s }
-                    }
-                }
-                audioObj.optString("normalize").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
-                    runCatching { audioJson.decodeFromString(NormalizeSettings.serializer(), raw) }.getOrNull()?.let { n ->
-                        audioLab.updateNormalize { n }
-                    }
-                }
-                audioObj.optString("volume").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
-                    runCatching { audioJson.decodeFromString(VolumeSettings.serializer(), raw) }.getOrNull()?.let { v ->
-                        audioLab.updateVolume { v }
-                    }
-                }
-                audioObj.optString("playback").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
-                    runCatching { audioJson.decodeFromString(PlaybackSettings.serializer(), raw) }.getOrNull()?.let { p ->
-                        audioLab.updatePlayback { p }
-                    }
-                }
-                audioObj.optString("eightD").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
-                    runCatching { audioJson.decodeFromString(EightDSettings.serializer(), raw) }.getOrNull()?.let { ed ->
-                        audioLab.updateEightD { ed }
                     }
                 }
                 if (audioObj.has("deviceProfilesEnabled") && !audioObj.isNull("deviceProfilesEnabled")) {
                     audioLab.setDeviceProfilesEnabled(audioObj.optBoolean("deviceProfilesEnabled", true))
-                }
-                audioObj.optString("deviceProfiles").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
-                    if (audioLab.mergeDeviceProfilesJson(raw, onlyIfEmpty = false)) {
-                        eqRestored = true
-                    }
                 }
                 app.dataStore.edit { prefs ->
                     if (audioObj.has("audioNormalization")) {
