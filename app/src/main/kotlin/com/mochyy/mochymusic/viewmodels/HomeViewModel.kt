@@ -98,12 +98,21 @@ data class CommunityPlaylistItem(
     val songs: List<SongItem>
 )
 
+data class SmartMixCardItem(
+    val kind: com.mochyy.mochymusic.smart.SmartMixKind,
+    val daySlot: com.mochyy.mochymusic.smart.DaySlot,
+    val songs: List<Song>,
+    val bpmMatchedCount: Int = 0,
+    val avgBpm: Int? = null,
+)
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
     val syncUtils: SyncUtils,
     musicImportService: com.mochyy.mochymusic.importer.MusicImportService,
+    private val playbackHabitStore: com.mochyy.mochymusic.playback.PlaybackHabitStore,
 ) : ViewModel() {
     private val homeFeedCache = HomeFeedCache(context)
 
@@ -116,6 +125,7 @@ class HomeViewModel @Inject constructor(
     }.distinctUntilChanged()
 
     val quickPicks = MutableStateFlow<List<LocalItem>?>(null)
+    val smartMixes = MutableStateFlow<List<SmartMixCardItem>>(emptyList())
     val dailyDiscover = MutableStateFlow<List<DailyDiscoverItem>?>(null)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
     val keepListening = MutableStateFlow<List<LocalItem>?>(null)
@@ -741,6 +751,8 @@ class HomeViewModel @Inject constructor(
         forgottenFavorites.value = database.forgottenFavorites().first().distinctBy { it.id }
             .filterVideoSongs(hideVideoSongs).shuffled().take(20)
 
+        loadSmartMixes(hideVideoSongs)
+
         val fromTimeStamp = System.currentTimeMillis() - 86400000L * 7 * 2
         val keepListeningSongs = database.mostPlayedSongs(fromTimeStamp, limit = 15, offset = 5).first()
             .filterVideoSongs(hideVideoSongs).shuffled().take(10)
@@ -778,6 +790,90 @@ class HomeViewModel @Inject constructor(
 
         allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
             .filter { it is Song || it is Album || it is com.mochyy.mochymusic.db.entities.Playlist }
+    }
+
+    /**
+     * Builds 100% on-device Smart Mixes (Time of Day, On Repeat, Forgotten Favorites, Chill BPM,
+     * Upbeat BPM) from local Room listening history (`Event`), liked songs, Crossmix disk cache,
+     * and learned skip/replay habits. Works identically online and offline.
+     */
+    private suspend fun loadSmartMixes(hideVideoSongs: Boolean) {
+        runCatching {
+            val allEvents = database.events().first()
+            val likedSongs = database.likedSongsByCreateDateAsc().first()
+            val hidden = NotRecommended.songs
+
+            val songById = HashMap<String, Song>()
+            for (ev in allEvents) {
+                val song = ev.song
+                if (song.id !in hidden) songById[song.id] = song
+            }
+            for (song in likedSongs) {
+                if (song.id !in hidden) songById.putIfAbsent(song.id, song)
+            }
+
+            val eligibleSongs = songById.values.toList().filterVideoSongs(hideVideoSongs)
+            if (eligibleSongs.isEmpty()) {
+                smartMixes.value = emptyList()
+                return
+            }
+
+            val eligibleMap = eligibleSongs.associateBy { it.id }
+            val tracks = eligibleSongs.associate { song ->
+                val primaryArtist = com.mochyy.mochymusic.playback.SmartShuffleEngine.normalizeArtistKey(
+                    song.artists.firstOrNull()?.name,
+                )
+                song.id to com.mochyy.mochymusic.smart.SmartMixTrack(
+                    songId = song.id,
+                    primaryArtistKey = primaryArtist,
+                    liked = song.song.liked,
+                    durationSec = song.song.duration,
+                )
+            }
+
+            val zone = java.time.ZoneId.systemDefault()
+            val mixEvents = allEvents.mapNotNull { row ->
+                val songId = row.event.songId
+                if (songId !in eligibleMap) return@mapNotNull null
+                val ts = row.event.timestamp
+                com.mochyy.mochymusic.smart.SmartMixEvent(
+                    songId = songId,
+                    epochMs = ts.atZone(zone).toInstant().toEpochMilli(),
+                    hourOfDay = ts.hour,
+                    playTimeMs = row.event.playTime.coerceAtLeast(0L),
+                )
+            }
+
+            val features = com.mochyy.mochymusic.smart.CrossmixFeatureCacheReader.readForSongIds(
+                cacheRootDir = context.cacheDir,
+                songIds = eligibleMap.keys,
+            )
+            val nowMs = System.currentTimeMillis()
+            val currentHour = java.time.LocalDateTime.now().hour
+            val habitScores = playbackHabitStore.affinityMap(nowMs)
+
+            val generated = com.mochyy.mochymusic.smart.SmartMixEngine.buildMixes(
+                tracks = tracks,
+                events = mixEvents,
+                audioFeatures = features,
+                habitScores = habitScores,
+                nowEpochMs = nowMs,
+                currentHour = currentHour,
+                maxTracksPerMix = 25,
+            )
+
+            smartMixes.value = generated.mapNotNull { mix ->
+                val songs = mix.songIds.mapNotNull { eligibleMap[it] }
+                if (songs.isEmpty()) null
+                else SmartMixCardItem(
+                    kind = mix.kind,
+                    daySlot = mix.daySlot,
+                    songs = songs,
+                    bpmMatchedCount = mix.bpmMatchedCount,
+                    avgBpm = mix.avgBpm,
+                )
+            }
+        }
     }
 
     private suspend fun loadSimilarRecommendations() {

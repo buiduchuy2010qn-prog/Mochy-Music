@@ -18,6 +18,7 @@ import com.mochyy.mochymusic.eq.data.EQProfileRepository
 import com.mochyy.mochymusic.eq.data.FilterType
 import com.mochyy.mochymusic.eq.data.ParametricEQ
 import com.mochyy.mochymusic.eq.data.ParametricEQBand
+import com.mochyy.mochymusic.playback.audio.AudioOutputs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -202,6 +203,23 @@ class AudioLabStore @Inject constructor(
     private val _normalize = MutableStateFlow(load("normalize") ?: NormalizeSettings())
     val normalize: StateFlow<NormalizeSettings> = _normalize.asStateFlow()
 
+    /** Per-device Audio Lab profiles (#1): remembers EQ + AutoEq + Spatial + 8D + Loudness + Reverb per output route */
+    private val _deviceProfilesEnabled = MutableStateFlow(prefs.getBoolean("device_profiles_enabled", true))
+    val deviceProfilesEnabled: StateFlow<Boolean> = _deviceProfilesEnabled.asStateFlow()
+
+    private val _deviceProfiles = MutableStateFlow(
+        DeviceAudioProfileEngine.decodeProfiles(prefs.getString("device_profiles", null)),
+    )
+    val deviceProfiles: StateFlow<Map<String, DeviceAudioProfile>> = _deviceProfiles.asStateFlow()
+
+    private val _activeDevice = MutableStateFlow<ActiveAudioDevice?>(null)
+    val activeDevice: StateFlow<ActiveAudioDevice?> = _activeDevice.asStateFlow()
+
+    private val profileLock = Any()
+
+    @Volatile
+    private var applyingDeviceProfile = false
+
     /** whether anything here changes the sound: offloaded playback skips every effect, so it has to stay off while this is true */
     val shapesSound: Flow<Boolean> = combine(
         combine(eq, reverb, loudness, spatial, songPreset) { eq, reverb, loudness, spatial, songPreset ->
@@ -219,24 +237,28 @@ class AudioLabStore @Inject constructor(
     fun updateReverb(transform: (ReverbSettings) -> ReverbSettings) {
         _reverb.update(transform)
         pushFx()
+        recordActiveDeviceEdit()
         scheduleSave()
     }
 
     fun updateLoudness(transform: (LoudnessSettings) -> LoudnessSettings) {
         _loudness.update(transform)
         pushFx()
+        recordActiveDeviceEdit()
         scheduleSave()
     }
 
     fun updateSpatial(transform: (SpatialSettings) -> SpatialSettings) {
         _spatial.update(transform)
         pushFx()
+        recordActiveDeviceEdit()
         scheduleSave()
     }
 
     fun updateEightD(transform: (EightDSettings) -> EightDSettings) {
         _eightD.update { transform(it).normalized() }
         pushFx()
+        recordActiveDeviceEdit()
         scheduleSave()
     }
 
@@ -260,7 +282,172 @@ class AudioLabStore @Inject constructor(
     fun updateEq(transform: (EqSettings) -> EqSettings) {
         _eq.update(transform)
         pushEq()
+        recordActiveDeviceEdit()
         scheduleSave()
+    }
+
+    // ---- Per-device Audio Lab profiles (#1) --------------------------------------------------
+
+    fun currentProfileSnapshot(): AudioLabProfileSnapshot = AudioLabProfileSnapshot(
+        eq = _eq.value,
+        spatial = _spatial.value,
+        eightD = _eightD.value,
+        loudness = _loudness.value,
+        reverb = _reverb.value,
+    )
+
+    private fun recordActiveDeviceEdit() {
+        if (applyingDeviceProfile) return
+        synchronized(profileLock) {
+            if (applyingDeviceProfile) return
+            val updated = DeviceAudioProfileEngine.recordEdit(
+                enabled = _deviceProfilesEnabled.value,
+                profiles = _deviceProfiles.value,
+                activeDevice = _activeDevice.value,
+                newSnapshot = currentProfileSnapshot(),
+                nowMs = System.currentTimeMillis(),
+            )
+            if (updated != _deviceProfiles.value) {
+                _deviceProfiles.value = updated
+            }
+        }
+    }
+
+    private fun applyProfileSnapshot(snapshot: AudioLabProfileSnapshot) {
+        val normalized = snapshot.normalized()
+        applyingDeviceProfile = true
+        try {
+            _eq.value = normalized.eq
+            _spatial.value = normalized.spatial
+            _eightD.value = normalized.eightD
+            _loudness.value = normalized.loudness
+            _reverb.value = normalized.reverb
+            pushEq()
+            pushFx()
+        } finally {
+            applyingDeviceProfile = false
+        }
+    }
+
+    /**
+     * Called when the active Android audio output changes (Bluetooth headset, wired, USB DAC,
+     * HDMI, or phone speaker). Returns the activated [ActiveAudioDevice] when a profile was
+     * automatically switched (after initial startup) so the service can show a subtle indicator.
+     */
+    fun onAudioOutputChanged(kind: AudioOutputs.Kind, productName: String): ActiveAudioDevice? {
+        val newDevice = DeviceAudioProfileEngine.activeDeviceOf(kind, productName)
+        var notifySwitched: ActiveAudioDevice? = null
+        synchronized(profileLock) {
+            val previous = _activeDevice.value
+            val outcome = DeviceAudioProfileEngine.onDeviceSwitch(
+                enabled = _deviceProfilesEnabled.value,
+                profiles = _deviceProfiles.value,
+                previousDevice = previous,
+                newDevice = newDevice,
+                currentSnapshot = currentProfileSnapshot(),
+                nowMs = System.currentTimeMillis(),
+            )
+            _activeDevice.value = newDevice
+            if (outcome.updatedProfiles != _deviceProfiles.value) {
+                _deviceProfiles.value = outcome.updatedProfiles
+            }
+            if (outcome.applySnapshot != null) {
+                applyProfileSnapshot(outcome.applySnapshot)
+                if (previous != null && outcome.restoredSavedProfile) {
+                    notifySwitched = newDevice
+                }
+            }
+        }
+        scheduleSave()
+        return notifySwitched
+    }
+
+    fun setDeviceProfilesEnabled(enabled: Boolean) {
+        synchronized(profileLock) {
+            if (_deviceProfilesEnabled.value == enabled) return
+            _deviceProfilesEnabled.value = enabled
+            if (enabled) {
+                val active = _activeDevice.value
+                if (active != null) {
+                    val saved = _deviceProfiles.value[active.key]
+                    if (saved != null) {
+                        applyProfileSnapshot(saved.snapshot)
+                    } else {
+                        _deviceProfiles.value = DeviceAudioProfileEngine.recordEdit(
+                            enabled = true,
+                            profiles = _deviceProfiles.value,
+                            activeDevice = active,
+                            newSnapshot = currentProfileSnapshot(),
+                            nowMs = System.currentTimeMillis(),
+                        )
+                    }
+                }
+            }
+        }
+        scheduleSave()
+    }
+
+    fun saveCurrentToActiveDevice() {
+        synchronized(profileLock) {
+            val active = _activeDevice.value ?: return
+            _deviceProfiles.value = DeviceAudioProfileEngine.recordEdit(
+                enabled = true,
+                profiles = _deviceProfiles.value,
+                activeDevice = active,
+                newSnapshot = currentProfileSnapshot(),
+                nowMs = System.currentTimeMillis(),
+            )
+        }
+        scheduleSave()
+    }
+
+    fun applyDeviceProfile(key: String) {
+        synchronized(profileLock) {
+            val profile = _deviceProfiles.value[key] ?: return
+            applyProfileSnapshot(profile.snapshot)
+        }
+        scheduleSave()
+    }
+
+    fun deleteDeviceProfile(key: String) {
+        synchronized(profileLock) {
+            if (!_deviceProfiles.value.containsKey(key)) return
+            val next = LinkedHashMap(_deviceProfiles.value)
+            next.remove(key)
+            _deviceProfiles.value = next
+        }
+        scheduleSave()
+    }
+
+    fun exportDeviceProfilesCompactJson(maxProfiles: Int = DeviceAudioProfileEngine.MaxCloudProfiles): String? =
+        DeviceAudioProfileEngine.encodeProfilesCompact(_deviceProfiles.value, maxProfiles)
+
+    fun exportDeviceProfilesFullJson(): String =
+        DeviceAudioProfileEngine.encodeProfiles(_deviceProfiles.value)
+
+    fun mergeDeviceProfilesJson(raw: String?, onlyIfEmpty: Boolean = false): Boolean {
+        val remote = DeviceAudioProfileEngine.decodeProfiles(raw)
+        if (remote.isEmpty()) return false
+        var changed = false
+        synchronized(profileLock) {
+            val local = _deviceProfiles.value
+            if (onlyIfEmpty && local.isNotEmpty()) return false
+            val merged = DeviceAudioProfileEngine.mergeProfiles(local, remote)
+            if (merged != local) {
+                _deviceProfiles.value = merged
+                changed = true
+                val active = _activeDevice.value
+                if (_deviceProfilesEnabled.value && active != null) {
+                    val updatedActive = merged[active.key]
+                    val prevActive = local[active.key]
+                    if (updatedActive != null && (prevActive == null || updatedActive.updatedAtMs > prevActive.updatedAtMs)) {
+                        applyProfileSnapshot(updatedActive.snapshot)
+                    }
+                }
+            }
+        }
+        if (changed) scheduleSave()
+        return changed
     }
 
     fun savePreset(name: String) {
@@ -345,6 +532,8 @@ class AudioLabStore @Inject constructor(
                 putString("playback", json.encodeToString(PlaybackSettings.serializer(), _playback.value))
                 putString("volume", json.encodeToString(VolumeSettings.serializer(), _volume.value))
                 putString("normalize", json.encodeToString(NormalizeSettings.serializer(), _normalize.value))
+                putBoolean("device_profiles_enabled", _deviceProfilesEnabled.value)
+                putString("device_profiles", DeviceAudioProfileEngine.encodeProfiles(_deviceProfiles.value))
                 putString(
                     "presets",
                     json.encodeToString(kotlinx.serialization.builtins.ListSerializer(EqPreset.serializer()), _presets.value),

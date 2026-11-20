@@ -58,9 +58,16 @@ import com.mochyy.mochymusic.viewmodels.ModulesViewModel
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.AudioQuality
 import com.mochyy.mochymusic.constants.AudioQualityKey
+import com.mochyy.mochymusic.constants.SmartProviderRoutingKey
+import com.mochyy.mochymusic.constants.SmartRoutingNetworkKey
+import com.mochyy.mochymusic.constants.SmartRoutingRememberKey
+import com.mochyy.mochymusic.constants.SmartRoutingVietnameseKey
 import com.mochyy.mochymusic.eq.audio.AudioTap
+import com.mochyy.mochymusic.modules.NetworkTier
+import com.mochyy.mochymusic.modules.SmartProviderRouter
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.utils.rememberEnumPreference
+import com.mochyy.mochymusic.utils.rememberPreference
 import kotlin.math.exp
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -221,6 +228,10 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
         Footnote(stringResource(R.string.quality_download_footnote))
 
         Spacer(Modifier.height(24.dp))
+        LabSheetTitle(stringResource(R.string.smart_routing_section_title))
+        SmartRoutingCard(modules = modules)
+
+        Spacer(Modifier.height(24.dp))
         LabSheetTitle(stringResource(R.string.aq_section_provider))
         ProviderOrder(
             order = shownOrder,
@@ -269,6 +280,63 @@ fun AudioQualityScreen(navController: NavController, modules: ModulesViewModel =
         )
         Footnote(stringResource(R.string.quality_download_order_footnote))
     }
+}
+
+@Composable
+private fun SmartRoutingCard(modules: ModulesViewModel) {
+    val context = LocalContext.current
+    val (enabled, setEnabled) = rememberPreference(SmartProviderRoutingKey, defaultValue = true)
+    val (networkAware, setNetworkAware) = rememberPreference(SmartRoutingNetworkKey, defaultValue = true)
+    val (vietnamesePriority, setVietnamesePriority) = rememberPreference(SmartRoutingVietnameseKey, defaultValue = true)
+    val (rememberBest, setRememberBest) = rememberPreference(SmartRoutingRememberKey, defaultValue = true)
+    val rememberedCount by modules.rememberedProviderCount.collectAsState()
+    val networkTier = remember { SmartProviderRouter.detectNetworkTier(context) }
+    val networkLabel = when (networkTier) {
+        NetworkTier.WIFI_UNMETERED -> stringResource(R.string.smart_routing_net_wifi)
+        NetworkTier.CELLULAR_METERED -> stringResource(R.string.smart_routing_net_cellular)
+        NetworkTier.UNKNOWN -> stringResource(R.string.smart_routing_net_unknown)
+    }
+
+    LabCard(padding = 12.dp) {
+        LabToggleRow(
+            title = stringResource(R.string.smart_routing_title),
+            subtitle = networkLabel,
+            checked = enabled,
+            onCheckedChange = setEnabled,
+            leadingDot = true,
+        )
+        LabCollapsible(visible = enabled) {
+            Spacer(Modifier.height(8.dp))
+            LabPanel {
+                LabToggleRow(
+                    title = stringResource(R.string.smart_routing_network_title),
+                    subtitle = stringResource(R.string.smart_routing_network_desc),
+                    checked = networkAware,
+                    onCheckedChange = setNetworkAware,
+                )
+                LabToggleRow(
+                    title = stringResource(R.string.smart_routing_vi_title),
+                    subtitle = stringResource(R.string.smart_routing_vi_desc),
+                    checked = vietnamesePriority,
+                    onCheckedChange = setVietnamesePriority,
+                )
+                LabToggleRow(
+                    title = stringResource(R.string.smart_routing_remember_title),
+                    subtitle = stringResource(R.string.smart_routing_remember_desc, rememberedCount),
+                    checked = rememberBest,
+                    onCheckedChange = setRememberBest,
+                )
+                if (rememberBest && rememberedCount > 0) {
+                    LabTextAction(
+                        text = stringResource(R.string.smart_routing_clear_memory, rememberedCount),
+                        iconRes = R.drawable.delete,
+                        onClick = modules::clearRememberedProviders,
+                    )
+                }
+            }
+        }
+    }
+    Footnote(stringResource(R.string.smart_routing_footnote))
 }
 
 @Composable

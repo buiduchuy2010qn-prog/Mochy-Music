@@ -71,6 +71,10 @@ class ModulesViewModel @Inject constructor(
 
     fun nameOf(id: String): String = modules.nameOf(id)
 
+    val rememberedProviderCount = modules.rememberedProviderCount
+
+    fun clearRememberedProviders() = modules.clearRememberedProviders()
+
     private val _steps = MutableStateFlow<List<DiagnosticStep>>(emptyList())
     val steps: StateFlow<List<DiagnosticStep>> = _steps.asStateFlow()
 

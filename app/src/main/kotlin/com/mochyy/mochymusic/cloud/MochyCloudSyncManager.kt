@@ -1886,12 +1886,17 @@ object MochyCloudSyncManager {
                 eightDJson = remoteAudio.eightDJson ?: initialAudio.eightDJson,
                 playerCoverZoom = remoteAudio.playerCoverZoom ?: initialAudio.playerCoverZoom,
                 canvasBestQuality = remoteAudio.canvasBestQuality ?: initialAudio.canvasBestQuality,
+                deviceProfilesJson = remoteAudio.deviceProfilesJson ?: initialAudio.deviceProfilesJson,
+                deviceProfilesEnabled = remoteAudio.deviceProfilesEnabled ?: initialAudio.deviceProfilesEnabled,
             )
             val remoteAudioDigest = sha256Hex(canonicalAudioConfig(mergedRemoteAudio))
             if (prevEqDigest == null) {
                 applyAudioConfig(app, audioLab, remoteAudio, onlyIfDefault = true)
             } else if (initialAudioDigest == prevEqDigest && remoteAudioDigest != prevEqDigest) {
                 applyAudioConfig(app, audioLab, remoteAudio, onlyIfDefault = false)
+            } else if (!remoteAudio.deviceProfilesJson.isNullOrBlank()) {
+                // Per-device profiles use per-device LWW timestamps, so merging across devices never clobbers newer edits
+                audioLab.mergeDeviceProfilesJson(remoteAudio.deviceProfilesJson, onlyIfEmpty = false)
             }
         }
 
@@ -2289,6 +2294,8 @@ object MochyCloudSyncManager {
         eightDJson = audioLabJson.encodeToString(EightDSettings.serializer(), audioLab.eightD.value),
         playerCoverZoom = prefs[PlayerCoverZoomKey]?.takeIf { it.isFinite() }?.coerceIn(0f, 1f),
         canvasBestQuality = prefs[CanvasBestQualityKey],
+        deviceProfilesJson = audioLab.exportDeviceProfilesCompactJson(),
+        deviceProfilesEnabled = audioLab.deviceProfilesEnabled.value,
     )
 
     private suspend fun applyAudioConfig(
@@ -2345,6 +2352,14 @@ object MochyCloudSyncManager {
                     .getOrNull()?.let { decoded -> audioLab.updateEightD { decoded } }
             }
         }
+        remote.deviceProfilesEnabled?.let { enabled ->
+            if (!onlyIfDefault || audioLab.deviceProfiles.value.isEmpty()) {
+                audioLab.setDeviceProfilesEnabled(enabled)
+            }
+        }
+        remote.deviceProfilesJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            audioLab.mergeDeviceProfilesJson(raw, onlyIfEmpty = false)
+        }
         app.dataStore.edit { p ->
             if (!onlyIfDefault || p[AudioNormalizationKey] == null) {
                 remote.audioNormalization?.let { p[AudioNormalizationKey] = it }
@@ -2380,6 +2395,8 @@ object MochyCloudSyncManager {
         cfg.eightDJson.orEmpty(),
         cfg.playerCoverZoom?.takeIf { it.isFinite() }?.coerceIn(0f, 1f)?.toString().orEmpty(),
         cfg.canvasBestQuality?.toString().orEmpty(),
+        cfg.deviceProfilesJson.orEmpty(),
+        cfg.deviceProfilesEnabled?.toString().orEmpty(),
     ).joinToString("\u0000")
 
     private fun canonicalModulesConfig(cfg: CloudModulesConfig): String {

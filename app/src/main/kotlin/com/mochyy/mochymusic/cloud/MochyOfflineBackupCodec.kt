@@ -334,6 +334,10 @@ object MochyOfflineBackupCodec {
                 put("volume", audioJson.encodeToString(VolumeSettings.serializer(), audioLab.volume.value))
                 put("playback", audioJson.encodeToString(PlaybackSettings.serializer(), audioLab.playback.value))
                 put("eightD", audioJson.encodeToString(EightDSettings.serializer(), audioLab.eightD.value))
+                put("deviceProfilesEnabled", audioLab.deviceProfilesEnabled.value)
+                audioLab.exportDeviceProfilesFullJson().takeIf { it.isNotBlank() && it != "[]" }?.let {
+                    put("deviceProfiles", it)
+                }
                 prefs[AudioNormalizationKey]?.let { put("audioNormalization", it) }
                 prefs[AudioQualityKey]?.let { put("audioQuality", it) }
                 prefs[SkipSilenceKey]?.let { put("skipSilence", it) }
@@ -804,6 +808,14 @@ object MochyOfflineBackupCodec {
                 audioObj.optString("eightD").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
                     runCatching { audioJson.decodeFromString(EightDSettings.serializer(), raw) }.getOrNull()?.let { ed ->
                         audioLab.updateEightD { ed }
+                    }
+                }
+                if (audioObj.has("deviceProfilesEnabled") && !audioObj.isNull("deviceProfilesEnabled")) {
+                    audioLab.setDeviceProfilesEnabled(audioObj.optBoolean("deviceProfilesEnabled", true))
+                }
+                audioObj.optString("deviceProfiles").takeIf { it.isNotBlank() && it != "null" }?.let { raw ->
+                    if (audioLab.mergeDeviceProfilesJson(raw, onlyIfEmpty = false)) {
+                        eqRestored = true
                     }
                 }
                 app.dataStore.edit { prefs ->

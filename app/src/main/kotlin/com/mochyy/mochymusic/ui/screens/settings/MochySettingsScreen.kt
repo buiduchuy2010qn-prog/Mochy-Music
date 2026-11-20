@@ -194,6 +194,8 @@ private val SettingsIndex = listOf(
     SettingsEntry("Pause when muted", "Playback", PlaybackSettingsRoute, "pause mute volume silent zero off automatic", R.string.pause_music_when_media_is_muted),
     SettingsEntry("Save Player's last state", "Playback", PlaybackSettingsRoute, "persistent queue restore track state"),
     SettingsEntry("Keep shuffle on", "Playback", PlaybackSettingsRoute, "shuffle persistent spotify random keep new playlist"),
+    SettingsEntry("Smart shuffle", "Playback", PlaybackSettingsRoute, "smart shuffle artist spacing rediscovery familiar random trộn thông minh nghệ sĩ", R.string.smart_shuffle_title),
+    SettingsEntry("Learn skip and replay habits", "Playback", PlaybackSettingsRoute, "skip 15s replay habit autoplay radio learning thói quen bấm qua nghe lại", R.string.smart_habits_title),
     SettingsEntry("Skip Silence", "Playback", PlaybackSettingsRoute, "silence trim gap interval"),
     SettingsEntry("Don't skip on failure", "Playback", PlaybackSettingsRoute, "fail stream error stay skip"),
     SettingsEntry("Skip timeout failure", "Playback", PlaybackSettingsRoute, "skip timeout seconds failed stream"),
@@ -203,6 +205,7 @@ private val SettingsIndex = listOf(
     SettingsEntry("Audio format badge", "Now playing", NowPlayingSettingsRoute, "format codec opus aac flac badge title quality"),
     SettingsEntry("Show sample rate", "Now playing", NowPlayingSettingsRoute, "sample rate khz hz format badge quality"),
     SettingsEntry("Translations from YouTube", "Now playing", NowPlayingSettingsRoute, "captions translate lyrics language"),
+    SettingsEntry("Smart lyrics by language", "Now playing", NowPlayingSettingsRoute, "smart lyrics language vietnamese english japanese korean chinese romaji romanization auto translate lời bài hát thông minh", R.string.smart_lyrics_title),
     SettingsEntry("Sync lyrics to music videos", "Now playing", NowPlayingSettingsRoute, "lyrics video timing intro skit"),
     SettingsEntry("Romanisation as the main line", "Now playing", NowPlayingSettingsRoute, "romaji romanization pinyin latin lyrics japanese korean chinese", R.string.settings_romanize_as_main),
     SettingsEntry("High quality bloom", "Now playing", NowPlayingSettingsRoute, "lyrics bloom quality extra soft pass glow"),
@@ -217,7 +220,9 @@ private val SettingsIndex = listOf(
     SettingsEntry("Sharpest animated covers", "Now playing", NowPlayingSettingsRoute, "canvas animated cover motion apple music quality hd 4k sharp resolution", R.string.canvas_best_quality),
 
     // Audio Lab
-    SettingsEntry("Audio Lab", "Audio Lab", "audio_lab", "sound effects equalizer fx quality"),
+    SettingsEntry("Audio Lab", "Audio Lab", "audio_lab", "sound effects equalizer fx quality per device profile tai nghe loa"),
+    SettingsEntry("Per-device Audio Lab", "Audio Lab", "audio_lab", "per device audio profile bluetooth headphones wired usb dac speaker auto switch cloud tai nghe loa", R.string.smart_device_profiles_title),
+    SettingsEntry("Smart provider routing", "Audio Lab", "audio_quality", "smart routing wifi lossless monochrome 4g 5g zing mp3 youtube vietnamese nguon phat thong minh", R.string.smart_routing_title),
     SettingsEntry("Transition", "Audio Lab", "crossmix_settings", "crossfade crossmix automix transition gapless blend"),
     SettingsEntry("Blend skips", "Audio Lab", "crossmix_settings", "skip next previous back crossfade seamless preload transition fade blend"),
     SettingsEntry("Equalizer", "Audio Lab", "equalizer", "eq bass treble band parametric graph autoeq headphones correction preset"),

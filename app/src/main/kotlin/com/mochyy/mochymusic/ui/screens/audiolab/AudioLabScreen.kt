@@ -180,6 +180,7 @@ fun AudioLabScreen(
                         transition(Modifier.weight(1f).fillMaxHeight())
                         pass(Modifier.weight(1f).fillMaxHeight())
                     }
+                    DeviceProfilesCard(viewModel)
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -188,6 +189,7 @@ fun AudioLabScreen(
                     qualityCard(Modifier)
                     transition(Modifier)
                     pass(Modifier)
+                    DeviceProfilesCard(viewModel)
                 }
             }
         }

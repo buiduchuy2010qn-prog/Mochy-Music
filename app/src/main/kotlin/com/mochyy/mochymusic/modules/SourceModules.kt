@@ -5,6 +5,10 @@ package com.mochyy.mochymusic.modules
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.mochyy.mochymusic.constants.SmartProviderRoutingKey
+import com.mochyy.mochymusic.constants.SmartRoutingNetworkKey
+import com.mochyy.mochymusic.constants.SmartRoutingRememberKey
+import com.mochyy.mochymusic.constants.SmartRoutingVietnameseKey
 import com.mochyy.mochymusic.module.AccountState
 import com.mochyy.mochymusic.module.ModuleFeature
 import com.mochyy.mochymusic.module.ResolveResult
@@ -15,6 +19,8 @@ import com.mochyy.mochymusic.module.TrackQuery
 import com.mochyy.mochymusic.module.applemusic.AppleMusicModule
 import com.mochyy.mochymusic.module.monochrome.MonochromeModule
 import com.mochyy.mochymusic.utils.DataSaver
+import com.mochyy.mochymusic.utils.dataStore
+import com.mochyy.mochymusic.utils.get
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -43,6 +49,52 @@ class SourceModules @Inject constructor(
 
     // module id -> epoch ms until which it is skipped after timing out, when another provider can serve
     private val timedOutUntil = ConcurrentHashMap<String, Long>()
+
+    /** Per-song best provider memory for Smart Provider Routing (#2) */
+    private val bestProviderStore = BestProviderStore(context)
+    val rememberedProviderCount: StateFlow<Int> = bestProviderStore.count
+
+    fun smartRoutingPolicy(): SmartRoutingPolicy {
+        val store = context.dataStore
+        return SmartRoutingPolicy(
+            enabled = store.get(SmartProviderRoutingKey, true),
+            networkAware = store.get(SmartRoutingNetworkKey, true),
+            vietnamesePriority = store.get(SmartRoutingVietnameseKey, true),
+            rememberBestPerSong = store.get(SmartRoutingRememberKey, true),
+        )
+    }
+
+    fun currentNetworkTier(): NetworkTier = SmartProviderRouter.detectNetworkTier(context)
+
+    fun rememberBestProvider(mediaId: String?, providerId: String) {
+        if (!smartRoutingPolicy().rememberBestPerSong) return
+        bestProviderStore.recordSuccess(mediaId, providerId, currentNetworkTier())
+    }
+
+    fun forgetRememberedProvider(mediaId: String?, providerId: String) {
+        bestProviderStore.forget(mediaId, providerId)
+    }
+
+    fun clearRememberedProviders() {
+        bestProviderStore.clear()
+    }
+
+    /** Computes the dynamic effective provider order for [mediaId] / [track] under current Smart Routing rules. */
+    fun effectiveOrderFor(
+        mediaId: String?,
+        track: TrackQuery?,
+        skip: Set<String>,
+        networkTier: NetworkTier = currentNetworkTier(),
+        policy: SmartRoutingPolicy = smartRoutingPolicy(),
+    ): List<String> = SmartProviderRouter.computeOrder(
+        baseOrder = _order.value,
+        usable = ::isUsable,
+        skip = skip,
+        networkTier = networkTier,
+        isVietnamese = VietnameseTrackDetector.isVietnameseTrack(track),
+        remembered = bestProviderStore.get(mediaId),
+        policy = policy,
+    )
 
     private val syncPrefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "cloud_sync_stamp") reloadFromPrefs()
@@ -153,15 +205,35 @@ class SourceModules @Inject constructor(
     suspend fun route(
         track: TrackQuery?,
         skip: Set<String>,
+        mediaId: String? = null,
         onUndecodable: (id: String, stream: SourceStream) -> Unit = { _, _ -> },
-    ): Route = walk(_order.value, track, skip, ::isUsable, ::playbackPicks) { id, stream ->
-        // a stream this phone has no decoder for would play in silence: the next provider has it
-        DeviceDecoders.canPlay(stream).also { playable ->
-            if (!playable) {
-                android.util.Log.i(Tag, "$id: ${track?.title}: this phone can't decode ${stream.codec} at ${stream.sampleRateHz} Hz, passing over")
-                onUndecodable(id, stream)
+    ): Route {
+        val networkTier = currentNetworkTier()
+        val policy = smartRoutingPolicy()
+        val dynamicOrder = effectiveOrderFor(
+            mediaId = mediaId,
+            track = track,
+            skip = skip,
+            networkTier = networkTier,
+            policy = policy,
+        )
+        val result = walk(dynamicOrder, track, skip, ::isUsable, ::playbackPicks) { id, stream ->
+            // a stream this phone has no decoder for would play in silence: the next provider has it
+            DeviceDecoders.canPlay(stream).also { playable ->
+                if (!playable) {
+                    android.util.Log.i(Tag, "$id: ${track?.title}: this phone can't decode ${stream.codec} at ${stream.sampleRateHz} Hz, passing over")
+                    onUndecodable(id, stream)
+                }
             }
         }
+        if (policy.enabled && policy.rememberBestPerSong && !mediaId.isNullOrBlank()) {
+            when (result) {
+                is Route.Module -> bestProviderStore.recordSuccess(mediaId, result.module.info.id, networkTier)
+                Route.YouTube -> bestProviderStore.recordSuccess(mediaId, YouTubeId, networkTier)
+                Route.Exhausted -> Unit
+            }
+        }
+        return result
     }
 
     /** the download order's walk: the first provider that gives one whole file this phone can play, else youtube */

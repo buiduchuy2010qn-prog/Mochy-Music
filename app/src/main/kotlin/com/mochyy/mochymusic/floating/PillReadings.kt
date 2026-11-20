@@ -5,14 +5,18 @@ package com.mochyy.mochymusic.floating
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import com.mochyy.mochymusic.constants.LyricsRomanizeAsMainKey
+import com.mochyy.mochymusic.constants.SmartLyricsKey
 import com.mochyy.mochymusic.constants.TranslateLanguageKey
 import com.mochyy.mochymusic.constants.TranslateModeKey
 import com.mochyy.mochymusic.constants.TranslateSourceLanguageKey
 import com.mochyy.mochymusic.db.entities.LyricsEntity
 import com.mochyy.mochymusic.lyrics.GoogleTranslateEngine
 import com.mochyy.mochymusic.lyrics.LyricsEntry
+import com.mochyy.mochymusic.lyrics.LyricsLanguage
 import com.mochyy.mochymusic.lyrics.LyricsTranslationHelper
+import com.mochyy.mochymusic.lyrics.SmartLyricsLanguageDetector
 import com.mochyy.mochymusic.lyrics.YouTubeCaptionTranslation
+import com.mochyy.mochymusic.ui.player.CjkRomanizeKeys
 import com.mochyy.mochymusic.ui.player.LineReading
 import com.mochyy.mochymusic.ui.player.RomanizeLanguageKeys
 import com.mochyy.mochymusic.ui.player.readSong
@@ -25,9 +29,10 @@ import kotlinx.coroutines.flow.map
 internal data class ReadingSettings(
     val romanize: Map<Preferences.Key<Boolean>, Boolean>,
     val romanizedAsMain: Boolean,
-    val language: String,
+    val language: String?,
     val sourceLanguage: String,
     val mode: String,
+    val smartLyrics: Boolean,
 )
 
 internal fun readingSettings(context: Context): Flow<ReadingSettings> = context.dataStore.data
@@ -35,17 +40,33 @@ internal fun readingSettings(context: Context): Flow<ReadingSettings> = context.
         ReadingSettings(
             romanize = RomanizeLanguageKeys.associateWith { prefs[it] ?: true },
             romanizedAsMain = prefs[LyricsRomanizeAsMainKey] ?: false,
-            language = prefs[TranslateLanguageKey]?.takeIf { it.isNotBlank() } ?: "en",
+            language = prefs[TranslateLanguageKey]?.takeIf { it.isNotBlank() },
             sourceLanguage = prefs[TranslateSourceLanguageKey]?.takeIf { it.isNotBlank() } ?: "auto",
             mode = prefs[TranslateModeKey] ?: "line",
+            smartLyrics = prefs[SmartLyricsKey] ?: true,
         )
     }
     .distinctUntilChanged()
 
 // every line's romanisation, worked out the way the lyrics page does it; null when the song is in nothing mochy romanises
 internal suspend fun romanizedLines(lines: List<LyricsEntry>, settings: ReadingSettings): List<LineReading?>? {
+    val decision = SmartLyricsLanguageDetector.decide(
+        smartLyricsEnabled = settings.smartLyrics,
+        lines = lines.map { it.text },
+        configuredTargetLanguage = settings.language,
+    )
+    if (settings.smartLyrics && decision.shouldHideRomanization) return null
     val out = arrayOfNulls<LineReading>(lines.size)
-    readSong(lines, allowed = { settings.romanize[it] != false }) { index, reading -> out[index] = reading }
+    readSong(
+        lines,
+        allowed = { key ->
+            if (settings.smartLyrics && decision.shouldForceRomanization && key in CjkRomanizeKeys) {
+                true
+            } else {
+                settings.romanize[key] != false
+            }
+        },
+    ) { index, reading -> out[index] = reading }
     return out.takeIf { found -> found.any { !it?.text.isNullOrBlank() } }?.toList()
 }
 
@@ -53,15 +74,28 @@ internal suspend fun romanizedLines(lines: List<LyricsEntry>, settings: ReadingS
 internal suspend fun translatedLines(lines: List<LyricsEntry>, saved: LyricsEntity?, settings: ReadingSettings): List<String?>? {
     val sung = lines.withIndex().filter { it.value.text.isNotBlank() }
     if (sung.isEmpty()) return null
-    val target = settings.language
+    val decision = SmartLyricsLanguageDetector.decide(
+        smartLyricsEnabled = settings.smartLyrics,
+        lines = lines.map { it.text },
+        configuredTargetLanguage = settings.language,
+    )
+    if (settings.smartLyrics && decision.detectedLanguage == LyricsLanguage.VIETNAMESE) {
+        return null
+    }
+    val target = if (settings.smartLyrics) decision.targetLanguage else (settings.language ?: "vi")
+    val sourceLang = if (settings.sourceLanguage == "auto" && settings.smartLyrics) {
+        decision.sourceLanguageHint
+    } else {
+        settings.sourceLanguage
+    }
     val tags = setOf(
         target,
-        LyricsTranslationHelper.languageTag(settings.sourceLanguage, target),
+        LyricsTranslationHelper.languageTag(sourceLang, target),
         YouTubeCaptionTranslation.storedLanguageTag(target),
     )
     val stored = saved?.takeIf { it.translatedLyrics.isNotBlank() && it.translationMode == settings.mode && it.translationLanguage in tags }
     val texts = stored?.translatedLyrics?.lines()
-        ?: GoogleTranslateEngine.translate(sung.map { it.value.text }, target, settings.sourceLanguage)
+        ?: GoogleTranslateEngine.translate(sung.map { it.value.text }, target, sourceLang)
         ?: return null
     val out = arrayOfNulls<String>(lines.size)
     sung.forEachIndexed { k, (index, entry) ->

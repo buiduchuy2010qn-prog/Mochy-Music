@@ -127,12 +127,18 @@ jobs:
           fi
           echo "Restored persistent signing keystore with alias androiddebugkey."
 
-      - name: Run Module, Cloud & Audio DSP Unit Tests
+      - name: Run Module, Cloud, Smart Features & Audio DSP Unit Tests
         run: |
           ./gradlew :modules:bridge:test :modules:applemusic:test :modules:jiosaavn:test :modules:monochrome:test :modules:zingmp3:test :modules:soundcloud:test --no-configuration-cache
           ./gradlew :app:testUniversalGmsReleaseUnitTest \
             --tests "com.mochyy.mochymusic.cloud.*" \
             --tests "com.mochyy.mochymusic.eq.AudioLabDspTest" \
+            --tests "com.mochyy.mochymusic.eq.DeviceAudioProfilesTest" \
+            --tests "com.mochyy.mochymusic.modules.SmartProviderRouterTest" \
+            --tests "com.mochyy.mochymusic.smart.SmartMixEngineTest" \
+            --tests "com.mochyy.mochymusic.playback.SmartShuffleEngineTest" \
+            --tests "com.mochyy.mochymusic.lyrics.SmartLyricsLanguageDetectorTest" \
+            --tests "com.mochyy.mochymusic.i18n.LanguageResourcesTest" \
             --tests "com.mochyy.mochymusic.crossmix.CrossmixTest.*bass belongs*" \
             --tests "com.mochyy.mochymusic.crossmix.CrossmixTest.*two songs playing together*" \
             --tests "com.mochyy.mochymusic.crossmix.CrossmixTest.*every style*" \

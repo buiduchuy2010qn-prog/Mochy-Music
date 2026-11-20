@@ -33,6 +33,7 @@ import com.mochyy.mochymusic.constants.LyricsRomanizeAsMainKey
 import com.mochyy.mochymusic.constants.PlayVideoBackgroundKey
 import com.mochyy.mochymusic.constants.ShowFormatBadgeKey
 import com.mochyy.mochymusic.constants.ShowFormatSampleRateKey
+import com.mochyy.mochymusic.constants.SmartLyricsKey
 import com.mochyy.mochymusic.constants.SpotifyCanvasKey
 import com.mochyy.mochymusic.constants.StudioForVideosKey
 import com.mochyy.mochymusic.constants.SyncLyricsToVideoKey
@@ -105,6 +106,7 @@ private fun badgeItems(): List<SettingsItem> {
 
 @Composable
 private fun lyricsItems(): List<SettingsItem> {
+    val (smartLyrics, onSmartLyricsChange) = rememberPreference(SmartLyricsKey, defaultValue = true)
     val (youtubeTranslations, onYoutubeTranslationsChange) = rememberPreference(YouTubeCaptionTranslationKey, defaultValue = true)
     val (syncLyricsToVideo, onSyncLyricsToVideoChange) = rememberPreference(SyncLyricsToVideoKey, defaultValue = true)
     val (romanizeAsMain, onRomanizeAsMainChange) = rememberPreference(LyricsRomanizeAsMainKey, defaultValue = false)
@@ -112,6 +114,15 @@ private fun lyricsItems(): List<SettingsItem> {
     val (lyricsStyle) = rememberEnumPreference(LyricsMotionStyleKey, defaultValue = LyricsMotionStyle.MOTION)
     val (floatingLyrics, onFloatingLyricsChange) = rememberFloatingLyricsSwitch()
     return listOf(
+        switchItem(
+            key = "Smart lyrics by language",
+            title = stringResource(R.string.smart_lyrics_title),
+            description = stringResource(R.string.smart_lyrics_desc),
+            detail = stringResource(R.string.smart_lyrics_detail),
+            icon = painterResource(R.drawable.sparks),
+            checked = smartLyrics,
+            onCheckedChange = onSmartLyricsChange,
+        ),
         switchItem(
             key = "Translations from YouTube",
             title = stringResource(R.string.settings_youtube_translations),

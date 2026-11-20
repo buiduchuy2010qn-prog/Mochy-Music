@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- #1 Tự đổi Audio Lab theo từng thiết bị -->
+    <string name="smart_device_profiles_title">Tự đổi Audio Lab theo thiết bị</string>
+    <string name="smart_device_profiles_desc">Nhớ riêng EQ, AutoEq, Không gian, 8D &amp; Độ lớn âm cho từng tai nghe, USB DAC hay loa máy</string>
+    <string name="smart_device_active_label">Đang phát qua</string>
+    <string name="smart_device_saved_badge">Đã nhớ</string>
+    <string name="smart_device_save_now">Lưu ngay</string>
+    <string name="smart_device_saved_count">Thiết bị đã lưu (%1$d)</string>
+    <string name="smart_device_profile_flat">Phẳng · Tắt mọi hiệu ứng</string>
+    <string name="smart_device_profiles_footnote">Mọi thay đổi trong Bộ chỉnh âm và Hiệu ứng âm thanh sẽ tự lưu theo thiết bị đang kết nối, tự chuyển khi cắm/ngắt tai nghe và đồng bộ qua Mochy Cloud &amp; sao lưu ngoại tuyến.</string>
+    <string name="smart_device_switched_toast">Audio Lab: %1$s</string>
+    <string name="smart_device_kind_phone">Loa máy</string>
+    <string name="smart_device_kind_wired">Tai nghe dây</string>
+    <string name="smart_device_kind_usb">USB DAC</string>
+    <string name="smart_device_kind_bluetooth">Tai nghe Bluetooth</string>
+    <string name="smart_device_kind_hdmi">Ngõ ra HDMI</string>
+
+    <!-- #2 Tự chọn nguồn phát thông minh -->
+    <string name="smart_routing_section_title">Định tuyến thông minh</string>
+    <string name="smart_routing_title">Tự chọn nguồn phát thông minh</string>
+    <string name="smart_routing_net_wifi">Đang dùng Wi-Fi · Ưu tiên lossless (Monochrome / Apple Music)</string>
+    <string name="smart_routing_net_cellular">Đang dùng 4G/5G · Ưu tiên tải tức thì (Zing MP3 / YouTube)</string>
+    <string name="smart_routing_net_unknown">Tự chọn nguồn tối ưu theo loại mạng &amp; ngôn ngữ bài hát</string>
+    <string name="smart_routing_network_title">Thích ứng theo loại mạng</string>
+    <string name="smart_routing_network_desc">Wi-Fi ưu tiên nguồn lossless Monochrome / Apple Music; 4G/5G ưu tiên nguồn nhẹ Zing MP3 / YouTube Music</string>
+    <string name="smart_routing_vi_title">Nhạc Việt ưu tiên Zing MP3</string>
+    <string name="smart_routing_vi_desc">Nhận diện dấu tiếng Việt &amp; nghệ sĩ Việt để tự ưu tiên Zing MP3 → YouTube Music</string>
+    <string name="smart_routing_remember_title">Ghi nhớ nguồn tốt nhất từng bài</string>
+    <string name="smart_routing_remember_desc">Phát lại ngay từ nguồn ổn định nhất của bài đó (đã nhớ %1$d bài)</string>
+    <string name="smart_routing_clear_memory">Xóa bộ nhớ nguồn đã học (%1$d)</string>
+    <string name="smart_routing_footnote">Chỉ tự động chọn trong các nguồn phát bạn đang bật. Nếu nguồn ưu tiên gặp lỗi sẽ tự chuyển mượt sang nguồn kế tiếp.</string>
+
+    <!-- #3 Smart Mix 100% trên máy -->
+    <string name="smart_mixes_section_label">Tạo ngay trên máy · Không cần mạng</string>
+    <string name="smart_mixes_section_title">Smart Mix cho bạn</string>
+    <string name="smart_mix_morning">Hợp giờ này · Buổi sáng</string>
+    <string name="smart_mix_afternoon">Hợp giờ này · Buổi chiều</string>
+    <string name="smart_mix_evening">Hợp giờ này · Buổi tối</string>
+    <string name="smart_mix_late_night">Hợp giờ này · Đêm khuya</string>
+    <string name="smart_mix_on_repeat">Nghe hoài không chán</string>
+    <string name="smart_mix_forgotten">Bỏ quên lâu rồi</string>
+    <string name="smart_mix_chill">Mix êm dịu</string>
+    <string name="smart_mix_upbeat">Mix sôi động</string>
+    <string name="smart_mix_tag_time">Hợp giờ này</string>
+    <string name="smart_mix_tag_repeat">On Repeat</string>
+    <string name="smart_mix_tag_forgotten">Hoài niệm</string>
+    <string name="smart_mix_tag_chill">Êm dịu · BPM</string>
+    <string name="smart_mix_tag_upbeat">Sôi động · BPM</string>
+    <string name="smart_mix_subtitle_count">%1$d bài</string>
+    <string name="smart_mix_subtitle_bpm">%1$d bài · ~%2$d BPM</string>
+
+    <!-- #4 Trộn thông minh & Tự học thói quen -->
+    <string name="smart_shuffle_title">Trộn thông minh (Smart Shuffle)</string>
+    <string name="smart_shuffle_desc">Giãn khoảng cách các bài cùng nghệ sĩ và xen kẽ bài quen với bài lâu chưa nghe</string>
+    <string name="smart_shuffle_detail">Tránh phát liên tiếp các bài cùng một nghệ sĩ, cân bằng bài quen thuộc với bài bỏ quên lâu ngày và đẩy bớt bài hay bị bỏ qua xuống sau.</string>
+    <string name="smart_habits_title">Tự học thói quen bấm qua &amp; nghe lại</string>
+    <string name="smart_habits_desc">Bấm qua trong 15 giây đầu sẽ giảm ưu tiên ở Radio/Tự động phát; nghe lại được ưu tiên hơn</string>
+    <string name="smart_habits_detail">Chạy 100% trên máy. Bấm qua bài trong 15 giây đầu sẽ giảm độ ưu tiên ở Radio, Tự động phát và Trộn thông minh; nghe lại bài đó sẽ tăng ưu tiên.</string>
+
+    <!-- #5 Lời bài hát thông minh theo ngôn ngữ -->
+    <string name="smart_lyrics_title">Lời bài hát thông minh theo ngôn ngữ</string>
+    <string name="smart_lyrics_desc">Bài Việt tự ẩn dịch &amp; phiên âm; bài Anh/Nhật/Hàn/Trung tự bật dịch Tiếng Việt và Romaji/Romanization</string>
+    <string name="smart_lyrics_detail">Tự nhận diện ngôn ngữ lời bài hát: bài tiếng Việt sẽ ẩn dòng dịch và phiên âm; bài tiếng Anh/Nhật/Hàn/Trung tự bật dịch Tiếng Việt, đồng thời tự bật phiên âm Romaji/Romanization/Pinyin cho nhạc Nhật/Hàn/Trung. Bạn vẫn có thể bật tắt thủ công cho bài đang phát.</string>
+    <string name="smart_lyrics_sheet_sub">Bài Việt tự ẩn dịch · bài ngoại tự dịch Tiếng Việt &amp; hiện phiên âm</string>
+</resources>

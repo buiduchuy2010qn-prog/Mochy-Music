@@ -76,6 +76,7 @@ fun SectionDetailScreen(
 ) {
     val speedDialItems by homeViewModel.speedDialItems.collectAsState()
     val quickPicks by homeViewModel.quickPicks.collectAsState()
+    val smartMixes by homeViewModel.smartMixes.collectAsState()
     val forgottenFavorites by homeViewModel.forgottenFavorites.collectAsState()
     val keepListening by homeViewModel.keepListening.collectAsState()
     val accountName by homeViewModel.accountName.collectAsState()
@@ -94,36 +95,49 @@ fun SectionDetailScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val queueTitle by playerConnection.queueTitle.collectAsState()
 
-    val title = when (sectionId) {
-        "speed_dial" -> stringResource(R.string.speed_dial)
-        "quick_picks" -> stringResource(R.string.quick_picks)
-        "forgotten_favorites" -> stringResource(R.string.dont_forget_these_songs)
-        "history" -> stringResource(R.string.home_history)
-        "recently_played" -> stringResource(R.string.recently_played)
-        "most_played" -> stringResource(R.string.home_most_played)
-        "from_the_community" -> stringResource(R.string.from_the_community)
-        "all_time_hits" -> stringResource(R.string.all_time_hits)
-        "live_shows" -> stringResource(R.string.live_shows)
-        "music_videos" -> stringResource(R.string.music_videos_for_you)
+    val smartMixKind = remember(sectionId) {
+        com.mochyy.mochymusic.smart.SmartMixKind.fromSectionId(sectionId)
+    }
+    val activeSmartMix = remember(smartMixKind, smartMixes) {
+        smartMixKind?.let { kind -> smartMixes.firstOrNull { it.kind == kind } }
+    }
+
+    val title = when {
+        activeSmartMix != null -> com.mochyy.mochymusic.ui.component.smartMixTitle(activeSmartMix.kind, activeSmartMix.daySlot)
+        smartMixKind != null -> com.mochyy.mochymusic.ui.component.smartMixTitle(
+            smartMixKind,
+            com.mochyy.mochymusic.smart.SmartMixEngine.daySlotForHour(java.time.LocalDateTime.now().hour),
+        )
+        sectionId == "speed_dial" -> stringResource(R.string.speed_dial)
+        sectionId == "quick_picks" -> stringResource(R.string.quick_picks)
+        sectionId == "forgotten_favorites" -> stringResource(R.string.dont_forget_these_songs)
+        sectionId == "history" -> stringResource(R.string.home_history)
+        sectionId == "recently_played" -> stringResource(R.string.recently_played)
+        sectionId == "most_played" -> stringResource(R.string.home_most_played)
+        sectionId == "from_the_community" -> stringResource(R.string.from_the_community)
+        sectionId == "all_time_hits" -> stringResource(R.string.all_time_hits)
+        sectionId == "live_shows" -> stringResource(R.string.live_shows)
+        sectionId == "music_videos" -> stringResource(R.string.music_videos_for_you)
         else -> ""
     }
 
     val items = remember(
-        sectionId, speedDialItems, quickPicks, forgottenFavorites, keepListening,
+        sectionId, activeSmartMix, speedDialItems, quickPicks, forgottenFavorites, keepListening,
         recentlyPlayed, mostPlayedSongsForHome, communityPlaylists,
         allTimeHits, liveShows, musicVideos,
     ) {
-        when (sectionId) {
-            "speed_dial" -> speedDialItems.filterIsInstance<SongItem>()
-            "quick_picks" -> quickPicks?.filterIsInstance<Song>() ?: emptyList()
-            "forgotten_favorites" -> forgottenFavorites ?: emptyList()
-            "history" -> keepListening?.filterIsInstance<Song>() ?: emptyList()
-            "recently_played" -> recentlyPlayed ?: emptyList()
-            "most_played" -> mostPlayedSongsForHome ?: emptyList()
-            "from_the_community" -> communityPlaylists?.map { it.playlist } ?: emptyList()
-            "all_time_hits" -> allTimeHits ?: emptyList()
-            "live_shows" -> liveShows?.map { it.item } ?: emptyList()
-            "music_videos" -> musicVideos?.map { it.item } ?: emptyList()
+        when {
+            activeSmartMix != null -> activeSmartMix.songs
+            sectionId == "speed_dial" -> speedDialItems.filterIsInstance<SongItem>()
+            sectionId == "quick_picks" -> quickPicks?.filterIsInstance<Song>() ?: emptyList()
+            sectionId == "forgotten_favorites" -> forgottenFavorites ?: emptyList()
+            sectionId == "history" -> keepListening?.filterIsInstance<Song>() ?: emptyList()
+            sectionId == "recently_played" -> recentlyPlayed ?: emptyList()
+            sectionId == "most_played" -> mostPlayedSongsForHome ?: emptyList()
+            sectionId == "from_the_community" -> communityPlaylists?.map { it.playlist } ?: emptyList()
+            sectionId == "all_time_hits" -> allTimeHits ?: emptyList()
+            sectionId == "live_shows" -> liveShows?.map { it.item } ?: emptyList()
+            sectionId == "music_videos" -> musicVideos?.map { it.item } ?: emptyList()
             else -> emptyList()
         }
     }

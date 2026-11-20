@@ -226,7 +226,7 @@ class FloatingLyrics(
             }
         }
         val romanized = romanizedLines(lines, settings)
-        val key = "$songId|${settings.language}|${settings.sourceLanguage}|${settings.mode}|${found.saved?.translatedLyrics.hashCode()}"
+        val key = "$songId|${settings.language}|${settings.sourceLanguage}|${settings.mode}|${settings.smartLyrics}|${found.saved?.translatedLyrics.hashCode()}"
         val remembered = translationMemo?.takeIf { found.translate && it.first == key }?.second
         if (remembered == null) state.script = if (romanized == null) plain else withReadings(romanized, emptyList())
         if (!found.translate) return

@@ -25,6 +25,7 @@ import com.mochyy.mochymusic.constants.LyricsRomanizeUkrainianKey
 import com.mochyy.mochymusic.constants.OpenRouterApiKey
 import com.mochyy.mochymusic.constants.OpenRouterBaseUrlKey
 import com.mochyy.mochymusic.constants.OpenRouterModelKey
+import com.mochyy.mochymusic.constants.SmartLyricsKey
 import com.mochyy.mochymusic.constants.TranslateLanguageKey
 import com.mochyy.mochymusic.constants.TranslateLyricsKey
 import com.mochyy.mochymusic.constants.TranslateModeKey
@@ -32,11 +33,14 @@ import com.mochyy.mochymusic.constants.TranslateSourceLanguageKey
 import com.mochyy.mochymusic.constants.YouTubeCaptionTranslationKey
 import com.mochyy.mochymusic.db.MusicDatabase
 import com.mochyy.mochymusic.lyrics.LyricsEntry
+import com.mochyy.mochymusic.lyrics.LyricsLanguage
 import com.mochyy.mochymusic.lyrics.LyricsTranslationHelper
 import com.mochyy.mochymusic.lyrics.LyricsUtils
 import com.mochyy.mochymusic.lyrics.RubyToken
+import com.mochyy.mochymusic.lyrics.SmartLyricsLanguageDetector
 import com.mochyy.mochymusic.lyrics.WordTimestamp
 import com.mochyy.mochymusic.lyrics.YouTubeCaptionTranslation
+import com.mochyy.mochymusic.utils.PreferencesCache
 import com.mochyy.mochymusic.utils.rememberPreference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -61,12 +65,44 @@ fun LyricsReadings(
     lyricsEntity: com.mochyy.mochymusic.db.entities.LyricsEntity?,
 ) {
     val context = LocalContext.current
+    val playerConnection = com.mochyy.mochymusic.LocalPlayerConnection.current
+    val currentMeta = playerConnection?.mediaMetadata?.value?.takeIf { it.id == songId }
+    val (smartLyricsEnabled) = rememberPreference(SmartLyricsKey, defaultValue = true)
+    // Read raw stored target language (null when user never manually picked one) so Smart Lyrics can default to "vi"
+    val storedTranslateLanguage = PreferencesCache.snapshot.value[TranslateLanguageKey]
+    val smartDecision = remember(lines, songId, smartLyricsEnabled, storedTranslateLanguage, currentMeta?.title) {
+        SmartLyricsLanguageDetector.decide(
+            smartLyricsEnabled = smartLyricsEnabled,
+            lines = lines.map { it.text },
+            configuredTargetLanguage = storedTranslateLanguage,
+            title = currentMeta?.title,
+            artist = currentMeta?.artists?.joinToString(", ") { it.name },
+        )
+    }
+
     // every language switch, in the order of RomanizeLanguageKeys; the list never changes, so reading them in a loop is safe
     val switches = RomanizeLanguageKeys.map { key -> rememberPreference(key, defaultValue = true).value }
 
-    LaunchedEffect(lines, switches) {
+    LaunchedEffect(lines, switches, smartLyricsEnabled, smartDecision) {
+        if (smartLyricsEnabled && smartDecision.shouldHideRomanization) {
+            lines.forEach { entry ->
+                entry.romanizedWordsFlow.value = null
+                entry.rubyFlow.value = null
+                entry.romanizedTextFlow.value = null
+            }
+            return@LaunchedEffect
+        }
         val allowed = RomanizeLanguageKeys.zip(switches).toMap()
-        readSong(lines, allowed = { allowed[it] != false }) { index, reading ->
+        readSong(
+            lines,
+            allowed = { key ->
+                if (smartLyricsEnabled && smartDecision.shouldForceRomanization && key in CjkRomanizeKeys) {
+                    true
+                } else {
+                    allowed[key] != false
+                }
+            },
+        ) { index, reading ->
             val entry = lines[index]
             // the pieces first, so whoever sees the reading land finds its timing already there
             entry.romanizedWordsFlow.value = reading?.words
@@ -82,7 +118,7 @@ fun LyricsReadings(
     // English to Indonesian it went on translating into English; the "whole session" switch was
     // saved but never read; and "show original" only blanked the lines until the next database
     // emission put the stored translation back.
-    val (translateLanguage) = rememberPreference(TranslateLanguageKey, defaultValue = "en")
+    val (translateLanguage) = rememberPreference(TranslateLanguageKey, defaultValue = "vi")
     val (translateSourceLanguage) = rememberPreference(TranslateSourceLanguageKey, defaultValue = "auto")
     val (translateMode) = rememberPreference(TranslateModeKey, defaultValue = "line")
     val (translateSessionWide) = rememberPreference(TranslateLyricsKey, defaultValue = false)
@@ -98,10 +134,20 @@ fun LyricsReadings(
     val (deeplKey) = rememberPreference(DeeplApiKey, defaultValue = "")
     val (deeplFormality) = rememberPreference(DeeplFormalityKey, defaultValue = "default")
     val (youtubeTranslations) = rememberPreference(YouTubeCaptionTranslationKey, defaultValue = true)
-    val playerConnection = com.mochyy.mochymusic.LocalPlayerConnection.current
 
     LaunchedEffect(songId, translateSessionWide) {
         LyricsTranslationHelper.onSongChanged(songId, translateSessionWide)
+    }
+
+    // Smart Lyrics (#5): automatically show Vietnamese translation on EN/JA/KO/ZH tracks
+    // and hide translation on Vietnamese tracks unless the user manually toggled this song.
+    LaunchedEffect(songId, lines, smartLyricsEnabled, smartDecision, translateSessionWide) {
+        if (!smartLyricsEnabled || lines.isEmpty() || songId.isNullOrBlank()) return@LaunchedEffect
+        val shouldTranslate = when (smartDecision.detectedLanguage) {
+            LyricsLanguage.VIETNAMESE -> false
+            else -> smartDecision.shouldAutoTranslate || translateSessionWide
+        }
+        LyricsTranslationHelper.applySmartTranslationState(songId, shouldTranslate)
     }
 
     // Read, not keyed: saving a translation writes this row, and restarting on that write would
@@ -110,14 +156,24 @@ fun LyricsReadings(
 
     LaunchedEffect(
         lines, translationOn, translateLanguage, translateSourceLanguage, translateMode,
-        aiProvider, openRouterKey, deeplKey, youtubeTranslations,
+        aiProvider, openRouterKey, deeplKey, youtubeTranslations, smartLyricsEnabled, smartDecision,
     ) {
         if (lines.isEmpty()) return@LaunchedEffect
-        if (!translationOn) {
+        val manualOverride = LyricsTranslationHelper.hasManualOverrideFor(songId)
+        if (!translationOn || (smartLyricsEnabled && !manualOverride && smartDecision.detectedLanguage == LyricsLanguage.VIETNAMESE)) {
             lines.forEach { it.translatedTextFlow.value = null }
             return@LaunchedEffect
         }
-        val target = translateLanguage.ifBlank { "en" }
+        val target = if (smartLyricsEnabled && !manualOverride) {
+            smartDecision.targetLanguage
+        } else {
+            translateLanguage.ifBlank { "vi" }
+        }
+        val effectiveSource = if (translateSourceLanguage.isBlank() || translateSourceLanguage == "auto") {
+            if (smartLyricsEnabled) smartDecision.sourceLanguageHint else "auto"
+        } else {
+            translateSourceLanguage
+        }
 
         // a translation someone uploaded to the video beats any machine one, so it's tried first
         val metadata = playerConnection?.mediaMetadata?.value?.takeIf { it.id == songId }
@@ -144,7 +200,7 @@ fun LyricsReadings(
                 targetLanguage = if (hasAiKeyFor(aiProvider, openRouterKey, deeplKey)) {
                     target
                 } else {
-                    LyricsTranslationHelper.languageTag(translateSourceLanguage, target)
+                    LyricsTranslationHelper.languageTag(effectiveSource, target)
                 },
                 mode = translateMode,
             )
@@ -158,7 +214,7 @@ fun LyricsReadings(
                 lyrics = lines,
                 targetLanguage = target,
                 mode = translateMode,
-                sourceLanguage = translateSourceLanguage,
+                sourceLanguage = effectiveSource,
                 scope = this,
                 songId = songId.orEmpty(),
                 database = database,
@@ -284,6 +340,12 @@ suspend fun readSong(
 
 internal fun hasAiKeyFor(provider: String, openRouterKey: String, deeplKey: String): Boolean =
     if (provider == "DeepL") deeplKey.isNotBlank() else openRouterKey.isNotBlank()
+
+val CjkRomanizeKeys = setOf(
+    LyricsRomanizeJapaneseKey,
+    LyricsRomanizeKoreanKey,
+    LyricsRomanizeChineseKey,
+)
 
 // every language the readings can be switched off for; the style page's one switch sets them all
 val RomanizeLanguageKeys = listOf(

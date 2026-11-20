@@ -374,6 +374,8 @@ data class CloudAudioConfig(
     val eightDJson: String? = null,
     val playerCoverZoom: Float? = null,
     val canvasBestQuality: Boolean? = null,
+    val deviceProfilesJson: String? = null,
+    val deviceProfilesEnabled: Boolean? = null,
 )
 
 data class CloudSpeedDialRecord(
@@ -448,6 +450,8 @@ object MochyLibraryExtraCodec {
     private const val MaxLyricsOffsets = 300
     private const val MaxWebModulesChars = 2_048
     private const val MaxDecodeWebModulesChars = 16_384
+    private const val MaxDeviceProfilesChars = 8_192
+    private const val MaxDecodeDeviceProfilesChars = 32_768
     private val Caps = intArrayOf(200, 150, 115, 90, 70, 50, 35, 20, 10, 0)
     private val ExtraStepCaps = listOf(
         MaxRecognitionItems to MaxLyricsOffsets,
@@ -470,7 +474,9 @@ object MochyLibraryExtraCodec {
                 extra.audio.skipSilence != null ||
                 !extra.audio.eightDJson.isNullOrBlank() ||
                 extra.audio.playerCoverZoom != null ||
-                extra.audio.canvasBestQuality != null
+                extra.audio.canvasBestQuality != null ||
+                !extra.audio.deviceProfilesJson.isNullOrBlank() ||
+                extra.audio.deviceProfilesEnabled != null
             )
         val hasModules = extra.modulesConfig != null && (
             extra.modulesConfig.enabled.isNotEmpty() ||
@@ -558,9 +564,15 @@ object MochyLibraryExtraCodec {
             }
         }
         // 4. Fallback cuối: giữ cấu hình nhẹ (bỏ fields trước, rồi mới bỏ toàn bộ modules nếu vẫn vượt) + audio
-        tryEncode(0, 0, 0, emptyList(), modulesNoWeb, extra.audio)?.let { return it }
-        tryEncode(0, 0, 0, emptyList(), modulesNoWeb?.copy(fields = emptyMap()), extra.audio)?.let { return it }
-        return tryEncode(0, 0, 0, emptyList(), null, extra.audio).orEmpty()
+        val audioFull = extra.audio?.let { a ->
+            a.copy(deviceProfilesJson = a.deviceProfilesJson?.takeIf { it.isNotBlank() && it.length <= MaxDeviceProfilesChars })
+        }
+        val audioNoDeviceProfiles = audioFull?.copy(deviceProfilesJson = null)
+        tryEncode(0, 0, 0, emptyList(), modulesNoWeb, audioFull)?.let { return it }
+        tryEncode(0, 0, 0, emptyList(), modulesNoWeb?.copy(fields = emptyMap()), audioFull)?.let { return it }
+        tryEncode(0, 0, 0, emptyList(), null, audioFull)?.let { return it }
+        tryEncode(0, 0, 0, emptyList(), modulesNoWeb, audioNoDeviceProfiles)?.let { return it }
+        return tryEncode(0, 0, 0, emptyList(), null, audioNoDeviceProfiles).orEmpty()
     }
 
     fun decode(libraryExtraGz: String?): CloudLibraryExtra? {
@@ -625,10 +637,14 @@ object MochyLibraryExtraCodec {
                 root.optJsonFloat("cz", Float.NaN).takeIf { it.isFinite() }?.coerceIn(0f, 1f)
             } else null
             val canvasBest = if (root.hasJsonValue("cb")) root.optJsonBoolean("cb") else null
+            val deviceProfilesJson = root.optJsonString("dp")
+                .takeIf { it.isNotBlank() && it != "null" && it.length <= MaxDecodeDeviceProfilesChars }
+            val deviceProfilesEnabled = if (root.hasJsonValue("dpe")) root.optJsonBoolean("dpe") else null
             val audio = if (eqJson != null || norm != null || quality != null ||
                 revJson != null || loudJson != null || spatJson != null ||
                 normJson != null || volJson != null || pbJson != null || skipSil != null ||
-                eightDJson != null || coverZoom != null || canvasBest != null
+                eightDJson != null || coverZoom != null || canvasBest != null ||
+                deviceProfilesJson != null || deviceProfilesEnabled != null
             ) {
                 CloudAudioConfig(
                     eqSettingsJson = eqJson,
@@ -644,6 +660,8 @@ object MochyLibraryExtraCodec {
                     eightDJson = eightDJson,
                     playerCoverZoom = coverZoom,
                     canvasBestQuality = canvasBest,
+                    deviceProfilesJson = deviceProfilesJson,
+                    deviceProfilesEnabled = deviceProfilesEnabled,
                 )
             } else null
 
@@ -849,6 +867,12 @@ object MochyLibraryExtraCodec {
                 if (!audio.eightDJson.isNullOrBlank()) put("ed", audio.eightDJson)
                 audio.playerCoverZoom?.takeIf { it.isFinite() }?.let { put("cz", it.coerceIn(0f, 1f)) }
                 if (audio.canvasBestQuality != null) put("cb", audio.canvasBestQuality)
+                if (!audio.deviceProfilesJson.isNullOrBlank() &&
+                    audio.deviceProfilesJson.length <= MaxDeviceProfilesChars
+                ) {
+                    put("dp", audio.deviceProfilesJson)
+                }
+                if (audio.deviceProfilesEnabled != null) put("dpe", audio.deviceProfilesEnabled)
             }
             if (speedDial.isNotEmpty()) {
                 put(

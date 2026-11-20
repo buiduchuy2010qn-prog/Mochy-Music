@@ -19,12 +19,14 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.DontSkipOnFailureKey
+import com.mochyy.mochymusic.constants.LearnSkipHabitsKey
 import com.mochyy.mochymusic.constants.MixWithOtherAppsKey
 import com.mochyy.mochymusic.constants.PauseOnMute
 import com.mochyy.mochymusic.constants.PersistentQueueKey
 import com.mochyy.mochymusic.constants.PersistentShuffleAcrossQueuesKey
 import com.mochyy.mochymusic.constants.ResumeOnBluetoothConnectKey
 import com.mochyy.mochymusic.constants.SkipSilenceKey
+import com.mochyy.mochymusic.constants.SmartShuffleKey
 import com.mochyy.mochymusic.constants.StopPlaybackOnTaskRemovedKey
 import com.mochyy.mochymusic.constants.StreamFailureTimeoutKey
 import com.mochyy.mochymusic.ui.component.DefaultPlayerSeekBarSlider
@@ -60,6 +62,8 @@ private fun listeningItems(): List<SettingsItem> {
     val (pauseOnMute, onPauseOnMuteChange) = rememberPreference(PauseOnMute, defaultValue = false)
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(PersistentQueueKey, defaultValue = true)
     val (persistentShuffle, onPersistentShuffleChange) = rememberPreference(PersistentShuffleAcrossQueuesKey, defaultValue = true)
+    val (smartShuffle, onSmartShuffleChange) = rememberPreference(SmartShuffleKey, defaultValue = true)
+    val (learnSkipHabits, onLearnSkipHabitsChange) = rememberPreference(LearnSkipHabitsKey, defaultValue = true)
     val (skipSilence, onSkipSilenceChange) = rememberPreference(SkipSilenceKey, defaultValue = false)
     return listOf(
         switchItem(
@@ -113,6 +117,24 @@ private fun listeningItems(): List<SettingsItem> {
             icon = painterResource(R.drawable.shuffle),
             checked = persistentShuffle,
             onCheckedChange = onPersistentShuffleChange,
+        ),
+        switchItem(
+            key = "Smart shuffle",
+            title = stringResource(R.string.smart_shuffle_title),
+            description = stringResource(R.string.smart_shuffle_desc),
+            detail = stringResource(R.string.smart_shuffle_detail),
+            icon = painterResource(R.drawable.shuffle_on),
+            checked = smartShuffle,
+            onCheckedChange = onSmartShuffleChange,
+        ),
+        switchItem(
+            key = "Learn skip and replay habits",
+            title = stringResource(R.string.smart_habits_title),
+            description = stringResource(R.string.smart_habits_desc),
+            detail = stringResource(R.string.smart_habits_detail),
+            icon = painterResource(R.drawable.sparks),
+            checked = learnSkipHabits,
+            onCheckedChange = onLearnSkipHabitsChange,
         ),
         switchItem(
             key = "Skip Silence",

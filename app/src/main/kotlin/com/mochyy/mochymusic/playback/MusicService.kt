@@ -167,6 +167,8 @@ import com.mochyy.mochymusic.constants.ShufflePlaylistFirstKey
 import com.mochyy.mochymusic.constants.SimilarContent
 import com.mochyy.mochymusic.constants.SkipSilenceInstantKey
 import com.mochyy.mochymusic.constants.SkipSilenceKey
+import com.mochyy.mochymusic.constants.SmartShuffleKey
+import com.mochyy.mochymusic.constants.LearnSkipHabitsKey
 import com.mochyy.mochymusic.constants.StopPlaybackOnTaskRemovedKey
 import com.mochyy.mochymusic.constants.IpVersionKey
 import com.music.innertube.models.IpVersion
@@ -353,6 +355,18 @@ class MusicService :
     /** source modules (Apple Music): asked for a stream before YouTube */
     @Inject
     lateinit var sourceModules: com.mochyy.mochymusic.modules.SourceModules
+
+    /** On-device skip (<15s) & replay habit learner (#4) shared by Smart Shuffle & Autoplay */
+    @Inject
+    lateinit var playbackHabitStore: PlaybackHabitStore
+
+    private var habitTrackId: String? = null
+    private var habitTrackArtist: String = ""
+    private var habitTrackDurationMs: Long = 0L
+    private var habitListenedMs: Long = 0L
+    private var habitPlayStartElapsedMs: Long = -1L
+    private var lastCompletedTrackId: String? = null
+    private var lastCompletedTrackAtMs: Long = 0L
 
     @Inject
     lateinit var widgetManager: MochyWidgetManager
@@ -827,6 +841,30 @@ class MusicService :
         audioOutputs.resampler = dataStore.get(HiFiResamplerKey, false)
         audioOutputs.start()
         audioPass.start()
+        scope.launch {
+            audioOutputs.devices
+                .map { list -> list.firstOrNull { it.isActive }?.let { it.kind to it.name } }
+                .distinctUntilChanged()
+                .collect { active ->
+                    val (kind, name) = active ?: return@collect
+                    val switched = audioLab.onAudioOutputChanged(kind, name)
+                    if (switched != null) {
+                        val label = switched.displayName.ifBlank {
+                            when (switched.kind) {
+                                com.mochyy.mochymusic.playback.audio.AudioOutputs.Kind.PHONE -> getString(R.string.smart_device_kind_phone)
+                                com.mochyy.mochymusic.playback.audio.AudioOutputs.Kind.WIRED -> getString(R.string.smart_device_kind_wired)
+                                com.mochyy.mochymusic.playback.audio.AudioOutputs.Kind.USB -> getString(R.string.smart_device_kind_usb)
+                                com.mochyy.mochymusic.playback.audio.AudioOutputs.Kind.BLUETOOTH -> getString(R.string.smart_device_kind_bluetooth)
+                                com.mochyy.mochymusic.playback.audio.AudioOutputs.Kind.HDMI -> getString(R.string.smart_device_kind_hdmi)
+                            }
+                        }
+                        com.mochyy.mochymusic.ui.component.TopToaster.show(
+                            text = getString(R.string.smart_device_switched_toast, label),
+                            iconRes = R.drawable.graphic_eq,
+                        )
+                    }
+                }
+        }
         player = createExoPlayer()
         player.addListener(this@MusicService)
         scope.launch {
@@ -2452,7 +2490,33 @@ class MusicService :
         for (i in 0 until player.mediaItemCount) queued += player.getMediaItemAt(i).mediaId
         // the songs you said not to recommend again never get lined up
         val hidden = NotRecommended.songs
-        fun List<MediaItem>.fresh() = filter { it.mediaId !in queued && it.mediaId !in hidden }
+        val learnHabits = dataStore.get(LearnSkipHabitsKey, true)
+        val currentArtistKey = SmartShuffleEngine.normalizeArtistKey(
+            player.currentMetadata?.artists?.firstOrNull()?.name
+                ?: player.currentMediaItem?.mediaMetadata?.artist?.toString(),
+        )
+        fun List<MediaItem>.fresh(): List<MediaItem> {
+            val filtered = filter { it.mediaId !in queued && it.mediaId !in hidden }
+            if (!learnHabits || filtered.size <= 1) return filtered
+            val habits = playbackHabitStore.snapshot()
+            if (habits.isEmpty()) return filtered
+            val candidates = filtered.mapIndexed { idx, item ->
+                val artist = item.metadata?.artists?.firstOrNull()?.name
+                    ?: item.mediaMetadata.artist?.toString().orEmpty()
+                AutoplayCandidate(
+                    index = idx,
+                    songId = item.mediaId,
+                    artistKey = SmartShuffleEngine.normalizeArtistKey(artist),
+                )
+            }
+            val rankedOrder = SmartShuffleEngine.rankAutoplayCandidates(
+                candidates = candidates,
+                habits = habits,
+                nowMs = System.currentTimeMillis(),
+                recentArtistKey = currentArtistKey,
+            )
+            return rankedOrder.map { filtered[it] }
+        }
 
         infiniteSource?.takeIf { it.hasNextPage() }?.let { source ->
             runCatching { withContext(Dispatchers.IO) { source.nextPage() } }
@@ -3039,6 +3103,8 @@ class MusicService :
         clearStreamFailure()
         if (!promotingCrossmix) crossmixDirector.onItemChanged()
 
+        recordHabitOnTransition(mediaItem, reason)
+
         if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) {
             // round again: a mute or a low volume left by a mix or a fade went round with it and the loop played silent until a seek
             playerCrossmixProcessors[player]?.clear()
@@ -3139,12 +3205,84 @@ class MusicService :
         }
     }
 
+    private fun flushHabitPlayTime() {
+        val started = habitPlayStartElapsedMs
+        if (started >= 0L) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            habitListenedMs += (now - started).coerceAtLeast(0L)
+            habitPlayStartElapsedMs = -1L
+        }
+    }
+
+    private fun recordHabitOnTransition(newItem: MediaItem?, reason: Int) {
+        flushHabitPlayTime()
+        val prevId = habitTrackId
+        val learnHabits = dataStore.get(LearnSkipHabitsKey, true)
+        val nowMs = System.currentTimeMillis()
+        if (learnHabits && !prevId.isNullOrBlank()) {
+            val isManualSkip = reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
+            val isRepeatReplay = reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+            val outcome = playbackHabitStore.recordLeave(
+                songId = prevId,
+                artistName = habitTrackArtist,
+                listenedMs = habitListenedMs,
+                durationMs = habitTrackDurationMs,
+                isManualSkip = isManualSkip,
+                isRepeatReplay = isRepeatReplay,
+                nowMs = nowMs,
+            )
+            if (outcome == TrackInteraction.COMPLETED || outcome == TrackInteraction.REPLAY) {
+                lastCompletedTrackId = prevId
+                lastCompletedTrackAtMs = nowMs
+            }
+        }
+
+        val nextId = newItem?.mediaId
+        val nextArtist = newItem?.metadata?.artists?.firstOrNull()?.name
+            ?: newItem?.mediaMetadata?.artist?.toString().orEmpty()
+        // Re-selecting the same track within 30 minutes counts as a deliberate Replay signal
+        if (learnHabits &&
+            !nextId.isNullOrBlank() &&
+            reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
+            nextId == lastCompletedTrackId &&
+            (nowMs - lastCompletedTrackAtMs) in 1_000L..1_800_000L
+        ) {
+            playbackHabitStore.recordInteraction(nextId, nextArtist, TrackInteraction.REPLAY, nowMs)
+        }
+
+        habitTrackId = nextId
+        habitTrackArtist = nextArtist
+        val metaDurationSec = newItem?.metadata?.duration ?: 0
+        val playerDur = if (::player.isInitialized && player.duration != C.TIME_UNSET && player.duration > 0L) player.duration else 0L
+        habitTrackDurationMs = if (metaDurationSec > 0) metaDurationSec * 1000L else playerDur
+        habitListenedMs = 0L
+        habitPlayStartElapsedMs = if (::player.isInitialized && player.isPlaying && nextId != null) {
+            android.os.SystemClock.elapsedRealtime()
+        } else {
+            -1L
+        }
+    }
+
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         if (isPlaying) {
+            if (habitTrackId == null) {
+                val cur = player.currentMediaItem
+                habitTrackId = cur?.mediaId
+                habitTrackArtist = cur?.metadata?.artists?.firstOrNull()?.name
+                    ?: cur?.mediaMetadata?.artist?.toString().orEmpty()
+                val sec = cur?.metadata?.duration ?: 0
+                habitTrackDurationMs = if (sec > 0) sec * 1000L else player.duration.coerceAtLeast(0L)
+            }
+            if (habitTrackId != null && habitPlayStartElapsedMs < 0L) {
+                habitPlayStartElapsedMs = android.os.SystemClock.elapsedRealtime()
+            }
             MochyCloudSyncManager.cancelScheduledPlaybackResumePush()
-        } else if (player.currentMediaItem != null && player.currentPosition >= 10_000L) {
-            capturePlaybackResumeSnapshot()
-            MochyCloudSyncManager.schedulePlaybackResumePush(this@MusicService, 4_000L)
+        } else {
+            flushHabitPlayTime()
+            if (player.currentMediaItem != null && player.currentPosition >= 10_000L) {
+                capturePlaybackResumeSnapshot()
+                MochyCloudSyncManager.schedulePlaybackResumePush(this@MusicService, 4_000L)
+            }
         }
     }
 
@@ -3292,6 +3430,24 @@ class MusicService :
         }
     }
 
+    private fun buildShuffleCandidates(indices: List<Int>, nowMs: Long): List<ShuffleCandidate> =
+        indices.map { i ->
+            val item = player.getMediaItemAt(i)
+            val songId = item.mediaId
+            val artistRaw = item.metadata?.artists?.firstOrNull()?.name
+                ?: item.mediaMetadata.artist?.toString().orEmpty()
+            val habit = playbackHabitStore.get(songId)
+            val playCount = (habit?.completeCount ?: 0) + (habit?.replayCount ?: 0)
+            ShuffleCandidate(
+                index = i,
+                songId = songId,
+                artistKey = SmartShuffleEngine.normalizeArtistKey(artistRaw),
+                playCount = playCount,
+                lastPlayedAtMs = habit?.lastPlayedAtMs ?: 0L,
+                habitScore = SmartShuffleEngine.trackAffinityScore(habit, nowMs),
+            )
+        }
+
     private fun applyShuffleOrder(
         currentIndex: Int,
         totalCount: Int,
@@ -3304,36 +3460,82 @@ class MusicService :
         keepHistory: Boolean = false,
     ) {
         if (totalCount == 0) return
+        val useSmartShuffle = dataStore.get(SmartShuffleKey, true)
+        val nowMs = System.currentTimeMillis()
 
         if (shufflePlaylistFirst && originalQueueSize > 0 && originalQueueSize < totalCount) {
-
-            val originalIndices = (0 until originalQueueSize).filter { it != currentIndex }.toMutableList()
-            val addedIndices = (originalQueueSize until totalCount).filter { it != currentIndex }.toMutableList()
-
-            originalIndices.shuffle()
-            addedIndices.shuffle()
-
-            val shuffledIndices = IntArray(totalCount)
-            var pos = 0
-            shuffledIndices[pos++] = currentIndex
-
-            if (currentIndex < originalQueueSize) {
-                originalIndices.forEach { shuffledIndices[pos++] = it }
-                addedIndices.forEach { shuffledIndices[pos++] = it }
+            val shuffledIndices = if (useSmartShuffle) {
+                val out = IntArray(totalCount)
+                var pos = 0
+                if (currentIndex < originalQueueSize) {
+                    val firstPart = SmartShuffleEngine.computeSmartShuffleOrder(
+                        candidates = buildShuffleCandidates((0 until originalQueueSize).toList(), nowMs),
+                        currentIndex = currentIndex,
+                        nowMs = nowMs,
+                    )
+                    firstPart.forEach { out[pos++] = it }
+                    val addedPart = SmartShuffleEngine.computeSmartShuffleOrder(
+                        candidates = buildShuffleCandidates((originalQueueSize until totalCount).toList(), nowMs),
+                        currentIndex = originalQueueSize,
+                        nowMs = nowMs,
+                    )
+                    addedPart.forEach { out[pos++] = it }
+                } else {
+                    out[pos++] = currentIndex
+                    val origList = (0 until originalQueueSize).toList()
+                    if (origList.isNotEmpty()) {
+                        SmartShuffleEngine.computeSmartShuffleOrder(
+                            candidates = buildShuffleCandidates(origList, nowMs),
+                            currentIndex = origList.random(),
+                            nowMs = nowMs,
+                        ).forEach { out[pos++] = it }
+                    }
+                    val addedRest = (originalQueueSize until totalCount).filter { it != currentIndex }
+                    if (addedRest.isNotEmpty()) {
+                        SmartShuffleEngine.computeSmartShuffleOrder(
+                            candidates = buildShuffleCandidates(addedRest, nowMs),
+                            currentIndex = addedRest.random(),
+                            nowMs = nowMs,
+                        ).forEach { out[pos++] = it }
+                    }
+                }
+                out
             } else {
-                (0 until originalQueueSize).shuffled().forEach { shuffledIndices[pos++] = it }
-                addedIndices.forEach { shuffledIndices[pos++] = it }
+                val originalIndices = (0 until originalQueueSize).filter { it != currentIndex }.toMutableList()
+                val addedIndices = (originalQueueSize until totalCount).filter { it != currentIndex }.toMutableList()
+                originalIndices.shuffle()
+                addedIndices.shuffle()
+
+                val out = IntArray(totalCount)
+                var pos = 0
+                out[pos++] = currentIndex
+                if (currentIndex < originalQueueSize) {
+                    originalIndices.forEach { out[pos++] = it }
+                    addedIndices.forEach { out[pos++] = it }
+                } else {
+                    (0 until originalQueueSize).shuffled().forEach { out[pos++] = it }
+                    addedIndices.forEach { out[pos++] = it }
+                }
+                out
             }
             player.setShuffleOrder(DefaultShuffleOrder(shapeShuffleOrder(shuffledIndices, currentIndex, keepHistory), System.currentTimeMillis()))
         } else {
-            val shuffledIndices = IntArray(totalCount) { it }
-            shuffledIndices.shuffle()
-
-            val currentItemIndexInShuffled = shuffledIndices.indexOf(currentIndex)
-            if (currentItemIndexInShuffled != -1) {
-                val temp = shuffledIndices[0]
-                shuffledIndices[0] = shuffledIndices[currentItemIndexInShuffled]
-                shuffledIndices[currentItemIndexInShuffled] = temp
+            val shuffledIndices = if (useSmartShuffle) {
+                SmartShuffleEngine.computeSmartShuffleOrder(
+                    candidates = buildShuffleCandidates((0 until totalCount).toList(), nowMs),
+                    currentIndex = currentIndex.coerceIn(0, totalCount - 1),
+                    nowMs = nowMs,
+                )
+            } else {
+                IntArray(totalCount) { it }.also { arr ->
+                    arr.shuffle()
+                    val currentItemIndexInShuffled = arr.indexOf(currentIndex)
+                    if (currentItemIndexInShuffled != -1) {
+                        val temp = arr[0]
+                        arr[0] = arr[currentItemIndexInShuffled]
+                        arr[currentItemIndexInShuffled] = temp
+                    }
+                }
             }
             player.setShuffleOrder(DefaultShuffleOrder(shapeShuffleOrder(shuffledIndices, currentIndex, keepHistory), System.currentTimeMillis()))
         }
@@ -4261,6 +4463,7 @@ class MusicService :
         recentFailures(mediaId)
         val skip = failedSources.getOrPut(mediaId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }
         if (!skip.add(failed)) return false
+        sourceModules.forgetRememberedProvider(mediaId, failed)
         failedSourcesAt.putIfAbsent(mediaId, System.currentTimeMillis())
         val next = sourceModules.order.value.firstOrNull { it !in skip && sourceModules.isUsable(it) } ?: return false
         Timber.tag(TAG).i("Force playback: $mediaId failed from $failed, trying $next")
@@ -4777,6 +4980,16 @@ class MusicService :
         if (reason == Player.DISCONTINUITY_REASON_SEEK) {
             crossmixDirector.onUserSeek()
             scheduleCrossfade()
+            // Scrubbing back to the beginning after listening >= 30s indicates a deliberate Replay
+            if (oldPosition.mediaItemIndex == newPosition.mediaItemIndex &&
+                oldPosition.positionMs >= 30_000L &&
+                newPosition.positionMs <= 5_000L &&
+                dataStore.get(LearnSkipHabitsKey, true)
+            ) {
+                habitTrackId?.let { id ->
+                    playbackHabitStore.recordInteraction(id, habitTrackArtist, TrackInteraction.REPLAY)
+                }
+            }
         }
         // this comes before the song change itself, the last moment the old song's real end spot is known
         val sameSong = reason != Player.DISCONTINUITY_REASON_AUTO_TRANSITION &&
@@ -5290,11 +5503,13 @@ class MusicService :
         val skip = recentFailures(mediaId)
         // a fresh lookup: a notice from one that never got to play no longer holds
         if (skip.isEmpty()) decoderNotices.remove(mediaId)
-        // songs that only YouTube has (and the common case of YouTube first) need no lookup
-        val first = sourceModules.order.value.firstOrNull { it !in skip && sourceModules.isUsable(it) }
-        if (first == com.mochyy.mochymusic.modules.SourceModules.YouTubeId) return youTubeRoute(mediaId)
         val track = trackQueryOf(mediaId)
-        val route = sourceModules.route(track, skip) { id, passed ->
+        val dynamicOrder = sourceModules.effectiveOrderFor(mediaId, track, skip)
+        if (dynamicOrder.firstOrNull() == com.mochyy.mochymusic.modules.SourceModules.YouTubeId) {
+            sourceModules.rememberBestProvider(mediaId, com.mochyy.mochymusic.modules.SourceModules.YouTubeId)
+            return youTubeRoute(mediaId)
+        }
+        val route = sourceModules.route(track, skip, mediaId = mediaId) { id, passed ->
             if (!decoderNotices.containsKey(mediaId)) noteMissingDecoder(mediaId, passed.codec?.uppercase(), passed.sampleRateHz, from = id)
         }
         return when (route) {
@@ -5410,6 +5625,7 @@ class MusicService :
 
         override fun switchTo(mediaId: String, route: ForcedRoute, play: Boolean) {
             forcedRoutes[mediaId] = route
+            sourceModules.rememberBestProvider(mediaId, route.providerId)
             failedSources.remove(mediaId)
             failedSourcesAt.remove(mediaId)
             val index = player.currentMediaItemIndex

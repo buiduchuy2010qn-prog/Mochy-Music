@@ -190,6 +190,7 @@ import kotlinx.coroutines.withContext
 import com.mochyy.mochymusic.ui.component.navigateToTab
 
 sealed class HomeSection(val id: String) {
+    data object SmartMixes : HomeSection("smart_mixes")
     data object RecentlyPlayed : HomeSection("recently_played")
     data object MostPlayed : HomeSection("most_played")
     data object History : HomeSection("history")
@@ -599,6 +600,7 @@ fun HomeScreen(
     val isPlayingNow: () -> Boolean = remember(isPlayingState) { { isPlayingState.value } }
 
     val forgottenFavorites by viewModel.forgottenFavorites.collectAsState()
+    val smartMixes by viewModel.smartMixes.collectAsState()
     val keepListening by viewModel.keepListening.collectAsState()
     val accountPlaylists by viewModel.accountPlaylists.collectAsState()
     val localPlaylists by viewModel.localPlaylists.collectAsState()
@@ -1142,6 +1144,7 @@ fun HomeScreen(
                 }
             }
 
+            if (smartMixes.isNotEmpty()) list.add(HomeSection.SmartMixes)
             if (recentlyPlayed?.isNotEmpty() == true) list.add(HomeSection.RecentlyPlayed)
             if (mostPlayedSongsForHome?.isNotEmpty() == true) list.add(HomeSection.MostPlayed)
             addCategories()
@@ -1416,6 +1419,40 @@ fun HomeScreen(
                                 }
                                 homeItem("speed_dial_list", revealSeen, "cardRow") {
                                     HomeCardRow("speed_dial", items, revealSeen, key = { it.id }, content = ytItemCard)
+                                }
+                            }
+                        }
+                        HomeSection.SmartMixes -> {
+                            smartMixes.takeIf { it.isNotEmpty() }?.let { mixes ->
+                                homeItem("smart_mixes_title", revealSeen, "title") {
+                                    HomeSectionTitle(
+                                        title = stringResource(R.string.smart_mixes_section_title),
+                                        label = stringResource(R.string.smart_mixes_section_label),
+                                    )
+                                }
+                                homeItem("smart_mixes_list", revealSeen, "cardRow") {
+                                    HomeCardRow(
+                                        rowKey = "smart_mixes",
+                                        items = mixes,
+                                        revealSeen = revealSeen,
+                                        key = { it.kind.sectionId },
+                                    ) { mix ->
+                                        val mixTitle = com.mochyy.mochymusic.ui.component.smartMixTitle(mix.kind, mix.daySlot)
+                                        com.mochyy.mochymusic.ui.component.SmartMixCard(
+                                            mix = mix,
+                                            onOpen = { navController.navigate("section_detail/${mix.kind.sectionId}") },
+                                            onPlayNow = {
+                                                if (mix.songs.isNotEmpty()) {
+                                                    playerConnection.playQueue(
+                                                        ListQueue(
+                                                            title = mixTitle,
+                                                            items = mix.songs.map { it.toMediaItem() },
+                                                        ),
+                                                    )
+                                                }
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }

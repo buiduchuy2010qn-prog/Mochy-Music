@@ -1406,3 +1406,16 @@ val LowEndAutoEvaluatedKey = booleanPreferencesKey("lowEndAutoEvaluated_v1")
 val DiscordCanvasFpsKey = intPreferencesKey("discordPresenceCanvasFps")
 val DiscordCanvasSizeKey = intPreferencesKey("discordPresenceCanvasSize")
 val LowEndSnapshotJsonKey = stringPreferencesKey("lowEndSnapshotJson")
+
+// Smart Provider Routing (#2): network-aware, Vietnamese-aware, and per-song best-source memory
+val SmartProviderRoutingKey = booleanPreferencesKey("smartProviderRouting")
+val SmartRoutingNetworkKey = booleanPreferencesKey("smartRoutingNetwork")
+val SmartRoutingVietnameseKey = booleanPreferencesKey("smartRoutingVietnamese")
+val SmartRoutingRememberKey = booleanPreferencesKey("smartRoutingRemember")
+
+// Smart Shuffle & Skip/Replay Habit Learning (#4)
+val SmartShuffleKey = booleanPreferencesKey("smartShuffle")
+val LearnSkipHabitsKey = booleanPreferencesKey("learnSkipHabits")
+
+// Smart Lyrics by Language (#5)
+val SmartLyricsKey = booleanPreferencesKey("smartLyricsEnabled")

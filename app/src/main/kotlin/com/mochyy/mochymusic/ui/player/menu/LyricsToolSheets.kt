@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.SmartLyricsKey
 import com.mochyy.mochymusic.constants.TranslateLanguageKey
 import com.mochyy.mochymusic.constants.TranslateLyricsKey
 import com.mochyy.mochymusic.constants.TranslateSourceLanguageKey
@@ -541,9 +542,10 @@ private fun rememberTranslationTargets(): List<Pair<String, String>> {
 fun LyricsTranslationSheet(onDismiss: () -> Unit) {
     // Same default as the lyrics screen. The sheet used to default to "" while the screen
     // defaulted to "en", so the two disagreed about what language was selected.
-    val (target, setTarget) = rememberPreference(TranslateLanguageKey, defaultValue = "en")
+    val (target, setTarget) = rememberPreference(TranslateLanguageKey, defaultValue = "vi")
     val (source, setSource) = rememberPreference(TranslateSourceLanguageKey, defaultValue = "auto")
     val (sessionWide, setSessionWide) = rememberPreference(TranslateLyricsKey, defaultValue = false)
+    val (smartLyrics, setSmartLyrics) = rememberPreference(SmartLyricsKey, defaultValue = true)
     val targets = rememberTranslationTargets()
     var picking by remember { mutableStateOf(false) }
     var pickingSource by remember { mutableStateOf(false) }
@@ -603,6 +605,37 @@ fun LyricsTranslationSheet(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(14.dp))
             Text(text = stringResource(R.string.ps_lyrics_and), color = Color(0xFF9A9A9A), fontSize = 12.sp)
             Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(50))
+                    .background(MenuRowSurface)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                SheetIcon(R.drawable.sparks)
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.smart_lyrics_title),
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.smart_lyrics_sheet_sub),
+                        color = Color(0xFF9A9A9A),
+                        fontSize = 11.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                AppSwitch(checked = smartLyrics, onCheckedChange = setSmartLyrics)
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,

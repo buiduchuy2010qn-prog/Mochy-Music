@@ -135,6 +135,8 @@ object LyricsTranslationHelper {
     val translationOn: StateFlow<Boolean> = _translationOn.asStateFlow()
 
     private var lastSongId: String? = null
+    private var manualOverrideSongId: String? = null
+    private var manualOverrideEnabled: Boolean? = null
 
     /**
      * What a stored translation is filed under. Just the target when the source is detected
@@ -146,11 +148,15 @@ object LyricsTranslationHelper {
         if (sourceLanguage.isBlank() || sourceLanguage == "auto") targetLanguage else "$sourceLanguage>$targetLanguage"
 
     fun triggerManualTranslation() {
+        manualOverrideSongId = lastSongId
+        manualOverrideEnabled = true
         _translationOn.value = true
         _manualTrigger.tryEmit(Unit)
     }
 
     fun triggerClearTranslations() {
+        manualOverrideSongId = lastSongId
+        manualOverrideEnabled = false
         _translationOn.value = false
         _hasActiveTranslations.value = false
         translationJob?.cancel()
@@ -164,11 +170,39 @@ object LyricsTranslationHelper {
      */
     fun onSongChanged(songId: String?, sessionWide: Boolean) {
         if (songId == null) return
-        if (lastSongId != null && lastSongId != songId && !sessionWide) {
-            _translationOn.value = false
-            _hasActiveTranslations.value = false
+        if (lastSongId != null && lastSongId != songId) {
+            manualOverrideSongId = null
+            manualOverrideEnabled = null
+            if (!sessionWide) {
+                _translationOn.value = false
+                _hasActiveTranslations.value = false
+            }
         }
         lastSongId = songId
+    }
+
+    fun hasManualOverrideFor(songId: String?): Boolean =
+        songId != null && manualOverrideSongId == songId
+
+    /**
+     * Applies Smart Lyrics' automatic on/off decision for [songId] without overriding an explicit
+     * manual toggle the user made on the currently playing track.
+     */
+    fun applySmartTranslationState(songId: String?, shouldTranslate: Boolean) {
+        if (songId == null) return
+        if (lastSongId != songId) {
+            lastSongId = songId
+            manualOverrideSongId = null
+            manualOverrideEnabled = null
+        }
+        if (manualOverrideSongId == songId) return
+        if (_translationOn.value == shouldTranslate) return
+        _translationOn.value = shouldTranslate
+        if (!shouldTranslate) {
+            _hasActiveTranslations.value = false
+            translationJob?.cancel()
+            _status.value = TranslationStatus.Idle
+        }
     }
 
     fun hasTranslations(lyricsEntity: LyricsEntity?): Boolean = !lyricsEntity?.translatedLyrics.isNullOrBlank()

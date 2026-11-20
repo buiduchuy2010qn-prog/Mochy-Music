@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- #1 Per-Device Audio Lab Profiles -->
+    <string name="smart_device_profiles_title">Per-device Audio Lab</string>
+    <string name="smart_device_profiles_desc">Automatically switch EQ, AutoEq, Spatial, 8D &amp; Loudness for each headset, DAC or speaker</string>
+    <string name="smart_device_active_label">Active output</string>
+    <string name="smart_device_saved_badge">Saved</string>
+    <string name="smart_device_save_now">Save</string>
+    <string name="smart_device_saved_count">Saved devices (%1$d)</string>
+    <string name="smart_device_profile_flat">Flat · All FX off</string>
+    <string name="smart_device_profiles_footnote">Changes in Equalizer and Audio FX are remembered per output device, switched automatically on connect/disconnect, and synced via Mochy Cloud &amp; offline backup.</string>
+    <string name="smart_device_switched_toast">Audio Lab: %1$s</string>
+    <string name="smart_device_kind_phone">Phone speaker</string>
+    <string name="smart_device_kind_wired">Wired headphones</string>
+    <string name="smart_device_kind_usb">USB DAC</string>
+    <string name="smart_device_kind_bluetooth">Bluetooth audio</string>
+    <string name="smart_device_kind_hdmi">HDMI output</string>
+
+    <!-- #2 Smart Provider Routing -->
+    <string name="smart_routing_section_title">Smart routing</string>
+    <string name="smart_routing_title">Smart provider routing</string>
+    <string name="smart_routing_net_wifi">Wi-Fi · Prioritising Lossless (Monochrome / Apple Music)</string>
+    <string name="smart_routing_net_cellular">Mobile data · Prioritising fast streams (Zing MP3 / YouTube)</string>
+    <string name="smart_routing_net_unknown">Auto-picks the best source by network &amp; song language</string>
+    <string name="smart_routing_network_title">Adapt to network type</string>
+    <string name="smart_routing_network_desc">Prefer Monochrome / Apple Music lossless on Wi-Fi, Zing MP3 / YouTube Music on 4G/5G</string>
+    <string name="smart_routing_vi_title">Prioritise Zing MP3 for Vietnamese music</string>
+    <string name="smart_routing_vi_desc">Detect Vietnamese diacritics &amp; artists and route Zing MP3 → YouTube Music first</string>
+    <string name="smart_routing_remember_title">Remember best source per song</string>
+    <string name="smart_routing_remember_desc">Reuse each song\'s best working provider (%1$d remembered)</string>
+    <string name="smart_routing_clear_memory">Clear remembered sources (%1$d)</string>
+    <string name="smart_routing_footnote">Only switches between providers you already enabled. Failed sources fall back automatically to the next one in order.</string>
+
+    <!-- #3 On-Device Smart Mixes -->
+    <string name="smart_mixes_section_label">Made on this device</string>
+    <string name="smart_mixes_section_title">Smart Mixes for you</string>
+    <string name="smart_mix_morning">Morning Mix</string>
+    <string name="smart_mix_afternoon">Afternoon Mix</string>
+    <string name="smart_mix_evening">Evening Mix</string>
+    <string name="smart_mix_late_night">Late Night Mix</string>
+    <string name="smart_mix_on_repeat">On Repeat</string>
+    <string name="smart_mix_forgotten">Forgotten Favorites</string>
+    <string name="smart_mix_chill">Chill Mix</string>
+    <string name="smart_mix_upbeat">Upbeat Mix</string>
+    <string name="smart_mix_tag_time">Right now</string>
+    <string name="smart_mix_tag_repeat">On repeat</string>
+    <string name="smart_mix_tag_forgotten">Throwback</string>
+    <string name="smart_mix_tag_chill">Chill BPM</string>
+    <string name="smart_mix_tag_upbeat">High energy</string>
+    <string name="smart_mix_subtitle_count">%1$d songs</string>
+    <string name="smart_mix_subtitle_bpm">%1$d songs · ~%2$d BPM</string>
+
+    <!-- #4 Smart Shuffle & Skip/Replay Habit Learning -->
+    <string name="smart_shuffle_title">Smart shuffle</string>
+    <string name="smart_shuffle_desc">Space out tracks by the same artist and mix favorites with songs you haven\'t heard in a while</string>
+    <string name="smart_shuffle_detail">Avoids playing the same artist back-to-back, balances familiar hits with rediscovery tracks, and gently pushes frequently skipped tracks further back.</string>
+    <string name="smart_habits_title">Learn skip &amp; replay habits</string>
+    <string name="smart_habits_desc">Tracks skipped in the first 15s drop in Radio/Autoplay; replayed tracks rank higher</string>
+    <string name="smart_habits_detail">Runs 100% on-device. Skipping within 15 seconds lowers a song\'s priority in Radio, Autoplay and Smart Shuffle, while replaying boosts it.</string>
+
+    <!-- #5 Smart Lyrics by Language -->
+    <string name="smart_lyrics_title">Smart lyrics by language</string>
+    <string name="smart_lyrics_desc">Hide translation on Vietnamese songs; auto-translate EN/JA/KO/ZH to Vietnamese &amp; auto-romanize JA/KO/ZH</string>
+    <string name="smart_lyrics_detail">Automatically detects each song\'s lyric language: hides translation and romanization on Vietnamese tracks, turns on Vietnamese translation for English/Japanese/Korean/Chinese tracks, and turns on Romaji/Romanization/Pinyin for Japanese/Korean/Chinese. Manual toggles on the current song are still respected.</string>
+    <string name="smart_lyrics_sheet_sub">Auto-hide on Vietnamese · auto-translate &amp; romanize foreign tracks</string>
+</resources>

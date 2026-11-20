@@ -60,6 +60,14 @@ class AudioLabViewModel @Inject constructor(
     val playback = store.playback
     val volume = store.volume
     val normalize = store.normalize
+    val deviceProfilesEnabled = store.deviceProfilesEnabled
+    val deviceProfiles = store.deviceProfiles
+    val activeDevice = store.activeDevice
+
+    fun setDeviceProfilesEnabled(enabled: Boolean) = store.setDeviceProfilesEnabled(enabled)
+    fun saveCurrentToActiveDevice() = store.saveCurrentToActiveDevice()
+    fun applyDeviceProfile(key: String) = store.applyDeviceProfile(key)
+    fun deleteDeviceProfile(key: String) = store.deleteDeviceProfile(key)
 
     // ---- the user's curve -------------------------------------------------------------------
 
