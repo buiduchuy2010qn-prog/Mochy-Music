@@ -236,6 +236,11 @@ fun StatsScreen(navController: NavController) {
             }
     }
 
+    val resolvedInsights =
+        remember(stats, insights) {
+            stats?.let { insights ?: buildRecapInsights(it) }
+        }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         Box(modifier = Modifier.fillMaxSize().glassRoot(glassState, isActive = { collapse > 0f })) {
             LazyColumn(
@@ -291,7 +296,7 @@ fun StatsScreen(navController: NavController) {
                         joinedText = joinedText,
                         joinedDate = joinedDate,
                         allTimeMs = totalListeningMs,
-                        insights = insights ?: buildRecapInsights(s),
+                        insights = resolvedInsights ?: buildRecapInsights(s),
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -430,7 +435,7 @@ fun StatsScreen(navController: NavController) {
                         }
                     }
                 } else {
-                    val ins = insights ?: remember(s) { buildRecapInsights(s) }
+                    val ins = resolvedInsights ?: buildRecapInsights(s)
                     item(key = "total") { TotalCard(s, ins.delta, expanded) }
                     item(key = "persona") { PersonaStreakCard(s, ins, expanded) }
                     item(key = "genre") { GenreCard(genres, expanded) }
