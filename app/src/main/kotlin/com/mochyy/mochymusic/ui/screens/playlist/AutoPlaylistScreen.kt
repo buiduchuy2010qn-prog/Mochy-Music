@@ -143,11 +143,11 @@ fun AutoPlaylistScreen(
         "uploaded" -> stringResource(R.string.uploaded_playlist)
         "downloaded" -> stringResource(R.string.offline)
         "local" -> stringResource(R.string.library_tab_local)
-        "local_liked" -> "Local liked songs"
-        "cached" -> "Cached"
-        "cached_liked" -> "Cached liked songs"
-        "songs" -> "All Songs"
-        "recently_added" -> "Recently Added"
+        "local_liked" -> stringResource(R.string.auto_playlist_local_liked)
+        "cached" -> stringResource(R.string.auto_playlist_cached)
+        "cached_liked" -> stringResource(R.string.auto_playlist_cached_liked)
+        "songs" -> stringResource(R.string.auto_playlist_all_songs)
+        "recently_added" -> stringResource(R.string.auto_playlist_recently_added)
         else -> viewModel.playlist
     }
 

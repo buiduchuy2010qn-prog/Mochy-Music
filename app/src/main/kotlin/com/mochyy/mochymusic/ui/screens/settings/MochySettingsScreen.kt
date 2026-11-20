@@ -476,14 +476,23 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         Spacer(modifier = Modifier.height(18.dp))
                     }
 
-                    // Separate Bubble Pills for Categories (No outlines, individually bubble-wrapped)
+                    // Separate Bubble Pills for Categories, grouped for fast scanning
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // in the order of the design: sound first, then how the app acts and looks, then the rest
+                        // Account & Cloud sync right up top where users expect it
+                        CategoryBubble(
+                            title = stringResource(R.string.settings_mochy_cloud),
+                            iconRes = R.drawable.cloud,
+                            selected = false,
+                            onClick = onOpenCloudSheet
+                        )
+
+                        SettingsGroupHeader(stringResource(R.string.settings_group_sound))
+
                         CategoryBubble(
                             title = stringResource(R.string.settings_audio_lab_category),
                             iconRes = R.drawable.equalizer,
@@ -505,12 +514,7 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                             onClick = { open(NowPlayingSettingsRoute) }
                         )
 
-                        CategoryBubble(
-                            title = stringResource(R.string.settings_app_behaviour),
-                            iconRes = R.drawable.settings,
-                            selected = selected == "general_settings",
-                            onClick = { open("general_settings") }
-                        )
+                        SettingsGroupHeader(stringResource(R.string.settings_group_experience))
 
                         CategoryBubble(
                             title = stringResource(R.string.settings_customisation_category),
@@ -520,10 +524,26 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                         )
 
                         CategoryBubble(
+                            title = stringResource(R.string.settings_app_behaviour),
+                            iconRes = R.drawable.settings,
+                            selected = selected == "general_settings",
+                            onClick = { open("general_settings") }
+                        )
+
+                        CategoryBubble(
                             title = stringResource(R.string.storage),
                             iconRes = R.drawable.storage,
                             selected = selected == "storage_settings",
                             onClick = { open("storage_settings") }
+                        )
+
+                        SettingsGroupHeader(stringResource(R.string.settings_group_ecosystem))
+
+                        CategoryBubble(
+                            title = stringResource(R.string.settings_modules_category),
+                            iconRes = R.drawable.library_add,
+                            selected = selected == "modules",
+                            onClick = { open("modules") }
                         )
 
                         CategoryBubble(
@@ -538,20 +558,6 @@ fun MochySettingsScreen(navController: NavController, pane: SettingsPane? = null
                             iconRes = R.drawable.cast_connected,
                             selected = false,
                             onClick = { open(com.mochyy.mochymusic.ui.screens.devices.DeviceIntegrationRoute) }
-                        )
-
-                        CategoryBubble(
-                            title = stringResource(R.string.settings_modules_category),
-                            iconRes = R.drawable.library_add,
-                            selected = selected == "modules",
-                            onClick = { open("modules") }
-                        )
-
-                        CategoryBubble(
-                            title = "Tài khoản Mochy Cloud",
-                            iconRes = R.drawable.cloud,
-                            selected = false,
-                            onClick = onOpenCloudSheet
                         )
 
                         // pages the modules that are on bring to settings, right under modules
@@ -685,4 +691,17 @@ internal fun CategoryBubble(
             )
         }
     }
+}
+
+@Composable
+private fun SettingsGroupHeader(title: String) {
+    Text(
+        text = title.uppercase(),
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 11.sp,
+        letterSpacing = 0.6.sp,
+        color = Color.White.copy(alpha = 0.45f),
+        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 0.dp),
+    )
 }

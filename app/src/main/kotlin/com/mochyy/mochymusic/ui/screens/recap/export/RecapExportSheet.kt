@@ -15,6 +15,11 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -22,7 +27,13 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.graphicsLayer
+import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.pressBounce
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -255,7 +266,7 @@ internal fun RecapExportSheetOverlay(
     fun launchExport(statusLabel: String, block: suspend (ViewGroup, ShareExportJob) -> Unit) {
         val host = offscreenHost
         if (host == null) {
-            Toast.makeText(context, context.getString(R.string.rc_export_failed), Toast.LENGTH_SHORT).show()
+            com.mochyy.mochymusic.ui.component.TopToaster.error(context.getString(R.string.rc_export_failed))
             return
         }
         if (isExporting) return
@@ -267,9 +278,12 @@ internal fun RecapExportSheetOverlay(
             try {
                 block(host, job)
             } catch (_: CancellationException) {
-                Toast.makeText(context, context.getString(R.string.rc_export_cancelled), Toast.LENGTH_SHORT).show()
+                com.mochyy.mochymusic.ui.component.TopToaster.show(
+                    text = context.getString(R.string.rc_export_cancelled),
+                    iconRes = R.drawable.close,
+                )
             } catch (_: Exception) {
-                Toast.makeText(context, context.getString(R.string.rc_export_failed), Toast.LENGTH_SHORT).show()
+                com.mochyy.mochymusic.ui.component.TopToaster.error(context.getString(R.string.rc_export_failed))
             } finally {
                 if (exportJob === job) {
                     exportJob = null
@@ -304,7 +318,10 @@ internal fun RecapExportSheetOverlay(
                 result.savedToGallery -> R.string.rc_export_video_saved
                 else -> R.string.rc_export_ready_to_share
             }
-            Toast.makeText(context, context.getString(toastRes), Toast.LENGTH_SHORT).show()
+            com.mochyy.mochymusic.ui.component.TopToaster.show(
+                text = context.getString(toastRes),
+                iconRes = R.drawable.slow_motion_video,
+            )
             if (shareAfter) {
                 shareRecapFile(context, result.file, result.mimeType, shareCaptionText())
             }
@@ -328,7 +345,10 @@ internal fun RecapExportSheetOverlay(
             )
             job.progress = 1f
             val toastRes = if (result.savedToGallery) R.string.rc_export_image_saved else R.string.rc_export_ready_to_share
-            Toast.makeText(context, context.getString(toastRes), Toast.LENGTH_SHORT).show()
+            com.mochyy.mochymusic.ui.component.TopToaster.show(
+                text = context.getString(toastRes),
+                iconRes = R.drawable.image,
+            )
             if (shareAfter) {
                 shareRecapFile(context, result.file, result.mimeType, shareCaptionText())
             }
@@ -349,11 +369,10 @@ internal fun RecapExportSheetOverlay(
                 job = job,
             )
             val savedCount = results.count { it.savedToGallery }
-            Toast.makeText(
-                context,
-                context.getString(R.string.rc_export_all_images_saved, savedCount),
-                Toast.LENGTH_SHORT,
-            ).show()
+            com.mochyy.mochymusic.ui.component.TopToaster.show(
+                text = context.getString(R.string.rc_export_all_images_saved, savedCount),
+                iconRes = R.drawable.sparks,
+            )
         }
     }
 
@@ -390,16 +409,45 @@ internal fun RecapExportSheetOverlay(
             )
         }
 
+        var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+        val animatedDragOffset by animateFloatAsState(
+            targetValue = dragOffsetPx,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+            label = "recapSheetDrag",
+        )
+
         AnimatedVisibility(
             visible = visible,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            enter = slideInVertically(
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                initialOffsetY = { it },
+            ) + fadeIn(tween(220)),
+            exit = slideOutVertically(
+                animationSpec = tween(200),
+                targetOffsetY = { it },
+            ) + fadeOut(tween(180)),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             Column(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .graphicsLayer { translationY = animatedDragOffset.coerceAtLeast(0f) }
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            enabled = !isExporting,
+                            state = rememberDraggableState { delta ->
+                                dragOffsetPx = (dragOffsetPx + delta).coerceAtLeast(0f)
+                            },
+                            onDragStopped = { velocity ->
+                                if (dragOffsetPx > 180f || velocity > 900f) {
+                                    dragOffsetPx = 0f
+                                    onDismiss()
+                                } else {
+                                    dragOffsetPx = 0f
+                                }
+                            },
+                        )
                         .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                         .background(SheetSurface)
                         .border(
@@ -774,29 +822,40 @@ private fun ExportTabPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val bg by animateColorAsState(if (selected) Color.White else Color.Transparent, tween(180), label = "tabBg")
+    val fg by animateColorAsState(
+        if (selected) Color(0xFF121212) else Color.White.copy(alpha = 0.78f),
+        tween(180),
+        label = "tabFg",
+    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
         modifier =
             modifier
                 .height(40.dp)
+                .pressBounce(interaction, pressedScale = 0.96f)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (selected) Color.White else Color.Transparent)
-                .clickable(enabled = enabled, onClick = onClick)
+                .background(bg)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interaction,
+                    indication = RemoteFocus,
+                    onClick = onClick,
+                )
                 .padding(horizontal = 10.dp),
     ) {
         Icon(
             painter = painterResource(iconRes),
             contentDescription = null,
-            tint = if (selected) Color(0xFF121212) else Color.White.copy(alpha = 0.78f),
+            tint = fg,
             modifier = Modifier.size(16.dp),
         )
         Spacer(Modifier.width(6.dp))
         Text(
             text = label,
-            style = recapBold(13.5f, lineHeight = 16f, tracking = -0.1f).copy(
-                color = if (selected) Color(0xFF121212) else Color.White.copy(alpha = 0.78f),
-            ),
+            style = recapBold(13.5f, lineHeight = 16f, tracking = -0.1f).copy(color = fg),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -810,26 +869,41 @@ private fun OptionChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val bg by animateColorAsState(
+        if (selected) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f),
+        tween(180),
+        label = "chipBg",
+    )
+    val borderColor by animateColorAsState(
+        if (selected) SheetAccent.copy(alpha = 0.85f) else SheetCardBorder,
+        tween(180),
+        label = "chipBorder",
+    )
+    val textColor by animateColorAsState(if (selected) Color.White else SheetMuted, tween(180), label = "chipFg")
     Box(
         contentAlignment = Alignment.Center,
         modifier =
             modifier
                 .height(36.dp)
+                .pressBounce(interaction, pressedScale = 0.95f)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (selected) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f))
+                .background(bg)
                 .border(
                     width = 1.dp,
-                    color = if (selected) SheetAccent.copy(alpha = 0.85f) else SheetCardBorder,
+                    color = borderColor,
                     shape = RoundedCornerShape(12.dp),
                 )
-                .clickable(onClick = onClick)
+                .clickable(
+                    interactionSource = interaction,
+                    indication = RemoteFocus,
+                    onClick = onClick,
+                )
                 .padding(horizontal = 10.dp),
     ) {
         Text(
             text = label,
-            style = recapBold(12.5f, lineHeight = 15f, tracking = 0f).copy(
-                color = if (selected) Color.White else SheetMuted,
-            ),
+            style = recapBold(12.5f, lineHeight = 15f, tracking = 0f).copy(color = textColor),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -844,12 +918,14 @@ private fun PrimaryActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interaction = remember { MutableInteractionSource() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
         modifier =
             modifier
                 .height(46.dp)
+                .pressBounce(interaction, pressedScale = 0.96f)
                 .clip(RoundedCornerShape(23.dp))
                 .background(if (filled) Color.White else Color.White.copy(alpha = 0.12f))
                 .border(
@@ -857,7 +933,11 @@ private fun PrimaryActionButton(
                     color = if (filled) Color.Transparent else SheetCardBorder,
                     shape = RoundedCornerShape(23.dp),
                 )
-                .clickable(onClick = onClick)
+                .clickable(
+                    interactionSource = interaction,
+                    indication = RemoteFocus,
+                    onClick = onClick,
+                )
                 .padding(horizontal = 14.dp),
     ) {
         Icon(
@@ -885,6 +965,7 @@ private fun ExportProgressCard(
     onCancel: () -> Unit,
 ) {
     val percent = (progress * 100f).roundToInt().coerceIn(0, 100)
+    val cancelInteraction = remember { MutableInteractionSource() }
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier =
@@ -928,9 +1009,14 @@ private fun ExportProgressCard(
                 Modifier
                     .fillMaxWidth()
                     .height(42.dp)
+                    .pressBounce(cancelInteraction, pressedScale = 0.96f)
                     .clip(RoundedCornerShape(21.dp))
                     .background(Color.White.copy(alpha = 0.1f))
-                    .clickable(onClick = onCancel),
+                    .clickable(
+                        interactionSource = cancelInteraction,
+                        indication = RemoteFocus,
+                        onClick = onCancel,
+                    ),
         ) {
             Text(
                 text = stringResource(R.string.rc_export_cancel),

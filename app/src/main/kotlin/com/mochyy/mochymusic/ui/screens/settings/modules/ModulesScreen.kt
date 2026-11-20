@@ -113,6 +113,8 @@ fun ModulesScreen(navController: NavController, viewModel: ModulesViewModel = hi
         )
         Spacer(Modifier.height(12.dp))
         DashedSlot(stringResource(R.string.modules_add_more), onClick = findMore, compact = true)
+        Spacer(Modifier.height(14.dp))
+        RoutingShortcutCard(onClick = { navController.navigate("audio_quality") })
         Spacer(Modifier.height(48.dp))
     }
 
@@ -206,6 +208,56 @@ private fun ModulesBarBanner(onClick: () -> Unit) {
             stringResource(R.string.modules_bar),
             fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 21.sp, lineHeight = 24.sp,
             letterSpacing = (-0.7).sp, color = Color.White, modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun RoutingShortcutCard(onClick: () -> Unit) {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(LabColors.Card)
+            .clickable(
+                interactionSource = interaction,
+                indication = com.mochyy.mochymusic.ui.component.RemoteFocus,
+                onClick = onClick,
+            )
+            .padding(horizontal = 18.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.Icon(
+            painter = painterResource(R.drawable.equalizer),
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.width(22.dp),
+        )
+        Spacer(Modifier.width(14.dp))
+        androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.modules_routing_shortcut_title),
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = Color.White,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stringResource(R.string.modules_routing_shortcut_desc),
+                fontFamily = InterFontFamily,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = LabColors.Secondary,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        androidx.compose.material3.Icon(
+            painter = painterResource(R.drawable.arrow_forward),
+            contentDescription = null,
+            tint = LabColors.Secondary,
+            modifier = Modifier.width(18.dp),
         )
     }
 }

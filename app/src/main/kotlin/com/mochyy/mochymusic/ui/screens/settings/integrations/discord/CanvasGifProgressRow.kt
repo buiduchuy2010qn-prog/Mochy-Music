@@ -4,6 +4,7 @@ package com.mochyy.mochymusic.ui.screens.settings.integrations.discord
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -11,12 +12,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.discord.CanvasGifProgress
+import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import kotlin.math.roundToInt
 
 // progress of the gif that is being made right now, shown under the canvas options on the discord page
@@ -29,6 +33,7 @@ fun CanvasGifProgressRow() {
             Text(
                 text = stringResource(R.string.discord_canvas_idle),
                 color = DiscordColors.Secondary,
+                fontFamily = InterFontFamily,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
             )
@@ -39,11 +44,20 @@ fun CanvasGifProgressRow() {
                 s.finished -> stringResource(R.string.discord_canvas_ready, s.title)
                 else -> stringResource(R.string.discord_canvas_making, s.title)
             }
-            Text(text = head, color = DiscordColors.Primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(
+                text = head,
+                color = DiscordColors.Primary,
+                fontFamily = InterFontFamily,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+            )
             if (!s.failed) {
                 LinearProgressIndicator(
                     progress = { s.fraction },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    color = Color.White,
+                    trackColor = Color.White.copy(alpha = 0.14f),
+                    strokeCap = StrokeCap.Round,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(5.dp),
                 )
             }
             // rough time left, only there once the guess is worth anything
@@ -59,6 +73,7 @@ fun CanvasGifProgressRow() {
             Text(
                 text = detail,
                 color = DiscordColors.Secondary,
+                fontFamily = InterFontFamily,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 modifier = Modifier.padding(top = 6.dp),

@@ -171,6 +171,7 @@ fun AudioLabScreen(
             if (maxWidth >= 560.dp) {
                 // a tablet: side by side, so the cards don't stretch into long thin bars
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DeviceProfilesCard(viewModel)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.height(IntrinsicSize.Min)) {
                         equalizer(Modifier.weight(1f).fillMaxHeight())
                         effect(Modifier.weight(1f).fillMaxHeight())
@@ -180,16 +181,15 @@ fun AudioLabScreen(
                         transition(Modifier.weight(1f).fillMaxHeight())
                         pass(Modifier.weight(1f).fillMaxHeight())
                     }
-                    DeviceProfilesCard(viewModel)
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DeviceProfilesCard(viewModel)
                     equalizer(Modifier)
                     effect(Modifier)
                     qualityCard(Modifier)
                     transition(Modifier)
                     pass(Modifier)
-                    DeviceProfilesCard(viewModel)
                 }
             }
         }

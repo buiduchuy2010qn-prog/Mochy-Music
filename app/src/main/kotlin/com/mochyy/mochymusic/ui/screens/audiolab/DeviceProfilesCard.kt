@@ -45,6 +45,8 @@ import com.mochyy.mochymusic.eq.AudioLabProfileSnapshot
 import com.mochyy.mochymusic.eq.DeviceAudioProfile
 import com.mochyy.mochymusic.eq.DeviceAudioProfileEngine
 import com.mochyy.mochymusic.playback.audio.AudioOutputs
+import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.viewmodels.AudioLabViewModel
 
@@ -138,6 +140,7 @@ internal fun DeviceProfilesCard(
                                 .padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     } else {
+                        val saveInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                         Text(
                             text = stringResource(R.string.smart_device_save_now),
                             fontFamily = InterFontFamily,
@@ -145,9 +148,13 @@ internal fun DeviceProfilesCard(
                             fontSize = 11.sp,
                             color = Color.White,
                             modifier = Modifier
+                                .pressBounce(saveInteraction, pressedScale = 0.92f)
                                 .clip(RoundedCornerShape(50))
                                 .background(Color.White.copy(alpha = 0.14f))
-                                .clickable { viewModel.saveCurrentToActiveDevice() }
+                                .clickable(
+                                    interactionSource = saveInteraction,
+                                    indication = RemoteFocus,
+                                ) { viewModel.saveCurrentToActiveDevice() }
                                 .padding(horizontal = 10.dp, vertical = 5.dp),
                         )
                     }
@@ -165,12 +172,16 @@ internal fun DeviceProfilesCard(
                         val isCurrent = profile.key == activeDevice?.key
                         val name = localizedDeviceName(kind, profile.displayName)
                         val summary = profileEffectsSummary(profile.snapshot)
+                        val rowInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(if (isCurrent) LabColors.RowSelected else LabColors.Stage)
-                                .clickable { viewModel.applyDeviceProfile(profile.key) }
+                                .clickable(
+                                    interactionSource = rowInteraction,
+                                    indication = RemoteFocus,
+                                ) { viewModel.applyDeviceProfile(profile.key) }
                                 .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

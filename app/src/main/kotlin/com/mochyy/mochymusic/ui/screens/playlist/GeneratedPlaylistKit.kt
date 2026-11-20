@@ -168,7 +168,7 @@ fun GeneratedSearchCapsule(
             if (query.text.isEmpty()) {
                 Text(
                     text = placeholder,
-                    style = TextStyle(fontSize = 15.sp),
+                    style = TextStyle(fontFamily = com.mochyy.mochymusic.ui.theme.InterFontFamily, fontSize = 15.sp),
                     color = Color.White.copy(alpha = 0.5f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -178,7 +178,11 @@ fun GeneratedSearchCapsule(
                 value = query,
                 onValueChange = onQueryChange,
                 singleLine = true,
-                textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
+                textStyle = TextStyle(
+                    fontFamily = com.mochyy.mochymusic.ui.theme.InterFontFamily,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                ),
                 cursorBrush = SolidColor(Color.White),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
@@ -202,7 +206,7 @@ fun GeneratedSearchCapsule(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.close),
-                    contentDescription = "Clear",
+                    contentDescription = androidx.compose.ui.res.stringResource(R.string.clear),
                     tint = Color.White,
                     modifier = Modifier.size(14.dp),
                 )
@@ -227,7 +231,7 @@ fun GeneratedGroupHeader(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun GeneratedNoResults(query: String, modifier: Modifier = Modifier) {
     Text(
-        text = "Nothing here matches \"$query\"",
+        text = androidx.compose.ui.res.stringResource(R.string.generated_no_results, query),
         style = PlaylistStatsStyle.copy(fontSize = 13.sp),
         color = Color.White.copy(alpha = 0.6f),
         modifier = modifier.padding(horizontal = PlaylistInset, vertical = 24.dp),
@@ -235,8 +239,9 @@ fun GeneratedNoResults(query: String, modifier: Modifier = Modifier) {
 }
 
 /** "21 songs · 1h 23m" */
+@Composable
 fun generatedStats(songCount: Int, totalSeconds: Int): String {
-    val count = "$songCount ${if (songCount == 1) "song" else "songs"}"
+    val count = androidx.compose.ui.res.pluralStringResource(R.plurals.n_song, songCount, songCount)
     if (totalSeconds <= 0) return count
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60

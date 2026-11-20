@@ -85,10 +85,10 @@ fun PopupSheetState.showAddMusicSheet(playlistId: String, startInLibrary: Boolea
             val count = picks.songs.size
             SheetPillButton(
                 text = when {
-                    picks.saving -> "Adding…"
-                    count == 0 -> "Done"
-                    count == 1 -> "Add 1 song"
-                    else -> "Add $count songs"
+                    picks.saving -> androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.add_music_adding)
+                    count == 0 -> androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.done)
+                    count == 1 -> androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.add_music_add_one)
+                    else -> androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.add_music_add_many, count)
                 },
                 enabled = !picks.saving,
                 onClick = {
@@ -108,7 +108,7 @@ fun PopupSheetState.showAddMusicSheet(playlistId: String, startInLibrary: Boolea
                             throw e
                         } catch (e: Exception) {
                             Timber.tag("AddMusicSheet").e(e, "Adding songs to the playlist failed")
-                            TopToaster.error("Couldn't add those songs. Try again.")
+                            TopToaster.error(appContext.getString(com.mochyy.mochymusic.R.string.add_music_failed))
                             picks.saving = false
                             sheet?.setLocked(false)
                         }
@@ -187,8 +187,9 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
             .fillMaxHeight(),
     ) {
         Text(
-            text = "Add music",
+            text = androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.add_music_title),
             color = Color.White,
+            fontFamily = com.mochyy.mochymusic.ui.theme.InterFontFamily,
             fontSize = 26.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.03).em,
@@ -200,7 +201,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
         SheetSearchField(
             value = query,
             onValueChange = { query = it },
-            placeholder = "Search all songs",
+            placeholder = androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.add_music_search_all),
         )
 
         Spacer(Modifier.height(12.dp))
@@ -213,7 +214,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
                 .horizontalScroll(rememberScrollState()),
         ) {
             AddMusicChip(
-                text = "Recommended for this playlist",
+                text = androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.add_music_recommended),
                 selected = needle.isEmpty() && tab == AddMusicTab.Suggested,
                 onClick = {
                     query = ""
@@ -221,7 +222,7 @@ private fun AddMusicContent(playlistId: String, startInLibrary: Boolean, picks: 
                 },
             )
             AddMusicChip(
-                text = "In library",
+                text = androidx.compose.ui.res.stringResource(com.mochyy.mochymusic.R.string.add_music_in_library),
                 selected = needle.isEmpty() && tab == AddMusicTab.Library,
                 onClick = {
                     query = ""

@@ -377,4 +377,26 @@
     <string name="storage_clear_canvas_gifs_action">Xóa</string>
     <string name="storage_canvas_gifs_none">Chưa lưu GIF nào</string>
     <string name="storage_canvas_gifs_detail">%1$s · %2$d GIF</string>
+    <string name="auto_playlist_local_liked">Nhạc đã thích trên máy</string>
+    <string name="auto_playlist_cached">Bộ nhớ đệm</string>
+    <string name="auto_playlist_cached_liked">Nhạc đã thích trong bộ nhớ đệm</string>
+    <string name="auto_playlist_all_songs">Tất cả bài hát</string>
+    <string name="auto_playlist_recently_added">Mới thêm gần đây</string>
+    <string name="generated_no_results">Không tìm thấy kết quả cho \"%1$s\"</string>
+    <string name="search_top_songs">Tìm trong nhạc nghe nhiều nhất</string>
+    <string name="search_cached_songs">Tìm trong bộ nhớ đệm</string>
+    <string name="add_music_title">Thêm nhạc</string>
+    <string name="add_music_search_all">Tìm tất cả bài hát</string>
+    <string name="add_music_recommended">Đề xuất cho playlist này</string>
+    <string name="add_music_in_library">Trong thư viện</string>
+    <string name="add_music_adding">Đang thêm…</string>
+    <string name="add_music_add_one">Thêm 1 bài</string>
+    <string name="add_music_add_many">Thêm %1$d bài</string>
+    <string name="add_music_failed">Không thể thêm các bài này. Hãy thử lại.</string>
+    <string name="settings_mochy_cloud">Tài khoản Mochy Cloud</string>
+    <string name="settings_group_sound">Âm thanh &amp; Phát nhạc</string>
+    <string name="settings_group_experience">Giao diện &amp; Ứng dụng</string>
+    <string name="settings_group_ecosystem">Nguồn phát, Thiết bị &amp; Tích hợp</string>
+    <string name="modules_routing_shortcut_title">Thứ tự nguồn phát &amp; Định tuyến thông minh</string>
+    <string name="modules_routing_shortcut_desc">Chỉnh thứ tự ưu tiên nguồn phát và tự đổi theo Wi-Fi / 4G hoặc ngôn ngữ</string>
 </resources>

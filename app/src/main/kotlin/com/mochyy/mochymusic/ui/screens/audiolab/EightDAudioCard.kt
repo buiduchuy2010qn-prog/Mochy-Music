@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -23,7 +21,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -58,6 +55,12 @@ internal fun EightDAudioCard(viewModel: AudioLabViewModel) {
         settings.reverbLevel < 0.75f -> stringResource(R.string.eight_d_room_medium)
         else -> stringResource(R.string.eight_d_room_large)
     }
+    val selectedPreset = when {
+        settings.matches(Chill) -> "chill"
+        settings.matches(Balanced) -> "balanced"
+        settings.matches(Extreme) -> "extreme"
+        else -> null
+    }
 
     LabCard {
         Row(
@@ -81,16 +84,18 @@ internal fun EightDAudioCard(viewModel: AudioLabViewModel) {
                     color = LabColors.Secondary,
                 )
             }
-            IconButton(
-                onClick = { viewModel.updateEightD { EightDSettings() } },
-                modifier = Modifier.size(44.dp),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.refresh),
-                    contentDescription = stringResource(R.string.eight_d_reset),
-                    tint = LabColors.Secondary,
-                    modifier = Modifier.size(20.dp),
-                )
+            if (enabled) {
+                IconButton(
+                    onClick = { viewModel.updateEightD { EightDSettings() } },
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.refresh),
+                        contentDescription = stringResource(R.string.eight_d_reset),
+                        tint = LabColors.Secondary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
             AppSwitch(
                 checked = enabled,
@@ -98,63 +103,60 @@ internal fun EightDAudioCard(viewModel: AudioLabViewModel) {
             )
         }
 
-        Spacer(Modifier.height(12.dp))
-        OrbitIndicator(settings)
-        Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FilterChip(
-                selected = settings.matches(Chill),
-                onClick = { viewModel.updateEightD { Chill } },
-                label = { Text(stringResource(R.string.eight_d_preset_chill), maxLines = 1) },
-            )
-            FilterChip(
-                selected = settings.matches(Balanced),
-                onClick = { viewModel.updateEightD { Balanced } },
-                label = { Text(stringResource(R.string.eight_d_preset_balanced), maxLines = 1) },
-            )
-            FilterChip(
-                selected = settings.matches(Extreme),
-                onClick = { viewModel.updateEightD { Extreme } },
-                label = { Text(stringResource(R.string.eight_d_preset_extreme), maxLines = 1) },
-            )
-        }
-        Spacer(Modifier.height(4.dp))
-        LabPanel {
-            LabSlider(
-                label = stringResource(R.string.eight_d_rotation_speed),
-                valueText = stringResource(
-                    R.string.eight_d_rotation_value,
-                    settings.rotationSpeedHz,
-                    1f / settings.rotationSpeedHz,
+        LabCollapsible(visible = enabled) {
+            Spacer(Modifier.height(12.dp))
+            OrbitIndicator(settings)
+            Spacer(Modifier.height(12.dp))
+            LabChips(
+                chips = listOf(
+                    LabChip("chill", stringResource(R.string.eight_d_preset_chill)),
+                    LabChip("balanced", stringResource(R.string.eight_d_preset_balanced)),
+                    LabChip("extreme", stringResource(R.string.eight_d_preset_extreme)),
                 ),
-                value = settings.rotationSpeedHz,
-                onValueChange = { value ->
-                    viewModel.updateEightD { it.copy(rotationSpeedHz = value) }
+                selectedKey = selectedPreset,
+                onSelect = { key ->
+                    val preset = when (key) {
+                        "chill" -> Chill
+                        "balanced" -> Balanced
+                        else -> Extreme
+                    }
+                    viewModel.updateEightD { preset }
                 },
-                valueRange = 0.05f..0.5f,
-                enabled = enabled,
-                steps = 8,
             )
-            LabSlider(
-                label = stringResource(R.string.eight_d_spatial_depth),
-                valueText = pct(settings.depth),
-                value = settings.depth,
-                onValueChange = { value -> viewModel.updateEightD { it.copy(depth = value) } },
-                valueRange = 0f..1f,
-                enabled = enabled,
-            )
-            LabSlider(
-                label = stringResource(R.string.eight_d_room_reverb),
-                valueText = "${pct(settings.reverbLevel)} · $space",
-                value = settings.reverbLevel,
-                onValueChange = { value -> viewModel.updateEightD { it.copy(reverbLevel = value) } },
-                valueRange = 0f..1f,
-                enabled = enabled,
-            )
+            Spacer(Modifier.height(10.dp))
+            LabPanel {
+                LabSlider(
+                    label = stringResource(R.string.eight_d_rotation_speed),
+                    valueText = stringResource(
+                        R.string.eight_d_rotation_value,
+                        settings.rotationSpeedHz,
+                        1f / settings.rotationSpeedHz,
+                    ),
+                    value = settings.rotationSpeedHz,
+                    onValueChange = { value ->
+                        viewModel.updateEightD { it.copy(rotationSpeedHz = value) }
+                    },
+                    valueRange = 0.05f..0.5f,
+                    enabled = enabled,
+                    steps = 8,
+                )
+                LabSlider(
+                    label = stringResource(R.string.eight_d_spatial_depth),
+                    valueText = pct(settings.depth),
+                    value = settings.depth,
+                    onValueChange = { value -> viewModel.updateEightD { it.copy(depth = value) } },
+                    valueRange = 0f..1f,
+                    enabled = enabled,
+                )
+                LabSlider(
+                    label = stringResource(R.string.eight_d_room_reverb),
+                    valueText = "${pct(settings.reverbLevel)} · $space",
+                    value = settings.reverbLevel,
+                    onValueChange = { value -> viewModel.updateEightD { it.copy(reverbLevel = value) } },
+                    valueRange = 0f..1f,
+                    enabled = enabled,
+                )
+            }
         }
     }
 }

@@ -904,47 +904,62 @@ fun LocalPlaylistScreen(
     }
 
     if (showSortDialog) {
-        AlertDialog(
-            onDismissRequest = { showSortDialog = false },
-            title = { Text(stringResource(R.string.playlist_sort_order)) },
-            text = {
-                Column {
+        androidx.compose.runtime.DisposableEffect(menuState) {
+            var closed = false
+            var sheet: com.mochyy.mochymusic.ui.component.PopupSheetHandle? = null
+            sheet = menuState.showWithHandle(
+                onClosed = {
+                    closed = true
+                    showSortDialog = false
+                },
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                ) {
+                    com.mochyy.mochymusic.ui.component.SheetLabel(
+                        text = stringResource(R.string.playlist_sort_order),
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
                     PlaylistSongSortType.entries.forEach { type ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    if (sortType == type) onSortDescendingChange(!sortDescending) else onSortTypeChange(type)
-                                    showSortDialog = false
+                        val isSelected = sortType == type
+                        val dirLabel = if (isSelected && type != PlaylistSongSortType.CUSTOM) {
+                            stringResource(
+                                if (sortDescending) R.string.playlist_sort_desc else R.string.playlist_sort_asc,
+                            ).trim()
+                        } else null
+                        com.mochyy.mochymusic.ui.component.SheetOptionRow(
+                            title = stringResource(playlistSortLabel(type)),
+                            subtitle = dirLabel,
+                            leading = { com.mochyy.mochymusic.ui.component.SheetIcon(R.drawable.drag_handle) },
+                            trailing = if (isSelected) {
+                                {
+                                    Icon(
+                                        painter = painterResource(
+                                            when {
+                                                type == PlaylistSongSortType.CUSTOM -> R.drawable.check
+                                                sortDescending -> R.drawable.arrow_downward
+                                                else -> R.drawable.arrow_upward
+                                            },
+                                        ),
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp),
+                                    )
                                 }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = sortType == type,
-                                onClick = {
-                                    if (sortType == type) onSortDescendingChange(!sortDescending) else onSortTypeChange(type)
-                                    showSortDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(playlistSortLabel(type)) +
-                                    if (sortType == type) (if (sortDescending) stringResource(
-                                                        R.string.playlist_sort_desc,
-                                                    ) else stringResource(R.string.playlist_sort_asc)) else "",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
+                            } else null,
+                            onClick = {
+                                if (isSelected) onSortDescendingChange(!sortDescending) else onSortTypeChange(type)
+                                sheet?.dismiss()
+                            },
+                        )
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSortDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
             }
-        )
+            onDispose { if (!closed) sheet?.dismiss() }
+        }
     }
 }
 

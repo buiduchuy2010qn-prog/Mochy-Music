@@ -781,8 +781,20 @@ fun NavGraphBuilder.navigationBuilder(
                 type = NavType.StringType
             },
         ),
+        enterTransition = { fadeIn(tween(300)) },
+        exitTransition = { libraryExitTo(targetState.destination.route) ?: fadeOut(tween(200)) },
+        popEnterTransition = { coverReturnFrom(initialState.destination.route) ?: fadeIn(tween(300)) },
+        popExitTransition = {
+            scaleOut(
+                animationSpec = tween(260),
+                targetScale = 0.82f,
+                transformOrigin = TransformOrigin(0.5f, 0.22f),
+            ) + fadeOut(tween(180))
+        },
     ) {
-        CachePlaylistScreen(navController, scrollBehavior)
+        CompositionLocalProvider(LocalNavAnimatedContentScope provides this) {
+            CachePlaylistScreen(navController, scrollBehavior)
+        }
     }
 
     composable(
@@ -792,8 +804,20 @@ fun NavGraphBuilder.navigationBuilder(
                 type = NavType.StringType
             },
         ),
+        enterTransition = { fadeIn(tween(300)) },
+        exitTransition = { libraryExitTo(targetState.destination.route) ?: fadeOut(tween(200)) },
+        popEnterTransition = { coverReturnFrom(initialState.destination.route) ?: fadeIn(tween(300)) },
+        popExitTransition = {
+            scaleOut(
+                animationSpec = tween(260),
+                targetScale = 0.82f,
+                transformOrigin = TransformOrigin(0.5f, 0.22f),
+            ) + fadeOut(tween(180))
+        },
     ) {
-        TopPlaylistScreen(navController, scrollBehavior)
+        CompositionLocalProvider(LocalNavAnimatedContentScope provides this) {
+            TopPlaylistScreen(navController, scrollBehavior)
+        }
     }
 
     coverSourceComposable(

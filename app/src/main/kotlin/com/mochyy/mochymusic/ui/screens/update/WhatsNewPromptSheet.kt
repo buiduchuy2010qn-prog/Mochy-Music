@@ -53,26 +53,26 @@ private data class WhatsNewHighlight(
     val summary: String,
 )
 
-private val V118Highlights = listOf(
+private val V122Highlights = listOf(
     WhatsNewHighlight(
-        icon = R.drawable.cloud,
-        title = "Liên kết hai chiều @username ↔ Google trên cùng 1 tài khoản",
-        summary = "Liên kết trực tiếp Google vào tài khoản @username hiện có, hoặc đặt mật khẩu cho tài khoản Google để sang máy khác chỉ cần gõ @username vẫn vào đúng 1 tài khoản duy nhất.",
+        icon = R.drawable.slow_motion_video,
+        title = "Xuất Video Re'cap 60fps & ảnh từng phần sắc nét",
+        summary = "Lưu hoặc chia sẻ trọn bộ Re'cap thành video MP4 60fps kèm nhạc nền giữ nguyên chuyển động Mochy, hoặc xuất nhanh từng thẻ/hóa đơn PNG độ phân giải cao.",
     ),
     WhatsNewHighlight(
-        icon = R.drawable.account,
-        title = "Trạng thái tài khoản rõ ràng & đổi @username trực tiếp",
-        summary = "Phân biệt chuẩn tài khoản Google mới tạo và đã đăng ký trước đó, báo chính xác khi Google/tên đăng nhập đã tồn tại hoặc chưa đặt mật khẩu, kèm tùy chọn đổi @username.",
+        icon = R.drawable.sparks,
+        title = "Bộ 5 tính năng Thông minh (Smart Mix, Routing & Shuffle)",
+        summary = "Tự tạo Smart Mix ngay trên máy, tự chọn nguồn phát tối ưu theo Wi-Fi/4G và ngôn ngữ, trộn bài thông minh theo nghệ sĩ, học thói quen nghe & nhận diện lời nhạc tự động.",
     ),
     WhatsNewHighlight(
-        icon = R.drawable.login,
-        title = "Chọn nhanh Gmail có sẵn trên máy cho YouTube Music",
-        summary = "Tự điền sẵn Gmail từ Mochy Cloud, thêm nút 1 chạm Chọn Gmail trên máy và bật Autofill + lưu cookie bền vững.",
+        icon = R.drawable.equalizer,
+        title = "Hồ sơ Audio Lab theo từng thiết bị & Âm thanh 8D",
+        summary = "Tự chuyển EQ/FX riêng cho tai nghe Bluetooth, USB DAC và loa máy; bổ sung hiệu ứng âm thanh không gian 8D xoay quanh đầu cùng chế độ phòng vang tùy chỉnh.",
     ),
     WhatsNewHighlight(
-        icon = R.drawable.playlist_add,
-        title = "Trung tâm Playlist & Đồng bộ Đám mây bền vững",
-        summary = "Nút + tạo/nhập nhanh mochypl1: / .mochypl ngay tại Thư viện, tối ưu nén Cloud chống tràn phiên và kiểm thử tự động trên CI.",
+        icon = R.drawable.lyrics,
+        title = "Widget lời nhạc động, Zoom ảnh bìa & Tăng tốc phát nhạc",
+        summary = "Widget màn hình chính hiển thị lời bài hát chạy theo nhịp, phóng to ảnh bìa, chọn chất lượng Canvas/YouTube và tối ưu nạp bài nhanh tức thì.",
     ),
 )
 
@@ -175,13 +175,13 @@ private fun WhatsNewSheetContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            V118Highlights.forEachIndexed { index, item ->
+            V122Highlights.forEachIndexed { index, item ->
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
                         .fillMaxWidth()
                         .revealOnAppear(
-                            key = "v118_highlight_$index",
+                            key = "v122_highlight_$index",
                             seenState = revealSeen,
                             cascade = true,
                         )

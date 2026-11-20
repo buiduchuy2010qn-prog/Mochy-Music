@@ -121,13 +121,21 @@ fun SmartMixCard(
         stringResource(R.string.smart_mix_subtitle_count, mix.songs.size)
     }
 
+    val cardInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val playInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+
     Box(
         modifier = modifier
             .width(196.dp)
             .height(142.dp)
+            .pressBounce(cardInteraction, pressedScale = 0.96f)
             .clip(RoundedCornerShape(22.dp))
             .background(Brush.linearGradient(gradient))
-            .clickable(onClick = onOpen),
+            .clickable(
+                interactionSource = cardInteraction,
+                indication = HomeCardHighlight,
+                onClick = onOpen,
+            ),
     ) {
         // Subtle background cover mosaic on the right half
         if (covers.isNotEmpty()) {
@@ -192,9 +200,14 @@ fun SmartMixCard(
                 Box(
                     modifier = Modifier
                         .size(34.dp)
+                        .pressBounce(playInteraction, pressedScale = 0.86f)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.92f))
-                        .clickable(onClick = onPlayNow),
+                        .clickable(
+                            interactionSource = playInteraction,
+                            indication = RemoteFocus,
+                            onClick = onPlayNow,
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(

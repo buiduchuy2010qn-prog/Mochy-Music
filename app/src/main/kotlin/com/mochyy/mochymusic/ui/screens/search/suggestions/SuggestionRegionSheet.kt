@@ -29,142 +29,117 @@ import com.mochyy.mochymusic.constants.SuggestionRegionSlugToName
 import com.mochyy.mochymusic.ui.component.RemoteFocus
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SuggestionRegionSheet(
     currentRegionSlug: String,
     onRegionSelected: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    val menuState = com.mochyy.mochymusic.ui.component.LocalMenuState.current
+    val currentOnSelected by rememberUpdatedState(onRegionSelected)
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
 
-    val filteredRegions =
-        remember(searchQuery) {
-            SuggestionRegionSlugToName
-                .toList()
-                .filter { it.first != "system" }
-                .filter { it.second.contains(searchQuery, ignoreCase = true) }
-        }
+    DisposableEffect(menuState) {
+        var closed = false
+        var sheet: com.mochyy.mochymusic.ui.component.PopupSheetHandle? = null
+        sheet = menuState.showWithHandle(
+            onClosed = {
+                closed = true
+                currentOnDismiss()
+            },
+        ) {
+            var searchQuery by remember { mutableStateOf("") }
+            val filteredRegions = remember(searchQuery) {
+                SuggestionRegionSlugToName
+                    .toList()
+                    .filter { it.first != "system" }
+                    .filter { it.second.contains(searchQuery.trim(), ignoreCase = true) }
+            }
+            val listState = rememberLazyListState()
+            LaunchedEffect(searchQuery) {
+                if (filteredRegions.isNotEmpty()) listState.scrollToItem(0)
+            }
 
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val bottomSheetState = rememberModalBottomSheetState()
+            Column(modifier = Modifier.fillMaxWidth()) {
+                com.mochyy.mochymusic.ui.component.SheetLabel(
+                    text = stringResource(R.string.suggestion_choose_region),
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = bottomSheetState,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = stringResource(R.string.suggestion_choose_region),
-                style = MaterialTheme.typography.labelLarge,
-            )
+                com.mochyy.mochymusic.ui.component.SheetSearchField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = stringResource(R.string.suggestion_search_regions),
+                )
 
-            DockedSearchBar(
-                inputField = {
-                    SearchBarDefaults.InputField(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        onSearch = {},
-                        expanded = false,
-                        onExpandedChange = {},
-                        placeholder = { Text(stringResource(R.string.suggestion_search_regions)) },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = stringResource(R.string.suggestion_search_desc),
-                            )
-                        },
-                    )
-                },
-                expanded = false,
-                onExpandedChange = {},
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-            ) {}
+                Spacer(Modifier.height(14.dp))
 
-            LazyColumn(
-                state = listState,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(24.dp)),
-            ) {
-                item {
-                    Text(
-                        text = stringResource(R.string.suggestion_system),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                    )
-                }
-                item {
-                    val isSelected = currentRegionSlug == "system"
-                    RegionListItem(
-                        headlineContent = { Text(stringResource(R.string.suggestion_system_default)) },
-                        selected = isSelected,
-                        items = 1,
-                        index = 0,
-                        onClick = {
-                            onRegionSelected("system")
-                            scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
-                                if (!bottomSheetState.isVisible) {
-                                    onDismiss()
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(bottom = 12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    item(key = "system-label") {
+                        com.mochyy.mochymusic.ui.component.SheetLabel(
+                            text = stringResource(R.string.suggestion_system),
+                            modifier = Modifier.padding(bottom = 2.dp),
+                        )
+                    }
+                    item(key = "system-row") {
+                        val isSelected = currentRegionSlug == "system"
+                        com.mochyy.mochymusic.ui.component.SheetOptionRow(
+                            title = stringResource(R.string.suggestion_system_default),
+                            leading = { com.mochyy.mochymusic.ui.component.SheetIcon(R.drawable.language) },
+                            trailing = if (isSelected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp),
+                                    )
                                 }
-                            }
-                        },
-                    )
-                }
+                            } else null,
+                            onClick = {
+                                currentOnSelected("system")
+                                sheet?.dismiss()
+                            },
+                        )
+                    }
 
-                item {
-                    Spacer(Modifier.height(12.dp))
-                }
+                    item(key = "countries-label") {
+                        com.mochyy.mochymusic.ui.component.SheetLabel(
+                            text = stringResource(R.string.suggestion_countries_regions),
+                            modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
+                        )
+                    }
 
-                item {
-                    Text(
-                        text = stringResource(R.string.suggestion_countries_regions),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier =
-                            Modifier.padding(
-                                top = 14.dp,
-                                bottom = 16.dp,
-                                start = 16.dp,
-                                end = 16.dp,
-                            ),
-                    )
-                }
-
-                itemsIndexed(filteredRegions, key = { _, pair -> pair.first }) { index, (slug, name) ->
-                    val isSelected = slug == currentRegionSlug
-                    RegionListItem(
-                        headlineContent = { Text(name) },
-                        selected = isSelected,
-                        items = filteredRegions.size,
-                        index = index,
-                        onClick = {
-                            onRegionSelected(slug)
-                            scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
-                                if (!bottomSheetState.isVisible) {
-                                    onDismiss()
+                    itemsIndexed(filteredRegions, key = { _, pair -> pair.first }) { _, (slug, name) ->
+                        val isSelected = slug == currentRegionSlug
+                        com.mochyy.mochymusic.ui.component.SheetOptionRow(
+                            title = name,
+                            leading = { com.mochyy.mochymusic.ui.component.SheetIcon(R.drawable.language) },
+                            trailing = if (isSelected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp),
+                                    )
                                 }
-                            }
-                        },
-                    )
-                    Spacer(Modifier.height(2.dp))
-                }
-                item {
-                    Spacer(modifier = Modifier.height(24.dp))
+                            } else null,
+                            onClick = {
+                                currentOnSelected(slug)
+                                sheet?.dismiss()
+                            },
+                        )
+                    }
                 }
             }
         }
-    }
-
-    LaunchedEffect(searchQuery) {
-        if (filteredRegions.isNotEmpty()) {
-            listState.scrollToItem(0)
-        }
+        onDispose { if (!closed) sheet?.dismiss() }
     }
 }
 
