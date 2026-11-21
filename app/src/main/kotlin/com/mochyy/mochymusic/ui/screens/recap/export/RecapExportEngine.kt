@@ -761,7 +761,7 @@ private suspend fun runRecapTransformer(
         )
         val built = Transformer.Builder(context)
             .setVideoMimeType(MimeTypes.VIDEO_H264)
-            .apply { if (includeAudio) setAudioMimeType(MimeTypes.AUDIO_AAC) }
+            .apply { if (audioId != null && audioItem != null && audioSource != null) setAudioMimeType(MimeTypes.AUDIO_AAC) }
             .setEncoderFactory(encoders)
             .setAssetLoaderFactory(loaders)
             .addListener(listener)
