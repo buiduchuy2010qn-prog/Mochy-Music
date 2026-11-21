@@ -144,4 +144,41 @@ class VietnameseResourcesTest {
             }
         }
     }
+
+    @Test
+    fun noDuplicateResourceNamesAcrossXmlFiles() {
+        val factory = DocumentBuilderFactory.newInstance().apply {
+            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        }
+        val folders = listOf(File(resDir, "values"), File(resDir, "values-vi"))
+        for (dir in folders) {
+            val seenStrings = mutableMapOf<String, String>()
+            val seenPlurals = mutableMapOf<String, String>()
+            val xmls = dir.listFiles().orEmpty().filter { it.isFile && it.extension == "xml" }.sortedBy { it.name }
+            for (xml in xmls) {
+                val nodes = factory.newDocumentBuilder().parse(xml).documentElement.childNodes
+                for (i in 0 until nodes.length) {
+                    val el = nodes.item(i) as? Element ?: continue
+                    val name = el.getAttribute("name")
+                    if (name.isBlank()) continue
+                    when (el.tagName) {
+                        "string" -> {
+                            val prev = seenStrings.put(name, xml.name)
+                            assertTrue(
+                                "Duplicate <string name=\"$name\"> in ${dir.name}: $prev and ${xml.name}",
+                                prev == null,
+                            )
+                        }
+                        "plurals" -> {
+                            val prev = seenPlurals.put(name, xml.name)
+                            assertTrue(
+                                "Duplicate <plurals name=\"$name\"> in ${dir.name}: $prev and ${xml.name}",
+                                prev == null,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

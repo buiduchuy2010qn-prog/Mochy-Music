@@ -1380,7 +1380,6 @@
     <!-- Cast, Import, Backup & Media Info (v12.3.1) -->
     <string name="cast_title_casting">Casting</string>
     <string name="cast_title_to">Cast to</string>
-    <string name="cast_connecting">Connecting…</string>
     <string name="cast_connected">Connected</string>
     <string name="cast_disconnect">Disconnect</string>
     <string name="cast_no_devices">No Cast devices found</string>
@@ -1394,7 +1393,6 @@
         <item quantity="one">Brought back %1$d cover</item>
         <item quantity="other">Brought back %1$d covers</item>
     </plurals>
-    <string name="lib_import_still_running">An import is still running. Try again once it\'s done.</string>
     <plurals name="lib_cancelled_downloads">
         <item quantity="one">Cancelled %1$d download</item>
         <item quantity="other">Cancelled %1$d downloads</item>

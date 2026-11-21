@@ -1232,7 +1232,6 @@
     <!-- Cast, Import, Backup & Media Info (v12.3.1) -->
     <string name="cast_title_casting">Đang truyền phát</string>
     <string name="cast_title_to">Truyền phát tới</string>
-    <string name="cast_connecting">Đang kết nối…</string>
     <string name="cast_connected">Đã kết nối</string>
     <string name="cast_disconnect">Ngắt kết nối</string>
     <string name="cast_no_devices">Không tìm thấy thiết bị Cast</string>
@@ -1245,7 +1244,6 @@
     <plurals name="lib_restored_covers">
         <item quantity="other">Đã khôi phục %1$d ảnh bìa</item>
     </plurals>
-    <string name="lib_import_still_running">Một tác vụ nhập nhạc khác đang chạy. Vui lòng thử lại sau khi hoàn tất.</string>
     <plurals name="lib_cancelled_downloads">
         <item quantity="other">Đã hủy %1$d lượt tải</item>
     </plurals>
