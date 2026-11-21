@@ -17,7 +17,6 @@ import io.ktor.http.encodeURLParameter
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
 import timber.log.Timber
 import java.text.Normalizer
 import java.util.Locale
@@ -29,7 +28,7 @@ object Wikipedia {
     private val client by lazy {
         HttpClient(OkHttp) {
             engine {
-                preconfigured = OkHttpClient.Builder().followAppProxy().build()
+                preconfigured = AppProxy.sharedClient
             }
             install(ContentNegotiation) {
                 json(

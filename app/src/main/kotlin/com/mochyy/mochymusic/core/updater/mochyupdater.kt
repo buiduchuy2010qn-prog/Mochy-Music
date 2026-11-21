@@ -618,6 +618,28 @@ fun isNewerVersion(latestVersion: String, currentVersion: String): Boolean {
     return latestVer > currentVer
 }
 
+private fun fetchUrlText(
+    urlString: String,
+    acceptGitHubJson: Boolean = false,
+): String {
+    val conn = (URL(urlString).openConnection() as HttpURLConnection).apply {
+        connectTimeout = 10_000
+        readTimeout = 15_000
+        setRequestProperty("User-Agent", "Mochy-Music")
+        if (acceptGitHubJson) {
+            setRequestProperty("Accept", "application/vnd.github+json")
+        }
+    }
+    return try {
+        if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+            error("HTTP ${conn.responseCode} from $urlString")
+        }
+        conn.inputStream.bufferedReader().use { it.readText() }
+    } finally {
+        conn.disconnect()
+    }
+}
+
 suspend fun checkForUpdate(
     context: Context,
     onSuccess: (tag: String, isAvailable: Boolean, changelog: List<ChangelogSection>, size: String, date: String, description: String?, imageUrl: String?, apkUrl: String?) -> Unit,
@@ -625,8 +647,10 @@ suspend fun checkForUpdate(
 ) {
     withContext(Dispatchers.IO) {
         try {
-            val url = URL("https://api.github.com/repos/buiduchuy2010qn-prog/Mochy-Music/releases")
-            val json = url.openStream().bufferedReader().use { it.readText() }
+            val json = fetchUrlText(
+                "https://api.github.com/repos/buiduchuy2010qn-prog/Mochy-Music/releases",
+                acceptGitHubJson = true,
+            )
             val releases = JSONArray(json)
 
             val currentVersion = BuildConfig.VERSION_NAME
@@ -760,9 +784,9 @@ suspend fun checkForUpdate(
                     var description: String? = null
                     var imageUrl: String? = null
                     try {
-                        val changelogUrl =
-                            URL("https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/download/$tagWithPrefix/changelog.json")
-                        val changelogJson = changelogUrl.openStream().bufferedReader().use { it.readText() }
+                        val changelogJson = fetchUrlText(
+                            "https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/download/$tagWithPrefix/changelog.json",
+                        )
                         val changelogData = JSONObject(changelogJson)
 
                         description = changelogData.optString("description").takeIf { it.isNotEmpty() }

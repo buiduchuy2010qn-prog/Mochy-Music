@@ -46,11 +46,14 @@ class NewPipeDownloaderImpl(
                 override fun connectFailed(uri: URI?, sa: SocketAddress?, ioe: IOException?) {}
             })
             .proxyAuthenticator { _, response ->
-                YouTube.proxyAuth?.let { auth ->
+                val auth = YouTube.proxyAuth
+                if (auth == null || response.request.header("Proxy-Authorization") != null) {
+                    null
+                } else {
                     response.request.newBuilder()
                         .header("Proxy-Authorization", auth)
                         .build()
-                } ?: response.request
+                }
             }
             .build()
 
@@ -79,16 +82,15 @@ class NewPipeDownloaderImpl(
             }
         }
 
-        val response = client.newCall(requestBuilder.build()).execute()
+        return client.newCall(requestBuilder.build()).execute().use { response ->
+            if (response.code == 429) {
+                throw ReCaptchaException("reCaptcha Challenge requested", url)
+            }
 
-        if (response.code == 429) {
-            response.close()
-            throw ReCaptchaException("reCaptcha Challenge requested", url)
+            val responseBodyToReturn = response.body.string()
+            val latestUrl = response.request.url.toString()
+            Response(response.code, response.message, response.headers.toMultimap(), responseBodyToReturn, latestUrl)
         }
-
-        val responseBodyToReturn = response.body.string()
-        val latestUrl = response.request.url.toString()
-        return Response(response.code, response.message, response.headers.toMultimap(), responseBodyToReturn, latestUrl)
     }
 }
 

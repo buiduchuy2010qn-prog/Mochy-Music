@@ -46,9 +46,8 @@ import com.mochyy.mochymusic.ui.player.CanvasVideoSession
 import com.mochyy.mochymusic.ui.player.share.ShareHeight
 import com.mochyy.mochymusic.ui.player.share.ShareRegions
 import com.mochyy.mochymusic.ui.player.share.ShareWidth
+import com.mochyy.mochymusic.utils.AppProxy
 import com.mochyy.mochymusic.utils.VideoTrack
-import com.mochyy.mochymusic.utils.followAppProxy
-import okhttp3.OkHttpClient
 import kotlin.math.max
 import kotlin.math.min
 
@@ -166,7 +165,7 @@ internal fun ShareMusicVideo.trackFor(maxShortSide: Int): VideoTrack? {
 private fun LoopingVideo(item: MediaItem, headers: Map<String, String>, playing: Boolean, restartKey: Int, modifier: Modifier) {
     val context = LocalContext.current
     val factory = remember(headers) {
-        val http = OkHttpDataSource.Factory(OkHttpClient.Builder().followAppProxy().build())
+        val http = OkHttpDataSource.Factory(AppProxy.sharedClient)
             .setDefaultRequestProperties(headers)
         DefaultMediaSourceFactory(DefaultDataSource.Factory(context, http))
     }

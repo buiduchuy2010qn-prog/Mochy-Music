@@ -262,7 +262,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -421,16 +423,14 @@ class MusicService :
             // dropped without this, its decoders and audio track stayed alive with nothing to free them
             secondaryPlayer?.let { failed ->
                 failed.removeListener(this)
-                playerCrossmixProcessors.remove(failed)
-                playerSilenceProcessors.remove(failed)
-                unregisterEqualizer(failed)
+                cleanupPlayerMaps(failed)
                 failed.release()
             }
             secondaryPlayer = null
         }
     }
 
-    private var scope = CoroutineScope(Dispatchers.Main) + Job()
+    private var scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val binder = MusicBinder()
 
@@ -608,10 +608,14 @@ class MusicService :
     private var loudnessEnhancerSessionId = C.AUDIO_SESSION_ID_UNSET
     // set while Crossmix replays the song-change hooks for the song it just handed over to
     private var promotingCrossmix = false
-    private val crossmixAnalysisRepository by lazy {
+    private val crossmixAnalysisRepositoryLazy = lazy {
         CrossmixAnalysisRepository(applicationContext) { createDataSourceFactory() }
     }
-    private val crossmixDirector by lazy { CrossmixDirector(scope, CrossmixHost(), crossmixAnalysisRepository) }
+    private val crossmixAnalysisRepository by crossmixAnalysisRepositoryLazy
+    private val crossmixDirectorLazy = lazy {
+        CrossmixDirector(scope, CrossmixHost(), crossmixAnalysisRepository)
+    }
+    private val crossmixDirector by crossmixDirectorLazy
     // fades and layered effects for pause, play and skips; the app's buttons and the media session both go through it
     val transport by lazy { TransportTransitions({ scope }, TransportHost()) }
     /** Crossmix is playing two songs together right now, for the player's "Mixing…" note */
@@ -1409,20 +1413,11 @@ class MusicService :
             }
         }
 
-        // the timed saves only write what changed: a queue edit (they're the only thing that saves one), or the place in the song
+        // the timed save only writes what changed: a queue edit (they're the only thing that saves one), or the place in the song
         scope.launch {
             while (isActive) {
-                delay(30.seconds)
+                delay(if (player.isPlaying) 10.seconds else 30.seconds)
                 if (dataStore.get(PersistentQueueKey, true)) {
-                    saveQueueToDisk(onlyChanges = true)
-                }
-            }
-        }
-
-        scope.launch {
-            while (isActive) {
-                delay(10.seconds)
-                if (dataStore.get(PersistentQueueKey, true) && player.isPlaying) {
                     saveQueueToDisk(onlyChanges = true)
                 }
             }
@@ -2107,7 +2102,7 @@ class MusicService :
         queue: Queue,
         playWhenReady: Boolean = true,
     ) {
-        if (!scope.isActive) scope = CoroutineScope(Dispatchers.Main) + Job()
+        if (!scope.isActive) scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
         if (!playerInitialized.value) {
             Timber.tag(TAG).w("playQueue called before player initialization, queuing request")
@@ -4897,7 +4892,28 @@ class MusicService :
         abandonAudioFocus()
         releaseLoudnessEnhancer()
         releaseEightDReverb()
-        crossmixDirector.release()
+        stopWidgetUpdates()
+        if (crossmixDirectorLazy.isInitialized()) crossmixDirector.release()
+        if (crossmixAnalysisRepositoryLazy.isInitialized()) crossmixAnalysisRepository.release()
+        fadingPlayer?.let { fading ->
+            runCatching {
+                fading.stop()
+                fading.clearMediaItems()
+                fading.release()
+            }
+            cleanupPlayerMaps(fading)
+        }
+        fadingPlayer = null
+        secondaryPlayer?.let { sec ->
+            sec.removeListener(secondaryPlayerListener)
+            runCatching {
+                sec.stop()
+                sec.clearMediaItems()
+                sec.release()
+            }
+            cleanupPlayerMaps(sec)
+        }
+        secondaryPlayer = null
         fadingLoudnessEnhancer?.runCatching { release() }
         fadingLoudnessEnhancer = null
         carLyrics?.stop()
@@ -4905,12 +4921,15 @@ class MusicService :
         floatingLyrics?.stop()
         floatingLyrics = null
         mediaSession.release()
+        if (::mediaLibrarySessionCallback.isInitialized) {
+            mediaLibrarySessionCallback.release()
+        }
         player.removeListener(this)
         player.removeListener(sleepTimer)
-        playerSilenceProcessors.remove(player)
-        playerReplayGain.remove(player)
+        cleanupPlayerMaps(player)
 
         player.release()
+        scope.cancel()
         super.onDestroy()
     }
 
@@ -5511,18 +5530,25 @@ class MusicService :
     }
 
     private fun cleanupCrossfade() {
-        fadingPlayer?.stop()
-        fadingPlayer?.clearMediaItems()
-        fadingPlayer?.release()
-        fadingPlayer?.let(playerCrossmixProcessors::remove)
-        fadingPlayer?.let(playerSilenceProcessors::remove)
-        fadingPlayer?.let(::unregisterEqualizer)
+        fadingPlayer?.let { fading ->
+            fading.stop()
+            fading.clearMediaItems()
+            fading.release()
+            cleanupPlayerMaps(fading)
+        }
         fadingPlayer = null
         fadingLoudnessEnhancer?.runCatching { release() }
         fadingLoudnessEnhancer = null
         isCrossfading = false
         sleepTimer.notifySongTransition()
         prefetchNeighbours()
+    }
+
+    private fun cleanupPlayerMaps(target: Player) {
+        playerCrossmixProcessors.remove(target)
+        playerSilenceProcessors.remove(target)
+        playerReplayGain.remove(target)
+        unregisterEqualizer(target)
     }
 
     private fun unregisterEqualizer(player: Player) {
@@ -5920,10 +5946,7 @@ class MusicService :
                 outgoing.clearMediaItems()
                 outgoing.release()
             }
-            playerCrossmixProcessors.remove(outgoing)
-            playerSilenceProcessors.remove(outgoing)
-            playerReplayGain.remove(outgoing)
-            unregisterEqualizer(outgoing)
+            cleanupPlayerMaps(outgoing)
             if (fadingPlayer === outgoing) fadingPlayer = null
             fadingLoudnessEnhancer?.runCatching { release() }
             fadingLoudnessEnhancer = null
@@ -5935,10 +5958,7 @@ class MusicService :
                 incoming.stop()
                 incoming.release()
             }
-            playerCrossmixProcessors.remove(incoming)
-            playerSilenceProcessors.remove(incoming)
-            playerReplayGain.remove(incoming)
-            unregisterEqualizer(incoming)
+            cleanupPlayerMaps(incoming)
         }
 
         override fun crossmixBlocker(): String? = when {

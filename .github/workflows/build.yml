@@ -142,6 +142,7 @@ jobs:
             --tests "com.mochyy.mochymusic.recap.RecapExportTimelineTest" \
             --tests "com.mochyy.mochymusic.recap.RecapInsightsTest" \
             --tests "com.mochyy.mochymusic.i18n.VietnameseResourcesTest" \
+            --tests "com.mochyy.mochymusic.utils.ResourceEfficiencyAuditTest" \
             --tests "com.mochyy.mochymusic.crossmix.CrossmixTest.*bass belongs*" \
             --tests "com.mochyy.mochymusic.crossmix.CrossmixTest.*two songs playing together*" \
             --tests "com.mochyy.mochymusic.crossmix.CrossmixTest.*every style*" \

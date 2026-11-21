@@ -294,6 +294,7 @@ interface DatabaseDao {
     @Query("SELECT COALESCE(SUM(playTime), 0) FROM event")
     fun totalListeningTimeMs(): Flow<Long>
 
+    @Transaction
     @Query(
         """
         SELECT s.*
@@ -640,6 +641,9 @@ interface DatabaseDao {
 
     @Query("SELECT count from playCount WHERE song = :songId AND year = :year AND month = :month")
     fun getPlayCountByMonth(songId: String?, year: Int, month: Int): Flow<Int>
+
+    @Query("SELECT count FROM playCount WHERE song = :songId AND year = :year AND month = :month LIMIT 1")
+    fun getPlayCountByMonthSync(songId: String, year: Int, month: Int): Int?
 
     @Transaction
     @Query(
@@ -1490,12 +1494,10 @@ interface DatabaseDao {
     @Query("UPDATE playCount SET count = count + 1 WHERE song = :songId AND year = :year AND month = :month")
     fun incrementPlayCount(songId: String, year: Int, month: Int)
 
+    @Transaction
     fun incrementPlayCount(songId: String) {
         val time = LocalDateTime.now().atOffset(ZoneOffset.UTC)
-        var oldCount: Int
-        runBlocking {
-            oldCount = getPlayCountByMonth(songId, time.year, time.monthValue).first()
-        }
+        val oldCount = getPlayCountByMonthSync(songId, time.year, time.monthValue) ?: 0
 
         if (oldCount <= 0) {
             insert(PlayCountEntity(songId, time.year, time.monthValue, 0))

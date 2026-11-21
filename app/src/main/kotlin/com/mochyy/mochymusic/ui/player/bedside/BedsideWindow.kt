@@ -100,7 +100,7 @@ internal fun rememberPhoneLocked(): State<Boolean> {
             addAction(Intent.ACTION_USER_PRESENT)
         }
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-        onDispose { context.unregisterReceiver(receiver) }
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
     // the screen waking over the lock screen resumes the app, and that's the moment that counts
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { locked.value = keyguard?.isKeyguardLocked == true }

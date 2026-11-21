@@ -16,11 +16,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import com.mochyy.mochymusic.ui.component.asAgslPaintShader
@@ -155,56 +156,60 @@ fun KawarpBackdrop(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF0B0C10))
-            .drawBehind {
+            .drawWithCache {
                 val darken = if (pureBlack) 0.56f else 0.78f
-                if (shader != null && shaderBrush != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    updateKawarpUniforms(
-                        shader = shader,
-                        width = size.width,
-                        height = size.height,
-                        time = animTime.floatValue,
-                        detail = strainDetail.floatValue,
-                        darken = darken,
-                        c0 = c0.toArgb(),
-                        c1 = c1.toArgb(),
-                        c2 = c2.toArgb(),
-                        c3 = c3.toArgb(),
+                val r0 = size.maxDimension * 0.75f
+                val r1 = size.maxDimension * 0.70f
+                val r2 = size.maxDimension * 0.65f
+                val b0 = if (shader == null || shaderBrush == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    Brush.radialGradient(
+                        colors = listOf(c0.copy(alpha = 0.75f * darken), Color.Transparent),
+                        center = Offset.Zero,
+                        radius = r0.coerceAtLeast(1f),
                     )
-                    drawRect(brush = shaderBrush)
-                } else {
-                    val t = animTime.floatValue
-                    val cx1 = size.width * (0.35f + 0.18f * cos(t * 0.6f))
-                    val cy1 = size.height * (0.32f + 0.16f * sin(t * 0.5f))
-                    val cx2 = size.width * (0.68f + 0.18f * sin(t * 0.45f))
-                    val cy2 = size.height * (0.62f + 0.15f * cos(t * 0.55f))
-                    drawRect(color = c3.copy(alpha = 0.9f))
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(c0.copy(alpha = 0.75f * darken), Color.Transparent),
-                            center = Offset(cx1, cy1),
-                            radius = size.maxDimension * 0.75f,
-                        ),
-                        center = Offset(cx1, cy1),
-                        radius = size.maxDimension * 0.75f,
+                } else null
+                val b1 = if (b0 != null) {
+                    Brush.radialGradient(
+                        colors = listOf(c1.copy(alpha = 0.65f * darken), Color.Transparent),
+                        center = Offset.Zero,
+                        radius = r1.coerceAtLeast(1f),
                     )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(c1.copy(alpha = 0.65f * darken), Color.Transparent),
-                            center = Offset(cx2, cy2),
-                            radius = size.maxDimension * 0.70f,
-                        ),
-                        center = Offset(cx2, cy2),
-                        radius = size.maxDimension * 0.70f,
+                } else null
+                val b2 = if (b0 != null) {
+                    Brush.radialGradient(
+                        colors = listOf(c2.copy(alpha = 0.45f * darken), Color.Transparent),
+                        center = Offset.Zero,
+                        radius = r2.coerceAtLeast(1f),
                     )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(c2.copy(alpha = 0.45f * darken), Color.Transparent),
-                            center = Offset(size.width - cx1 * 0.5f, size.height * 0.85f),
-                            radius = size.maxDimension * 0.65f,
-                        ),
-                        center = Offset(size.width - cx1 * 0.5f, size.height * 0.85f),
-                        radius = size.maxDimension * 0.65f,
-                    )
+                } else null
+                onDrawBehind {
+                    if (shader != null && shaderBrush != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        updateKawarpUniforms(
+                            shader = shader,
+                            width = size.width,
+                            height = size.height,
+                            time = animTime.floatValue,
+                            detail = strainDetail.floatValue,
+                            darken = darken,
+                            c0 = c0.toArgb(),
+                            c1 = c1.toArgb(),
+                            c2 = c2.toArgb(),
+                            c3 = c3.toArgb(),
+                        )
+                        drawRect(brush = shaderBrush)
+                    } else if (b0 != null && b1 != null && b2 != null) {
+                        val t = animTime.floatValue
+                        val cx1 = size.width * (0.35f + 0.18f * cos(t * 0.6f))
+                        val cy1 = size.height * (0.32f + 0.16f * sin(t * 0.5f))
+                        val cx2 = size.width * (0.68f + 0.18f * sin(t * 0.45f))
+                        val cy2 = size.height * (0.62f + 0.15f * cos(t * 0.55f))
+                        drawRect(color = c3.copy(alpha = 0.9f))
+                        translate(cx1, cy1) { drawCircle(brush = b0, center = Offset.Zero, radius = r0) }
+                        translate(cx2, cy2) { drawCircle(brush = b1, center = Offset.Zero, radius = r1) }
+                        translate(size.width - cx1 * 0.5f, size.height * 0.85f) {
+                            drawCircle(brush = b2, center = Offset.Zero, radius = r2)
+                        }
+                    }
                 }
             },
     )

@@ -50,7 +50,7 @@ class VietnameseResourcesTest {
             bytes[0] == 0xEF.toByte() &&
             bytes[1] == 0xBB.toByte() &&
             bytes[2] == 0xBF.toByte()
-        assertFalse("UTF-8 BOM forbidden in ${file.parentFile.name}/${file.name}", hasBom)
+        assertFalse("UTF-8 BOM forbidden in ${file.parentFile?.name}/${file.name}", hasBom)
     }
 
     private fun assertXmlParity(fileName: String, exactKeys: Boolean = true) {

@@ -11,6 +11,7 @@ import androidx.annotation.MainThread
 import androidx.collection.ArrayMap
 import com.music.innertube.YouTube
 import com.mochyy.mochymusic.BuildConfig
+import com.mochyy.mochymusic.utils.AppProxy
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -27,6 +28,7 @@ import timber.log.Timber
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -264,16 +266,15 @@ class PoTokenWebView private constructor(
                     "x-user-agent" to "grpc-web-javascript/0.1",
                 ).toHeaders())
                 .url(url)
-            val response = withContext(Dispatchers.IO) {
-                httpClient.newCall(requestBuilder.build()).execute()
+            val (httpCode, body) = withContext(Dispatchers.IO) {
+                httpClient.newCall(requestBuilder.build()).execute().use { response ->
+                    val code = response.code
+                    code to (if (code == 200) response.body.string() else null)
+                }
             }
-            val httpCode = response.code
-            if (httpCode != 200) {
+            if (httpCode != 200 || body == null) {
                 onInitializationErrorCloseAndCancel(PoTokenException("Invalid response code: $httpCode"))
             } else {
-                val body = withContext(Dispatchers.IO) {
-                    response.body!!.string()
-                }
                 handleResponseBody(body)
             }
         }
@@ -312,8 +313,9 @@ class PoTokenWebView private constructor(
         /** Warm path: the engine is already up, so minting one token should be quick. */
         private const val MINT_TIMEOUT_MS = 10_000L
 
-        private val httpClient = OkHttpClient.Builder()
-            .proxy(YouTube.proxy)
+        private val httpClient = AppProxy.newClientBuilder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
             .build()
 
         /**

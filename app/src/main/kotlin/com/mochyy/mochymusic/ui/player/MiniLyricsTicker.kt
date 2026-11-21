@@ -75,6 +75,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 import com.mochyy.mochymusic.ui.utils.AppMotion
 
@@ -504,21 +505,40 @@ private fun TickerLine(
 
     // The sideways slide: follows the sweep for a word-synced line, the clock for a line-synced
     // one. A critically damped follow, so a sweep that jumps (a seek) still glides.
-    LaunchedEffect(entry, karaoke) {
+    val playerConnection = LocalPlayerConnection.current
+    LaunchedEffect(entry, karaoke, playerConnection) {
         var value = 0f
         var velocity = 0f
         var lastMs = -1L
+        var settledPausedFrames = 0
+        var lastObservedPos = positionProvider()
         while (true) {
+            if (playerConnection != null && !playerConnection.isPlaying.value && settledPausedFrames >= 2 && viewport.floatValue > 0f) {
+                val seenPos = lastObservedPos
+                val seenWidth = probe.textWidth
+                val seenViewport = viewport.floatValue
+                combine(
+                    playerConnection.isPlaying,
+                    playerConnection.progressState,
+                    snapshotFlow { probe.textWidth to viewport.floatValue },
+                ) { playing, pos, (w, vp) ->
+                    playing || pos.position != seenPos || positionProvider() != seenPos ||
+                        w != seenWidth || vp != seenViewport
+                }.first { it }
+                lastMs = -1L
+                settledPausedFrames = 0
+            }
             withFrameMillis { frameMs ->
                 val dt = if (lastMs < 0L) 0.016f else ((frameMs - lastMs) / 1000f).coerceIn(0f, 0.064f)
                 lastMs = frameMs
+                val pos = positionProvider()
                 val overflow = (probe.textWidth - viewport.floatValue).coerceAtLeast(0f)
                 val target = when {
                     overflow <= 0f -> 0f
                     karaoke -> (probe.headX - viewport.floatValue * SweepKeepFraction).coerceIn(0f, overflow)
                     else -> {
                         val span = (lineEndMs - entry.time).coerceAtLeast(1L).toFloat()
-                        val through = (positionProvider() - entry.time) / span
+                        val through = (pos - entry.time) / span
                         overflow * smoothstepF((through - 0.1f) / 0.75f)
                     }
                 }
@@ -534,6 +554,13 @@ private fun TickerLine(
                 }
                 if (value != scroll.floatValue) scroll.floatValue = value
                 morph.cardLyricScroll = value
+                val settled = value == target && velocity == 0f && pos == lastObservedPos
+                lastObservedPos = pos
+                settledPausedFrames = if (playerConnection != null && !playerConnection.isPlaying.value && settled) {
+                    settledPausedFrames + 1
+                } else {
+                    0
+                }
             }
         }
     }

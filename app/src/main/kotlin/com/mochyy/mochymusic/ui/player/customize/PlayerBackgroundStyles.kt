@@ -3,11 +3,6 @@
 package com.mochyy.mochymusic.ui.player.customize
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -16,14 +11,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -43,6 +41,7 @@ fun PlayerBackgroundContent(
     thumbnailUrl: String?,
     pureBlack: Boolean,
     modifier: Modifier = Modifier,
+    animate: Boolean = true,
 ) {
     when (style) {
         PlayerBackgroundStyle.COVER_GRADIENT -> Unit
@@ -50,15 +49,18 @@ fun PlayerBackgroundContent(
         PlayerBackgroundStyle.DARK_GRADIENT -> DarkGradientBackground(modifier = modifier)
         PlayerBackgroundStyle.APPLE_MUSIC -> AppleMusicBackground(
             thumbnailUrl = thumbnailUrl,
+            animate = animate,
             modifier = modifier,
         )
         PlayerBackgroundStyle.AMBIENT -> StandaloneAmbientBackground(
             thumbnailUrl = thumbnailUrl,
+            animate = animate,
             modifier = modifier,
         )
         PlayerBackgroundStyle.KAWARP -> com.mochyy.mochymusic.ui.player.flagship.KawarpBackdrop(
             thumbnailUrl = thumbnailUrl,
             pureBlack = pureBlack,
+            animate = animate,
             modifier = modifier,
         )
     }
@@ -66,12 +68,16 @@ fun PlayerBackgroundContent(
 
 // the ambient backdrop on its own, from the picture's colours and with its own clock, for previews and the other styles' pages
 @Composable
-private fun StandaloneAmbientBackground(thumbnailUrl: String?, modifier: Modifier = Modifier) {
+private fun StandaloneAmbientBackground(
+    thumbnailUrl: String?,
+    animate: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
     val colors = com.mochyy.mochymusic.ui.player.flagship.rememberAmbientColors()
     com.mochyy.mochymusic.ui.player.flagship.FollowPicture(colors, thumbnailUrl)
     com.mochyy.mochymusic.ui.player.flagship.AmbientBackdrop(
         colors = colors,
-        time = com.mochyy.mochymusic.ui.player.flagship.rememberAmbientClock(running = true),
+        time = com.mochyy.mochymusic.ui.player.flagship.rememberAmbientClock(running = animate),
         modifier = modifier,
     )
 }
@@ -95,6 +101,7 @@ fun PlayerBackgroundPreview(
             thumbnailUrl = thumbnailUrl,
             pureBlack = false,
             modifier = modifier,
+            animate = animate,
         )
         return
     }
@@ -129,7 +136,11 @@ private fun DarkGradientBackground(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AppleMusicBackground(thumbnailUrl: String?, modifier: Modifier = Modifier) {
+private fun AppleMusicBackground(
+    thumbnailUrl: String?,
+    animate: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val fallbackColorInt = MaterialTheme.colorScheme.primaryContainer.toArgb()
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
@@ -164,16 +175,22 @@ private fun AppleMusicBackground(thumbnailUrl: String?, modifier: Modifier = Mod
         }
     }
 
-    val transition = rememberInfiniteTransition(label = "appleMusicMorph")
-    val drift by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 24_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "appleMusicDrift",
-    )
+    val drift = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(animate) {
+        if (!animate) return@LaunchedEffect
+        var prevMs = 0L
+        val cycleRadPerSec = (2.0 * Math.PI / 24.0).toFloat()
+        val twoPi = (2.0 * Math.PI).toFloat()
+        while (true) {
+            withFrameMillis { frameMs ->
+                if (prevMs != 0L) {
+                    val dtSec = ((frameMs - prevMs).coerceIn(1L, 80L) / 1000f)
+                    drift.floatValue = (drift.floatValue + dtSec * cycleRadPerSec) % twoPi
+                }
+                prevMs = frameMs
+            }
+        }
+    }
 
     val blobColors = List(BlobCount) { index ->
         animateColorAsState(
@@ -188,7 +205,7 @@ private fun AppleMusicBackground(thumbnailUrl: String?, modifier: Modifier = Mod
     Box(
         modifier = modifier
             .background(base)
-            .drawColorBlobs(blobColors) { drift },
+            .drawColorBlobs(blobColors) { drift.floatValue },
     )
 }
 
@@ -197,32 +214,38 @@ private const val BlobCount = 6
 private fun Modifier.drawColorBlobs(
     colors: List<Color>,
     phase: () -> Float,
-): Modifier = drawBehind {
-    val t = phase()
-    colors.forEachIndexed { index, color ->
-
-        val angle = t * (0.6f + index * 0.17f) + index * 1.05f
-        val orbitX = size.width * (0.20f + 0.06f * (index % 3))
-        val orbitY = size.height * (0.14f + 0.05f * (index % 4))
-        val center = Offset(
-            x = size.width * (0.28f + 0.15f * (index % 3)) + orbitX * kotlin.math.cos(angle),
-            y = size.height * (0.24f + 0.18f * (index % 4)) + orbitY * kotlin.math.sin(angle),
-        )
-        val radius = size.minDimension * (0.55f + 0.08f * (index % 3))
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0f)),
-                center = center,
-                radius = radius,
-            ),
-            radius = radius,
-            center = center,
+): Modifier = drawWithCache {
+    val radii = FloatArray(colors.size) { index ->
+        (size.minDimension * (0.55f + 0.08f * (index % 3))).coerceAtLeast(1f)
+    }
+    val brushes = List(colors.size) { index ->
+        val color = colors[index]
+        Brush.radialGradient(
+            colors = listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0f)),
+            center = Offset.Zero,
+            radius = radii[index],
         )
     }
-
-    drawRect(
-        brush = Brush.verticalGradient(
-            listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.45f)),
-        )
+    val scrim = Brush.verticalGradient(
+        listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.45f)),
     )
+    onDrawBehind {
+        val t = phase()
+        for (index in brushes.indices) {
+            val angle = t * (0.6f + index * 0.17f) + index * 1.05f
+            val orbitX = size.width * (0.20f + 0.06f * (index % 3))
+            val orbitY = size.height * (0.14f + 0.05f * (index % 4))
+            val cx = size.width * (0.28f + 0.15f * (index % 3)) + orbitX * kotlin.math.cos(angle)
+            val cy = size.height * (0.24f + 0.18f * (index % 4)) + orbitY * kotlin.math.sin(angle)
+            val radius = radii[index]
+            translate(cx, cy) {
+                drawCircle(
+                    brush = brushes[index],
+                    radius = radius,
+                    center = Offset.Zero,
+                )
+            }
+        }
+        drawRect(brush = scrim)
+    }
 }

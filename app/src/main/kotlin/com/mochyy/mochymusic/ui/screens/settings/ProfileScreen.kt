@@ -294,7 +294,6 @@ fun ProfileScreen(navController: NavController) {
     val tiltX = remember { Animatable(0f) }
     val tiltY = remember { Animatable(0f) }
     var tiltTarget by remember { mutableStateOf(Offset.Zero) }
-    val deviceTilt = rememberDeviceTilt()
     var scratchKey by remember { mutableIntStateOf(0) }
     val scratch = remember(scratchKey) { ScratchState() }
     val scan = remember { Animatable(0f) }
@@ -304,6 +303,7 @@ fun ProfileScreen(navController: NavController) {
     var story by remember { mutableStateOf<Pair<RecapStoryData, RecapAnchors>?>(null) }
     var storyCovering by remember { mutableStateOf(false) }
     var cardHidden by remember { mutableStateOf(false) }
+    val deviceTilt = rememberDeviceTilt(enabled = !profile.holdsPage && !storyCovering && !cardHidden && !obscured.value)
     val contentIn = remember { Animatable(1f) }
     var rootOnScreen by remember { mutableStateOf(Offset.Zero) }
     var cardOnScreen by remember { mutableStateOf(Rect.Zero) }

@@ -63,11 +63,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import com.mochyy.mochymusic.LocalPlayerConnection
 import com.mochyy.mochymusic.lyrics.LyricsEntry
 import com.mochyy.mochymusic.ui.component.agslRenderEffect
 import com.mochyy.mochymusic.ui.component.createAgslShader
 import com.mochyy.mochymusic.ui.component.damageBoundary
 import com.mochyy.mochymusic.ui.component.setAgslUniform
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 
 enum class LyricsLineState { ACTIVE, UPCOMING, PAST, DEFAULT }
 
@@ -1436,11 +1439,22 @@ private fun rememberBackingExpand(
     val state = remember(words) { mutableFloatStateOf(0f) }
     val firstStart = remember(words) { words?.firstOrNull()?.startTime }
     val lastEnd = remember(words) { words?.lastOrNull()?.endTime }
+    val playerConnection = LocalPlayerConnection.current
 
-    LaunchedEffect(words, positionProvider) {
+    LaunchedEffect(words, positionProvider, playerConnection) {
+        var settledPausedFrames = 0
+        var lastObservedPos = positionProvider()
         while (true) {
+            if (playerConnection != null && !playerConnection.isPlaying.value && settledPausedFrames >= 2) {
+                val seenPos = lastObservedPos
+                combine(playerConnection.isPlaying, playerConnection.progressState) { playing, pos ->
+                    playing || pos.position != seenPos || positionProvider() != seenPos
+                }.first { it }
+                settledPausedFrames = 0
+            }
             withFrameMillis {
-                val sec = positionProvider() / 1000.0
+                val pos = positionProvider()
+                val sec = pos / 1000.0
                 val own = if (firstStart == null || lastEnd == null) {
                     0f
                 } else {
@@ -1460,7 +1474,14 @@ private fun rememberBackingExpand(
                 } else {
                     own
                 }
+                val changed = next != state.floatValue || pos != lastObservedPos
+                lastObservedPos = pos
                 if (next != state.floatValue) state.floatValue = next
+                settledPausedFrames = if (playerConnection != null && !playerConnection.isPlaying.value && !changed) {
+                    settledPausedFrames + 1
+                } else {
+                    0
+                }
             }
         }
     }
@@ -2019,15 +2040,36 @@ private fun rememberKaraokeHead(
 ): KaraokeHead {
     val timed = remember(text, words) { karaokeTimedRanges(text, words) }
     val head = remember(text, words) { karaokeHeadFor(text) }
+    val playerConnection = LocalPlayerConnection.current
 
-    LaunchedEffect(text, timed, positionProvider, wordMotion) {
+    LaunchedEffect(text, timed, positionProvider, wordMotion, playerConnection) {
         var lastFrameNanos = -1L
+        var settledPausedFrames = 0
+        var lastObservedPos = positionProvider()
         while (true) {
+            if (playerConnection != null && !playerConnection.isPlaying.value && settledPausedFrames >= 2) {
+                val seenPos = lastObservedPos
+                combine(playerConnection.isPlaying, playerConnection.progressState) { playing, pos ->
+                    playing || pos.position != seenPos || positionProvider() != seenPos
+                }.first { it }
+                lastFrameNanos = -1L
+                settledPausedFrames = 0
+            }
             withFrameNanos { frameNanos ->
                 val dt = if (lastFrameNanos < 0L) 0.016f else ((frameNanos - lastFrameNanos) / 1_000_000_000f).coerceIn(0f, 0.064f)
+                val pos = positionProvider()
+                val prevGlow = head.glow.floatValue
                 // the provider is a playback clock that already moves on the frame's own time, so no guessing between polls
-                head.advance(timed, positionProvider() / 1000.0, dt, wordMotion)
+                val moved = head.advance(timed, pos / 1000.0, dt, wordMotion)
+                val glowMoved = kotlin.math.abs(head.glow.floatValue - prevGlow) > 1e-4f
+                val posMoved = pos != lastObservedPos
+                lastObservedPos = pos
                 lastFrameNanos = frameNanos
+                settledPausedFrames = if (playerConnection != null && !playerConnection.isPlaying.value && !moved && !glowMoved && !posMoved) {
+                    settledPausedFrames + 1
+                } else {
+                    0
+                }
             }
         }
     }

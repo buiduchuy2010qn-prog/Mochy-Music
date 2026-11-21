@@ -10,7 +10,7 @@ import androidx.media3.exoplayer.drm.ExoMediaDrm
 import androidx.media3.exoplayer.drm.FrameworkMediaDrm
 import androidx.media3.exoplayer.drm.MediaDrmCallback
 import com.mochyy.mochymusic.module.LicenseServer
-import okhttp3.OkHttpClient
+import com.mochyy.mochymusic.utils.AppProxy
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
 object WidevineDrm {
 
     private val client by lazy {
-        OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
+        AppProxy.newDirectClientBuilder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
     }
 
     fun sessionManager(license: LicenseServer): DrmSessionManager =
@@ -52,7 +52,7 @@ object WidevineDrm {
         val request = Request.Builder().url(url).post(ByteArray(0).toRequestBody()).build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("Widevine provisioning answered ${response.code}")
-            return response.body?.bytes() ?: ByteArray(0)
+            return response.body.bytes()
         }
     }
 }

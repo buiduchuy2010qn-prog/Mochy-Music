@@ -60,6 +60,8 @@ object UsbDacReader {
             }
         } || output?.type == AudioDeviceInfo.TYPE_USB_HEADSET
 
+        val outputAudio = if (audio != null && output != null) audio to output else null
+
         return UsbDacDetails(
             name = usb?.productName?.trim()?.takeIf { it.isNotEmpty() }
                 ?: output?.productName?.toString()?.removePrefix("USB-Audio - ")?.trim()?.takeIf { it.isNotEmpty() }
@@ -76,8 +78,8 @@ object UsbDacReader {
             bitDepths = output?.encodings?.toList().orEmpty().mapNotNull(AudioOutputs::bitDepthOf).distinct().sorted(),
             bitPerfect = when {
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> null
-                output == null || audio == null -> emptyList()
-                else -> MixerFormats.bitPerfect(audio, output)
+                outputAudio == null -> emptyList()
+                else -> MixerFormats.bitPerfect(outputAudio.first, outputAudio.second)
             },
             androidOutput = output != null,
         )

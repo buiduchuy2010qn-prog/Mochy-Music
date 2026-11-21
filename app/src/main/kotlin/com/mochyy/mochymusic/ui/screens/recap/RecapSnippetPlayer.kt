@@ -17,6 +17,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.mochyy.mochymusic.constants.AudioQuality
 import com.mochyy.mochymusic.utils.YTPlayerUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +30,7 @@ internal class RecapSnippetPlayer(private val context: Context, private val scop
     private var player: ExoPlayer? = null
     private var playingId: String? = null
     private var job: Job? = null
+    private val retiring = mutableMapOf<ExoPlayer, Job>()
     private var released = false
 
     /** Starts [songId] from its beginning, fading in. Anything already playing fades out first. */
@@ -66,10 +68,26 @@ internal class RecapSnippetPlayer(private val context: Context, private val scop
                     playWhenReady = true
                 }
             player = exo
-            withTimeoutOrNull(8_000L) {
-                while (!exo.isPlaying) delay(40L)
-            } ?: return@launch
-            fade(exo, to = 1f, durationMs = fadeInMs)
+            try {
+                val ready = withTimeoutOrNull(8_000L) {
+                    while (!exo.isPlaying) delay(40L)
+                    true
+                } ?: false
+                if (!ready || released || playingId != songId) {
+                    if (player === exo) {
+                        player = null
+                        exo.release()
+                    }
+                    return@launch
+                }
+                fade(exo, to = 1f, durationMs = fadeInMs)
+            } catch (e: CancellationException) {
+                if (player === exo) {
+                    player = null
+                    runCatching { exo.release() }
+                }
+                throw e
+            }
         }
     }
 
@@ -84,18 +102,25 @@ internal class RecapSnippetPlayer(private val context: Context, private val scop
 
     // its own coroutine, so a play() right after can't cancel the fade and leak the player
     private fun retire(p: ExoPlayer, fadeOutMs: Long) {
-        scope.launch {
+        val retireJob = scope.launch {
             try {
                 fade(p, to = 0f, durationMs = fadeOutMs)
             } finally {
-                p.release()
+                retiring.remove(p)
+                runCatching { p.release() }
             }
         }
+        retiring[p] = retireJob
     }
 
     fun release() {
         released = true
         job?.cancel()
+        retiring.entries.toList().forEach { (p, retireJob) ->
+            retireJob.cancel()
+            runCatching { p.release() }
+        }
+        retiring.clear()
         player?.release()
         player = null
     }

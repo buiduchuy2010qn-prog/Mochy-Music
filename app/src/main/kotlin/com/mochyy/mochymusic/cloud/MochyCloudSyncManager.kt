@@ -136,6 +136,7 @@ object MochyCloudSyncManager {
     private const val MaxCloudExtraItems = 200
     private const val MaxCloudRecognitionItems = 35
     private const val MaxCloudLyricsOffsets = 300
+    private const val MaxHistoryPlayCountCache = 1_000
     private const val ExtraSyncPrefsName = "mochy_cloud_extra_sync"
     private const val SourceModulesPrefsName = "source_modules"
     private const val MonochromePrimaryPrefsName = "module_monochrome"
@@ -193,6 +194,20 @@ object MochyCloudSyncManager {
     private var cachedDeviceId: String? = null
 
     private const val DeviceIdFileName = "mochy_cloud_device_id.txt"
+
+    private fun trimHistoryPlayCountCache(keepSongId: String? = null) {
+        if (historyPlayCountCache.size <= MaxHistoryPlayCountCache) return
+        val victims = historyPlayCountCache.entries
+            .asSequence()
+            .filter { (songId, _) -> songId != keepSongId && !pendingHistoryMap.containsKey(songId) }
+            .sortedBy { it.value.first }
+            .map { it.key }
+            .toList()
+        for (songId in victims) {
+            if (historyPlayCountCache.size <= MaxHistoryPlayCountCache) break
+            historyPlayCountCache.remove(songId)
+        }
+    }
 
     fun start(context: Context, scope: CoroutineScope) {
         val app = context.applicationContext
@@ -1182,6 +1197,7 @@ object MochyCloudSyncManager {
             val nextCount = (prev.first + 1L).coerceAtLeast(1L)
             val nextMs = (prev.second + playTimeMs).coerceAtLeast(playTimeMs)
             historyPlayCountCache[songId] = nextCount to nextMs
+            trimHistoryPlayCountCache(songId)
 
             val record = CloudHistoryRecord(
                 songId = song.id,
@@ -1487,6 +1503,7 @@ object MochyCloudSyncManager {
                     ensureSongHistoryInLocalDb(db, rh, existingEventKeys)
                 }
             }
+            trimHistoryPlayCountCache()
 
             // 4. Playlist cá nhân hai chiều (Base64 <= 5.600 ký tự, tối đa 25 playlist)
             val playlistsCount = if (remoteMeta != null) {

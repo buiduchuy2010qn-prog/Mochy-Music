@@ -56,13 +56,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.plus
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -74,7 +74,7 @@ constructor(
     val database: MusicDatabase,
     val downloadUtil: DownloadUtil,
 ) : MediaLibrarySession.Callback {
-    private val scope = CoroutineScope(Dispatchers.Main) + Job()
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     lateinit var service: MusicService
     private val voice by lazy { VoicePicker(context, database) }
     var toggleLike: () -> Unit = {}
@@ -1094,6 +1094,13 @@ constructor(
         singleItemStyle?.let {
             putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM, it)
         }
+    }
+
+    fun release() {
+        originCard?.stop()
+        originCard = null
+        originCardConnections.clear()
+        scope.cancel()
     }
 
     private fun <T> List<T>.paginate(page: Int, pageSize: Int): List<T> {

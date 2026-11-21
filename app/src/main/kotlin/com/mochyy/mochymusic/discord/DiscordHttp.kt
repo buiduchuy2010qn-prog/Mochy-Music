@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.discord
 
+import com.mochyy.mochymusic.utils.AppProxy
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
@@ -21,7 +22,7 @@ internal object DiscordHttp {
     const val Api = "https://discord.com/api/v10"
 
     val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        AppProxy.newDirectClientBuilder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(20, TimeUnit.SECONDS)
@@ -53,7 +54,7 @@ internal object DiscordHttp {
     private suspend fun send(request: Request): Reply = client.newCall(request).await().use { response ->
         Reply(
             code = response.code,
-            body = response.body?.string().orEmpty(),
+            body = response.body.string(),
             retryAfterSeconds = response.header("Retry-After")?.toDoubleOrNull(),
         )
     }

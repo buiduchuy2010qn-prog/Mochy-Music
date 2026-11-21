@@ -63,14 +63,13 @@ import com.mochyy.mochymusic.ui.player.share.song.clippedItem
 import com.mochyy.mochymusic.ui.player.share.song.found
 import com.mochyy.mochymusic.ui.player.share.song.freshMusicVideo
 import com.mochyy.mochymusic.ui.player.share.song.trackFor
-import com.mochyy.mochymusic.utils.followAppProxy
+import com.mochyy.mochymusic.utils.AppProxy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -318,7 +317,7 @@ private fun newExportFile(context: Context, extension: String): File {
 }
 
 private fun webSources(context: Context, headers: Map<String, String>): MediaSource.Factory {
-    val http = OkHttpDataSource.Factory(OkHttpClient.Builder().followAppProxy().build()).setDefaultRequestProperties(headers)
+    val http = OkHttpDataSource.Factory(AppProxy.sharedClient).setDefaultRequestProperties(headers)
     return DefaultMediaSourceFactory(DefaultDataSource.Factory(context, http))
 }
 

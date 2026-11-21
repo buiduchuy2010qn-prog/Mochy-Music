@@ -6,8 +6,6 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.music.innertube.YouTube
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
@@ -68,7 +66,7 @@ data class SongEntity(
         inLibrary = if (!liked) inLibrary ?: LocalDateTime.now() else inLibrary,
         addedByLike = if (!liked && inLibrary == null) true else addedByLike,
     ).also {
-        CoroutineScope(Dispatchers.IO).launch {
+        EntitySyncScope.launch {
             YouTube.likeVideo(id, !liked)
         }
     }
@@ -81,7 +79,7 @@ data class SongEntity(
         addedByLike = inLibrary == null && byLike,
     ).also {
         if (syncToYouTube) {
-            CoroutineScope(Dispatchers.IO).launch {
+            EntitySyncScope.launch {
 
                 val addToLibrary = inLibrary == null
                 YouTube.toggleSongLibrary(id, addToLibrary)

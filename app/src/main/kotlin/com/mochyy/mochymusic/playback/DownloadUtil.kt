@@ -17,7 +17,7 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadNotificationHelper
-import com.mochyy.mochymusic.utils.followAppProxy
+import com.mochyy.mochymusic.utils.AppProxy
 import com.music.innertube.YouTube
 import com.mochyy.mochymusic.constants.AudioQuality
 import com.mochyy.mochymusic.constants.DownloadQuality
@@ -125,7 +125,7 @@ constructor(
     private val dataSourceFactory =
         ResolvingDataSource.Factory(
             OkHttpDataSource.Factory(
-                OkHttpClient.Builder()
+                AppProxy.newClientBuilder()
                     .dns(object : Dns {
                         override fun lookup(hostname: String): List<InetAddress> {
                             val addresses = Dns.SYSTEM.lookup(hostname)
@@ -136,7 +136,6 @@ constructor(
                             }
                         }
                     })
-                    .followAppProxy()
                     .build(),
             ),
         ) { dataSpec ->

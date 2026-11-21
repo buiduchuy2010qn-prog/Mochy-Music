@@ -535,10 +535,10 @@ class AudioLabStore @Inject constructor(
     fun design(settings: EqSettings): ParametricEQ? {
         if (!settings.enabled) return null
         val bands = audibleBands(settings)
-        val correctionOn = settings.correctionEnabled && settings.correction != null
+        val correction = settings.correction
         val headroom = when {
             settings.autoPreamp -> autoHeadroom(settings)
-            correctionOn -> settings.correction!!.preamp
+            settings.correctionEnabled && correction != null -> correction.preamp
             else -> 0.0
         }
         val preamp = settings.preamp + headroom

@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -227,33 +228,38 @@ class CrossmixDirector(
         report("Listening to this song and the next one…")
         val startedAt = System.currentTimeMillis()
         // lyrics come over the network while the audio is analysed
-        val outLyrics = scope.async { host.lyrics(item) }
-        val inLyrics = scope.async { host.lyrics(next) }
-        val outAnalysis = analyses.analyze(item, wholeTrack = true)
-        val inAnalysis = analyses.analyze(next, wholeTrack = false)
-        val took = (System.currentTimeMillis() - startedAt) / 1_000f
-        android.util.Log.i(
-            Tag,
-            "analysed in %.1f s: this %s bpm (%.2f), next %s bpm (%.2f)".format(
-                took, outAnalysis?.bpm?.let { "%.1f".format(it) } ?: "?", outAnalysis?.bpmConfidence ?: 0f,
-                inAnalysis?.bpm?.let { "%.1f".format(it) } ?: "?", inAnalysis?.bpmConfidence ?: 0f,
-            ) + (analyses.lastFailure(item.mediaId)?.let { " · this failed: $it" } ?: "") +
-                (analyses.lastFailure(next.mediaId)?.let { " · next failed: $it" } ?: ""),
-        )
+        val fetched = coroutineScope {
+            val outLyrics = async { host.lyrics(item) }
+            val inLyrics = async { host.lyrics(next) }
+            val outA = analyses.analyze(item, wholeTrack = true)
+            val inA = analyses.analyze(next, wholeTrack = false)
+            val took = (System.currentTimeMillis() - startedAt) / 1_000f
+            android.util.Log.i(
+                Tag,
+                "analysed in %.1f s: this %s bpm (%.2f), next %s bpm (%.2f)".format(
+                    took, outA?.bpm?.let { "%.1f".format(it) } ?: "?", outA?.bpmConfidence ?: 0f,
+                    inA?.bpm?.let { "%.1f".format(it) } ?: "?", inA?.bpmConfidence ?: 0f,
+                ) + (analyses.lastFailure(item.mediaId)?.let { " · this failed: $it" } ?: "") +
+                    (analyses.lastFailure(next.mediaId)?.let { " · next failed: $it" } ?: ""),
+            )
 
-        // an album that runs straight from one track into the next is already continuous: any
-        // mix would only break it, so it plays gapless as recorded
-        val album = host.albumOf(outgoing.currentMediaItemIndex)
-        if (album != null && album == host.albumOf(nextIndex) && outAnalysis != null && inAnalysis != null &&
-            outAnalysis.complete && outAnalysis.trailingSilenceStartMs >= durationMs - SeamlessMs &&
-            inAnalysis.leadingSilenceEndMs <= SeamlessMs
-        ) {
-            report("Continuous album: playing straight through")
-            return
-        }
+            // an album that runs straight from one track into the next is already continuous: any
+            // mix would only break it, so it plays gapless as recorded
+            val album = host.albumOf(outgoing.currentMediaItemIndex)
+            if (album != null && album == host.albumOf(nextIndex) && outA != null && inA != null &&
+                outA.complete && outA.trailingSilenceStartMs >= durationMs - SeamlessMs &&
+                inA.leadingSilenceEndMs <= SeamlessMs
+            ) {
+                outLyrics.cancel()
+                inLyrics.cancel()
+                report("Continuous album: playing straight through")
+                return@coroutineScope null
+            }
 
-        val outText = outLyrics.await()
-        val inText = inLyrics.await()
+            Triple(outA, inA, outLyrics.await()) to inLyrics.await()
+        } ?: return
+        val (outAnalysis, inAnalysis, outText) = fetched.first
+        val inText = fetched.second
         val settings = host.settings()
         // a few thousand candidate mixes are scored, so off the main thread
         val plan = withContext(Dispatchers.Default) {

@@ -44,18 +44,23 @@ internal class SpinningArtwork(
         // a different speed is a different GIF
         val key = "$sourceUrl|${style.secondsPerTurn}|${style.fps}"
         val now = System.currentTimeMillis()
-        made[key]?.let { if (now < it.usableUntilMs) return it.url }
+        made[key]?.let { if (now < it.usableUntilMs) return it.url else made.remove(key) }
         if (failedAt[key]?.let { now - it < RetryAfterFailureMs } == true) return null
         if (working.add(key)) {
             scope.launch {
                 try {
                     made[key] = PictureHosts.upload(render(download(sourceUrl), style), "mochy.gif", "image/gif")
+                    trimCaches(now = System.currentTimeMillis(), keepKey = key)
                     onReady()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     Timber.tag(LogTag).w(e, "couldn't make the spinning artwork")
                     failedAt[key] = System.currentTimeMillis()
+                    while (failedAt.size > MaxCacheEntries) {
+                        val victim = failedAt.keys.firstOrNull { it != key } ?: break
+                        failedAt.remove(victim)
+                    }
                 } finally {
                     working.remove(key)
                 }
@@ -64,12 +69,20 @@ internal class SpinningArtwork(
         return null
     }
 
+    private fun trimCaches(now: Long, keepKey: String) {
+        made.entries.removeIf { it.key != keepKey && now >= it.value.usableUntilMs }
+        while (made.size > MaxCacheEntries) {
+            val victim = made.keys.firstOrNull { it != keepKey } ?: break
+            made.remove(victim)
+        }
+    }
+
     private suspend fun download(url: String): Bitmap = withContext(Dispatchers.IO) {
         if (!PresenceImages.isWebImage(url)) return@withContext loadLocal(url, SourceSize) ?: error("artwork on the phone couldn't be read")
         val request = Request.Builder().url(url.resize(SourceSize, SourceSize)).build()
         val bytes = DiscordHttp.client.newCall(request).execute().use { response ->
             check(response.isSuccessful) { "artwork download failed: HTTP ${response.code}" }
-            response.body!!.bytes()
+            response.body.bytes()
         }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: error("artwork isn't a picture")
     }
@@ -225,5 +238,6 @@ internal class SpinningArtwork(
         private const val MinFrames = 12
 
         private const val RetryAfterFailureMs = 10 * 60_000L
+        private const val MaxCacheEntries = 256
     }
 }

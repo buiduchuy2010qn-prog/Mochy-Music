@@ -28,11 +28,10 @@ import androidx.media3.exoplayer.dash.manifest.DashManifestParser
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.mochyy.mochymusic.constants.VideoQuality
+import com.mochyy.mochymusic.utils.AppProxy
 import com.mochyy.mochymusic.utils.VideoStreams
 import com.mochyy.mochymusic.utils.VideoTrack
-import com.mochyy.mochymusic.utils.followAppProxy
 import com.mochyy.mochymusic.utils.videoLines
-import okhttp3.OkHttpClient
 import kotlin.math.abs
 
 // further off than this and the picture jumps to the song instead of catching up
@@ -67,13 +66,9 @@ private object YouTubeVideoThread {
     val handler: Handler by lazy { Handler(HandlerThread("YouTubeVideo").apply { start() }.looper) }
 }
 
-// one http client for every video, through the same proxy as the music
+// one http client for every video, through the same proxy and dispatcher pool as the music
 private object YouTubeVideoHttp {
-    val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .followAppProxy()
-            .build()
-    }
+    val client get() = AppProxy.sharedClient
 }
 
 // one youtube video playing without sound, kept in step with the song; the main thread only reads its state and posts to it

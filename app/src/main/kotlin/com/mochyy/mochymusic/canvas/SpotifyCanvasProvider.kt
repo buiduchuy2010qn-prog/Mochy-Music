@@ -10,7 +10,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import com.mochyy.mochymusic.utils.followAppProxy
+import com.mochyy.mochymusic.utils.AppProxy
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
@@ -62,7 +62,7 @@ object SpotifyCanvasProvider {
         ignoreUnknownKeys = true
         isLenient = true
     }
-    private val http = OkHttpClient.Builder().followAppProxy().build()
+    private val http get() = AppProxy.sharedClient
     private val main = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val hits = ConcurrentHashMap<String, CanvasArtwork>()
     // songs with no canvas, so we dont ask spotify again every time they play
@@ -128,10 +128,19 @@ object SpotifyCanvasProvider {
             val ct = clientToken()
             val url = searchTrack(t, ct, song, artist, durationSec)?.let { canvasUrl(it, t, ct) }
             if (url == null) {
+                if (misses.size >= 512) {
+                    misses.iterator().let { it -> repeat(64) { _ -> if (it.hasNext()) { it.next(); it.remove() } } }
+                }
                 misses.add(key)
                 null
             } else {
-                CanvasArtwork(name = song, artist = artist, videoUrl = url).also { hits[key] = it }
+                CanvasArtwork(name = song, artist = artist, videoUrl = url).also { art ->
+                    hits[key] = art
+                    while (hits.size > 256) {
+                        val victim = hits.keys.firstOrNull { k -> k != key } ?: break
+                        hits.remove(victim)
+                    }
+                }
             }
         } catch (e: CancellationException) {
             throw e

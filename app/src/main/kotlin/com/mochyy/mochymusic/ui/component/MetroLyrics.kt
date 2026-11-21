@@ -60,6 +60,8 @@ import com.mochyy.mochymusic.lyrics.LyricsEntry
 import com.mochyy.mochymusic.ui.screens.LyricsPosition
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.utils.rememberPreference
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlin.math.PI
 import kotlin.math.cos
@@ -361,13 +363,26 @@ private fun WordLevelCanvasLyrics(
 
     var smoothPosition by remember { mutableLongStateOf(effectivePlaybackPosition + lyricsOffset) }
 
-    LaunchedEffect(isActiveLine) {
+    LaunchedEffect(isActiveLine, playerConnection) {
         if (isActiveLine && playerConnection != null) {
 
             var lastPlayerPos = playerConnection.player.currentPosition
             var lastUpdateTime = System.currentTimeMillis()
+            var pausedSnapshot = !playerConnection.isPlaying.value
 
             while (isActive) {
+                if (pausedSnapshot) {
+                    val currentPos = playerConnection.player.currentPosition
+                    lastPlayerPos = currentPos
+                    lastUpdateTime = System.currentTimeMillis()
+                    smoothPosition = currentPos + lyricsOffset
+                    combine(playerConnection.isPlaying, playerConnection.progressState) { playing, pos ->
+                        playing || pos.position != currentPos
+                    }.first { it }
+                    lastUpdateTime = System.currentTimeMillis()
+                    pausedSnapshot = false
+                    continue
+                }
                 withFrameMillis {
                     val now = System.currentTimeMillis()
                     val playerPos = playerConnection.player.currentPosition
@@ -380,6 +395,7 @@ private fun WordLevelCanvasLyrics(
 
                     val elapsed = now - lastUpdateTime
                     smoothPosition = lastPlayerPos + lyricsOffset + (if (currentlyPlaying) elapsed else 0L)
+                    pausedSnapshot = !currentlyPlaying && !playerConnection.isPlaying.value
                 }
             }
         }

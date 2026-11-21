@@ -48,6 +48,7 @@ internal class SongPreviewPlayer(context: Context, dataSourceFactory: DataSource
 
     private val report = object : Runnable {
         override fun run() {
+            if (released) return
             val p = player ?: return
             val position = p.currentPosition
             val previous = reportedMs
@@ -62,6 +63,7 @@ internal class SongPreviewPlayer(context: Context, dataSourceFactory: DataSource
     init {
         val appContext = context.applicationContext
         handler.post {
+            if (released) return@post
             player = ExoPlayer.Builder(appContext)
                 .setLooper(handler.looper)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
@@ -84,6 +86,7 @@ internal class SongPreviewPlayer(context: Context, dataSourceFactory: DataSource
         clipLengthMs = lengthMs
         reportedMs = -1L
         handler.post {
+            if (released) return@post
             player?.apply {
                 val clipped = song.buildUpon()
                     .setClippingConfiguration(

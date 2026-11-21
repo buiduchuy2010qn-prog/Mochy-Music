@@ -413,13 +413,12 @@ internal class CanvasGif(
             coroutineScope {
                 (0 until workers).map { w ->
                     async(Dispatchers.Default) {
-                        // own palette per worker so the lookups dont wait on each other, same colours or we fall back to the shared one
-                        val pal = if (w == 0) palette else SpinningArtwork.Palette.of(sample)
-                            .takeIf { java.util.Objects.deepEquals(it.colors, palette.colors) } ?: palette
+                        // own lookup cache per worker so workers don't wait on each other while reusing the computed palette colors
+                        val pal = if (w == 0) palette else SpinningArtwork.Palette(palette.colors)
                         for (i in w until frames.size step workers) {
                             val f = frames[i]
                             val b = ByteArray(size * size)
-                            synchronized(pal) { for (p in f.indices) b[p] = pal.indexOf(f[p]).toByte() }
+                            for (p in f.indices) b[p] = pal.indexOf(f[p]).toByte()
                             indexed[i] = b
                             CanvasGifProgress.update(Stage.ENCODE, 0.6f * mapped.incrementAndGet() / frames.size)
                         }

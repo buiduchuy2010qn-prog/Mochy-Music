@@ -2,11 +2,10 @@
 
 package com.mochyy.mochymusic.utils.cipher
 
-import com.mochyy.mochymusic.utils.followAppProxy
+import com.mochyy.mochymusic.utils.AppProxy
 import com.music.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import timber.log.Timber
 import java.io.File
@@ -18,9 +17,7 @@ object PlayerJsFetcher {
     /** How long a downloaded player script is reused before it is re-fetched. */
     const val CACHE_TTL_MS = 6 * 60 * 60 * 1000L
 
-    private val httpClient = OkHttpClient.Builder()
-        .followAppProxy()
-        .build()
+    private val httpClient get() = AppProxy.sharedClient
 
     private val PLAYER_HASH_REGEX = Regex("""\\?/s\\?/player\\?/([a-zA-Z0-9_-]+)\\?/""")
 

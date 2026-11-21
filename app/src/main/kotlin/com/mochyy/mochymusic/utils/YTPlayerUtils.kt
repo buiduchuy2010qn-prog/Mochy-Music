@@ -59,7 +59,7 @@ object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
     private const val TAG = "YTPlayerUtils"
 
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+    private val httpClient: OkHttpClient = AppProxy.newClientBuilder()
         .dns(object : Dns {
             override fun lookup(hostname: String): List<InetAddress> {
                 val addresses = Dns.SYSTEM.lookup(hostname)
@@ -71,19 +71,6 @@ object YTPlayerUtils {
                 }
             }
         })
-        .proxySelector(object : ProxySelector() {
-            override fun select(uri: URI?): List<Proxy> = listOfNotNull(YouTube.proxy ?: Proxy.NO_PROXY)
-            override fun connectFailed(uri: URI?, sa: SocketAddress?, ioe: IOException?) {
-                Timber.tag(TAG).e(ioe, "Proxy connection failed for URI: $uri")
-            }
-        })
-        .proxyAuthenticator { _, response ->
-            YouTube.proxyAuth?.let { auth ->
-                response.request.newBuilder()
-                    .header("Proxy-Authorization", auth)
-                    .build()
-            } ?: response.request
-        }
         .connectTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
         .callTimeout(10, java.util.concurrent.TimeUnit.SECONDS)

@@ -330,12 +330,14 @@ internal class CanvasVideoSession(
     private val handler = CanvasVideoThread.handler
     private var player: ExoPlayer? = null
     @Volatile private var surface: Surface? = null
+    @Volatile private var released = false
 
     // what the decoder draws into, for reading its colours off the main thread
     val frameSurface: Surface? get() = surface
 
     init {
         handler.post {
+            if (released) return@post
             player = ExoPlayer.Builder(context)
                 .setLooper(handler.looper)
                 .setMediaSourceFactory(mediaSourceFactory)
@@ -393,6 +395,7 @@ internal class CanvasVideoSession(
     fun removeListener(listener: Player.Listener) = handler.post { player?.removeListener(listener) }
 
     fun load(mediaItem: MediaItem, playing: Boolean) = handler.post {
+        if (released) return@post
         player?.apply {
             stop()
             setMediaItem(mediaItem)
@@ -405,6 +408,7 @@ internal class CanvasVideoSession(
     fun restart() = handler.post { player?.seekTo(0L) }
 
     fun attach(texture: SurfaceTexture) = handler.post {
+        if (released) return@post
         surface?.release()
         surface = Surface(texture).also { player?.setVideoSurface(it) }
     }
@@ -417,11 +421,14 @@ internal class CanvasVideoSession(
         mainHandler.post { texture.release() }
     }
 
-    fun release() = handler.post {
-        player?.release()
-        player = null
-        surface?.release()
-        surface = null
+    fun release() {
+        released = true
+        handler.post {
+            player?.release()
+            player = null
+            surface?.release()
+            surface = null
+        }
     }
 
     private companion object {

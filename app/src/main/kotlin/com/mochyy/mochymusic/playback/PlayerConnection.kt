@@ -270,11 +270,15 @@ class PlayerConnection(
 
     // mainactivity turns this off while the app is hidden, the poll below rests then instead of recomposing the player for nobody
     val isUiVisible = MutableStateFlow(true)
+    private val positionBump = MutableStateFlow(0L)
+    private fun bumpPosition() { positionBump.value++ }
 
     val progressState: kotlinx.coroutines.flow.StateFlow<com.mochyy.mochymusic.ui.player.models.ProgressState> =
         kotlinx.coroutines.flow.callbackFlow {
             while (true) {
                 isUiVisible.first { it }
+                val playingSnapshot = isPlaying.value
+                val bumpSnapshot = positionBump.value
                 try {
                     val p = attachedPlayer
                     if (p != null) {
@@ -289,7 +293,13 @@ class PlayerConnection(
                         )
                     }
                 } catch (_: Exception) {}
-                kotlinx.coroutines.delay(66L)
+                if (playingSnapshot) {
+                    kotlinx.coroutines.delay(66L)
+                } else {
+                    combine(isUiVisible, isPlaying, positionBump) { vis, play, bump ->
+                        !vis || play || bump != bumpSnapshot
+                    }.first { it }
+                }
             }
         }.distinctUntilChanged().stateIn(
             scope,
@@ -369,6 +379,7 @@ class PlayerConnection(
         shuffleModeEnabled.value = newPlayer.shuffleModeEnabled
         repeatMode.value = newPlayer.repeatMode
         publishQueueSnapshot()
+        bumpPosition()
 
         Timber.tag(TAG).d("Attached to new player instance: $newPlayer")
     }
@@ -641,6 +652,7 @@ class PlayerConnection(
             } else {
                 service.transport.cancel()
                 player.seekTo(position)
+                bumpPosition()
             }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error in seekTo")
@@ -698,6 +710,7 @@ class PlayerConnection(
     override fun onPlaybackStateChanged(state: Int) {
         playbackState.value = state
         error.value = player.playerError
+        bumpPosition()
     }
 
     override fun onPlayWhenReadyChanged(
@@ -705,6 +718,15 @@ class PlayerConnection(
         reason: Int,
     ) {
         playWhenReady.value = newPlayWhenReady
+        bumpPosition()
+    }
+
+    override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int,
+    ) {
+        bumpPosition()
     }
 
     override fun onMediaItemTransition(
@@ -716,6 +738,7 @@ class PlayerConnection(
         currentWindowIndex.value = player.getCurrentQueueIndex()
         publishQueueSnapshot()
         updateCanSkipPreviousAndNext()
+        bumpPosition()
     }
 
     override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {

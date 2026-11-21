@@ -12,12 +12,11 @@ import com.mochyy.mochymusic.constants.LastFMSessionKey
 import com.mochyy.mochymusic.constants.LastFMUsernameKey
 import com.mochyy.mochymusic.constants.LibreFmSessionKey
 import com.mochyy.mochymusic.constants.LibreFmUsernameKey
-import com.mochyy.mochymusic.utils.followAppProxy
+import com.mochyy.mochymusic.utils.AppProxy
 import com.music.lastfm.Audioscrobbler
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
-import okhttp3.OkHttpClient
 
 private val scrobbleHttpClient: HttpClient by lazy {
     HttpClient(OkHttp) {
@@ -28,7 +27,7 @@ private val scrobbleHttpClient: HttpClient by lazy {
         }
         expectSuccess = false
         engine {
-            preconfigured = OkHttpClient.Builder().followAppProxy().build()
+            preconfigured = AppProxy.sharedClient
         }
     }
 }

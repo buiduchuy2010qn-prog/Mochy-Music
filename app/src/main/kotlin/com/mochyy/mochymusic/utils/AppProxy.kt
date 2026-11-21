@@ -43,6 +43,25 @@ object AppProxy {
     // one pool for every client that follows the proxy, so a new proxy can drop the idle connections that went the old way
     internal val connectionPool = ConnectionPool()
 
+    /** one shared base client (and one Dispatcher thread pool + ConnectionPool) for every HTTP caller that follows AppProxy */
+    val sharedClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .followAppProxy()
+            .build()
+    }
+
+    private val directBaseClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .dispatcher(sharedClient.dispatcher)
+            .build()
+    }
+
+    /** builds a proxied client sharing AppProxy's Dispatcher thread pool and ConnectionPool */
+    fun newClientBuilder(): OkHttpClient.Builder = sharedClient.newBuilder()
+
+    /** builds a non-proxied client (e.g. LAN/direct APIs) sharing the shared Dispatcher thread pool */
+    fun newDirectClientBuilder(): OkHttpClient.Builder = directBaseClient.newBuilder()
+
     // with no proxy of ours the phone's own proxy setting still counts, as it did before
     internal val selector = object : ProxySelector() {
         override fun select(uri: URI?): List<Proxy> =
@@ -98,25 +117,29 @@ object AppProxy {
 
     /** asks youtube for an empty page through config, how many ms it took or why it failed */
     suspend fun check(config: ProxyConfig): Result<Long> = withContext(Dispatchers.IO) {
-        runCatching {
-            useSocksLogin(config)
-            val client = OkHttpClient.Builder()
-                .proxy(Proxy(config.type, config.address))
-                .proxyAuthenticator { _, response ->
-                    if (config.type != Proxy.Type.HTTP || !config.hasLogin || response.request.header(ProxyAuthHeader) != null) {
-                        null
-                    } else {
-                        response.request.newBuilder().header(ProxyAuthHeader, Credentials.basic(config.username, config.password)).build()
+        try {
+            runCatching {
+                useSocksLogin(config)
+                val client = newDirectClientBuilder()
+                    .proxy(Proxy(config.type, config.address))
+                    .proxyAuthenticator { _, response ->
+                        if (config.type != Proxy.Type.HTTP || !config.hasLogin || response.request.header(ProxyAuthHeader) != null) {
+                            null
+                        } else {
+                            response.request.newBuilder().header(ProxyAuthHeader, Credentials.basic(config.username, config.password)).build()
+                        }
                     }
+                    .connectTimeout(10, TimeUnit.SECONDS)
+                    .readTimeout(10, TimeUnit.SECONDS)
+                    .build()
+                val started = System.nanoTime()
+                client.newCall(Request.Builder().url("https://www.youtube.com/generate_204").build()).execute().use { response ->
+                    if (!response.isSuccessful) throw ProxyRefusedException(response.code)
                 }
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
-                .build()
-            val started = System.nanoTime()
-            client.newCall(Request.Builder().url("https://www.youtube.com/generate_204").build()).execute().use { response ->
-                if (!response.isSuccessful) throw ProxyRefusedException(response.code)
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
             }
-            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+        } finally {
+            useSocksLogin(current)
         }
     }
 

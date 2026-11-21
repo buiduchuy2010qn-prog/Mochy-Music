@@ -1482,6 +1482,12 @@ private fun PlayerBackdropCrossfade(
     val effectiveCanvasAlpha = { (currentCanvasAlpha.value() * (1f - currentLyricsProgress.value())).coerceIn(0f, 1f) }
     val canvasShown by remember { derivedStateOf { effectiveCanvasAlpha() > 0.005f && currentSheetShown.value() } }
 
+    val backdropVisible by remember {
+        derivedStateOf {
+            currentSheetShown.value() && (1f - effectiveVideoAlpha()) * (1f - effectiveCanvasAlpha()) > 0.005f
+        }
+    }
+
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
@@ -1503,7 +1509,8 @@ private fun PlayerBackdropCrossfade(
                     style = backgroundStyle,
                     thumbnailUrl = trackInfo.thumbnailUrl,
                     pureBlack = pureBlack,
-                    modifier = Modifier.requiredSize(maxWidth, maxHeight)
+                    modifier = Modifier.requiredSize(maxWidth, maxHeight),
+                    animate = backdropVisible,
                 )
             } else {
                 CoverBackdropFade(

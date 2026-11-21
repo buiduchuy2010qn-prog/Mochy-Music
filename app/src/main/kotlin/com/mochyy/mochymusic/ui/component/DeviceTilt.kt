@@ -50,12 +50,20 @@ class DeviceTilt internal constructor() {
  * doesn't lean: [DeviceTilt] stays at zero.
  */
 @Composable
-fun rememberDeviceTilt(maxDegrees: Float = 14f): DeviceTilt {
+fun rememberDeviceTilt(
+    maxDegrees: Float = 14f,
+    enabled: Boolean = true,
+): DeviceTilt {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val tilt = remember { DeviceTilt() }
 
-    DisposableEffect(context, lifecycleOwner) {
+    DisposableEffect(context, lifecycleOwner, enabled) {
+        if (!enabled) {
+            tilt.rotationX = 0f
+            tilt.rotationY = 0f
+            return@DisposableEffect onDispose { }
+        }
         val sensors = context.getSystemService(SensorManager::class.java)
         val sensor = sensors?.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
             ?: sensors?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)

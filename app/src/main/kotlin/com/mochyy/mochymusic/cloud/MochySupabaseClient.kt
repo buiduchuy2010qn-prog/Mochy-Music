@@ -1,7 +1,7 @@
 package com.mochyy.mochymusic.cloud
 
 import android.content.Context
-import com.mochyy.mochymusic.utils.followAppProxy
+import com.mochyy.mochymusic.utils.AppProxy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -504,8 +504,7 @@ object MochySupabaseClient {
     private val refreshMutex = Mutex()
 
     private val http: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .followAppProxy()
+        AppProxy.newClientBuilder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
@@ -537,7 +536,7 @@ object MochySupabaseClient {
             http.newCall(request).execute().use { resp ->
                 MochyUsernameLoginEdgeHelper.parseCheckSignUpResponse(
                     httpCode = resp.code,
-                    rawBody = resp.body?.string().orEmpty(),
+                    rawBody = resp.body.string(),
                 )
             }
         }.getOrDefault(EdgeCheckSignUpOutcome.Unavailable)
@@ -564,7 +563,7 @@ object MochySupabaseClient {
             http.newCall(request).execute().use { resp ->
                 MochyUsernameLoginEdgeHelper.parseSignInResponse(
                     httpCode = resp.code,
-                    rawBody = resp.body?.string().orEmpty(),
+                    rawBody = resp.body.string(),
                 )
             }
         }.getOrDefault(EdgeSignInOutcome.Unavailable)
@@ -589,7 +588,7 @@ object MochySupabaseClient {
         runCatching {
             http.newCall(request).execute().use { resp ->
                 if (resp.code !in 200..299) return@runCatching null
-                val raw = resp.body?.string().orEmpty().trim()
+                val raw = resp.body.string().trim()
                 if (raw.isBlank() || raw == "null") return@runCatching null
                 val obj = JSONObject(raw)
                 if (!obj.has("exists")) return@runCatching null
@@ -1007,7 +1006,7 @@ object MochySupabaseClient {
 
             val callResult = try {
                 http.newCall(request).execute().use { resp ->
-                    HttpCallResult(resp.code, resp.body?.string().orEmpty())
+                    HttpCallResult(resp.code, resp.body.string())
                 }
             } catch (_: IOException) {
                 return@withLock RefreshSessionResult.NetworkError("Không thể kết nối Mochy Cloud, sẽ thử lại sau.")
@@ -1495,7 +1494,7 @@ object MochySupabaseClient {
                 .build()
             return runCatching {
                 http.newCall(request).execute().use { resp ->
-                    HttpCallResult(resp.code, resp.body?.string().orEmpty())
+                    HttpCallResult(resp.code, resp.body.string())
                 }
             }.getOrNull()
         }
@@ -1574,7 +1573,7 @@ object MochySupabaseClient {
     private fun executeSingleCall(request: Request): HttpCallResult {
         try {
             http.newCall(request).execute().use { resp ->
-                return HttpCallResult(resp.code, resp.body?.string().orEmpty())
+                return HttpCallResult(resp.code, resp.body.string())
             }
         } catch (_: IOException) {
             throw MochyCloudException("Không thể kết nối Mochy Cloud, kiểm tra mạng rồi thử lại.")

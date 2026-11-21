@@ -34,7 +34,7 @@ internal class UploadedPictures(
     // the picture's web address once it's up; null meanwhile, while it's made in the background
     fun urlFor(source: String): String? {
         val now = System.currentTimeMillis()
-        made[source]?.let { if (now < it.usableUntilMs) return it.url }
+        made[source]?.let { if (now < it.usableUntilMs) return it.url else made.remove(source) }
         if (failedAt[source]?.let { now - it < RetryAfterFailureMs } == true) return null
         if (working.add(source)) {
             scope.launch {
@@ -42,12 +42,22 @@ internal class UploadedPictures(
                     val picture = loadLocalPicture(context, source, Size) ?: error("couldn't read $source")
                     val (bytes, name, mime) = encode(picture)
                     made[source] = PictureHosts.upload(bytes, name, mime)
+                    val stamp = System.currentTimeMillis()
+                    made.entries.removeIf { it.key != source && stamp >= it.value.usableUntilMs }
+                    while (made.size > MaxCacheEntries) {
+                        val victim = made.keys.firstOrNull { it != source } ?: break
+                        made.remove(victim)
+                    }
                     onReady()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     Timber.tag(LogTag).w(e, "couldn't put a picture up for discord")
                     failedAt[source] = System.currentTimeMillis()
+                    while (failedAt.size > MaxCacheEntries) {
+                        val victim = failedAt.keys.firstOrNull { it != source } ?: break
+                        failedAt.remove(victim)
+                    }
                 } finally {
                     working.remove(source)
                 }
@@ -73,6 +83,7 @@ internal class UploadedPictures(
         // discord shows the big picture at up to 240px, so this stays sharp on dense screens
         private const val Size = 512
         private const val RetryAfterFailureMs = 10 * 60_000L
+        private const val MaxCacheEntries = 256
     }
 }
 

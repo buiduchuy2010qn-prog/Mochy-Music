@@ -135,7 +135,7 @@ private fun rememberBatteryLevel(): State<Float> {
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         sticky?.batteryFraction()?.let { level.floatValue = it }
-        onDispose { context.unregisterReceiver(receiver) }
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
     return level
 }

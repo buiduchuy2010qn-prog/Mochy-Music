@@ -334,7 +334,14 @@ class DiscordPresence @Inject constructor(
         synchronized(assetPaths) {
             urls.forEachIndexed { index, url ->
                 val path = registered.getOrNull(index)?.jsonObject?.get("external_asset_path")?.jsonPrimitive?.contentOrNull
-                if (path != null) assetPaths[url] = "mp:$path" else refusedUrls.add(url)
+                if (path != null) {
+                    assetPaths[url] = "mp:$path"
+                } else {
+                    if (refusedUrls.size >= MaxRefusedUrls) {
+                        refusedUrls.iterator().let { it -> repeat(64) { _ -> if (it.hasNext()) { it.next(); it.remove() } } }
+                    }
+                    refusedUrls.add(url)
+                }
             }
         }
     }
@@ -349,6 +356,7 @@ class DiscordPresence @Inject constructor(
         private const val PictureRetryMs = 60_000L
         private const val BurstLimit = 5
         private const val BurstWindowMs = 20_000L
+        private const val MaxRefusedUrls = 512
         private val Backoff = longArrayOf(2_000, 5_000, 15_000, 30_000, 60_000)
     }
 }

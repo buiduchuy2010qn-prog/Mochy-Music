@@ -256,7 +256,7 @@ internal fun rememberMusicVolume(listening: Boolean): MusicVolume {
             IntentFilter("android.media.VOLUME_CHANGED_ACTION"),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
-        onDispose { context.unregisterReceiver(receiver) }
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
     return volume
 }

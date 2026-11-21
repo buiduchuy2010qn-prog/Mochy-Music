@@ -23,6 +23,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -36,6 +39,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import okhttp3.OkHttpClient
 import java.util.Locale
 
+private val artistVideoHttpClient: OkHttpClient by lazy { OkHttpClient.Builder().build() }
+
 @Composable
 fun ArtistVideo(
     videoUrl: String,
@@ -43,15 +48,15 @@ fun ArtistVideo(
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var isVideoReady by remember(videoUrl) { mutableStateOf(false) }
 
-    val okHttpClient = remember { OkHttpClient.Builder().build() }
     val mediaSourceFactory =
-        remember(okHttpClient) {
+        remember {
             DefaultMediaSourceFactory(
                 DefaultDataSource.Factory(
-                    context,
-                    OkHttpDataSource.Factory(okHttpClient),
+                    context.applicationContext,
+                    OkHttpDataSource.Factory(artistVideoHttpClient),
                 ),
             )
         }
@@ -70,19 +75,30 @@ fun ArtistVideo(
                     )
                     volume = 0f
                     repeatMode = Player.REPEAT_MODE_ONE
-                    playWhenReady = true
+                    playWhenReady = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
                 }
         }
 
-    DisposableEffect(exoPlayer, videoUrl) {
+    DisposableEffect(exoPlayer, videoUrl, lifecycleOwner) {
         val listener =
             object : Player.Listener {
                 override fun onRenderedFirstFrame() {
                     isVideoReady = true
                 }
             }
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> exoPlayer.playWhenReady = true
+                Lifecycle.Event.ON_PAUSE -> exoPlayer.playWhenReady = false
+                else -> Unit
+            }
+        }
         exoPlayer.addListener(listener)
-        onDispose { exoPlayer.removeListener(listener) }
+        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
+            exoPlayer.removeListener(listener)
+        }
     }
 
     LaunchedEffect(videoUrl, exoPlayer) {

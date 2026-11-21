@@ -13,6 +13,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -54,12 +55,15 @@ class CrossmixAnalysisRepository(
                 val progress = Progress()
                 val timeoutMs = if (wholeTrack) 60_000L else 40_000L
                 try {
-                    usable(read(mediaId), wholeTrack)?.also { memory[mediaId] = it; failures.remove(mediaId) }
+                    usable(read(mediaId), wholeTrack)?.also { putBoundedMemory(mediaId, it); failures.remove(mediaId) }
                         ?: (
                             withTimeoutOrNull(timeoutMs) { decodeAndAnalyze(uri, mediaId, wholeTrack, progress) }
                                 ?: null.also {
-                                    failures[mediaId] = "timed out after ${timeoutMs / 1_000} s with " +
-                                        "${progress.decodedUs / 1_000_000} s of audio decoded"
+                                    putBoundedFailure(
+                                        mediaId,
+                                        "timed out after ${timeoutMs / 1_000} s with " +
+                                            "${progress.decodedUs / 1_000_000} s of audio decoded",
+                                    )
                                 }
                             )?.also { analysis ->
                             failures.remove(mediaId)
@@ -71,12 +75,12 @@ class CrossmixAnalysisRepository(
                             )
                             // a whole-track result answers head requests too; never overwrite it with less
                             if (memory[mediaId]?.complete != true || analysis.complete) {
-                                memory[mediaId] = analysis
+                                putBoundedMemory(mediaId, analysis)
                                 write(mediaId, analysis)
                             }
                         }
                 } catch (error: Throwable) {
-                    failures[mediaId] = error.message ?: error.javaClass.simpleName
+                    putBoundedFailure(mediaId, error.message ?: error.javaClass.simpleName)
                     null
                 } finally {
                     inFlight.remove(key)
@@ -92,6 +96,30 @@ class CrossmixAnalysisRepository(
 
     /** why the last analysis of mediaId came back empty, if it did */
     fun lastFailure(mediaId: String): String? = failures[mediaId]
+
+    fun release() {
+        scope.cancel()
+        runCatching { dispatcher.close() }
+        inFlight.clear()
+        memory.clear()
+        failures.clear()
+    }
+
+    private fun putBoundedMemory(mediaId: String, analysis: TrackAnalysis) {
+        memory[mediaId] = analysis
+        while (memory.size > MaxMemoryEntries) {
+            val victim = memory.keys.firstOrNull { it != mediaId } ?: break
+            memory.remove(victim)
+        }
+    }
+
+    private fun putBoundedFailure(mediaId: String, reason: String) {
+        failures[mediaId] = reason
+        while (failures.size > MaxFailureEntries) {
+            val victim = failures.keys.firstOrNull { it != mediaId } ?: break
+            failures.remove(victim)
+        }
+    }
 
     private class Progress {
         val startedAt = System.currentTimeMillis()
@@ -210,6 +238,8 @@ class CrossmixAnalysisRepository(
         // 3: analyses cut short by a one-chunk stream were stored as whole ones. 4: the voice curve. 5: bars from chords and drums, and section starts
         const val CacheVersion = 5
         const val MaxCachedArray = 200_000
+        const val MaxMemoryEntries = 64
+        const val MaxFailureEntries = 128
         /** the next song: two minutes of possible entry points plus room for the blend after one */
         const val HeadMs = 150_000L
         const val MaxTrackMs = 15 * 60_000L

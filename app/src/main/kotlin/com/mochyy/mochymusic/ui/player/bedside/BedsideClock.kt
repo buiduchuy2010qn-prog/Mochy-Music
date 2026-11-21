@@ -119,7 +119,7 @@ internal fun rememberBedsideTime(live: Boolean): BedsideTime {
             }
             ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
             now = System.currentTimeMillis()
-            onDispose { context.unregisterReceiver(receiver) }
+            onDispose { runCatching { context.unregisterReceiver(receiver) } }
         }
         LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { now = System.currentTimeMillis() }
     }
