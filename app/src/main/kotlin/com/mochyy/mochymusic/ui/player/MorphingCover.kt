@@ -492,7 +492,7 @@ fun MorphingCover(
     // the new flagship keeps the moving mirrors: its veil washes them in the colours instead
     val mirrorsOff = ambientBackdrop && !frostedCover
     val feedsAmbient = ambient != null && !alternateStyle
-    if (feedsAmbient && ambient != null) {
+    if (feedsAmbient) {
         FollowPicture(ambient, trackInfo.thumbnailUrl)
         LaunchedEffect(isVideoActive) { if (!isVideoActive) ambient.endLive() }
     }

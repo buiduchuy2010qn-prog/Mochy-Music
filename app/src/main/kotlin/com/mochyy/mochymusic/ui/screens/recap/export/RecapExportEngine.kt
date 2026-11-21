@@ -708,11 +708,13 @@ private suspend fun runRecapTransformer(
         )
         .build()
 
-    val includeAudio = soundtrackId != null && soundtrackItem != null && songSource != null
+    val audioId = soundtrackId
+    val audioItem = soundtrackItem
+    val audioSource = songSource
     val sequences = buildList {
         add(EditedMediaItemSequence.Builder(carrier).build())
-        if (includeAudio) {
-            val clipped = clippedItem(soundtrackItem!!.buildUpon(), 0L, durationMs)
+        if (audioId != null && audioItem != null && audioSource != null) {
+            val clipped = clippedItem(audioItem.buildUpon(), 0L, durationMs)
             val audio = EditedMediaItem.Builder(clipped)
                 .setRemoveVideo(true)
                 .setEffects(Effects(listOf(ShareAudioFade(durationMs)), emptyList()))
@@ -722,10 +724,10 @@ private suspend fun runRecapTransformer(
     }
     val composition = Composition.Builder(sequences).build()
     val localFactory = DefaultMediaSourceFactory(DefaultDataSource.Factory(context))
-    val sources: MediaSource.Factory = if (includeAudio) {
+    val sources: MediaSource.Factory = if (audioId != null && audioItem != null && audioSource != null) {
         ShareMediaSources(
-            songId = soundtrackId!!,
-            song = DefaultMediaSourceFactory(songSource!!),
+            songId = audioId,
+            song = DefaultMediaSourceFactory(audioSource),
             web = localFactory,
         )
     } else {

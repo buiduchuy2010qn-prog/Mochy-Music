@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.ui.screens.artist
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -39,11 +40,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.LocalPlayerConnection
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.extensions.toMediaItem
 import com.mochyy.mochymusic.models.toMediaMetadata
 import com.mochyy.mochymusic.playback.queues.ListQueue
@@ -85,8 +89,12 @@ import com.music.innertube.models.YTItem
 import kotlinx.coroutines.launch
 
 /** what a shelf's page holds, read off its items: YouTube's titles are in the account's language */
-private enum class ItemsKind(val word: String) {
-    Songs("songs"), Albums("albums"), Videos("videos"), Playlists("playlists"), Artists("artists")
+private enum class ItemsKind(@StringRes val wordRes: Int) {
+    Songs(R.string.artist_items_word_songs),
+    Albums(R.string.artist_items_word_albums),
+    Videos(R.string.artist_items_word_videos),
+    Playlists(R.string.artist_items_word_playlists),
+    Artists(R.string.artist_items_word_artists),
 }
 
 private fun kindOf(items: List<YTItem>): ItemsKind? {
@@ -133,11 +141,14 @@ fun ArtistItemsScreen(
     }
 
     // "Albums" -> "twenty one pilots albums"; a page titled with the artist's own name says what it holds
+    val kindWord = kind?.let { stringResource(it.wordRes) }.orEmpty()
     val heading = when {
-        kind == ItemsKind.Songs -> if (artistName.isNotBlank()) "Top $artistName songs" else pageTitle
+        kind == ItemsKind.Songs -> if (artistName.isNotBlank()) stringResource(R.string.artist_top_songs_of, artistName) else pageTitle
         artistName.isBlank() -> pageTitle
-        pageTitle.isBlank() || pageTitle.equals(artistName, ignoreCase = true) -> "$artistName ${kind?.word.orEmpty()}"
-        else -> "$artistName ${pageTitle.replaceFirstChar { it.lowercase() }}"
+        pageTitle.isBlank() || pageTitle.equals(artistName, ignoreCase = true) -> {
+            if (kindWord.isNotBlank()) stringResource(R.string.artist_items_of, artistName, kindWord) else artistName
+        }
+        else -> stringResource(R.string.artist_items_of, artistName, pageTitle.replaceFirstChar { it.lowercase() })
     }
 
     var isGrid by rememberSaveable { mutableStateOf<Boolean?>(null) }
@@ -253,7 +264,7 @@ fun ArtistItemsScreen(
                             CreatorUi(name = it, avatarUrl = viewModel.artistId?.let { id -> com.mochyy.mochymusic.utils.ArtistPageCache.header(id)?.avatarUrl }, artistId = viewModel.artistId)
                         }
                     ),
-                    stats = "${songs.size} ${if (songs.size == 1) "song" else "songs"}",
+                    stats = pluralStringResource(R.plurals.artist_songs_count, songs.size, songs.size),
                     isPlaying = isThisQueue && isPlaying,
                     onPlayClick = { if (isThisQueue) playerConnection.togglePlayPause() else playSongs() },
                     onShuffleClick = { playSongs(shuffled = true) },
@@ -262,7 +273,11 @@ fun ArtistItemsScreen(
             } else {
                 ArtistSubpageHeader(
                     title = heading,
-                    subtitle = "${items.size}${if (itemsPage?.continuation != null) "+" else ""} ${kind?.word.orEmpty()}",
+                    subtitle = stringResource(
+                        R.string.artist_items_count_kind,
+                        "${items.size}${if (itemsPage?.continuation != null) "+" else ""}",
+                        kindWord,
+                    ),
                     // the artists' page is a grid of faces only
                     isGrid = if (kind == ItemsKind.Artists) null else gridMode,
                     onGridChange = { isGrid = it },
@@ -423,7 +438,7 @@ private fun ItemsRetry(onRetry: () -> Unit) {
             .padding(top = 24.dp)
     ) {
         Text(
-            text = "Couldn't load this page. Tap to try again",
+            text = stringResource(R.string.artist_items_load_failed),
             style = PlaylistStatsStyle,
             color = Color.White.copy(alpha = 0.7f),
             modifier = Modifier

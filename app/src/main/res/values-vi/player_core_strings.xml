@@ -4,7 +4,7 @@
     <string name="pc_style_default">Mặc định</string>
     <string name="pc_button_m3_expressive">Material 3 Expressive</string>
     <string name="pc_button_m3_expressive_plain">Material 3 Expressive - không nhãn</string>
-    <string name="pc_button_m3_tonal">Material 3 tonal</string>
+    <string name="pc_button_m3_tonal">Material 3 Tonal</string>
     <string name="pc_button_legacy">Android cũ</string>
     <string name="pc_seek_m3_expressive_1">Material 3 Expressive 1</string>
     <string name="pc_seek_m3_expressive_2">Material 3 Expressive thanh trượt 2</string>
@@ -236,7 +236,7 @@
     <string name="pc_stat_encoded">Đã mã hóa</string>
     <string name="pc_stat_route_speaker">Loa tích hợp</string>
     <string name="pc_stat_route_wired">Có dây</string>
-    <string name="pc_stat_route_usb">USB audio</string>
+    <string name="pc_stat_route_usb">Âm thanh USB</string>
     <string name="pc_stat_bluetooth">Bluetooth</string>
     <string name="pc_stat_dev_phone">Điện thoại này</string>
     <string name="pc_stat_dev_wired">Tai nghe có dây</string>

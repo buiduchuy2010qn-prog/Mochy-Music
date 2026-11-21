@@ -230,4 +230,11 @@
     <string name="rc_playlist_save_failed">Không thể lưu Playlist Re\'cap</string>
     <string name="rc_playlist_code_copied">Đã sao chép mã playlist mochypl1:</string>
     <string name="rc_playlist_code_failed">Không tạo được mã chia sẻ (chỉ hỗ trợ bài hát trực tuyến)</string>
+
+    <string name="rc_not_yet_play_any">khi bạn nghe ít nhất một bài hát</string>
+    <string name="rc_not_yet_unlock_date">vào ngày %2$d %1$s, sau khi bạn nghe %3$d bài</string>
+    <plurals name="rc_not_yet_more_songs">
+        <item quantity="other">sau khi bạn nghe thêm %1$d bài trong tháng này</item>
+    </plurals>
+    <string name="rc_unknown_artist">Nghệ sĩ không xác định</string>
 </resources>

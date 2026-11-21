@@ -45,7 +45,7 @@
     <string name="profile_picture_add_cd">Thêm ảnh hồ sơ</string>
 
     <!-- User Profile Page -->
-    <string name="profile_tag">PROFILE USR#%1$s</string>
+    <string name="profile_tag">HỒ SƠ USR#%1$s</string>
     <string name="profile_edit_button">Chỉnh sửa hồ sơ</string>
     <string name="profile_total_listens">Tổng lượt nghe</string>
     <plurals name="profile_unit_songs">

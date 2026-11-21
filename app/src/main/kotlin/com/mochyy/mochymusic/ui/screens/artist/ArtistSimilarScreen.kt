@@ -5,8 +5,10 @@ package com.mochyy.mochymusic.ui.screens.artist
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.utils.ArtistPageCache
 import com.mochyy.mochymusic.viewmodels.ArtistSimilarViewModel
@@ -26,10 +28,10 @@ fun ArtistSimilarScreen(
         navController = navController,
         bandImageUrl = header?.bannerUrl
             ?: (page?.artist?.thumbnail ?: viewModel.picks?.artistThumbnailUrl)?.resize(544, 544),
-        smallLine = "similar to",
+        smallLine = stringResource(R.string.artist_similar_kicker),
         bigLine = header?.name ?: page?.artist?.title ?: viewModel.picks?.artistName.orEmpty(),
         groups = groups,
         deepLoading = deepLoading,
-        artistsTitle = "Similar Artist",
+        artistsTitle = stringResource(R.string.artist_similar_title),
     )
 }

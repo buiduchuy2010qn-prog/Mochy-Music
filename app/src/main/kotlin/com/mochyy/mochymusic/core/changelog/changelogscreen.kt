@@ -62,7 +62,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -80,6 +79,7 @@ import com.mochyy.mochymusic.BuildConfig
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.core.updater.extractUrls
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -141,62 +141,70 @@ fun ChangelogScreen(
                 } else {
                     val changelogUrl = URL("https://github.com/buiduchuy2010qn-prog/Mochy-Music/releases/download/$tag/changelog.json")
                     val connection = changelogUrl.openConnection() as HttpURLConnection
+                    connection.connectTimeout = 10_000
+                    connection.readTimeout = 15_000
                     connection.setRequestProperty("User-Agent", "Mochy-Changelog-App")
                     connection.setRequestProperty("Accept", "application/json")
 
-                    if (connection.responseCode == 200) {
-                        val changelogJson = connection.inputStream.bufferedReader().use { it.readText() }
-                        val changelogData = JSONObject(changelogJson)
+                    try {
+                        if (connection.responseCode == 200) {
+                            val changelogJson = connection.inputStream.bufferedReader().use { it.readText() }
+                            val changelogData = JSONObject(changelogJson)
 
-                        val desc = changelogData.optString("description", null)
-                        val imageUrl = changelogData.optString("image", null)
-                        val warning = changelogData.optString("warning", null)
-                        val changelogArray = changelogData.optJSONArray("changelog")
+                            val desc = changelogData.optString("description", "").takeIf { it.isNotBlank() }
+                            val imageUrl = changelogData.optString("image", "").takeIf { it.isNotBlank() }
+                            val warning = changelogData.optString("warning", "").takeIf { it.isNotBlank() }
+                            val changelogArray = changelogData.optJSONArray("changelog")
 
-                        val sections = mutableListOf<ChangelogSection>()
-                        if (changelogArray != null) {
-                            for (i in 0 until changelogArray.length()) {
-                                val sectionObj = changelogArray.optJSONObject(i)
-                                if (sectionObj != null) {
-                                    val title = sectionObj.optString("title", "")
-                                    val itemsArray = sectionObj.optJSONArray("items")
-                                    val items = mutableListOf<String>()
-                                    if (itemsArray != null) {
-                                        for (j in 0 until itemsArray.length()) {
-                                            items.add(itemsArray.getString(j))
+                            val sections = mutableListOf<ChangelogSection>()
+                            if (changelogArray != null) {
+                                for (i in 0 until changelogArray.length()) {
+                                    val sectionObj = changelogArray.optJSONObject(i)
+                                    if (sectionObj != null) {
+                                        val title = sectionObj.optString("title", "")
+                                        val itemsArray = sectionObj.optJSONArray("items")
+                                        val items = mutableListOf<String>()
+                                        if (itemsArray != null) {
+                                            for (j in 0 until itemsArray.length()) {
+                                                items.add(itemsArray.getString(j))
+                                            }
                                         }
-                                    }
-                                    if (title.isNotBlank() || items.isNotEmpty()) {
-                                        sections.add(ChangelogSection(title, items))
-                                    }
-                                } else {
-
-                                    val item = changelogArray.optString(i, "")
-                                    if (item.isNotBlank()) {
-                                        if (sections.isEmpty() || sections[0].title.isNotBlank()) {
-                                            sections.add(0, ChangelogSection("", mutableListOf()))
+                                        if (title.isNotBlank() || items.isNotEmpty()) {
+                                            sections.add(ChangelogSection(title, items))
                                         }
-                                        (sections[0].items as MutableList<String>).add(item)
+                                    } else {
+
+                                        val item = changelogArray.optString(i, "")
+                                        if (item.isNotBlank()) {
+                                            if (sections.isEmpty() || sections[0].title.isNotBlank()) {
+                                                sections.add(0, ChangelogSection("", mutableListOf()))
+                                            }
+                                            (sections[0].items as MutableList<String>).add(item)
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        saveChangelogToCache(context, tag, sections, imageUrl, desc, warning)
-                        withContext(Dispatchers.Main) {
-                            changelogSections = sections
-                            updateImage = imageUrl.takeIf { !it.isNullOrBlank() }
-                            updateDescription = desc.takeIf { !it.isNullOrBlank() }
-                            updateWarning = warning.takeIf { !it.isNullOrBlank() }
-                            isLoading = false
-                            hasError = false
-                            showingCached = false
+                            saveChangelogToCache(context, tag, sections, imageUrl, desc, warning)
+                            withContext(Dispatchers.Main) {
+                                changelogSections = sections
+                                updateImage = imageUrl
+                                updateDescription = desc
+                                updateWarning = warning
+                                isLoading = false
+                                hasError = false
+                                showingCached = false
+                            }
+                        } else {
+                            Log.e("ChangelogScreen", "HTTP Error ${connection.responseCode} for $tag")
+                            withContext(Dispatchers.Main) { hasError = true; isLoading = false }
                         }
-                    } else {
-                        Log.e("ChangelogScreen", "HTTP Error ${connection.responseCode} for $tag")
-                        withContext(Dispatchers.Main) { hasError = true; isLoading = false }
+                    } finally {
+                        connection.disconnect()
                     }
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 Log.e("ChangelogScreen", "Error fetching changelog: ${e.message}")
                 withContext(Dispatchers.Main) {
@@ -529,9 +537,9 @@ private fun loadChangelogFromCache(context: Context, versionTag: String): Cached
 
         CachedChangelogData(
             sections = sections,
-            image = cacheData.optString("image", null).takeIf { !it.isNullOrBlank() },
-            description = cacheData.optString("description", null).takeIf { !it.isNullOrBlank() },
-            warning = cacheData.optString("warning", null).takeIf { !it.isNullOrBlank() }
+            image = cacheData.optString("image", "").takeIf { it.isNotBlank() },
+            description = cacheData.optString("description", "").takeIf { it.isNotBlank() },
+            warning = cacheData.optString("warning", "").takeIf { it.isNotBlank() }
         )
     } catch (e: Exception) { null }
 }

@@ -338,19 +338,19 @@ class MochyPlaylistCodecTest {
         assertTrue(encoded.isNotBlank())
 
         val decoded = MochyLibraryExtraCodec.decode(encoded)
-        assertNotNull(decoded?.audio)
-        assertEquals(v12OnlyAudio.eightDJson, decoded!!.audio!!.eightDJson)
-        assertEquals(1.0f, decoded.audio!!.playerCoverZoom!!, 0.0001f)
-        assertEquals(false, decoded.audio!!.canvasBestQuality)
+        val audio = requireNotNull(decoded?.audio)
+        assertEquals(v12OnlyAudio.eightDJson, audio.eightDJson)
+        assertEquals(1.0f, requireNotNull(audio.playerCoverZoom), 0.0001f)
+        assertEquals(false, audio.canvasBestQuality)
 
         // Legacy payload without "ed", "cz", "cb" still decodes cleanly with null defaults
         val legacyGz = gzipToBase64("""{"v":2,"alb":[],"art":[],"aq":"HIGH","ss":true}""")
         val decodedLegacy = MochyLibraryExtraCodec.decode(legacyGz)
-        assertNotNull(decodedLegacy?.audio)
-        assertEquals("HIGH", decodedLegacy!!.audio!!.audioQuality)
-        assertEquals(true, decodedLegacy.audio!!.skipSilence)
-        assertNull(decodedLegacy.audio!!.eightDJson)
-        assertNull(decodedLegacy.audio!!.playerCoverZoom)
-        assertNull(decodedLegacy.audio!!.canvasBestQuality)
+        val legacyAudio = requireNotNull(decodedLegacy?.audio)
+        assertEquals("HIGH", legacyAudio.audioQuality)
+        assertEquals(true, legacyAudio.skipSilence)
+        assertNull(legacyAudio.eightDJson)
+        assertNull(legacyAudio.playerCoverZoom)
+        assertNull(legacyAudio.canvasBestQuality)
     }
 }

@@ -20,7 +20,7 @@
     <string name="installing_system_update">Installing system\nupdate…</string>
     <string name="making_update_ready">Making Update ready, this may take a while</string>
     <string name="your_app_getting_better">Your App is getting even better…</string>
-    <string name="update_includes_features">This update includes new features and the latest from mochy-music %1$s, making your app even more helpful. Learn more at %2$s.</string>
+    <string name="update_includes_features">This update includes new features and the latest from Mochy Music %1$s, making your app even more helpful. Learn more at %2$s.</string>
     <string name="whats_new">What\'s new?</string>
     <string name="update_available">Update</string>
     <string name="checking_for_updates">Checking for updates…</string>
@@ -35,7 +35,7 @@
     <string name="mobile_network_warning">Downloading updates over a mobile network or while roaming may cause additional charges.</string>
     <string name="update_size">Update size: %1$s MB</string>
     <string name="check_internet_connection">Check your internet connection and try again.</string>
-    <string name="mochy_music_version">mochy MUSIC version %1$s</string>
+    <string name="mochy_music_version">Mochy Music version %1$s</string>
     <string name="last_checked">Last checked: %1$s</string>
     <string name="install">Install</string>
     <string name="check_for_update">Check for update</string>
@@ -53,12 +53,12 @@
     <string name="later">Later</string>
 
 
-    <string name="mochy_music_title">mochy MUSIC</string>
+    <string name="mochy_music_title">MOCHY MUSIC</string>
     <string name="developer_section">DEVELOPER</string>
     <string name="collaborator_section">COLLABORATOR</string>
     <string name="app_info_section">APP INFO</string>
     <string name="community_section">COMMUNITY</string>
-    <string name="developer_name">mochyDH P ASHOKAN</string>
+    <string name="developer_name">Đức Huy &amp; Mochy Team</string>
     <string name="app_developer">Lead Developer</string>
     <string name="website">Website</string>
     <string name="collaborator_tboyke">T-Boyke</string>
@@ -95,4 +95,29 @@
     <string name="channel_yes">Yes</string>
     <string name="channel_no">No</string>
     <string name="update_allow_unknown_apps">Let Mochy install unknown apps in Settings, then come back and press Install here again.</string>
+
+    <!-- About Credits & Licenses (v12.3.1) -->
+    <string name="about_maintainer_section">Maintainer &amp; Vietnamese Edition (Official)</string>
+    <string name="about_maintainer_subtitle">Maintainer, 100% Vietnamese localization &amp; Android · Windows · Linux builds (OTA)</string>
+    <string name="about_dev_huy_name">Đức Huy (Maintainer &amp; Localization)</string>
+    <string name="about_dev_roo_name">Roo (Original Author)</string>
+    <string name="about_dev_key_name">key (Co-Author)</string>
+    <string name="about_credit_vivi">ViviMusic dev · base project of this app</string>
+    <string name="about_credit_metrolist">Metrolist dev · upstream foundation of ViviMusic</string>
+    <string name="about_credit_simpmusic">SimpMusic · lyrics API provider</string>
+    <string name="about_credit_archivetune">ArchiveTune · design &amp; architecture inspiration</string>
+    <string name="about_credit_rimusic">RiMusic · YouTube Music InnerTube service wrapper</string>
+    <string name="about_credit_lrclib">LRCLIB · synchronized LRC lyrics provider</string>
+    <string name="about_credit_monochrome">Monochrome Music · lossless FLAC streams</string>
+    <string name="about_credit_autoeq">AutoEq · headphone equalizer database</string>
+    <string name="about_credit_lyricsplus">LyricsPlus · open source lyrics server</string>
+    <string name="about_credit_betterlyrics">Better Lyrics API · synced syllable lyrics</string>
+    <string name="about_license_mochy">Free and open source software, source code on GitHub</string>
+    <string name="about_license_vivi">by vivizzz007 · base project this app was forked from</string>
+    <string name="about_license_metrolist">by Mostafa Alagamy · base framework</string>
+    <string name="about_license_simpmusic">by maxrave-dev · lyrics provider integration</string>
+    <string name="about_license_archivetune">by Rukamori · design and architectural inspiration</string>
+    <string name="about_license_rimusic">by fast4x · InnerTube API wrapper</string>
+    <string name="about_license_lrclib">by tranxuanthang · synchronized lyrics database</string>
+    <string name="about_license_autoeq">by Jaakko Pasanen · headphone correction profiles</string>
 </resources>

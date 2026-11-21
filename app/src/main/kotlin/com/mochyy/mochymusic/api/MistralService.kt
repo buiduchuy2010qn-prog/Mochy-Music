@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -123,6 +124,12 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                         JSONArray().apply {
                             put(
                                 JSONObject().apply {
+                                    put("role", "system")
+                                    put("content", systemPrompt)
+                                },
+                            )
+                            put(
+                                JSONObject().apply {
                                     put("role", "user")
                                     put("content", userPrompt)
                                 },
@@ -131,7 +138,7 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
 
                     val jsonBody =
                         JSONObject().apply {
-                            put("model", if (model.isNotBlank()) model else "mistral-small-latest")
+                            put("model", if (model.isNotBlank()) model.trim() else "mistral-small-latest")
                             put("messages", messages)
                             put("temperature", 0.3)
                             put("max_tokens", lineCount * 100)
@@ -149,27 +156,33 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                             .post(jsonBody.toString().toRequestBody(JSON))
                             .build()
 
-                    val response = client.newCall(request).execute()
-                    val responseBody = response.body?.string()
+                    val (isOk, codeMsgBody) = client.newCall(request).execute().use { response ->
+                        response.isSuccessful to Triple(response.code, response.message, response.body.string())
+                    }
+                    val (code, statusMsg, responseBody) = codeMsgBody
 
-                    if (!response.isSuccessful) {
-                        if (response.code >= 500) {
+                    if (!isOk) {
+                        if (code >= 500 || code == 429) {
                             currentAttempt++
                             kotlinx.coroutines.delay(1000L * currentAttempt)
                             continue
                         }
 
                         val errorMsg =
-                            try {
-                                JSONObject(responseBody ?: "").optJSONObject("error")?.optString("message")
-                                    ?: "HTTP ${response.code}: ${response.message}"
-                            } catch (e: Exception) {
-                                "HTTP ${response.code}: ${response.message}"
+                            if (responseBody.isNotBlank()) {
+                                try {
+                                    JSONObject(responseBody).optJSONObject("error")?.optString("message")?.ifBlank { null }
+                                        ?: "HTTP $code: $statusMsg"
+                                } catch (_: Exception) {
+                                    "HTTP $code: $statusMsg"
+                                }
+                            } else {
+                                "HTTP $code: $statusMsg"
                             }
                         return@withContext Result.failure(Exception("Translation failed: $errorMsg"))
                     }
 
-                    if (responseBody == null) {
+                    if (responseBody.isBlank()) {
                         currentAttempt++
                         continue
                     }
@@ -186,14 +199,14 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                             try {
                                 val jsonArray = JSONArray(content)
                                 translatedLines = (0 until jsonArray.length()).map { jsonArray.optString(it) }
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
 
                                 content = content.replace("```json", "").replace("```", "").trim()
 
                                 try {
                                     val jsonArray = JSONArray(content)
                                     translatedLines = (0 until jsonArray.length()).map { jsonArray.optString(it) }
-                                } catch (e2: Exception) {
+                                } catch (_: Exception) {
 
                                     val startIdx = content.indexOf('[')
                                     val endIdx = content.lastIndexOf(']')
@@ -203,7 +216,7 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                                         try {
                                             val jsonArray = JSONArray(jsonString)
                                             translatedLines = (0 until jsonArray.length()).map { jsonArray.optString(it) }
-                                        } catch (e3: Exception) {
+                                        } catch (_: Exception) {
 
                                             translatedLines =
                                                 content
@@ -231,6 +244,8 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                             }
                         }
                     }
+                } catch (ce: CancellationException) {
+                    throw ce
                 } catch (e: Exception) {
                     if (currentAttempt == maxRetries - 1) {
                         return@withContext Result.failure(e)

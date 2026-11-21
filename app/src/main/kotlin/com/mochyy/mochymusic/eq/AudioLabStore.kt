@@ -489,7 +489,7 @@ class AudioLabStore @Inject constructor(
                         prevActive == null ||
                         updatedActive.updatedAtMs > prevActive.updatedAtMs
                     )
-                if (shouldApply && updatedActive != null && updatedActive.snapshot.normalized() != currentProfileSnapshot().normalized()) {
+                if (shouldApply && updatedActive.snapshot.normalized() != currentProfileSnapshot().normalized()) {
                     applyProfileSnapshot(updatedActive.snapshot)
                     changed = true
                 }

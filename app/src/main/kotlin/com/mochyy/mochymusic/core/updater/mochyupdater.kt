@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import com.mochyy.mochymusic.core.updater.downloadmanager.UpdateDownloadWorker
 import com.mochyy.mochymusic.core.updater.downloadmanager.DownloadNotificationManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -67,6 +68,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -92,7 +94,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.painterResource
@@ -636,8 +637,21 @@ suspend fun checkForUpdate(
 
             if (betaEnabled) {
                 try {
-                    val nightlyUrl = URL("https://api.github.com/repos/realidkroo/Mochy-Music/actions/workflows/nightly.yml/runs?status=success&per_page=1")
-                    val nightlyJson = nightlyUrl.openStream().bufferedReader().use { it.readText() }
+                    val nightlyUrl = URL("https://api.github.com/repos/buiduchuy2010qn-prog/Mochy-Music/actions/workflows/nightly.yml/runs?status=success&per_page=1")
+                    val nightlyConn = (nightlyUrl.openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 10_000
+                        readTimeout = 15_000
+                        setRequestProperty("Accept", "application/vnd.github+json")
+                        setRequestProperty("User-Agent", "Mochy-Music")
+                    }
+                    val nightlyJson = try {
+                        if (nightlyConn.responseCode != HttpURLConnection.HTTP_OK) {
+                            error("Nightly HTTP ${nightlyConn.responseCode}")
+                        }
+                        nightlyConn.inputStream.bufferedReader().use { it.readText() }
+                    } finally {
+                        nightlyConn.disconnect()
+                    }
                     val nightlyData = JSONObject(nightlyJson)
                     val runs = nightlyData.optJSONArray("workflow_runs")
                     if (runs != null && runs.length() > 0) {
@@ -670,6 +684,8 @@ suspend fun checkForUpdate(
                             nightlyRunObject = firstRun
                         }
                     }
+                } catch (ce: CancellationException) {
+                    throw ce
                 } catch (e: Exception) {
                     Log.e("UpdateCheck", "Error checking nightly updates: ${e.message}", e)
                 }
@@ -688,7 +704,7 @@ suspend fun checkForUpdate(
                 changelogList.add(ChangelogSection(context.getString(R.string.changelog), listOf(subjectLine)))
 
                 val formattedReleaseDate = formatGitHubDate(runUpdatedAt)
-                val apkDownloadUrl = "https://nightly.link/realidkroo/Mochy-Music/workflows/nightly.yml/main/mochy-gms-nightly.zip"
+                val apkDownloadUrl = "https://nightly.link/buiduchuy2010qn-prog/Mochy-Music/workflows/nightly.yml/main/mochy-gms-nightly.zip"
 
                 withContext(Dispatchers.Main) {
                     onSuccess(displayTag, true, changelogList, "~30", formattedReleaseDate, "Bản dựng thử nghiệm mới nhất từ nhánh chính.", null, apkDownloadUrl)

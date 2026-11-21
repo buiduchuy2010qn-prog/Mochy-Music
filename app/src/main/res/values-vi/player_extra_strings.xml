@@ -35,6 +35,6 @@
     <string name="sheet_label_all">tất cả</string>
 
     <!-- Device output -->
-    <string name="ps_device_usb_audio">USB audio</string>
+    <string name="ps_device_usb_audio">Âm thanh USB</string>
     <string name="ps_device_usb_dac">USB DAC</string>
 </resources>

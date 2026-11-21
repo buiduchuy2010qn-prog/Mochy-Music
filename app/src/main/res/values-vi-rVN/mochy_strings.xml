@@ -239,7 +239,7 @@
     <string name="show_artist_description">Hiển thị mô tả nghệ sĩ</string>
     <string name="show_artist_subscriber_count">Hiện số lượng người đăng ký</string>
     <string name="show_artist_monthly_listeners">Hiển thị số lượt nghe hằng tháng</string>
-    <string name="wrapped_logo_content_description">mochy Logo</string>
+    <string name="wrapped_logo_content_description">Logo Mochy</string>
     <string name="wrapped_year">2025</string>
     <string name="listen_together_join_room">Tham gia phòng</string>
     <string name="listen_together_create_room_desc">Tạo phòng và chia sẽ mã cho bạn bè</string>
@@ -269,7 +269,7 @@
     <string name="error_copy_hint">Sao chép thông tin lỗi để giúp nhà phát triển gỡ lỗi</string>
     <string name="album_art">Ảnh bìa album</string>
     <string name="no_song_playing">Không có bài hát đang phát</string>
-    <string name="tap_to_open">Chạm để mở mochy</string>
+    <string name="tap_to_open">Chạm để mở Mochy</string>
     <string name="previous">Bài trước</string>
     <string name="play_pause">Phát/Tạm dừng</string>
     <string name="next">Bài tiếp</string>
@@ -350,7 +350,7 @@
     <string name="crash_description">Đã xảy ra lỗi không mong muốn. Vui lòng chia sẻ báo cáo sự cố để giúp chúng tôi khắc phục lỗi.</string>
     <string name="crash_share_logs">Chia sẻ nhật ký</string>
     <string name="crash_share_title">Chia sẻ báo cáo sự cố</string>
-    <string name="crash_report_subject">Báo cáo sự cố mochy</string>
+    <string name="crash_report_subject">Báo cáo sự cố Mochy</string>
     <string name="crash_close">Đóng</string>
     <string name="crash_no_log">Không có nhật ký sự cố</string>
     <string name="palette_crimson">Đỏ thẫm</string>
@@ -387,7 +387,7 @@
     <string name="remember_shuffle_and_repeat_desc">Nhớ chế độ ngẫu nhiên &amp; lặp khi mở lại ứng dụng</string>
     <string name="pause_music_when_media_is_muted">Tạm dừng nhạc khi tắt tiếng media</string>
     <string name="keep_screen_on_when_player_is_expanded">Giữ màn hình bật khi mở trình phát</string>
-    <string name="last_fm_send_likes_description">Đánh dấu yêu thích/bỏ yêu thích bài hát trên Last.fm khi chúng được thích/bỏ thích trong mochy</string>
+    <string name="last_fm_send_likes_description">Đánh dấu yêu thích/bỏ yêu thích bài hát trên Last.fm khi chúng được thích/bỏ thích trong Mochy</string>
     <string name="logging_in">Đang đăng nhập…</string>
     <string name="hide_video_songs">Ẩn bài hát video</string>
     <string name="details_desc">Xem thông tin bài hát</string>
@@ -515,7 +515,7 @@
     <string name="scrobble_sign_up">Chưa có tài khoản? Tạo trên %1$s</string>
     <string name="scrobble_api_key_label">Last.fm API Key</string>
     <string name="scrobble_api_key_hint">Dán Last.fm API Key của bạn</string>
-    <string name="scrobble_shared_secret_label">Shared Secret</string>
+    <string name="scrobble_shared_secret_label">Khóa bí mật chia sẻ</string>
     <string name="scrobble_shared_secret_hint">Dán Shared Secret từ Last.fm</string>
     <string name="scrobble_create_api_key">Chưa có API Key? Tạo nhanh miễn phí trên Last.fm</string>
     <string name="enable_scrobbling">Bật scrobble</string>
@@ -537,7 +537,7 @@
     <string name="cache_size_warning_confirm">Tiếp tục</string>
     <string name="lyrics_animation_style">Kiểu hiệu ứng từng từ</string>
     <string name="apple_music_style_letter">Apple Music V2 (Từng chữ cái)</string>
-    <string name="mochy_1">mochy (Mượt)</string>
+    <string name="mochy_1">Mochy (Mượt)</string>
     <string name="apple_music_lyrics_blur">Làm mờ lời bài hát kiểu Apple Music</string>
     <string name="apple_music_lyrics_blur_desc">Làm mờ các dòng lời chưa hát để tập trung hơn</string>
     <string name="lyrics_v2_fluid">Lời bài hát V2 (Mượt)</string>
@@ -565,17 +565,17 @@
     <string name="wrapped_total_artists_subtitle">nghệ sĩ khác nhau</string>
     <string name="wrapped_total_songs_title">Bạn đã nghe</string>
     <string name="wrapped_total_songs_subtitle">bài hát khác nhau</string>
-    <string name="wrapped_intro_title">mochy</string>
+    <string name="wrapped_intro_title">Mochy</string>
     <string name="wrapped_intro_subtitle">đến lúc xem bạn đã nghe gì rồi</string>
     <string name="wrapped_intro_button">bắt đầu nào!</string>
-    <string name="wrapped_end_thanks">Cảm ơn bạn đã nghe nhạc cùng mochy!</string>
+    <string name="wrapped_end_thanks">Cảm ơn bạn đã nghe nhạc cùng Mochy!</string>
     <string name="wrapped_end_create_playlist">Tạo danh sách phát Wrapped của bạn</string>
     <string name="wrapped_end_creating_playlist">Đang tạo...</string>
     <string name="wrapped_end_playlist_saved">Đã lưu danh sách phát</string>
     <string name="wrapped_ready_title">WRAPPED CỦA BẠN ĐÃ SẴN SÀNG!</string>
     <string name="wrapped_ready_subtitle">Cùng xem bạn đã yêu thích gì trong năm nay.</string>
     <string name="wrapped_thank_you">Cảm ơn bạn đã lắng nghe</string>
-    <string name="wrapped_special_thanks">Cảm ơn đặc biệt tới mochydh đã tạo ra mochy</string>
+    <string name="wrapped_special_thanks">Cảm ơn bạn đã đồng hành cùng Mochy Music</string>
     <string name="wrapped_close">Đóng Wrapped</string>
     <string name="wrapped_playlist_title">Wrapped %s của bạn</string>
     <string name="wrapped_create_playlist">Tạo danh sách phát</string>
@@ -600,7 +600,7 @@
     <string name="import_error_title">Lỗi nhập</string>
     <string name="error_title">Lỗi</string>
     <string name="error_eq_apply_failed">Không áp dụng được hồ sơ EQ: %1$s</string>
-    <string name="mochy_equalizer">mochyEqualizer</string>
+    <string name="mochy_equalizer">Mochy Equalizer</string>
     <string name="mochy_equalizer_desc">Tinh chỉnh âm thanh chuyên nghiệp &amp; hiệu ứng</string>
     <string name="eq_simple">Đơn giản</string>
     <string name="eq_advanced">Nâng cao</string>
@@ -608,7 +608,7 @@
     <string name="eq_label_mid">Trung</string>
     <string name="eq_label_treble">Cao</string>
     <string name="eq_preset_flat">Phẳng</string>
-    <string name="eq_preset_mochy_signature">mochy Signature</string>
+    <string name="eq_preset_mochy_signature">Mochy Signature</string>
     <string name="eq_preset_acoustic">Acoustic</string>
     <string name="eq_preset_spatial">Sân khấu 3D</string>
     <string name="eq_preset_bass_boost">Tăng trầm</string>
@@ -625,9 +625,9 @@
     <string name="eq_preset_dirac_music">Dirac Music</string>
     <string name="eq_preset_dirac_movie">Dirac Movie</string>
     <string name="eq_preset_dirac_game">Dirac Game</string>
-    <string name="eq_enable_title">mochyEqualizer</string>
+    <string name="eq_enable_title">Mochy Equalizer</string>
     <string name="eq_enable_summary">Bật/tắt xử lý âm thanh chuyên nghiệp</string>
-    <string name="eq_label_mochy">mochy Signature</string>
+    <string name="eq_label_mochy">Mochy Signature</string>
     <string name="eq_label_dolby">Dolby Atmos</string>
     <string name="eq_label_dirac">Dirac Audio</string>
     <string name="eq_reset">Đặt lại</string>
@@ -643,9 +643,9 @@
     <string name="plays">lượt phát</string>
     <string name="casting_to">Đang truyền tới %s</string>
     <string name="progress_percent">Tiến độ %s%%</string>
-    <string name="listening_to_mochy">Đang nghe mochy</string>
+    <string name="listening_to_mochy">Đang nghe Mochy</string>
     <string name="listen_on_youtube_music">Nghe trên YouTube Music</string>
-    <string name="visit_mochy">Truy cập mochy</string>
+    <string name="visit_mochy">Truy cập Mochy</string>
     <string name="open">Mở</string>
     <string name="failed_to_create_image">Không tạo được ảnh: %s</string>
     <string name="copied_title">Đã sao chép tiêu đề</string>
@@ -654,7 +654,7 @@
     <string name="failed_to_parse_proxy">Không phân tích được URL proxy.</string>
     <string name="error_playback_failed">Phát nhạc thất bại</string>
     <string name="not_playing">Không có bài hát nào đang phát</string>
-    <string name="tap_to_play">Chạm để mở mochy</string>
+    <string name="tap_to_play">Chạm để mở Mochy</string>
     <string name="queue_widget_description">Trình phát nhạc có xem trước hàng đợi</string>
     <string name="turntable_widget_description">Widget nhạc hình tròn có nút phát và thích</string>
     <string name="widget_music_player">Trình phát nhạc</string>
@@ -725,7 +725,7 @@
     <string name="delete_from_history">Xóa khỏi lịch sử</string>
     <string name="re_listen">Nghe lại</string>
     <string name="hold_to_recognize">Giữ biểu tượng tìm kiếm để nhận diện nhạc</string>
-    <string name="play_on_app">Phát trên mochy</string>
+    <string name="play_on_app">Phát trên Mochy</string>
     <string name="recognized_track">Bài hát đã nhận diện</string>
     <string name="map_csv_columns">Ánh xạ cột CSV</string>
     <string name="first_row_is_header">Dòng đầu là tiêu đề</string>
@@ -763,9 +763,9 @@
     <string name="discord_rpc_preview">Xem trước Rich Presence</string>
     <string name="discord_presence">Trạng thái hiện diện</string>
     <string name="discord_connect_description">Đăng nhập Discord để chia sẻ bài bạn đang nghe</string>
-    <string name="discord_playing_mochy">Đang chơi mochy</string>
-    <string name="discord_watching_mochy">Đang xem mochy</string>
-    <string name="discord_competing_mochy">Đang thi đấu trong mochy</string>
+    <string name="discord_playing_mochy">Đang chơi Mochy</string>
+    <string name="discord_watching_mochy">Đang xem Mochy</string>
+    <string name="discord_competing_mochy">Đang thi đấu trong Mochy</string>
     <string name="discord_activity_name">Tên hoạt động</string>
     <string name="discord_activity_name_description">Tên tùy chỉnh cho hoạt động (để trống để dùng mặc định)</string>
     <string name="discord_advanced_mode">Chế độ nâng cao</string>
@@ -820,14 +820,14 @@
     <string name="get_started">Bắt đầu</string>
     <string name="perm_required">Bắt buộc</string>
     <string name="perm_permissions">Quyền truy cập</string>
-    <string name="perm_intro_text">mochy cần các quyền này để hoạt động đúng. Vui lòng cấp quyền để tiếp tục.</string>
+    <string name="perm_intro_text">Mochy cần các quyền này để hoạt động đúng. Vui lòng cấp quyền để tiếp tục.</string>
     <string name="perm_notif_title">Thông báo</string>
     <string name="perm_notif_desc">Biết ngay khi nhạc đang phát và điều khiển từ thanh thông báo.</string>
     <string name="perm_install_title">Cài đặt ứng dụng</string>
     <string name="perm_install_desc">Cần để tải xuống và cài đặt bản cập nhật ứng dụng một cách liền mạch.</string>
     <string name="feat_discover">Khám phá</string>
     <string name="feat_features">Tính năng</string>
-    <string name="feat_intro">Khám phá mọi thứ mochy mang lại cho hành trình âm nhạc của bạn.</string>
+    <string name="feat_intro">Khám phá mọi thứ Mochy mang lại cho hành trình âm nhạc của bạn.</string>
     <string name="feat_lyrics_title">Lời bài hát thông minh</string>
     <string name="feat_lyrics_desc">Thưởng thức lời bài hát đồng bộ từng từ cho hàng triệu bài hát.</string>
     <string name="feat_download_title">Phát ngoại tuyến</string>
@@ -845,7 +845,7 @@
     <string name="welcome_update_status">Cập nhật</string>
     <string name="welcome_update_intro">Đảm bảo bạn có các tính năng mới nhất và cải tiến bảo mật.</string>
     <string name="welcome_checking_updates">Đang kiểm tra cập nhật…</string>
-    <string name="welcome_up_to_date">mochy đã là bản mới nhất!</string>
+    <string name="welcome_up_to_date">Mochy đã là bản mới nhất!</string>
     <string name="welcome_update_available">Có phiên bản mới: %s</string>
     <string name="welcome_everything_ready">Mọi thứ đã được cập nhật</string>
     <string name="commits_title">Commit</string>
@@ -1228,4 +1228,44 @@
     <string name="yt_login_device_picker_prompt">Bỏ qua nhập tay — chọn Gmail trên máy</string>
     <string name="yt_login_prefilled_email">Đã điền sẵn: %1$s</string>
     <string name="yt_login_device_picker_unavailable">Thiết bị này không hỗ trợ hộp thoại chọn tài khoản Google.</string>
+
+    <!-- Cast, Import, Backup & Media Info (v12.3.1) -->
+    <string name="cast_title_casting">Đang truyền phát</string>
+    <string name="cast_title_to">Truyền phát tới</string>
+    <string name="cast_connecting">Đang kết nối…</string>
+    <string name="cast_connected">Đã kết nối</string>
+    <string name="cast_disconnect">Ngắt kết nối</string>
+    <string name="cast_no_devices">Không tìm thấy thiết bị Cast</string>
+    <string name="cast_same_wifi_hint">Hãy đảm bảo thiết bị dùng chung mạng Wi-Fi</string>
+    <string name="cast_play_song_first">Hãy phát một bài hát trước khi truyền</string>
+    <string name="cast_stop_desc">Dừng truyền phát</string>
+    <string name="cast_start_desc">Truyền phát</string>
+    <string name="lib_folder_access_lost">Không thể giữ quyền truy cập thư mục đó. Hãy thử chọn lại.</string>
+    <string name="lib_folder_all_in_library">Tất cả bài hát trong thư mục đó đã có trong thư viện</string>
+    <plurals name="lib_restored_covers">
+        <item quantity="other">Đã khôi phục %1$d ảnh bìa</item>
+    </plurals>
+    <string name="lib_import_still_running">Một tác vụ nhập nhạc khác đang chạy. Vui lòng thử lại sau khi hoàn tất.</string>
+    <plurals name="lib_cancelled_downloads">
+        <item quantity="other">Đã hủy %1$d lượt tải</item>
+    </plurals>
+    <plurals name="lib_songs_count">
+        <item quantity="other">%1$d bài hát</item>
+    </plurals>
+    <string name="lib_removed_imported">Đã xóa %1$s bạn đã nhập</string>
+    <string name="lib_undid_import">Đã hoàn tác lần nhập gần nhất: đã xóa %1$s</string>
+    <string name="lib_no_import_to_undo">Không có lần nhập nào để hoàn tác</string>
+    <string name="lib_removed_imported_from">Đã xóa %1$s đã nhập từ %2$s</string>
+    <string name="lib_undid_local_import">Đã hoàn tác lần nhập nhạc máy gần nhất: đã xóa %1$s</string>
+    <string name="lib_no_local_import_to_undo">Không có lần nhập nhạc máy nào để hoàn tác</string>
+    <string name="lib_removed_local_songs">Đã xóa %1$s khỏi thư viện. Tệp gốc vẫn được giữ trên máy.</string>
+    <string name="onb_backup_open_failed">Không thể mở tệp này.</string>
+    <string name="onb_backup_default_playlist">Danh sách phát đã nhập</string>
+    <string name="onb_backup_empty">Không tìm thấy bài hát nào trong tệp này.</string>
+    <string name="onb_backup_running">Một tác vụ nhập khác vẫn đang chạy.</string>
+    <string name="onb_backup_read_failed">Không thể đọc tệp này. Hãy đảm bảo đây là tệp sao lưu .csv.</string>
+    <string name="backup_csv_preview_failed">Không thể xem trước tệp CSV</string>
+    <string name="backup_csv_import_failed">Không thể nhập tệp CSV</string>
+    <string name="backup_csv_no_songs_found">Không tìm thấy bài hát nào. Tệp không hợp lệ hoặc không khớp bài hát nào.</string>
+    <string name="media_info_copied">Đã sao chép %1$s</string>
 </resources>

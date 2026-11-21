@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -59,7 +60,7 @@ fun ComingSoonScreen(
             IconButton(onClick = { navController.navigateUp() }) {
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.artist_back_desc),
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -95,14 +96,14 @@ fun ComingSoonScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Coming Soon",
+                    text = stringResource(R.string.coming_soon_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "$sectionTitle is still a work in progress.",
+                    text = stringResource(R.string.coming_soon_desc, sectionTitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                 )

@@ -109,6 +109,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -154,6 +155,7 @@ import com.mochyy.mochymusic.ui.screens.recap.HeaderText
 import com.mochyy.mochymusic.ui.screens.recap.IdCardBack
 import com.mochyy.mochymusic.ui.screens.recap.RecapAnchors
 import com.mochyy.mochymusic.ui.screens.recap.RecapAvailability
+import com.mochyy.mochymusic.ui.screens.recap.RecapNotYetReason
 import com.mochyy.mochymusic.ui.screens.recap.RecapRepository
 import com.mochyy.mochymusic.ui.screens.recap.RecapStoryData
 import com.mochyy.mochymusic.ui.screens.recap.RecapStoryHost
@@ -400,7 +402,7 @@ fun ProfileScreen(navController: NavController) {
                     story = RecapStoryData(
                         stats = r.stats,
                         monthProgress = r.monthProgressPercent,
-                        username = accountName,
+                        username = accountName.ifBlank { context.getString(R.string.profile_greeting_fallback) },
                         photo = photo,
                         cardNumber = cardNumber,
                         joinedText = joinedText,
@@ -754,8 +756,24 @@ fun ProfileScreen(navController: NavController) {
                                 modifier = Modifier.graphicsLayer { alpha = if (invalid) 1f else 1f - scratch.dissolve.value },
                             )
                             if (invalid) {
+                                val notYet = recap as? RecapAvailability.NotYet
+                                val comeBackText = when (val reason = notYet?.reason) {
+                                    RecapNotYetReason.PlayAnySong -> stringResource(R.string.rc_not_yet_play_any)
+                                    is RecapNotYetReason.WaitForFirstDay -> stringResource(
+                                        R.string.rc_not_yet_unlock_date,
+                                        reason.monthName,
+                                        reason.firstDay,
+                                        reason.minSongs,
+                                    )
+                                    is RecapNotYetReason.NeedMoreSongs -> pluralStringResource(
+                                        R.plurals.rc_not_yet_more_songs,
+                                        reason.missing,
+                                        reason.missing,
+                                    )
+                                    null -> notYet?.comeBack.orEmpty()
+                                }
                                 Text(
-                                    text = (recap as? RecapAvailability.NotYet)?.comeBack.orEmpty(),
+                                    text = comeBackText,
                                     style = PageTitle.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, color = Color.White.copy(alpha = 0.6f)),
                                     modifier = Modifier.padding(top = 6.dp),
                                 )

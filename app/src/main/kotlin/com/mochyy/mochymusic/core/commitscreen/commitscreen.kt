@@ -62,10 +62,12 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import java.net.HttpURLConnection
 import java.net.URL
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -106,7 +108,20 @@ fun CommitScreen(
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val url = URL("https://api.github.com/repos/buiduchuy2010qn-prog/Mochy-Music/commits?branch=main&per_page=50")
-                val json = url.openStream().bufferedReader().use { it.readText() }
+                val connection = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 10_000
+                    readTimeout = 15_000
+                    setRequestProperty("Accept", "application/vnd.github+json")
+                    setRequestProperty("User-Agent", "Mochy-Music")
+                }
+                val json = try {
+                    if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                        error("HTTP ${connection.responseCode}: ${connection.responseMessage}")
+                    }
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } finally {
+                    connection.disconnect()
+                }
                 val array = JSONArray(json)
                 val outputFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 
@@ -126,13 +141,13 @@ fun CommitScreen(
                     val rawDate = authorObj.optString("date", "")
                     val formattedDate = try {
                         ZonedDateTime.parse(rawDate).format(outputFormatter)
-                    } catch (e: Exception) { rawDate }
+                    } catch (_: Exception) { rawDate }
 
                     val authorLogin = if (!obj.isNull("author")) {
-                        obj.getJSONObject("author").optString("login", null)
+                        obj.getJSONObject("author").optString("login", "").takeIf { it.isNotBlank() }
                     } else null
                     val authorAvatarUrl = if (!obj.isNull("author")) {
-                        obj.getJSONObject("author").optString("avatar_url", null)
+                        obj.getJSONObject("author").optString("avatar_url", "").takeIf { it.isNotBlank() }
                     } else null
 
                     list.add(CommitData(sha, message, authorName, authorAvatarUrl, authorLogin, formattedDate, htmlUrl))
@@ -143,6 +158,8 @@ fun CommitScreen(
                     isLoading = false
                     hasError = false
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 Log.e("CommitScreen", "Error fetching commits: ${e.message}")
                 withContext(Dispatchers.Main) {

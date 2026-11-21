@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
@@ -66,9 +67,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -96,8 +99,10 @@ import com.mochyy.mochymusic.ui.component.GlassState
 import com.mochyy.mochymusic.ui.component.LocalBottomSheetPageState
 import com.mochyy.mochymusic.ui.component.PopupSheetHandle
 import com.mochyy.mochymusic.ui.component.ProgressiveGlassBackground
+import com.mochyy.mochymusic.ui.component.RemoteFocus
 import com.mochyy.mochymusic.ui.component.TopToaster
 import com.mochyy.mochymusic.ui.component.glassRoot
+import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
 import com.mochyy.mochymusic.ui.utils.stableSystemBars
@@ -131,6 +136,7 @@ fun StatsScreen(navController: NavController) {
     val database = LocalDatabase.current
     val context = LocalContext.current
     val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val sheets = LocalBottomSheetPageState.current
     val (profilePicUri) = rememberPreference(ProfilePicUriKey, "")
@@ -290,7 +296,7 @@ fun StatsScreen(navController: NavController) {
                     fun buildRecapData(s: ListeningStats): RecapStoryData = RecapStoryData(
                         stats = s,
                         monthProgress = RecapRepository.progressOf(s.range, today),
-                        username = username,
+                        username = username.ifBlank { context.getString(R.string.profile_greeting_fallback) },
                         photo = photo,
                         cardNumber = cardNumber,
                         joinedText = joinedText,
@@ -307,16 +313,24 @@ fun StatsScreen(navController: NavController) {
                                 .horizontalScroll(rememberScrollState())
                                 .padding(start = PagePadding, end = PagePadding, top = 4.dp, bottom = 14.dp),
                     ) {
+                        val expandInteraction = remember { MutableInteractionSource() }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier =
                                 Modifier
+                                    .pressBounce(expandInteraction)
                                     .clip(CircleShape)
                                     .background(ChipBg)
-                                    .clickable {
-                                        val open = !allOpen
-                                        CardKeys.forEach { expanded[it] = open }
-                                    }.padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
+                                    .clickable(
+                                        interactionSource = expandInteraction,
+                                        indication = RemoteFocus,
+                                        onClick = {
+                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            val open = !allOpen
+                                            CardKeys.forEach { expanded[it] = open }
+                                        },
+                                    )
+                                    .padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
                         ) {
                             Text(
                                 stringResource(if (allOpen) R.string.rc_stats_collapse_all else R.string.rc_stats_expand_all),
@@ -326,14 +340,23 @@ fun StatsScreen(navController: NavController) {
                             Chevron(open = allOpen, size = 18)
                         }
                         if (currentStats != null && !currentStats.isEmpty) {
+                            val watchInteraction = remember { MutableInteractionSource() }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp),
                                 modifier =
                                     Modifier
+                                        .pressBounce(watchInteraction)
                                         .clip(CircleShape)
                                         .background(Color.White)
-                                        .clickable { replayStoryData = buildRecapData(currentStats) }
+                                        .clickable(
+                                            interactionSource = watchInteraction,
+                                            indication = RemoteFocus,
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                replayStoryData = buildRecapData(currentStats)
+                                            },
+                                        )
                                         .padding(horizontal = 13.dp, vertical = 7.dp),
                             ) {
                                 Icon(
@@ -347,14 +370,23 @@ fun StatsScreen(navController: NavController) {
                                     style = statsText(13f, FontWeight.Bold, color = Color(0xFF121212), tracking = 0f),
                                 )
                             }
+                            val exportInteraction = remember { MutableInteractionSource() }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp),
                                 modifier =
                                     Modifier
+                                        .pressBounce(exportInteraction)
                                         .clip(CircleShape)
                                         .background(ChipBg)
-                                        .clickable { directExportData = buildRecapData(currentStats) }
+                                        .clickable(
+                                            interactionSource = exportInteraction,
+                                            indication = RemoteFocus,
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                directExportData = buildRecapData(currentStats)
+                                            },
+                                        )
                                         .padding(horizontal = 13.dp, vertical = 7.dp),
                             ) {
                                 Icon(
@@ -369,33 +401,40 @@ fun StatsScreen(navController: NavController) {
                                 )
                             }
                             if (currentStats.topSongs.isNotEmpty()) {
+                                val playlistInteraction = remember { MutableInteractionSource() }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                                     modifier =
                                         Modifier
+                                            .pressBounce(playlistInteraction)
                                             .clip(CircleShape)
                                             .background(ChipBg)
-                                            .clickable {
-                                                if (!savingPlaylist) {
-                                                    savingPlaylist = true
-                                                    val data = buildRecapData(currentStats)
-                                                    scope.launch {
-                                                        runCatching { saveRecapPlaylist(context, database, data, includeShareCode = false) }
-                                                            .onSuccess { saved ->
-                                                                TopToaster.show(
-                                                                    text = context.getString(R.string.rc_playlist_saved_toast, saved.name, saved.trackCount),
-                                                                    thumbnail = data.heroSong?.thumbnailUrl,
-                                                                    iconRes = R.drawable.playlist_add,
-                                                                )
-                                                            }
-                                                            .onFailure {
-                                                                TopToaster.error(context.getString(R.string.rc_playlist_save_failed))
-                                                            }
-                                                        savingPlaylist = false
+                                            .clickable(
+                                                interactionSource = playlistInteraction,
+                                                indication = RemoteFocus,
+                                                onClick = {
+                                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    if (!savingPlaylist) {
+                                                        savingPlaylist = true
+                                                        val data = buildRecapData(currentStats)
+                                                        scope.launch {
+                                                            runCatching { saveRecapPlaylist(context, database, data, includeShareCode = false) }
+                                                                .onSuccess { saved ->
+                                                                    TopToaster.show(
+                                                                        text = context.getString(R.string.rc_playlist_saved_toast, saved.name, saved.trackCount),
+                                                                        thumbnail = data.heroSong?.thumbnailUrl,
+                                                                        iconRes = R.drawable.playlist_add,
+                                                                    )
+                                                                }
+                                                                .onFailure {
+                                                                    TopToaster.error(context.getString(R.string.rc_playlist_save_failed))
+                                                                }
+                                                            savingPlaylist = false
+                                                        }
                                                     }
-                                                }
-                                            }
+                                                },
+                                            )
                                             .padding(horizontal = 13.dp, vertical = 7.dp),
                                 ) {
                                     Icon(
@@ -1019,6 +1058,7 @@ private fun SongCard(
         expandKey = "song",
         expanded = expanded,
         detail = {
+            val unknownArtist = stringResource(R.string.rc_unknown_artist)
             RankList(
                 rows =
                     s.topSongs.take(10).map { song ->
@@ -1027,7 +1067,7 @@ private fun SongCard(
                             pluralStringResource(
                                 R.plurals.rc_stats_song_row,
                                 song.plays,
-                                song.artistName,
+                                song.artistName.ifBlank { unknownArtist },
                                 song.plays,
                                 shortDuration(song.playTimeMs),
                             ),
@@ -1050,7 +1090,11 @@ private fun SongCard(
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(
-                    stringResource(R.string.rc_stats_song_from, top.title, top.artistName),
+                    stringResource(
+                        R.string.rc_stats_song_from,
+                        top.title,
+                        top.artistName.ifBlank { stringResource(R.string.rc_unknown_artist) },
+                    ),
                     style = statsText(20f, tracking = -0.6f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,

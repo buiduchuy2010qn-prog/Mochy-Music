@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -20,6 +21,13 @@ object DeepLService {
         .build()
     private val JSON = "application/json; charset=utf-8".toMediaType()
 
+    internal fun resolveDeepLEndpoint(apiKey: String): String =
+        if (apiKey.trim().endsWith(":fx")) {
+            "https://api-free.deepl.com/v2/translate"
+        } else {
+            "https://api.deepl.com/v2/translate"
+        }
+
     suspend fun translate(
         text: String,
         targetLanguage: String,
@@ -36,21 +44,18 @@ object DeepLService {
         val lines = text.lines()
         val lineCount = lines.size
 
-        val deeplLangCode = when (targetLanguage.lowercase()) {
+        val deeplLangCode = when (targetLanguage.trim().lowercase()) {
+            "vi", "vi-vn" -> "VI"
             "zh", "zh-cn", "zh-hans" -> "ZH"
             "zh-tw", "zh-hant" -> "ZH"
             "en", "en-us" -> "EN-US"
             "en-gb" -> "EN-GB"
             "pt", "pt-pt" -> "PT-PT"
             "pt-br" -> "PT-BR"
-            else -> targetLanguage.uppercase().take(2)
+            else -> targetLanguage.trim().uppercase().take(2)
         }
 
-        val baseUrl = if (apiKey.endsWith(":fx")) {
-            "https://api-free.deepl.com/v2/translate"
-        } else {
-            "https://api.deepl.com/v2/translate"
-        }
+        val baseUrl = resolveDeepLEndpoint(apiKey)
 
         while (currentAttempt < maxRetries) {
             try {
@@ -72,27 +77,32 @@ object DeepLService {
                     .post(jsonBody.toString().toRequestBody(JSON))
                     .build()
 
-                val response = client.newCall(request).execute()
-                val responseBody = response.body?.string()
+                val (isOk, codeMsgBody) = client.newCall(request).execute().use { response ->
+                    response.isSuccessful to Triple(response.code, response.message, response.body.string())
+                }
+                val (code, statusMsg, responseBody) = codeMsgBody
 
-                if (!response.isSuccessful) {
-
-                    if (response.code >= 500) {
+                if (!isOk) {
+                    if (code >= 500 || code == 429) {
                         currentAttempt++
                         kotlinx.coroutines.delay(1000L * currentAttempt)
                         continue
                     }
 
-                    val errorMsg = try {
-                        JSONObject(responseBody ?: "").optString("message")
-                            ?: "HTTP ${response.code}: ${response.message}"
-                    } catch (e: Exception) {
-                        "HTTP ${response.code}: ${response.message}"
+                    val errorMsg = if (responseBody.isNotBlank()) {
+                        try {
+                            JSONObject(responseBody).optString("message").ifBlank { null }
+                                ?: "HTTP $code: $statusMsg"
+                        } catch (_: Exception) {
+                            "HTTP $code: $statusMsg"
+                        }
+                    } else {
+                        "HTTP $code: $statusMsg"
                     }
                     return@withContext Result.failure(Exception("Translation failed: $errorMsg"))
                 }
 
-                if (responseBody == null) {
+                if (responseBody.isBlank()) {
                     currentAttempt++
                     continue
                 }
@@ -116,6 +126,8 @@ object DeepLService {
                         return@withContext Result.success(paddedLines)
                     }
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 if (currentAttempt == maxRetries - 1) {
                     return@withContext Result.failure(e)

@@ -31,7 +31,7 @@
     <string name="update_status_failed">Couldn\'t check for updates</string>
     <string name="update_status_offline">Offline?</string>
     <string name="update_action_try_again">TRY AGAIN</string>
-    <string name="update_install_permission_error">Allow \"Install unknown apps\" for mochy, then tap Install here again.</string>
+    <string name="update_install_permission_error">Allow \"Install unknown apps\" for Mochy, then tap Install here again.</string>
     <string name="update_back_desc">Back</string>
     <string name="update_changelog">Changelog</string>
     <string name="update_to_be_installed">To Be Installed -</string>
@@ -115,4 +115,56 @@
     <string name="album_releases_for_you">Releases for you</string>
     <string name="album_explicit_tag">Explicit</string>
     <string name="album_load_failed">Couldn\'t load this album. Tap to try again</string>
+
+    <!-- Artist / Similar / Subpages / Coming Soon / Support (v12.3.1) -->
+    <string name="artist_subscribers_stat">%1$s subscribers</string>
+    <string name="artist_monthly_listeners_stat">%1$s monthly listeners</string>
+    <string name="artist_action_play">Play</string>
+    <string name="artist_action_pause">Pause</string>
+    <string name="artist_action_like">Like</string>
+    <string name="artist_action_liked">Liked</string>
+    <string name="artist_action_subscribe">Subscribe</string>
+    <string name="artist_action_subscribed">Subscribed</string>
+    <string name="artist_library_add">Add to library</string>
+    <string name="artist_library_added">In your library</string>
+    <string name="artist_more_desc">More</string>
+    <string name="artist_see_all_desc">See all</string>
+    <string name="artist_back_desc">Back</string>
+    <string name="artist_similar_kicker">similar to</string>
+    <string name="artist_similar_title">Similar Artist</string>
+    <string name="artist_similar_featured_playlists">Featured Playlist</string>
+    <string name="artist_similar_featured_songs">Featured songs</string>
+    <string name="artist_similar_new_albums">New from them</string>
+    <string name="artist_similar_empty">Nothing to show here yet</string>
+    <string name="artist_start_of_line">START OF THE LINE</string>
+    <string name="artist_library_albums_of">%1$s albums</string>
+    <string name="artist_library_albums_fallback">Albums</string>
+    <string name="artist_songs_in_library">%1$s in your library</string>
+    <plurals name="artist_library_albums_subtitle">
+        <item quantity="one">%1$d in your library</item>
+        <item quantity="other">%1$d in your library</item>
+    </plurals>
+    <string name="artist_top_songs_of">Top %1$s songs</string>
+    <string name="artist_items_of">%1$s %2$s</string>
+    <plurals name="artist_songs_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
+    <string name="artist_items_count_kind">%1$s %2$s</string>
+    <string name="artist_items_word_songs">songs</string>
+    <string name="artist_items_word_albums">albums</string>
+    <string name="artist_items_word_videos">videos</string>
+    <string name="artist_items_word_playlists">playlists</string>
+    <string name="artist_items_word_artists">artists</string>
+    <string name="artist_items_load_failed">Couldn\'t load this page. Tap to try again</string>
+    <string name="artist_view_grid_desc">Grid</string>
+    <string name="artist_view_list_desc">List</string>
+    <string name="coming_soon_title">Coming Soon</string>
+    <string name="coming_soon_desc">%1$s is still a work in progress.</string>
+    <string name="support_kicker">Enjoying Mochy Music?</string>
+    <string name="support_heading">Support Mochy’s development!</string>
+    <string name="support_body">Thanks for trying it out! By the way, Mochy Music will always be free, forever yours! &lt;3\n\nIt would mean a lot if you support the developer, no matter how small!! &lt;3\nGiving a star to Mochy’s repo is already enough. Thanks again!</string>
+    <string name="support_donate_cta">Donate Us!</string>
+    <string name="support_star_cta">Star the repo!</string>
+    <string name="support_dismiss_cta">No, maybe later</string>
 </resources>

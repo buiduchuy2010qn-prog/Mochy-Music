@@ -148,7 +148,7 @@ class BackupRestoreViewModel @Inject constructor(
             }
         }.onFailure {
             reportException(it)
-            Toast.makeText(context, "Failed to preview CSV file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.backup_csv_preview_failed), Toast.LENGTH_SHORT).show()
         }
         return CsvImportState()
     }
@@ -218,7 +218,7 @@ class BackupRestoreViewModel @Inject constructor(
             Timber.tag("CSV_IMPORT").e(it, "CSV import failed")
             Toast.makeText(
                 context,
-                "Failed to import CSV file",
+                context.getString(R.string.backup_csv_import_failed),
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -226,7 +226,7 @@ class BackupRestoreViewModel @Inject constructor(
         if (songs.isEmpty()) {
             Toast.makeText(
                 context,
-                "No songs found. Invalid file, or perhaps no song matches were found.",
+                context.getString(R.string.backup_csv_no_songs_found),
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -292,7 +292,7 @@ class BackupRestoreViewModel @Inject constructor(
         if (songs.isEmpty()) {
             Toast.makeText(
                 context,
-                "No songs found. Invalid file, or perhaps no song matches were found.",
+                context.getString(R.string.backup_csv_no_songs_found),
                 Toast.LENGTH_SHORT
             ).show()
         }

@@ -411,7 +411,7 @@ internal fun RecapStoryHost(
             val player = playerConnection?.player
             val wasPlaying = player?.isPlaying == true
             player?.pause()
-            onDispose { if (wasPlaying) player?.play() }
+            onDispose { if (wasPlaying) player.play() }
         }
 
         RecapStory(

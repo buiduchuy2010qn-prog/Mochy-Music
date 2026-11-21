@@ -4,7 +4,7 @@
     <string name="pc_style_default">Default</string>
     <string name="pc_button_m3_expressive">Material 3 Expressive</string>
     <string name="pc_button_m3_expressive_plain">Material 3 Expressive - no label</string>
-    <string name="pc_button_m3_tonal">Material 3 tonal</string>
+    <string name="pc_button_m3_tonal">Material 3 Tonal</string>
     <string name="pc_button_legacy">Android legacy</string>
     <string name="pc_seek_m3_expressive_1">Material 3 Expressive 1</string>
     <string name="pc_seek_m3_expressive_2">Material 3 Expressive slider 2</string>

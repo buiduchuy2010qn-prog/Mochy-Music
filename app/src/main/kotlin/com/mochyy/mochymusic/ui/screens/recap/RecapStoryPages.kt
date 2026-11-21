@@ -8,6 +8,7 @@ package com.mochyy.mochymusic.ui.screens.recap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,10 +53,12 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -74,6 +77,8 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.ui.component.BlurEffectCache
+import com.mochyy.mochymusic.ui.component.RemoteFocus
+import com.mochyy.mochymusic.ui.component.pressBounce
 import com.mochyy.mochymusic.ui.theme.InterFontFamily
 import com.mochyy.mochymusic.ui.utils.resize
 import java.time.DayOfWeek
@@ -349,11 +354,11 @@ private fun MonthPage(
                         Modifier
                             .align(Alignment.End)
                             .padding(end = 6.dp, bottom = 10.dp)
+                            .lineMotion(anim, 0, n, enterFromDp = 50f, drag = drag)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.12f))
                             .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                            .lineMotion(anim, 0, n, enterFromDp = 50f, drag = drag),
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Text(
                         text = "$arrow $sign",
@@ -937,6 +942,7 @@ private fun SongSequence(
         }
 
         if (visible(melody)) {
+            val heroArtistLabel = hero.artistName.ifBlank { stringResource(R.string.rc_unknown_artist) }
             Text(
                 stringResource(R.string.rc_story_hear_melody),
                 style = recapBold(34f, lineHeight = 37f),
@@ -949,7 +955,7 @@ private fun SongSequence(
                         .lineMotion(melody, 0, 2, enterFromDp = 90f, exitToDp = 60f),
             )
             Text(
-                stringResource(R.string.rc_story_title_by, hero.title, hero.artistName),
+                stringResource(R.string.rc_story_title_by, hero.title, heroArtistLabel),
                 style = recapBold(30f, lineHeight = 34f),
                 textAlign = TextAlign.End,
                 maxLines = 4,
@@ -1034,8 +1040,9 @@ private fun SongReveal(
                     alpha = (e * 3f).coerceAtMost(1f) * 0.9f
                 },
     )
+    val songArtistLabel = hero.artistName.ifBlank { stringResource(R.string.rc_unknown_artist) }
     Text(
-        stringResource(R.string.rc_story_title_by, hero.title, hero.artistName),
+        stringResource(R.string.rc_story_title_by, hero.title, songArtistLabel),
         style = recapBold(22f, lineHeight = 26f),
         textAlign = TextAlign.End,
         maxLines = 3,
@@ -1126,11 +1133,11 @@ private fun PersonaPage(
         Box(
             modifier =
                 Modifier
+                    .lineMotion(anim, 0, n, enterFromDp = 70f, drag = drag)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.14f))
                     .border(1.dp, Color.White.copy(alpha = 0.24f), CircleShape)
-                    .padding(horizontal = 12.dp, vertical = 5.dp)
-                    .lineMotion(anim, 0, n, enterFromDp = 70f, drag = drag),
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
         ) {
             Text(
                 text = "${persona.id.clubCode}  ·  ${stringResource(R.string.rc_persona_header)}",
@@ -1160,22 +1167,26 @@ private fun PersonaPage(
                         time = time,
                     ),
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(14.dp))
         Text(
             text = desc,
-            style = recapBold(20f, lineHeight = 26f, tracking = -0.3f, weight = FontWeight.SemiBold).copy(
+            style = recapBold(19.5f, lineHeight = 25f, tracking = -0.3f, weight = FontWeight.SemiBold).copy(
                 color = Color.White.copy(alpha = 0.90f),
             ),
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.lineMotion(anim, 2, n, enterFromDp = 80f, drag = drag),
         )
     }
 
     val peakHourWindow = "%02d:00 – %02d:00".format(persona.peakHour, (persona.peakHour + 1) % 24)
+    val streakDays = data.insights.streak.longestStreakDays
+    val streakUnit = pluralStringResource(R.plurals.rc_story_streak_days, streakDays)
     val signatureStat = when (persona.id) {
         RecapPersonaId.NIGHT_OWL -> "${persona.nightSharePercent}%"
         RecapPersonaId.ONE_SONG_DEVOTEE -> "${persona.topSongPlays}x"
         RecapPersonaId.ARTIST_LOYALIST -> "${persona.topArtistSharePercent}%"
-        RecapPersonaId.STREAK_MACHINE -> "${data.insights.streak.longestStreakDays}d"
+        RecapPersonaId.STREAK_MACHINE -> "$streakDays $streakUnit"
         else -> "${data.stats.songCount}"
     }
     Row(
@@ -1183,7 +1194,7 @@ private fun PersonaPage(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .at(0f, geo.fy(522f))
+                .at(0f, geo.fy(548f))
                 .padding(horizontal = 36.dp)
                 .lineMotion(anim, 3, n, drag = drag),
     ) {
@@ -1201,11 +1212,15 @@ private fun PersonaPage(
                 style = recapBold(12f, lineHeight = 15f, tracking = 0f, weight = FontWeight.Medium).copy(
                     color = Color.White.copy(alpha = 0.72f),
                 ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = peakHourWindow,
                 style = recapBold(20f, lineHeight = 24f, tracking = -0.4f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         Column(
@@ -1222,11 +1237,15 @@ private fun PersonaPage(
                 style = recapBold(12f, lineHeight = 15f, tracking = 0f, weight = FontWeight.Medium).copy(
                     color = Color.White.copy(alpha = 0.72f),
                 ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = signatureStat,
                 style = recapBold(20f, lineHeight = 24f, tracking = -0.4f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -1453,6 +1472,7 @@ private fun EndPage(
 ) {
     val geo = s.geo
     val anim = s.pages[P_END]
+    val haptics = LocalHapticFeedback.current
     val cardBottom = geo.top + geo.dp(175f) + (geo.width - 2 * geo.inset) / com.mochyy.mochymusic.ui.screens.setup.onboarding.IdCardAspect
     Text(
         stringResource(R.string.rc_story_there_you_go),
@@ -1476,16 +1496,25 @@ private fun EndPage(
                         .lineMotion(anim, 2, 4, exitToDp = 0f),
             ) {
                 if (onOpenExportVideo != null) {
+                    val videoInteraction = remember { MutableInteractionSource() }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
                         modifier =
                             Modifier
+                                .pressBounce(videoInteraction)
                                 .fillMaxWidth()
                                 .height(48.dp)
                                 .clip(RoundedCornerShape(24.dp))
                                 .background(Color.White)
-                                .clickable(onClick = onOpenExportVideo)
+                                .clickable(
+                                    interactionSource = videoInteraction,
+                                    indication = RemoteFocus,
+                                    onClick = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onOpenExportVideo()
+                                    },
+                                )
                                 .padding(horizontal = 18.dp),
                     ) {
                         Icon(
@@ -1522,17 +1551,26 @@ private fun EndPage(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         if (onOpenExportParts != null) {
+                            val partsInteraction = remember { MutableInteractionSource() }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
                                 modifier =
                                     Modifier
+                                        .pressBounce(partsInteraction)
                                         .weight(1f)
                                         .height(44.dp)
                                         .clip(RoundedCornerShape(22.dp))
                                         .background(Color.White.copy(alpha = 0.14f))
                                         .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(22.dp))
-                                        .clickable(onClick = onOpenExportParts)
+                                        .clickable(
+                                            interactionSource = partsInteraction,
+                                            indication = RemoteFocus,
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onOpenExportParts()
+                                            },
+                                        )
                                         .padding(horizontal = 12.dp),
                             ) {
                                 Icon(
@@ -1551,11 +1589,13 @@ private fun EndPage(
                             }
                         }
                         if (onSavePlaylist != null) {
+                            val playlistInteraction = remember { MutableInteractionSource() }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
                                 modifier =
                                     Modifier
+                                        .pressBounce(playlistInteraction)
                                         .weight(1f)
                                         .height(44.dp)
                                         .clip(RoundedCornerShape(22.dp))
@@ -1567,7 +1607,14 @@ private fun EndPage(
                                             if (playlistSaved) Color(0xFF5EE89A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.24f),
                                             RoundedCornerShape(22.dp),
                                         )
-                                        .clickable(onClick = onSavePlaylist)
+                                        .clickable(
+                                            interactionSource = playlistInteraction,
+                                            indication = RemoteFocus,
+                                            onClick = {
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onSavePlaylist()
+                                            },
+                                        )
                                         .padding(horizontal = 12.dp),
                             ) {
                                 Icon(

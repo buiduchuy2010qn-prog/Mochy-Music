@@ -165,15 +165,15 @@ object PlayerJsFetcher {
             .header("User-Agent", "Mozilla/5.0")
             .build()
 
-        val response = httpClient.newCall(request).execute()
-        if (!response.isSuccessful) {
-            Timber.tag(TAG).e("iframe_api HTTP ${response.code}")
-            return null
-        }
+        return httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                Timber.tag(TAG).e("iframe_api HTTP ${response.code}")
+                return@use null
+            }
 
-        val body = response.body?.string() ?: return null
-        val match = PLAYER_HASH_REGEX.find(body)
-        return match?.groupValues?.get(1)
+            val body = response.body.string()
+            PLAYER_HASH_REGEX.find(body)?.groupValues?.get(1)
+        }
     }
 
     private fun downloadPlayerJs(hash: String): String? {
@@ -183,12 +183,13 @@ object PlayerJsFetcher {
             .header("User-Agent", "Mozilla/5.0")
             .build()
 
-        val response = httpClient.newCall(request).execute()
-        if (!response.isSuccessful) {
-            Timber.tag(TAG).e("player JS download HTTP ${response.code}")
-            return null
-        }
+        return httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                Timber.tag(TAG).e("player JS download HTTP ${response.code}")
+                return@use null
+            }
 
-        return response.body?.string()
+            response.body.string()
+        }
     }
 }

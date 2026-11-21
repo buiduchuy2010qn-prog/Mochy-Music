@@ -115,4 +115,54 @@
     <string name="album_releases_for_you">Phát hành dành cho bạn</string>
     <string name="album_explicit_tag">Explicit</string>
     <string name="album_load_failed">Không thể tải album này. Nhấn để thử lại</string>
+
+    <!-- Artist / Similar / Subpages / Coming Soon / Support (v12.3.1) -->
+    <string name="artist_subscribers_stat">%1$s người đăng ký</string>
+    <string name="artist_monthly_listeners_stat">%1$s người nghe hằng tháng</string>
+    <string name="artist_action_play">Phát</string>
+    <string name="artist_action_pause">Tạm dừng</string>
+    <string name="artist_action_like">Thích</string>
+    <string name="artist_action_liked">Đã thích</string>
+    <string name="artist_action_subscribe">Đăng ký</string>
+    <string name="artist_action_subscribed">Đã đăng ký</string>
+    <string name="artist_library_add">Thêm vào thư viện</string>
+    <string name="artist_library_added">Đã có trong thư viện</string>
+    <string name="artist_more_desc">Thêm</string>
+    <string name="artist_see_all_desc">Xem tất cả</string>
+    <string name="artist_back_desc">Quay lại</string>
+    <string name="artist_similar_kicker">tương tự</string>
+    <string name="artist_similar_title">Nghệ sĩ tương tự</string>
+    <string name="artist_similar_featured_playlists">Danh sách phát nổi bật</string>
+    <string name="artist_similar_featured_songs">Bài hát nổi bật</string>
+    <string name="artist_similar_new_albums">Mới phát hành</string>
+    <string name="artist_similar_empty">Chưa có nội dung hiển thị</string>
+    <string name="artist_start_of_line">ĐẦU DANH SÁCH</string>
+    <string name="artist_library_albums_of">Album của %1$s</string>
+    <string name="artist_library_albums_fallback">Album</string>
+    <string name="artist_songs_in_library">Nhạc %1$s trong thư viện</string>
+    <plurals name="artist_library_albums_subtitle">
+        <item quantity="other">%1$d album trong thư viện</item>
+    </plurals>
+    <string name="artist_top_songs_of">Bài hát nổi bật của %1$s</string>
+    <string name="artist_items_of">%2$s của %1$s</string>
+    <plurals name="artist_songs_count">
+        <item quantity="other">%1$d bài hát</item>
+    </plurals>
+    <string name="artist_items_count_kind">%1$s %2$s</string>
+    <string name="artist_items_word_songs">bài hát</string>
+    <string name="artist_items_word_albums">album</string>
+    <string name="artist_items_word_videos">video</string>
+    <string name="artist_items_word_playlists">danh sách phát</string>
+    <string name="artist_items_word_artists">nghệ sĩ</string>
+    <string name="artist_items_load_failed">Không thể tải trang này. Nhấn để thử lại</string>
+    <string name="artist_view_grid_desc">Lưới</string>
+    <string name="artist_view_list_desc">Danh sách</string>
+    <string name="coming_soon_title">Sắp ra mắt</string>
+    <string name="coming_soon_desc">Mục %1$s đang được phát triển và sẽ sớm ra mắt.</string>
+    <string name="support_kicker">Bạn thích Mochy Music chứ?</string>
+    <string name="support_heading">Ủng hộ Mochy phát triển!</string>
+    <string name="support_body">Cảm ơn bạn đã trải nghiệm ứng dụng! Mochy Music sẽ luôn miễn phí mãi mãi! &lt;3\n\nMỗi sự ủng hộ của bạn dành cho nhà phát triển, dù nhỏ nhất, đều vô cùng đáng quý!! &lt;3\nChỉ cần tặng 1 ngôi sao cho kho mã nguồn của Mochy cũng đã rất tuyệt rồi. Cảm ơn bạn nhiều nhé!</string>
+    <string name="support_donate_cta">Ủng hộ ngay!</string>
+    <string name="support_star_cta">Tặng sao GitHub!</string>
+    <string name="support_dismiss_cta">Để sau nhé, cảm ơn</string>
 </resources>

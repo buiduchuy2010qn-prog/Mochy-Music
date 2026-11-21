@@ -99,13 +99,13 @@ class LibraryImportViewModel @Inject constructor(
             LocalFolders.scan(context, tree)
         }
         if (scanned == null) {
-            TopToaster.show("Couldn't keep access to that folder. Try picking it again.", iconRes = R.drawable.library_music)
+            TopToaster.show(context.getString(R.string.lib_folder_access_lost), iconRes = R.drawable.library_music)
             return false
         }
         // picking a folder again also brings the lyrics and covers beside its songs to the ones already in
         reportRepaired(LocalSongRepair.repair(context, database, scanned))
         val files = withContext(Dispatchers.IO) { LocalFolders.onlyNew(context, scanned, knownLocalUris(withMediaStore = false)) }
-        return startFolderImport(files, emptyMessage = "Every song in that folder is already in your library")
+        return startFolderImport(files, emptyMessage = context.getString(R.string.lib_folder_all_in_library))
     }
 
     /**
@@ -118,7 +118,7 @@ class LibraryImportViewModel @Inject constructor(
             fixed to LocalFolders.scanSaved(context)
         }
         if (fixedCovers > 0) {
-            TopToaster.show(if (fixedCovers == 1) "Brought back 1 cover" else "Brought back $fixedCovers covers", iconRes = R.drawable.library_music)
+            TopToaster.show(context.resources.getQuantityString(R.plurals.lib_restored_covers, fixedCovers, fixedCovers), iconRes = R.drawable.library_music)
         }
         reportRepaired(LocalSongRepair.repair(context, database, scanned))
         val files = withContext(Dispatchers.IO) { LocalFolders.onlyNew(context, scanned, knownLocalUris(withMediaStore = false)) }
@@ -140,7 +140,7 @@ class LibraryImportViewModel @Inject constructor(
             return false
         }
         if (!localImport.importFolderFiles(files)) {
-            TopToaster.show("An import is still running. Try again once it's done.", iconRes = R.drawable.library_music)
+            TopToaster.show(context.getString(R.string.lib_import_still_running), iconRes = R.drawable.library_music)
             return false
         }
         return true
@@ -159,33 +159,38 @@ class LibraryImportViewModel @Inject constructor(
             DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, item.key, false)
         }
         TopToaster.show(
-            if (running.size == 1) "Cancelled 1 download" else "Cancelled ${running.size} downloads",
+            context.resources.getQuantityString(R.plurals.lib_cancelled_downloads, running.size, running.size),
             iconRes = R.drawable.library_music,
         )
     }
 
     // ---- Manage imports ----
 
-    fun deleteAllImports() = report { "Removed ${songs(history.deleteAllImports())} you imported" }
+    fun deleteAllImports() = report {
+        val count = history.deleteAllImports()
+        context.getString(R.string.lib_removed_imported, songsLabel(count))
+    }
 
     fun undoLatestImport() = report {
-        history.undoLatestImport()?.let { "Undid your last import: ${songs(it)} removed" } ?: "There's no import to undo"
+        history.undoLatestImport()?.let { context.getString(R.string.lib_undid_import, songsLabel(it)) }
+            ?: context.getString(R.string.lib_no_import_to_undo)
     }
 
     fun deleteImportsFrom(source: ImportSource) = report {
-        "Removed ${songs(history.deleteImportsFrom(source))} imported from ${source.label}"
+        val count = history.deleteImportsFrom(source)
+        context.getString(R.string.lib_removed_imported_from, songsLabel(count), source.label)
     }
 
     // ---- Manage local ----
 
     fun undoLatestLocalImport() = report {
-        history.undoLatestLocalImport()?.let { "Undid your last local import: ${songs(it)} removed" }
-            ?: "There's no local import to undo"
+        history.undoLatestLocalImport()?.let { context.getString(R.string.lib_undid_local_import, songsLabel(it)) }
+            ?: context.getString(R.string.lib_no_local_import_to_undo)
     }
 
     fun removeLocalSongs(songIds: Collection<String>) = report {
         history.removeLocalSongs(songIds)
-        "Removed ${songs(songIds.size)}. The files are still on your phone."
+        context.getString(R.string.lib_removed_local_songs, songsLabel(songIds.size))
     }
 
     /**
@@ -207,5 +212,6 @@ class LibraryImportViewModel @Inject constructor(
         }
     }
 
-    private fun songs(count: Int) = if (count == 1) "1 song" else "$count songs"
+    private fun songsLabel(count: Int): String =
+        context.resources.getQuantityString(R.plurals.lib_songs_count, count, count)
 }

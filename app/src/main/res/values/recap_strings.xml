@@ -243,4 +243,12 @@
     <string name="rc_playlist_save_failed">Couldn\'t save Re\'cap playlist</string>
     <string name="rc_playlist_code_copied">Copied mochypl1: playlist share code</string>
     <string name="rc_playlist_code_failed">Couldn\'t generate share code (only online tracks supported)</string>
+
+    <string name="rc_not_yet_play_any">once you\'ve played a song</string>
+    <string name="rc_not_yet_unlock_date">on %1$s %2$d, once you\'ve played %3$d songs</string>
+    <plurals name="rc_not_yet_more_songs">
+        <item quantity="one">when you\'ve played %1$d more song this month</item>
+        <item quantity="other">when you\'ve played %1$d more songs this month</item>
+    </plurals>
+    <string name="rc_unknown_artist">Unknown artist</string>
 </resources>

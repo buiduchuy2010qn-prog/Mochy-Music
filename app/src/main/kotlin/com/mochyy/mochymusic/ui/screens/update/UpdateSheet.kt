@@ -738,7 +738,7 @@ private fun DuchiLocketEcosystemCard() {
                     }
                 }
 
-                if (showInstallOrUpdate && ready != null) {
+                if (showInstallOrUpdate) {
                     val animatedProgress by animateFloatAsState(
                         targetValue = progress.floatValue,
                         animationSpec = tween(durationMillis = 120),

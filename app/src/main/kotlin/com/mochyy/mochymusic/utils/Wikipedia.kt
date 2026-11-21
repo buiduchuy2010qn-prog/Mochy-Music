@@ -23,7 +23,7 @@ import java.text.Normalizer
 import java.util.Locale
 
 object Wikipedia {
-    private const val UserAgent = "Mochy (https://github.com/realidkroo/Mochy-Music)"
+    private const val UserAgent = "Mochy Music (https://github.com/buiduchuy2010qn-prog/Mochy-Music)"
     private val VietnameseDiacriticsRegex = Regex("[ăĂđĐơƠưƯĩĨũŨ\\u1EA0-\\u1EF9]")
 
     private val client by lazy {

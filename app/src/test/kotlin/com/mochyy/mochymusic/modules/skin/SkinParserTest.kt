@@ -171,8 +171,9 @@ class SkinParserTest {
         assertEquals(SkinBackground.Player(PlayerBackgroundStyle.SOLID), shader.fallback)
         val layer = player.layers.single()
         assertEquals(1f, layer.opacity)
-        assertEquals(MotionKind.Drift, layer.motion!!.kind)
-        assertEquals(4f, layer.motion!!.speed)
+        val motion = requireNotNull(layer.motion)
+        assertEquals(MotionKind.Drift, motion.kind)
+        assertEquals(4f, motion.speed)
         assertEquals(listOf("glow", "layout"), player.customise!!.keys)
         assertEquals(2, player.menu.size)
         assertEquals(SkinTarget.Control(ButtonKind.Like), player.menu[1].target)
@@ -251,8 +252,9 @@ class SkinParserTest {
         assertEquals(1f, cover.originY)
 
         val title = player.blocks[1] as SkinBlock.Styled
-        assertEquals(EnterKind.Keyframes, title.enter!!.kind)
-        assertTrue(title.enter!!.eachSong)
+        val enter = requireNotNull(title.enter)
+        assertEquals(EnterKind.Keyframes, enter.kind)
+        assertTrue(enter.eachSong)
         // an event mochy doesn't know is skipped
         assertEquals(listOf(SkinEvent.Like, SkinEvent.Beat), title.triggers.map { it.event })
         assertEquals(SkinRepeat.Once, title.triggers[0].timeline.repeat)

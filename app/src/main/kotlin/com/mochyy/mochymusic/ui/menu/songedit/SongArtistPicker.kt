@@ -119,7 +119,7 @@ internal fun SongArtistPicker(state: SongEditState, sidePadding: Dp) {
             items(unpicked, key = { "found:${it.id}" }) { artist ->
                 ArtistCircle(artist = artist, picked = false, label = artist.name) { state.artists.add(artist) }
             }
-            if (offerTyped && typedArtist != null) {
+            if (offerTyped) {
                 item(key = "typed:${typedArtist.id}") {
                     ArtistCircle(
                         artist = typedArtist,

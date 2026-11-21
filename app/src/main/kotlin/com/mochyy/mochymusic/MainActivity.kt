@@ -2381,7 +2381,7 @@ private fun HomeUpdatePrompt(
     val isSnoozed = snoozedAt > 0L && (System.currentTimeMillis() - snoozedAt) < UpdateSnoozeWindowMillis
     val showUpdatePopup = !noticeHidden && release != null && !dismissed && !isSnoozed
 
-    if (showUpdatePopup && release != null) {
+    if (showUpdatePopup) {
         com.mochyy.mochymusic.ui.screens.update.UpdatePromptSheet(
             release = release,
             userName = userName,

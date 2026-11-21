@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -33,7 +34,8 @@ object OpenRouterStreamingService {
         apiKey: String,
         baseUrl: String,
         model: String,
-        mode: String
+        mode: String,
+        provider: String = "OpenRouter",
     ): Flow<StreamChunk> = flow {
         if (text.isBlank()) {
             emit(StreamChunk.Error("Input text is empty"))
@@ -57,6 +59,23 @@ CRITICAL RULES:
 6. If uncertain, provide best approximation but maintain line count"""
 
             val userPrompt = when (mode) {
+                "Romanized" -> """Romanize/transliterate the following $lineCount lines into simple Latin script using ONLY basic English letters (a-z, A-Z).
+
+CRITICAL REQUIREMENTS:
+- Use ONLY simple ASCII characters (a-z, A-Z, 0-9, basic punctuation)
+- NO special characters like ā, ī, ū, ñ, ç, etc.
+- NO diacritics or accent marks
+- If text is already in Latin script, return it UNCHANGED
+- For non-Latin scripts (Hindi, Chinese, Japanese, Korean, Cyrillic, etc.), provide simple romanization
+- DO NOT translate meaning, only convert script to simple English letters
+- Keep all punctuation and formatting
+- Preserve line-by-line structure exactly
+
+Input ($lineCount lines):
+$text
+
+Output MUST be a JSON array with EXACTLY $lineCount strings using ONLY simple ASCII characters."""
+
                 "Transcribed" -> """Transcribe/transliterate the following $lineCount lines phonetically into $targetLanguage script.
 
 CRITICAL REQUIREMENTS:
@@ -96,9 +115,10 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                 })
             }
 
+            val effectiveModel = OpenRouterService.resolveDefaultModel(model, provider)
             val jsonBody = JSONObject().apply {
-                if (model.isNotBlank()) {
-                    put("model", model)
+                if (effectiveModel.isNotBlank()) {
+                    put("model", effectiveModel)
                 }
                 put("messages", messages)
                 put("stream", true)
@@ -107,15 +127,15 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
             }
 
             val request = Request.Builder()
-                .url(baseUrl.ifBlank { "https://openrouter.ai/api/v1/chat/completions" })
+                .url(OpenRouterService.resolveChatCompletionsUrl(baseUrl, provider))
                 .apply {
                     if (apiKey.isNotBlank()) {
                         addHeader("Authorization", "Bearer ${apiKey.trim()}")
                     }
                 }
                 .addHeader("Content-Type", "application/json")
-                .addHeader("HTTP-Referer", "https://github.com/realidkroo/Mochy-Music")
-                .addHeader("X-Title", "mochy")
+                .addHeader("HTTP-Referer", "https://github.com/buiduchuy2010qn-prog/Mochy-Music")
+                .addHeader("X-Title", "Mochy Music")
                 .post(jsonBody.toString().toRequestBody(JSON))
                 .build()
 
@@ -123,18 +143,23 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                 Timber.d("Got streaming response: ${response.code}")
 
                 if (!response.isSuccessful) {
-                    val errorMsg = try {
-                        JSONObject(response.body?.string() ?: "")
-                            .optJSONObject("error")?.optString("message")
-                            ?: "HTTP ${response.code}: ${response.message}"
-                    } catch (e: Exception) {
+                    val errorBody = response.body.string()
+                    val errorMsg = if (errorBody.isNotBlank()) {
+                        try {
+                            JSONObject(errorBody)
+                                .optJSONObject("error")?.optString("message")?.ifBlank { null }
+                                ?: "HTTP ${response.code}: ${response.message}"
+                        } catch (_: Exception) {
+                            "HTTP ${response.code}: ${response.message}"
+                        }
+                    } else {
                         "HTTP ${response.code}: ${response.message}"
                     }
                     emit(StreamChunk.Error("Translation failed: $errorMsg"))
                     return@flow
                 }
 
-                val reader = BufferedReader(InputStreamReader(response.body?.byteStream()))
+                val reader = BufferedReader(InputStreamReader(response.body.byteStream()))
                 var line: String?
                 val contentBuilder = StringBuilder()
                 var chunkCount = 0
@@ -142,7 +167,7 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                 while (reader.readLine().also { line = it } != null) {
                     line?.let { currentLine ->
                         if (currentLine.startsWith("data: ")) {
-                            val data = currentLine.substring(6)
+                            val data = currentLine.substring(6).trim()
                             if (data == "[DONE]") {
                                 Timber.d("Streaming complete, received $chunkCount chunks")
 
@@ -162,7 +187,7 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                             try {
                                 val jsonObject = json.parseToJsonElement(data).jsonObject
                                 val choices = jsonObject["choices"]?.jsonArray
-                                val delta = choices?.get(0)?.jsonObject?.get("delta")?.jsonObject
+                                val delta = choices?.firstOrNull()?.jsonObject?.get("delta")?.jsonObject
                                 val content = delta?.get("content")?.jsonPrimitive?.content
 
                                 content?.let { chunk ->
@@ -189,6 +214,8 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                     }
                 }
             }
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (e: Exception) {
             Timber.e(e, "Streaming error")
             emit(StreamChunk.Error(e.message ?: "Unknown error"))

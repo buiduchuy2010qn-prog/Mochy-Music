@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mochyy.mochymusic.App
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.constants.ProfileCardNumberKey
 import com.mochyy.mochymusic.constants.ProfileJoinedEpochDayKey
 import com.mochyy.mochymusic.constants.SelectedYtmPlaylistsKey
@@ -67,7 +68,10 @@ class OnboardingViewModel @Inject constructor(
         private set
 
     val cardNumber: String = (10_000_000_000L + Random.nextLong(89_999_999_999L)).toString()
-    val joinedText: String = "joined at " + LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
+    val joinedText: String = context.getString(
+        R.string.profile_joined_at,
+        LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)),
+    )
 
     /** Onboarding can be run again from Settings; start each run clean. */
     fun reset() {
@@ -131,16 +135,16 @@ class OnboardingViewModel @Inject constructor(
     suspend fun importBackup(uri: Uri): String? = withContext(Dispatchers.IO) {
         try {
             val text = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                ?: return@withContext "Couldn't open that file."
-            val parsed = parseImportCsv(text, fallbackPlaylistName = "Imported playlist")
-            if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) return@withContext "No songs in that file."
-            if (!importService.startImport(parsed)) return@withContext "Another import is still running."
+                ?: return@withContext context.getString(R.string.onb_backup_open_failed)
+            val parsed = parseImportCsv(text, fallbackPlaylistName = context.getString(R.string.onb_backup_default_playlist))
+            if (parsed.totalSongs == 0 && parsed.totalPlaylists == 0) return@withContext context.getString(R.string.onb_backup_empty)
+            if (!importService.startImport(parsed)) return@withContext context.getString(R.string.onb_backup_running)
             null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Backup import failed")
-            "Couldn't read that file. Make sure it's a .csv backup."
+            context.getString(R.string.onb_backup_read_failed)
         }
     }
 

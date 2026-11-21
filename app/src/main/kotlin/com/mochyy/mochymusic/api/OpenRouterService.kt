@@ -2,6 +2,7 @@
 
 package com.mochyy.mochymusic.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -21,6 +22,41 @@ object OpenRouterService {
         .build()
     private val JSON = "application/json; charset=utf-8".toMediaType()
 
+    internal fun resolveChatCompletionsUrl(
+        baseUrl: String,
+        provider: String = "OpenRouter",
+    ): String {
+        val trimmed = baseUrl.trim().trimEnd('/')
+        if (trimmed.isBlank()) {
+            return when (provider.trim().lowercase()) {
+                "gemini" -> "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+                "openai" -> "https://api.openai.com/v1/chat/completions"
+                "perplexity" -> "https://api.perplexity.ai/chat/completions"
+                "xai" -> "https://api.x.ai/v1/chat/completions"
+                "mistral" -> "https://api.mistral.ai/v1/chat/completions"
+                else -> "https://openrouter.ai/api/v1/chat/completions"
+            }
+        }
+        return if (trimmed.endsWith("/chat/completions", ignoreCase = true)) {
+            trimmed
+        } else {
+            "$trimmed/chat/completions"
+        }
+    }
+
+    internal fun resolveDefaultModel(
+        model: String,
+        provider: String = "OpenRouter",
+    ): String {
+        val trimmed = model.trim()
+        if (trimmed.isNotBlank()) return trimmed
+        return if (provider.trim().equals("Gemini", ignoreCase = true)) {
+            "gemini-3.5-flash-lite"
+        } else {
+            ""
+        }
+    }
+
     suspend fun translate(
         text: String,
         targetLanguage: String,
@@ -29,7 +65,8 @@ object OpenRouterService {
         model: String,
         mode: String,
         maxRetries: Int = 3,
-        sourceLanguage: String? = null
+        sourceLanguage: String? = null,
+        provider: String = "OpenRouter",
     ): Result<List<String>> = withContext(Dispatchers.IO) {
         var currentAttempt = 0
 
@@ -123,9 +160,10 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                     })
                 }
 
+                val effectiveModel = resolveDefaultModel(model, provider)
                 val jsonBody = JSONObject().apply {
-                    if (model.isNotBlank()) {
-                        put("model", model)
+                    if (effectiveModel.isNotBlank()) {
+                        put("model", effectiveModel)
                     }
                     put("messages", messages)
                     put("temperature", 0.3)
@@ -133,39 +171,44 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                 }
 
                 val request = Request.Builder()
-                    .url(baseUrl.ifBlank { "https://openrouter.ai/api/v1/chat/completions" })
+                    .url(resolveChatCompletionsUrl(baseUrl, provider))
                     .apply {
                         if (apiKey.isNotBlank()) {
                             addHeader("Authorization", "Bearer ${apiKey.trim()}")
                         }
                     }
                     .addHeader("Content-Type", "application/json")
-                    .addHeader("HTTP-Referer", "https://github.com/realidkroo/Mochy-Music")
-                    .addHeader("X-Title", "mochy")
+                    .addHeader("HTTP-Referer", "https://github.com/buiduchuy2010qn-prog/Mochy-Music")
+                    .addHeader("X-Title", "Mochy Music")
                     .post(jsonBody.toString().toRequestBody(JSON))
                     .build()
 
-                val response = client.newCall(request).execute()
-                val responseBody = response.body?.string()
+                val (isOk, codeMsgBody) = client.newCall(request).execute().use { response ->
+                    response.isSuccessful to Triple(response.code, response.message, response.body.string())
+                }
+                val (code, statusMsg, responseBody) = codeMsgBody
 
-                if (!response.isSuccessful) {
-
-                    if (response.code >= 500) {
+                if (!isOk) {
+                    if (code >= 500 || code == 429) {
                         currentAttempt++
                         kotlinx.coroutines.delay(1000L * currentAttempt)
                         continue
                     }
 
-                    val errorMsg = try {
-                        JSONObject(responseBody ?: "").optJSONObject("error")?.optString("message")
-                            ?: "HTTP ${response.code}: ${response.message}"
-                    } catch (e: Exception) {
-                        "HTTP ${response.code}: ${response.message}"
+                    val errorMsg = if (responseBody.isNotBlank()) {
+                        try {
+                            JSONObject(responseBody).optJSONObject("error")?.optString("message")?.ifBlank { null }
+                                ?: "HTTP $code: $statusMsg"
+                        } catch (_: Exception) {
+                            "HTTP $code: $statusMsg"
+                        }
+                    } else {
+                        "HTTP $code: $statusMsg"
                     }
                     return@withContext Result.failure(Exception("Translation failed: $errorMsg"))
                 }
 
-                if (responseBody == null) {
+                if (responseBody.isBlank()) {
                     currentAttempt++
                     continue
                 }
@@ -183,14 +226,14 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                         try {
                             val jsonArray = JSONArray(content)
                             translatedLines = (0 until jsonArray.length()).map { jsonArray.optString(it) }
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
 
                             content = content.replace("```json", "").replace("```", "").trim()
 
                             try {
                                 val jsonArray = JSONArray(content)
                                 translatedLines = (0 until jsonArray.length()).map { jsonArray.optString(it) }
-                            } catch (e2: Exception) {
+                            } catch (_: Exception) {
 
                                 val startIdx = content.indexOf('[')
                                 val endIdx = content.lastIndexOf(']')
@@ -200,7 +243,7 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                                     try {
                                         val jsonArray = JSONArray(jsonString)
                                         translatedLines = (0 until jsonArray.length()).map { jsonArray.optString(it) }
-                                    } catch (e3: Exception) {
+                                    } catch (_: Exception) {
 
                                         translatedLines = content.lines()
                                             .filter { it.trim().isNotEmpty() }
@@ -228,6 +271,8 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                         }
                     }
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 if (currentAttempt == maxRetries - 1) {
                     return@withContext Result.failure(e)

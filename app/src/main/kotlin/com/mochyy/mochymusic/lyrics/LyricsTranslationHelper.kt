@@ -427,6 +427,7 @@ object LyricsTranslationHelper {
                         baseUrl = baseUrl,
                         model = model,
                         mode = mode,
+                        provider = provider,
                     ).collect { chunk ->
                         Timber.v("Received streaming chunk: $chunk")
                         when (chunk) {
@@ -474,6 +475,7 @@ object LyricsTranslationHelper {
                         baseUrl = baseUrl,
                         model = model,
                         mode = mode,
+                        provider = provider,
                     )
                 }
 

@@ -133,7 +133,7 @@ fun LyricsReadings(
     val (openRouterKey) = rememberPreference(OpenRouterApiKey, defaultValue = "")
     val (openRouterBaseUrl) = rememberPreference(
         OpenRouterBaseUrlKey,
-        defaultValue = "https://openrouter.ai/api/v1",
+        defaultValue = "",
     )
     val (openRouterModel) = rememberPreference(OpenRouterModelKey, defaultValue = "")
     val (deeplKey) = rememberPreference(DeeplApiKey, defaultValue = "")
@@ -166,8 +166,8 @@ fun LyricsReadings(
 
     LaunchedEffect(
         songId, lines, lyricsMatchSong, translationOn, manualOverrideVersion, translateLanguage,
-        translateSourceLanguage, translateMode, aiProvider, openRouterKey, deeplKey,
-        youtubeTranslations, smartLyricsEnabled, smartDecision,
+        translateSourceLanguage, translateMode, aiProvider, openRouterKey, openRouterBaseUrl,
+        openRouterModel, deeplKey, deeplFormality, youtubeTranslations, smartLyricsEnabled, smartDecision,
     ) {
         if (lines.isEmpty() || !lyricsMatchSong) return@LaunchedEffect
         val manualOverride = LyricsTranslationHelper.hasManualOverrideFor(songId)

@@ -101,6 +101,19 @@ class ListeningStats(
     }
 }
 
+/** Localizable reason why the monthly Re'cap isn't unlocked yet. */
+sealed interface RecapNotYetReason {
+    data object PlayAnySong : RecapNotYetReason
+
+    data class WaitForFirstDay(
+        val monthName: String,
+        val firstDay: Int,
+        val minSongs: Int,
+    ) : RecapNotYetReason
+
+    data class NeedMoreSongs(val missing: Int) : RecapNotYetReason
+}
+
 /** What the recap card's barcode leads to once it's scanned. */
 sealed interface RecapAvailability {
     data class Ready(
@@ -109,8 +122,11 @@ sealed interface RecapAvailability {
         val insights: RecapInsights = buildRecapInsights(stats),
     ) : RecapAvailability
 
-    /** Not unlocked yet; [comeBack] finishes "come back later ...". */
-    data class NotYet(val comeBack: String) : RecapAvailability
+    /** Not unlocked yet; [reason] lets the UI localize the message while keeping [comeBack] fallback. */
+    data class NotYet(
+        val comeBack: String,
+        val reason: RecapNotYetReason? = null,
+    ) : RecapAvailability
 }
 
 internal object RecapRepository {
@@ -144,7 +160,10 @@ internal object RecapRepository {
                 return RecapAvailability.Ready(stats, progressOf(range, today), buildRecapInsights(stats, previous))
             }
         }
-        return RecapAvailability.NotYet("once you've played a song")
+        return RecapAvailability.NotYet(
+            comeBack = "once you've played a song",
+            reason = RecapNotYetReason.PlayAnySong,
+        )
     }
 
     internal fun progressOf(range: StatsRange, today: LocalDate): Int = when {
@@ -165,9 +184,10 @@ internal object RecapRepository {
                 return RecapAvailability.Ready(stats, 100, buildRecapInsights(stats, earlier))
             }
             val unlock = today.withDayOfMonth(RecapFirstDay)
+            val monthName = unlock.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
             return RecapAvailability.NotYet(
-                "on ${unlock.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} $RecapFirstDay, " +
-                    "once you've played $RecapMinSongs songs",
+                comeBack = "on $monthName $RecapFirstDay, once you've played $RecapMinSongs songs",
+                reason = RecapNotYetReason.WaitForFirstDay(monthName, RecapFirstDay, RecapMinSongs),
             )
         }
         val stats = load(db, thisMonth)
@@ -178,7 +198,8 @@ internal object RecapRepository {
         }
         val missing = RecapMinSongs - stats.songCount
         return RecapAvailability.NotYet(
-            "when you've played $missing more ${if (missing == 1) "song" else "songs"} this month",
+            comeBack = "when you've played $missing more ${if (missing == 1) "song" else "songs"} this month",
+            reason = RecapNotYetReason.NeedMoreSongs(missing),
         )
     }
 
@@ -219,7 +240,7 @@ internal object RecapRepository {
             return RecapSong(
                 id = id,
                 title = song.song.title,
-                artistName = song.artists.joinToString(", ") { it.name }.ifBlank { song.song.albumName ?: "Unknown artist" },
+                artistName = song.artists.joinToString(", ") { it.name }.ifBlank { song.song.albumName.orEmpty() },
                 artistThumbnailUrl = song.artists.firstNotNullOfOrNull { it.thumbnailUrl },
                 thumbnailUrl = song.song.thumbnailUrl,
                 playTimeMs = acc.ms,

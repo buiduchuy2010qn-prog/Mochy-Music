@@ -5,7 +5,6 @@ package com.mochyy.mochymusic.ui.screens.artist
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -98,6 +97,7 @@ import com.mochyy.mochymusic.ui.component.homeRowHeight
 import com.mochyy.mochymusic.ui.component.HomeTrackRow
 import com.mochyy.mochymusic.ui.component.HomeVideoCard
 import com.mochyy.mochymusic.ui.component.LocalMenuState
+import com.mochyy.mochymusic.ui.component.TopToaster
 import com.mochyy.mochymusic.ui.component.detail.FeaturedArtistUi
 import com.mochyy.mochymusic.ui.component.detail.FeaturedArtistsRow
 import com.mochyy.mochymusic.ui.component.detail.PlaylistInset
@@ -482,7 +482,7 @@ fun ArtistScreen(
                                         dismiss()
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         clipboard.setPrimaryClip(ClipData.newPlainText(linkLabel, link))
-                                        Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                                        TopToaster.show(context.getString(R.string.link_copied), iconRes = R.drawable.link)
                                     }
                                 }
                             },

@@ -25,11 +25,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.mochyy.mochymusic.LocalPlayerAwareWindowInsets
 import com.mochyy.mochymusic.LocalPlayerConnection
+import com.mochyy.mochymusic.R
 import com.mochyy.mochymusic.db.entities.Album
 import com.mochyy.mochymusic.ui.component.LocalMenuState
 import com.mochyy.mochymusic.ui.component.containerTransformSource
@@ -108,8 +111,8 @@ fun ArtistAlbumsScreen(
     ) {
         item(key = "header", contentType = "header") {
             ArtistSubpageHeader(
-                title = if (name.isNotBlank()) "$name albums" else "Albums",
-                subtitle = "${albums.size} in your library",
+                title = if (name.isNotBlank()) stringResource(R.string.artist_library_albums_of, name) else stringResource(R.string.artist_library_albums_fallback),
+                subtitle = pluralStringResource(R.plurals.artist_library_albums_subtitle, albums.size, albums.size),
                 isGrid = isGrid,
                 onGridChange = { isGrid = it },
             )
